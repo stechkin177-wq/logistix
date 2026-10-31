@@ -3,10 +3,12 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.models import Department, Membership, Role
+from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ADMIN_ROLE_NAME
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
@@ -123,11 +125,13 @@ class MembershipViewSet(
         ser = MembershipCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
+        ensure_can_grant(request.membership, data["role"].permissions)
         login = data["login"]
         field = "email" if "@" in login else "phone"
         company_id = get_current_company_id()
         with transaction.atomic():
             user = User.objects.filter(**{field: login}).first()
+            attached = user is not None
             if user is None:
                 password = data.get("password")
                 if not password:
@@ -135,7 +139,10 @@ class MembershipViewSet(
                         {"password": "Для нового пользователя нужен пароль"}
                     )
                 try:
-                    validate_password(password)
+                    validate_password(
+                        password,
+                        user=User(full_name=data["full_name"], **{field: login}),
+                    )
                 except DjangoValidationError as exc:
                     raise serializers.ValidationError({"password": list(exc.messages)}) from None
                 user = User.objects.create_user(
@@ -155,10 +162,16 @@ class MembershipViewSet(
                 raise serializers.ValidationError(
                     {"login": "Пользователь уже в компании"}
                 ) from None
-        out = MembershipSerializer(
-            Membership.objects.select_related("user", "role").get(pk=membership.pk)
-        )
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        membership = Membership.objects.select_related("user", "role").get(pk=membership.pk)
+        out = MembershipSerializer(membership).data
+        if attached:
+            # профиль чужого аккаунта (телефон, имя, второй логин) не раскрываем
+            out = {
+                key: out[key]
+                for key in ("id", "user_id", "role", "role_name", "department", "is_active")
+            }
+            out["login"] = login
+        return Response(out, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -178,6 +191,14 @@ class MembershipViewSet(
             ser = MembershipUpdateSerializer(data=request.data, partial=partial)
             ser.is_valid(raise_exception=True)
             data = ser.validated_data
+            actor = request.membership
+            if instance.pk == actor.pk:
+                if "role" in data and data["role"] != instance.role:
+                    raise PermissionDenied("Нельзя менять собственную роль")
+                if data.get("is_active") is False:
+                    raise PermissionDenied("Нельзя отключить самого себя")
+            if "role" in data and data["role"] != instance.role:
+                ensure_can_grant(actor, data["role"].permissions)
             was_admin = instance.is_active and _is_admin(instance)
             new_role = data.get("role", instance.role)
             new_active = data.get("is_active", instance.is_active)

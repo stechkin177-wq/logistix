@@ -1,10 +1,12 @@
 from django.db import transaction
+from django.db.models import ProtectedError
 from rest_framework import serializers, status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.models import Department, Role
+from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ALL_PERMISSIONS
 from apps.core.tenancy import get_current_company_id
 
@@ -49,20 +51,33 @@ class RoleViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        ensure_can_grant(request.membership, ser.validated_data["permissions"])
         # company берётся из контекста токена, is_system - всегда False
         ser.save(company_id=get_current_company_id(), is_system=False)
         return Response(ser.data, status=status.HTTP_201_CREATED)
 
+    def perform_update(self, serializer):
+        if "permissions" in serializer.validated_data:
+            ensure_can_grant(self.request.membership, serializer.validated_data["permissions"])
+        serializer.save()
+
     def destroy(self, request, *args, **kwargs):
+        conflict = Response(
+            {"detail": "Роль назначена сотрудникам, сначала переназначьте их"},
+            status=status.HTTP_409_CONFLICT,
+        )
+        try:
+            return self._destroy(conflict)
+        except ProtectedError:
+            return conflict
+
+    def _destroy(self, conflict):
         with transaction.atomic():
             role = self.get_object()
             if role.is_system:
                 raise ValidationError({"detail": "Системную роль удалять нельзя"})
             if role.memberships.exists():
-                return Response(
-                    {"detail": "Роль назначена сотрудникам, сначала переназначьте их"},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                return conflict
             role.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

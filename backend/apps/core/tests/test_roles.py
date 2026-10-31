@@ -367,6 +367,9 @@ def test_attach_existing_user_keeps_password(admin_client, company_a, company_b,
     )
     assert r.status_code == 201, r.data
     owner_b.refresh_from_db()
+    assert "phone" not in r.data and "full_name" not in r.data and "email" not in r.data
+    assert r.data["login"] == "owner-b@x.kz"
+    owner_b.refresh_from_db()
     assert owner_b.check_password(PASSWORD) and not owner_b.check_password("attacker-pass-9")
     assert Membership.objects.filter(user=owner_b, company=company_a).exists()
     assert User.objects.filter(email="owner-b@x.kz").count() == 1
@@ -450,11 +453,21 @@ def test_update_role_department_active(admin_client, company_a):
     assert m.department_id is None
 
 
-def test_last_admin_cannot_be_deactivated_or_demoted(admin_client, company_a, owner_a):
+def hr_client(api_client, company_a, extra=()):
+    """Сотрудник с правами Менеджера плюс users.view/update (+extra)."""
+    perms = sorted({*SYSTEM_ROLES["Менеджер"], "users.view", "users.update", *extra})
+    role = Role.all_objects.create(company=company_a, name="HR+", permissions=perms)
+    m = Membership.objects.create(user=make_user("hrp@x.kz"), company=company_a, role=role)
+    client_for(api_client, m.user, company_a)
+    return api_client, m
+
+
+def test_last_admin_cannot_be_deactivated_or_demoted(api_client, company_a, owner_a):
+    client, _ = hr_client(api_client, company_a)
     m = Membership.objects.get(user=owner_a, company=company_a)
-    r = admin_client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
+    r = client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
     assert r.status_code == 400
-    r = admin_client.patch(
+    r = client.patch(
         f"/api/users/{m.id}/", {"role": role_of(company_a, "Менеджер").id}, format="json"
     )
     assert r.status_code == 400
@@ -462,24 +475,176 @@ def test_last_admin_cannot_be_deactivated_or_demoted(admin_client, company_a, ow
     assert m.is_active and m.role.name == ADMIN
 
 
-def test_admin_can_be_demoted_when_another_active_admin_exists(admin_client, company_a, owner_a):
+def test_admin_can_be_demoted_when_another_active_admin_exists(api_client, company_a, owner_a):
     second = add_member(company_a, ADMIN, email="adm2@x.kz")
+    client_for(api_client, second.user, company_a)
+    m = Membership.objects.get(user=owner_a, company=company_a)
+    r = api_client.patch(
+        f"/api/users/{m.id}/", {"role": role_of(company_a, "Менеджер").id}, format="json"
+    )
+    assert r.status_code == 200
+    # теперь второй - последний; другой администратор отсутствует
+    client, _ = hr_client(api_client, company_a)
+    r = client.patch(f"/api/users/{second.id}/", {"is_active": False}, format="json")
+    assert r.status_code == 400
+
+
+def test_inactive_admin_does_not_count(api_client, company_a, owner_a):
+    add_member(company_a, ADMIN, email="adm3@x.kz", is_active=False)
+    client, _ = hr_client(api_client, company_a)
+    m = Membership.objects.get(user=owner_a, company=company_a)
+    r = client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
+    assert r.status_code == 400
+
+
+# --- эскалация привилегий ---
+
+
+def hr_only(api_client, company_a):
+    role = Role.all_objects.create(
+        company=company_a, name="HR", permissions=["users.view", "users.create", "users.update"]
+    )
+    m = Membership.objects.create(user=make_user("hr@x.kz"), company=company_a, role=role)
+    client_for(api_client, m.user, company_a)
+    return api_client, m
+
+
+def test_hr_cannot_assign_admin_or_bigger_role(api_client, company_a):
+    client, hr = hr_only(api_client, company_a)
+    victim = add_member(company_a, "Наблюдатель", email="v@x.kz")
+    admin_role = role_of(company_a, ADMIN)
+    for target_role in (admin_role, role_of(company_a, "Менеджер")):
+        r = client.patch(f"/api/users/{victim.id}/", {"role": target_role.id}, format="json")
+        assert r.status_code == 403
+        r = client.post(
+            "/api/users/",
+            {"login": "n@x.kz", "password": "very-long-pass-1", "role": target_role.id},
+            format="json",
+        )
+        assert r.status_code == 403
+    victim.refresh_from_db()
+    assert victim.role.name == "Наблюдатель"
+    assert not User.objects.filter(email="n@x.kz").exists()
+
+
+def test_hr_can_assign_role_within_own_permissions(api_client, company_a):
+    client, hr = hr_only(api_client, company_a)
+    small = Role.all_objects.create(company=company_a, name="Мелкая", permissions=["users.view"])
+    victim = add_member(company_a, "Наблюдатель", email="v@x.kz")
+    r = client.patch(f"/api/users/{victim.id}/", {"role": small.id}, format="json")
+    assert r.status_code == 200
+    r = client.post(
+        "/api/users/",
+        {"login": "ok@x.kz", "password": "very-long-pass-1", "role": small.id},
+        format="json",
+    )
+    assert r.status_code == 201
+
+
+def test_only_admin_can_assign_admin_role(api_client, company_a, admin_client):
+    admin_role = role_of(company_a, ADMIN)
+    victim = add_member(company_a, "Менеджер", email="v@x.kz")
+    r = admin_client.patch(f"/api/users/{victim.id}/", {"role": admin_role.id}, format="json")
+    assert r.status_code == 200
+    # Менеджер с правом users.update, но не Администратор
+    client, _ = hr_client(api_client, company_a, extra=ALL_PERMISSIONS[:0])
+    other = add_member(company_a, "Менеджер", email="o@x.kz")
+    r = client.patch(f"/api/users/{other.id}/", {"role": admin_role.id}, format="json")
+    assert r.status_code == 403
+    other.refresh_from_db()
+    assert other.role.name == "Менеджер"
+
+
+def test_cannot_change_own_role_or_deactivate_self(api_client, company_a):
+    client, hr = hr_only(api_client, company_a)
+    small = Role.all_objects.create(company=company_a, name="Мелкая", permissions=["users.view"])
+    r = client.patch(f"/api/users/{hr.id}/", {"role": small.id}, format="json")
+    assert r.status_code == 403
+    r = client.patch(f"/api/users/{hr.id}/", {"is_active": False}, format="json")
+    assert r.status_code == 403
+    hr.refresh_from_db()
+    assert hr.role.name == "HR" and hr.is_active
+    dep = Department.all_objects.create(company=company_a, name="Отдел")
+    r = client.patch(f"/api/users/{hr.id}/", {"department": dep.id}, format="json")
+    assert r.status_code == 200
+    hr.refresh_from_db()
+    assert hr.department_id == dep.id
+
+
+def test_admin_cannot_change_own_role_either(admin_client, company_a, owner_a):
     m = Membership.objects.get(user=owner_a, company=company_a)
     r = admin_client.patch(
         f"/api/users/{m.id}/", {"role": role_of(company_a, "Менеджер").id}, format="json"
     )
+    assert r.status_code == 403
+    assert (
+        admin_client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json").status_code
+        == 403
+    )
+
+
+def test_manager_with_roles_create_cannot_create_bigger_role(api_client, company_a):
+    role = Role.all_objects.create(
+        company=company_a,
+        name="Менеджер+",
+        permissions=[*SYSTEM_ROLES["Менеджер"], "roles.view", "roles.create", "roles.update"],
+    )
+    m = Membership.objects.create(user=make_user("mr@x.kz"), company=company_a, role=role)
+    client_for(api_client, m.user, company_a)
+    r = api_client.post(
+        "/api/roles/", {"name": "Босс", "permissions": ["orders.delete"]}, format="json"
+    )
+    assert r.status_code == 403
+    assert not Role.all_objects.filter(company=company_a, name="Босс").exists()
+    r = api_client.post(
+        "/api/roles/", {"name": "Свой", "permissions": ["orders.view"]}, format="json"
+    )
+    assert r.status_code == 201
+    # обновление: нельзя добавить чужие права ни в свою, ни в чужую роль
+    own_id = role.id
+    r = api_client.patch(
+        f"/api/roles/{own_id}/", {"permissions": ["roles.view", "users.delete"]}, format="json"
+    )
+    assert r.status_code == 403
+    r = api_client.patch(
+        f"/api/roles/{r_id(api_client, 'Свой')}/", {"permissions": ["users.delete"]}, format="json"
+    )
+    assert r.status_code == 403
+    role.refresh_from_db()
+    assert "users.delete" not in role.permissions
+    assert Role.all_objects.get(company=company_a, name="Свой").permissions == ["orders.view"]
+    # уменьшать и менять в пределах своих прав можно
+    r = api_client.patch(
+        f"/api/roles/{r_id(api_client, 'Свой')}/", {"permissions": ["orders.update"]}, format="json"
+    )
     assert r.status_code == 200
-    # теперь второй - последний
-    client_for(admin_client, second.user, company_a)
-    r = admin_client.patch(f"/api/users/{second.id}/", {"is_active": False}, format="json")
-    assert r.status_code == 400
 
 
-def test_inactive_admin_does_not_count(admin_client, company_a, owner_a):
-    add_member(company_a, ADMIN, email="adm3@x.kz", is_active=False)
-    m = Membership.objects.get(user=owner_a, company=company_a)
-    r = admin_client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
-    assert r.status_code == 400
+def r_id(client, name):
+    return next(x["id"] for x in client.get("/api/roles/").data if x["name"] == name)
+
+
+def test_admin_can_create_and_update_any_role(admin_client):
+    r = admin_client.post(
+        "/api/roles/", {"name": "Босс", "permissions": ALL_PERMISSIONS}, format="json"
+    )
+    assert r.status_code == 201
+    r = admin_client.patch(
+        f"/api/roles/{r.data['id']}/", {"permissions": ["finance.delete"]}, format="json"
+    )
+    assert r.status_code == 200
+
+
+def test_role_destroy_protected_error_is_409(admin_client, company_a, monkeypatch):
+    from django.db.models import ProtectedError
+
+    role = Role.all_objects.create(company=company_a, name="Гонка", permissions=[])
+
+    def boom(self, *a, **k):
+        raise ProtectedError("x", set())
+
+    monkeypatch.setattr(Role, "delete", boom)
+    assert admin_client.delete(f"/api/roles/{role.id}/").status_code == 409
 
 
 def test_users_api_permissions(api_client, company_a):
