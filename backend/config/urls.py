@@ -11,6 +11,7 @@ from apps.core.audit.api import AuditLogViewSet
 from apps.core.handbooks.api import HandbookValueViewSet, HandbookViewSet
 from apps.core.numbering.api import NumberingRuleViewSet
 from apps.core.views import health
+from apps.forwarding.api import CarrierViewSet, ClientViewSet
 
 router = SimpleRouter()
 router.register("roles", RoleViewSet, basename="role")
@@ -20,6 +21,8 @@ router.register("handbooks", HandbookViewSet, basename="handbook")
 router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
 router.register("handbook-values", HandbookValueViewSet, basename="handbook-value")
+router.register("clients", ClientViewSet, basename="client")
+router.register("carriers", CarrierViewSet, basename="carrier")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

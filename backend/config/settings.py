@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.core",
     "apps.billing",
+    "apps.forwarding",
 ]
 
 MIDDLEWARE = [

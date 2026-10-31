@@ -8,7 +8,7 @@ from apps.core.tenancy import NoTenantContext, get_current_company_id
 ACTIONS = ("create", "update", "delete", "restore", "login")
 SENSITIVE_FIELDS = {"password", "token", "refresh", "access", "secret"}
 MASK = "***"
-_SKIP_SNAPSHOT = {"id", "company_id"}
+_SKIP_SNAPSHOT = {"id", "company_id", "updated_at"}  # updated_at меняется при любом save: шум
 
 
 def _mask(changes: dict) -> dict:
@@ -27,12 +27,24 @@ def _mask(changes: dict) -> dict:
     return out
 
 
-def diff(before: dict, after: dict) -> dict:
-    """{поле: [было, стало]} только для изменившихся полей (отсутствующее = None)."""
+def masked_fields(obj) -> tuple:
+    """Поля модели, значения которых нельзя писать в аудит (атрибут класса audit_masked_fields)."""
+    return tuple(getattr(obj, "audit_masked_fields", ()))
+
+
+def diff(before: dict, after: dict, masked=()) -> dict:
+    """{поле: [было, стало]} только для изменившихся полей (отсутствующее = None).
+
+    Поля из masked при изменении попадают как "***" (сами значения не выдаются); пустое
+    значение ("" и None) для них равно отсутствующему.
+    """
     changed = {}
     for key in {*before, *after}:
         old, new = before.get(key), after.get(key)
-        if old != new:
+        if key in masked:
+            if (old or None) != (new or None):
+                changed[key] = MASK
+        elif old != new:
             changed[key] = [old, new]
     return dict(sorted(changed.items()))
 

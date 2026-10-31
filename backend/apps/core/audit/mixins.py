@@ -14,17 +14,26 @@ class AuditedMixin:
     def get_create_kwargs(self, serializer) -> dict:
         return {}
 
+    def audit_extra_changes(self, instance) -> dict:
+        """Дополнительные записи в changes (например, {"contacts": "changed"} для вложенных
+        данных, значения которых в аудит не попадают). Пусто = нет."""
+        return {}
+
     def audit_created(self, instance):
+        changes = services.diff({}, services.snapshot(instance), services.masked_fields(instance))
         services.log(
             "create",
             instance,
             self.request.user,
-            services.diff({}, services.snapshot(instance)),
+            {**changes, **self.audit_extra_changes(instance)},
             ip=services.client_ip(self.request),
         )
 
     def audit_updated(self, before: dict, instance):
-        changes = services.diff(before, services.snapshot(instance))
+        changes = services.diff(
+            before, services.snapshot(instance), services.masked_fields(instance)
+        )
+        changes.update(self.audit_extra_changes(instance))
         if not changes:  # пустая правка не пишется
             return
         services.log(
@@ -37,7 +46,11 @@ class AuditedMixin:
             "delete",
             copy_before_delete,
             self.request.user,
-            services.diff(services.snapshot(copy_before_delete), {}),
+            services.diff(
+                services.snapshot(copy_before_delete),
+                {},
+                services.masked_fields(copy_before_delete),
+            ),
             ip=services.client_ip(self.request),
         )
 
