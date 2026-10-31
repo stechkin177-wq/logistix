@@ -17,7 +17,7 @@ def _company():
 class Migration(migrations.Migration):
     initial = True
 
-    dependencies = [("core", "0001_initial")]
+    dependencies = [("core", "0003_handbooks")]
 
     operations = [
         migrations.CreateModel(
@@ -45,6 +45,22 @@ class Migration(migrations.Migration):
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("deleted_at", models.DateTimeField(blank=True, db_index=True, null=True)),
                 ("name", models.CharField(max_length=50)),
+            ],
+            options={"abstract": False},
+        ),
+        migrations.CreateModel(
+            name="HandbookUsage",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("company", _company()),
+                (
+                    "value",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="core.handbookvalue",
+                    ),
+                ),
             ],
             options={"abstract": False},
         ),

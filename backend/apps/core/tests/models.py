@@ -16,3 +16,9 @@ class SoftTenant(TenantModel, SoftDeleteModel):
 
 class SoftOnly(SoftDeleteModel):
     name = models.CharField(max_length=50)
+
+
+class HandbookUsage(TenantModel):
+    """Запись, использующая значение справочника (PROTECT) - для проверки запрета удаления."""
+
+    value = models.ForeignKey("core.HandbookValue", on_delete=models.PROTECT, related_name="+")
