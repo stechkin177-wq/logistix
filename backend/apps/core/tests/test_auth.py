@@ -1,10 +1,14 @@
+from datetime import timedelta
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.test import RequestFactory
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import AccessToken
 
+from apps.billing.models import Plan, Subscription
 from apps.core.middleware import TenantContextMiddleware
 from apps.core.models import Company, Membership, User
 from apps.core.tenancy import get_current_company_id, set_current_company
@@ -21,14 +25,26 @@ def _reset_tenant():
     set_current_company(None)
 
 
+def company_with_subscription(name):
+    """Компания с действующей подпиской (шлюз подписки требует её для входа)."""
+    company = Company.objects.create(name=name)
+    Subscription.objects.create(
+        company=company,
+        plan=Plan.objects.get(code="start"),
+        starts_at=timezone.now(),
+        ends_at=timezone.now() + timedelta(days=365),
+    )
+    return company
+
+
 @pytest.fixture
 def company_a():
-    return Company.objects.create(name="A")
+    return company_with_subscription("A")
 
 
 @pytest.fixture
 def company_b():
-    return Company.objects.create(name="B")
+    return company_with_subscription("B")
 
 
 @pytest.fixture

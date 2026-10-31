@@ -18,7 +18,7 @@ class CompanyJWTAuthentication(JWTAuthentication):
         if company_id is None:
             raise AuthenticationFailed("В токене нет компании")
         membership = (
-            Membership.objects.select_related("role")
+            Membership.objects.select_related("role", "company")
             .filter(user_id=user.pk, company_id=company_id, is_active=True)
             .first()
         )

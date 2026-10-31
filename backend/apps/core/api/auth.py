@@ -2,12 +2,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from apps.billing.models import Subscription
+from apps.billing.permissions import SubscriptionBlocked
+from apps.billing.services import company_status
 from apps.core.models import Membership
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
@@ -66,9 +69,13 @@ class LoginView(APIView):
         memberships = list(memberships_of(user).order_by("id"))
         if not memberships:
             raise PermissionDenied("Нет доступа ни к одной компании")
+        # токен выдаётся на первую компанию, чья подписка не заблокирована
+        usable = [m for m in memberships if company_status(m.company_id) != Subscription.BLOCKED]
+        if not usable:
+            raise SubscriptionBlocked()
         return Response(
             {
-                **issue_tokens(user, memberships[0].company_id),
+                **issue_tokens(user, usable[0].company_id),
                 "companies": companies_payload(memberships),
             }
         )
@@ -79,6 +86,9 @@ class SwitchCompanySerializer(serializers.Serializer):
 
 
 class SwitchCompanyView(APIView):
+    # без шлюза подписки: из заблокированной/readonly компании нужно уметь выйти в другую
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         ser = SwitchCompanySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -86,6 +96,8 @@ class SwitchCompanyView(APIView):
         memberships = list(memberships_of(request.user).order_by("id"))
         if company_id not in {m.company_id for m in memberships}:
             raise PermissionDenied("Нет доступа к этой компании")
+        if company_status(company_id) == Subscription.BLOCKED:
+            raise SubscriptionBlocked()
         return Response(
             {**issue_tokens(request.user, company_id), "companies": companies_payload(memberships)}
         )

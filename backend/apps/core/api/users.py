@@ -6,8 +6,9 @@ from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from apps.billing.services import check_limit
 from apps.core.api_permissions import SectionPermissionMixin
-from apps.core.models import Department, Membership, Role
+from apps.core.models import Company, Department, Membership, Role
 from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ADMIN_ROLE_NAME
 from apps.core.phone import normalize_phone
@@ -87,6 +88,13 @@ class MembershipUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+def enforce_user_limit(company_id):
+    """Лимит max_users по активным членствам; блокировка компании против гонок."""
+    company = Company.objects.select_for_update().get(pk=company_id)
+    active = Membership.objects.filter(company_id=company_id, is_active=True).count()
+    check_limit(company, "max_users", active)
+
+
 def _is_admin(membership):
     return (
         membership.role is not None
@@ -130,6 +138,7 @@ class MembershipViewSet(
         field = "email" if "@" in login else "phone"
         company_id = get_current_company_id()
         with transaction.atomic():
+            enforce_user_limit(company_id)
             user = User.objects.filter(**{field: login}).first()
             attached = user is not None
             if user is None:
@@ -199,6 +208,8 @@ class MembershipViewSet(
                     raise PermissionDenied("Нельзя отключить самого себя")
             if "role" in data and data["role"] != instance.role:
                 ensure_can_grant(actor, data["role"].permissions)
+            if data.get("is_active") is True and not instance.is_active:
+                enforce_user_limit(instance.company_id)
             was_admin = instance.is_active and _is_admin(instance)
             new_role = data.get("role", instance.role)
             new_active = data.get("is_active", instance.is_active)

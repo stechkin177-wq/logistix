@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission
 
+from apps.billing.permissions import enforce_subscription
+
 from .permissions_catalog import ALL_PERMISSIONS
 
 
@@ -18,6 +20,7 @@ def permission_required(code: str) -> type[BasePermission]:
             user = request.user
             if not (user and user.is_authenticated):
                 return False
+            enforce_subscription(request)  # шлюз подписки нельзя обойти переопределением прав
             membership = getattr(request, "membership", None)
             role = membership.role if membership is not None else None
             if role is None:
