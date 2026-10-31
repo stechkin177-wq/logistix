@@ -1,3 +1,5 @@
+from copy import copy
+
 from django.db import transaction
 from django.db.models import ProtectedError
 from rest_framework import serializers, status, viewsets
@@ -5,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.audit.mixins import AuditedMixin
 from apps.core.models import Department, Role
 from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ALL_PERMISSIONS
@@ -40,7 +43,7 @@ class RoleSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class RoleViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
+class RoleViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     permission_section = "roles"
     serializer_class = RoleSerializer
     pagination_class = None
@@ -54,12 +57,13 @@ class RoleViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
         ensure_can_grant(request.membership, ser.validated_data["permissions"])
         # company берётся из контекста токена, is_system - всегда False
         ser.save(company_id=get_current_company_id(), is_system=False)
+        self.audit_created(ser.instance)
         return Response(ser.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
         if "permissions" in serializer.validated_data:
             ensure_can_grant(self.request.membership, serializer.validated_data["permissions"])
-        serializer.save()
+        super().perform_update(serializer)
 
     def destroy(self, request, *args, **kwargs):
         conflict = Response(
@@ -78,7 +82,9 @@ class RoleViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
                 raise ValidationError({"detail": "Системную роль удалять нельзя"})
             if role.memberships.exists():
                 return conflict
+            snapshot = copy(role)
             role.delete()
+            self.audit_deleted(snapshot)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -98,7 +104,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         return value
 
 
-class DepartmentViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
+class DepartmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     permission_section = "users"
     serializer_class = DepartmentSerializer
     pagination_class = None
@@ -106,5 +112,5 @@ class DepartmentViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         return Department.objects.order_by("id")
 
-    def perform_create(self, serializer):
-        serializer.save(company_id=get_current_company_id())
+    def get_create_kwargs(self, serializer):
+        return {"company_id": get_current_company_id()}

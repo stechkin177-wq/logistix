@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.billing.models import Subscription
 from apps.billing.permissions import SubscriptionBlocked
 from apps.billing.services import company_status
+from apps.core import audit
 from apps.core.models import Membership
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
@@ -73,6 +74,7 @@ class LoginView(APIView):
         usable = [m for m in memberships if company_status(m.company_id) != Subscription.BLOCKED]
         if not usable:
             raise SubscriptionBlocked()
+        audit.log_login(request, user, usable[0].company_id)
         return Response(
             {
                 **issue_tokens(user, usable[0].company_id),
@@ -98,6 +100,7 @@ class SwitchCompanyView(APIView):
             raise PermissionDenied("Нет доступа к этой компании")
         if company_status(company_id) == Subscription.BLOCKED:
             raise SubscriptionBlocked()
+        audit.log_login(request, request.user, company_id, {"switched_to": company_id})
         return Response(
             {**issue_tokens(request.user, company_id), "companies": companies_payload(memberships)}
         )

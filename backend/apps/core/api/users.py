@@ -8,6 +8,8 @@ from rest_framework.response import Response
 
 from apps.billing.services import check_limit
 from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.audit import snapshot
+from apps.core.audit.mixins import AuditedMixin
 from apps.core.models import Company, Department, Membership, Role
 from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ADMIN_ROLE_NAME
@@ -104,6 +106,7 @@ def _is_admin(membership):
 
 
 class MembershipViewSet(
+    AuditedMixin,
     SectionPermissionMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -171,6 +174,7 @@ class MembershipViewSet(
                 raise serializers.ValidationError(
                     {"login": "Пользователь уже в компании"}
                 ) from None
+        self.audit_created(membership)
         membership = Membership.objects.select_related("user", "role").get(pk=membership.pk)
         out = MembershipSerializer(membership).data
         if attached:
@@ -222,6 +226,7 @@ class MembershipViewSet(
                 raise serializers.ValidationError(
                     {"detail": "Нельзя отключить или понизить последнего администратора"}
                 )
+            before = snapshot(instance)
             if "role" in data:
                 instance.role = data["role"]
             if "department" in data:
@@ -229,5 +234,6 @@ class MembershipViewSet(
             if "is_active" in data:
                 instance.is_active = data["is_active"]
             instance.save()
+            self.audit_updated(before, instance)
         instance = self.get_queryset().get(pk=instance.pk)
         return Response(MembershipSerializer(instance).data)

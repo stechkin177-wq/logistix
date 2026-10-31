@@ -7,5 +7,6 @@ class CoreConfig(AppConfig):
     label = "core"
 
     def ready(self):
+        from .audit import models as audit_models  # noqa: F401
         from .handbooks import models  # noqa: F401  (регистрация моделей справочников)
         from .numbering import models as numbering_models  # noqa: F401

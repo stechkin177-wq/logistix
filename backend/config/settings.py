@@ -110,6 +110,9 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(env("JWT_REFRESH_DAYS", "14"))),
 }
 
+# X-Forwarded-For учитывается (для IP в журнале аудита) только за доверенным прокси
+TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
+
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
 REDIS_URL = env("REDIS_URL", "redis://127.0.0.1:6379/0")

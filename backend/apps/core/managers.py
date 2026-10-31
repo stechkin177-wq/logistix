@@ -35,6 +35,13 @@ class SoftDeleteQuerySet(models.QuerySet):
     hard_delete.alters_data = True
     hard_delete.queryset_only = True
 
+    def restore(self):
+        """Снимает пометку удаления у записей queryset; возвращает их число."""
+        return self.update(deleted_at=None)
+
+    restore.alters_data = True
+    restore.queryset_only = True
+
 
 class BaseManager(models.Manager):
     """Без фильтров; выбирает SoftDeleteQuerySet, если у модели есть deleted_at."""

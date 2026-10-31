@@ -13,6 +13,9 @@ class PlainTenant(TenantModel):
 class SoftTenant(TenantModel, SoftDeleteModel):
     name = models.CharField(max_length=50)
 
+    def __str__(self):
+        return self.name
+
 
 class SoftOnly(SoftDeleteModel):
     name = models.CharField(max_length=50)

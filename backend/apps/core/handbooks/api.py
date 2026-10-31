@@ -1,3 +1,5 @@
+from copy import copy
+
 from django.db import IntegrityError, transaction
 from django.db.models import Count, ProtectedError
 from django.shortcuts import get_object_or_404
@@ -7,6 +9,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.core.api_permissions import SectionPermissionMixin, permission_required
+from apps.core.audit import snapshot
+from apps.core.audit.mixins import AuditedMixin
 from apps.core.tenancy import get_current_company_id
 
 from .models import Handbook, HandbookValue
@@ -66,7 +70,9 @@ class HandbookValueFilterMixin:
         return qs
 
 
-class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, viewsets.ModelViewSet):
+class HandbookValueViewSet(
+    AuditedMixin, HandbookValueFilterMixin, SectionPermissionMixin, viewsets.ModelViewSet
+):
     permission_section = "handbooks"
     serializer_class = HandbookValueSerializer
     pagination_class = None
@@ -97,7 +103,7 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
         except IntegrityError:
             return self._conflict()
 
-    def perform_create(self, serializer):
+    def get_create_kwargs(self, serializer):
         data = serializer.validated_data
         extra = {"company_id": get_current_company_id()}
         if "order" not in data:
@@ -108,7 +114,7 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
                 .first()
             )
             extra["order"] = (last or 0) + 1
-        serializer.save(**extra)
+        return extra
 
     @action(detail=True, methods=["post"], url_path="make-initial")
     def make_initial(self, request, pk=None):
@@ -117,8 +123,11 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
             raise ValidationError(
                 {"detail": "Начальное значение есть только у справочников статусов"}
             )
+        before = snapshot(value)
         try:
-            value = make_initial(value)
+            with transaction.atomic():
+                value = make_initial(value)
+                self.audit_updated(before, value)
         except IntegrityError:
             return self._conflict()
         return Response(self.get_serializer(value).data)
@@ -129,7 +138,9 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
                 value = self.get_object()
                 if value.is_initial and is_status_handbook(value.handbook):
                     raise ValidationError({"detail": "Начальный статус нельзя удалить"})
+                removed = copy(value)
                 value.delete()
+                self.audit_deleted(removed)
         except ProtectedError:
             return Response({"detail": IN_USE_MESSAGE}, status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)

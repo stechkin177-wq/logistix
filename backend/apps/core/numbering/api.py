@@ -3,6 +3,7 @@ from rest_framework import mixins, serializers, viewsets
 from rest_framework.response import Response
 
 from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.audit.mixins import AuditedMixin
 
 from .models import NumberingRule
 from .services import KINDS, MAX_DIGITS, peek_number, sample_numbers, validate_template
@@ -44,6 +45,7 @@ class NumberingRuleSerializer(serializers.ModelSerializer):
 
 
 class NumberingRuleViewSet(
+    AuditedMixin,
     SectionPermissionMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
