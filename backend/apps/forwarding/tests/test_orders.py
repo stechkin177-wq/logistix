@@ -1293,3 +1293,63 @@ def test_concurrent_order_creation_gets_distinct_gap_free_numbers(make_company):
     with tenant_context(company.id):
         assert Order.objects.count() == 8 and Consignment.objects.count() == 8
         assert next_number("order") == "ORD-2026-00009"
+
+
+# --- контакты клиента, на которые ссылаются заказы ---
+
+
+def _client_with_two_contacts(admin_client, company):
+    r = admin_client.post(
+        "/api/clients/",
+        {"name": "Старое имя", "contacts": [{"name": "Первый"}, {"name": "Второй"}]},
+        format="json",
+    )
+    assert r.status_code == 201, r.content
+    return r.data["id"], r.data["contacts"]
+
+
+@pytest.mark.parametrize("order_deleted", [False, True])
+def test_client_patch_dropping_contact_used_by_order_is_409(admin_client, company, order_deleted):
+    cid, contacts = _client_with_two_contacts(admin_client, company)
+    used, other = contacts[0]["id"], contacts[1]["id"]
+    d = new_order(admin_client, _client_obj(company, cid), contact=used)
+    if order_deleted:
+        assert admin_client.delete(f"{ORDERS}{d['id']}/").status_code == 204
+    audits_before = len(audit_rows(company))
+    r = admin_client.patch(
+        f"/api/clients/{cid}/",
+        {"name": "Новое имя", "contacts": [{"id": other, "name": "Второй изменён"}]},
+        format="json",
+    )
+    assert r.status_code == 409 and "Контакт используется в заказах" in r.data["detail"]
+    after = admin_client.get(f"/api/clients/{cid}/").data
+    assert after["name"] == "Старое имя"
+    assert [(c["id"], c["name"]) for c in after["contacts"]] == [
+        (used, "Первый"),
+        (other, "Второй"),
+    ]
+    assert len(audit_rows(company)) == audits_before  # неудачный запрос в аудит не попал
+
+
+def _client_obj(company, pk):
+    with tenant_context(company.id):
+        return Client.objects.get(pk=pk)
+
+
+def test_client_patch_dropping_unused_contact_still_works(admin_client, company):
+    cid, contacts = _client_with_two_contacts(admin_client, company)
+    new_order(admin_client, _client_obj(company, cid), contact=contacts[0]["id"])
+    r = admin_client.patch(
+        f"/api/clients/{cid}/", {"contacts": [{"id": contacts[0]["id"]}]}, format="json"
+    )
+    assert r.status_code == 200 and [c["id"] for c in r.data["contacts"]] == [contacts[0]["id"]]
+
+
+def test_create_audit_records_extra_managers(admin_client, company):
+    u1, _ = client_with_role(company, "Менеджер")
+    new_order(admin_client, make_client(company), extra_managers=[u1.pk])
+    row = audit_rows(company, action="create", object_type="forwarding.order")[0]
+    assert row.changes["extra_managers"] == [[], [u1.pk]]
+    new_order(admin_client, make_client(company))
+    row2 = audit_rows(company, action="create", object_type="forwarding.order")[1]
+    assert "extra_managers" not in row2.changes

@@ -1,8 +1,9 @@
 import re
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q
-from rest_framework import serializers, viewsets
+from django.db.models import Count, ProtectedError, Q
+from rest_framework import serializers, status, viewsets
+from rest_framework.exceptions import APIException
 
 from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin
@@ -16,6 +17,12 @@ from .models import Carrier, Client, Contact, Order
 BIN_RE = re.compile(r"[0-9]{10,12}")  # только ASCII: \d принимает и арабо-индийские цифры
 DUPLICATE_BIN_MESSAGE = "Контрагент с таким БИН/ИИН уже есть"
 CONTACT_FIELDS = ("name", "position", "phone", "email")
+
+
+class ContactInUse(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "Контакт используется в заказах и не может быть удалён"
+    default_code = "contact_in_use"
 
 
 class ContactSerializer(serializers.ModelSerializer):
@@ -132,7 +139,10 @@ class PartySerializer(serializers.ModelSerializer):
                 contact.save()
                 changed = True
         if current:
-            Contact.objects.filter(pk__in=list(current)).delete()
+            try:
+                Contact.objects.filter(pk__in=list(current)).delete()
+            except ProtectedError:  # контакт указан в заказе (в т.ч. удалённом): PATCH откатывается
+                raise ContactInUse() from None
             changed = True
         return changed
 

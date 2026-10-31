@@ -73,7 +73,10 @@ def create_order(data: dict, user, *, ip: str | None = None) -> Order:
     if extra_managers:
         order.extra_managers.set(extra_managers)
     OrderStatusHistory(order=order, from_status=None, to_status=status, user=user).save()
-    audit.log("create", order, user, audit.diff({}, audit.snapshot(order)), ip=ip)
+    changes = audit.diff({}, audit.snapshot(order))
+    if extra_managers:  # как при PATCH: [было, стало] списками id
+        changes["extra_managers"] = [[], sorted(u.pk for u in extra_managers)]
+    audit.log("create", order, user, changes, ip=ip)
     for item in consignments:
         consignment = create_consignment(order, item)
         audit.log("create", consignment, user, created_changes(consignment), ip=ip)

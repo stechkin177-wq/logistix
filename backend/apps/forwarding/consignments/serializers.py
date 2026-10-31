@@ -7,6 +7,10 @@ from . import services
 
 
 class PointSerializer(serializers.ModelSerializer):
+    """Точка груза. Ограничение: значения справочников (страна, способ) проверяются на
+    активность всегда, без допуска «неизменённого» отключённого значения (как у заказа):
+    вложенный сериализатор не знает текущего значения."""
+
     country = ActiveHandbookField("country", allow_null=True, required=False)
     method = ActiveHandbookField("loading_method", allow_null=True, required=False)
     country_name = serializers.SerializerMethodField()
