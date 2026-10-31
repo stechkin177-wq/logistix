@@ -24,12 +24,11 @@ class AuditedMixin:
         )
 
     def audit_updated(self, before: dict, instance):
+        changes = services.diff(before, services.snapshot(instance))
+        if not changes:  # пустая правка не пишется
+            return
         services.log(
-            "update",
-            instance,
-            self.request.user,
-            services.diff(before, services.snapshot(instance)),
-            ip=services.client_ip(self.request),
+            "update", instance, self.request.user, changes, ip=services.client_ip(self.request)
         )
 
     def audit_deleted(self, copy_before_delete):

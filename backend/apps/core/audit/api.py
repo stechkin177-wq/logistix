@@ -30,13 +30,17 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 def _parse_bound(name: str, raw: str, *, end: bool):
     """Дата (границы суток включительно) или дата-время ISO; иначе 400."""
-    day = parse_date(raw)  # сначала дата: parse_datetime принимает и "2026-05-01" (полночь)
-    if day is not None:
-        start = timezone.make_aware(datetime.combine(day, time.min))
-        return (start + timedelta(days=1), True) if end else (start, False)
-    dt = parse_datetime(raw)
+    bad = ValidationError({name: "Ожидается корректная дата или дата-время ISO 8601"})
+    try:
+        day = parse_date(raw)  # сначала дата: parse_datetime принимает и "2026-05-01" (полночь)
+        if day is not None:
+            start = timezone.make_aware(datetime.combine(day, time.min))
+            return (start + timedelta(days=1), True) if end else (start, False)
+        dt = parse_datetime(raw)
+    except (ValueError, OverflowError):
+        raise bad from None
     if dt is None:
-        raise ValidationError({name: "Ожидается дата или дата-время ISO 8601"})
+        raise bad
     return (timezone.make_aware(dt) if timezone.is_naive(dt) else dt), False
 
 

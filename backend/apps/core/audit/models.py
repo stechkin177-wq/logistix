@@ -45,6 +45,10 @@ class AuditLog(TenantModel):
     def save(self, *args, **kwargs):
         if not self._state.adding:
             raise AuditLogImmutable("Запись журнала аудита изменять нельзя")
+        if kwargs.get("force_update") or kwargs.get("update_fields") is not None:
+            raise AuditLogImmutable("Запись журнала аудита изменять нельзя")
+        # только INSERT: экземпляр с чужим/существующим pk не должен перезаписать строку
+        kwargs["force_insert"] = True
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

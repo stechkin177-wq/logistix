@@ -274,8 +274,10 @@ def test_make_initial_audited_as_update(admin_client, company):
         target = HandbookValue.objects.get(handbook__code="order_status", name="В работе")
     r = admin_client.post(f"/api/handbook-values/{target.pk}/make-initial/")
     assert r.status_code == 200
-    row = last_row(company, action="update", object_type="core.handbookvalue")
-    assert row.object_id == str(target.pk) and row.changes == {"is_initial": [False, True]}
+    row = last_row(
+        company, action="update", object_type="core.handbookvalue", object_id=str(target.pk)
+    )
+    assert row.changes == {"is_initial": [False, True]}
 
 
 def test_numbering_patch_audited(admin_client, company):
@@ -605,3 +607,64 @@ def test_queryset_restore(company):
         assert sorted(SoftTenant.objects.values_list("name", flat=True)) == ["a", "b"]
         assert SoftTenant.trash.count() == 1
         assert SoftTenant.trash.filter(name="none").restore() == 0
+
+
+# --- fix round 1 ---
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "created_to=2026-13-45",
+        "created_from=2026-02-30T10:00:00",
+        "created_to=9999-12-31",
+        "created_from=garbage",
+    ],
+)
+def test_audit_bad_date_filters_are_400(admin_client, query):
+    r = admin_client.get(f"/api/audit/?{query}")
+    assert r.status_code == 400
+    assert query.split("=")[0] in r.json()
+
+
+def test_auditlog_cannot_be_overwritten_by_pk(company, admin_user):
+    from django.db import IntegrityError, transaction
+
+    with tenant_context(company.id):
+        row = audit.log("create", admin_user, admin_user, {"a": 1})
+        clone = AuditLog(
+            pk=row.pk, company_id=company.id, action="update", object_type="x", object_id="1"
+        )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            clone.save()
+        with pytest.raises(AuditLogImmutable):
+            AuditLog(company_id=company.id, action="create", object_type="x", object_id="1").save(
+                update_fields=["action"]
+            )
+        stored = AuditLog.objects.get(pk=row.pk)
+    assert (stored.action, stored.object_type, stored.changes) == ("create", "core.user", {"a": 1})
+
+
+def test_make_initial_logs_previous_initial_losing_flag(admin_client, company):
+    with tenant_context(company.id):
+        old = HandbookValue.objects.get(handbook__code="order_status", is_initial=True)
+        target = HandbookValue.objects.get(handbook__code="order_status", name="В работе")
+    assert admin_client.post(f"/api/handbook-values/{target.pk}/make-initial/").status_code == 200
+    lost = last_row(company, action="update", object_id=str(old.pk))
+    assert lost.object_type == "core.handbookvalue"
+    assert lost.changes == {"is_initial": [True, False]}
+
+
+def test_noop_patch_writes_no_update_row(admin_client, company):
+    did = admin_client.post("/api/departments/", {"name": "Same"}, format="json").json()["id"]
+    admin_client.patch(f"/api/departments/{did}/", {"name": "Same"}, format="json")
+    assert rows(company, action="update", object_type="core.department") == []
+
+
+def test_masking_depth_limit_is_one_nested_level(company, admin_user):
+    with tenant_context(company.id):
+        row = audit.log(
+            "update", admin_user, admin_user, {"a": {"token": "x", "b": {"token": "deep"}}}
+        )
+    assert row.changes["a"]["token"] == "***"
+    assert row.changes["a"]["b"] == {"token": "deep"}  # глубже одного уровня не маскируется

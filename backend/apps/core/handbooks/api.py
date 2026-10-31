@@ -126,8 +126,17 @@ class HandbookValueViewSet(
         before = snapshot(value)
         try:
             with transaction.atomic():
+                previous = (
+                    HandbookValue.objects.filter(handbook=value.handbook, is_initial=True)
+                    .exclude(pk=value.pk)
+                    .first()
+                )
+                previous_before = snapshot(previous) if previous else None
                 value = make_initial(value)
                 self.audit_updated(before, value)
+                if previous is not None:
+                    previous.is_initial = False
+                    self.audit_updated(previous_before, previous)
         except IntegrityError:
             return self._conflict()
         return Response(self.get_serializer(value).data)

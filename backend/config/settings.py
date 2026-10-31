@@ -110,7 +110,9 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(env("JWT_REFRESH_DAYS", "14"))),
 }
 
-# X-Forwarded-For учитывается (для IP в журнале аудита) только за доверенным прокси
+# X-Forwarded-For учитывается (для IP в журнале аудита) только за доверенным прокси.
+# Прокси ОБЯЗАН перезаписывать (а не дополнять) X-Forwarded-For: берётся первый адрес,
+# иначе клиент подделает IP своим заголовком.
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
