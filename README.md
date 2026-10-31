@@ -29,6 +29,29 @@ cd backend
 cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check .
 ```
 
+## База данных и RLS
+Изоляция компаний двухуровневая: менеджер `TenantModel.objects` фильтрует по текущей
+компании, а PostgreSQL Row-Level Security (политика `tenant_isolation`,
+`apps/core/rls.py`) не показывает и не даёт записать строки другой компании, даже при
+прямом SQL. Текущая компания передаётся в БД параметром сессии `app.company_id`;
+без него таблицы компаний пусты.
+
+- `DATABASE_URL` - единственная настройка подключения.
+- Миграции можно выполнять ролью-владельцем таблиц (`logistix`).
+- Приложение подключается ролью `NOSUPERUSER NOBYPASSRLS` (`logistix_app`, создаётся
+  `deploy/db-init.sql` в docker-compose и CI). `FORCE ROW LEVEL SECURITY` подчиняет
+  политике и владельца, но суперпользователь и роль с `BYPASSRLS` обходят RLS всегда:
+  в продакшене приложение под суперпользователем не запускать.
+- `python manage.py check_rls` завершается с ошибкой, если роль подключения -
+  суперпользователь или `BYPASSRLS`, либо у таблицы компании нет RLS. Запускать при
+  деплое с продакшен-`DATABASE_URL`.
+- В разработке и тестах Django подключается суперпользователем `logistix` (RLS не
+  действует); тесты RLS переключаются на `logistix_app` через `SET LOCAL ROLE`.
+- Новая модель `TenantModel` обязана получить в своей миграции
+  `apps.core.rls.EnableRLS("app.Model")`, иначе упадёт тест
+  `test_every_tenant_table_has_rls`. Таблицы `Company`, `User`, `Membership`,
+  `Subscription`, `Plan` без RLS: они читаются до выбора компании (вход, аутентификация).
+
 ## Переменные окружения
 См. `.env.example`: `DJANGO_SECRET_KEY` (обязателен при `DJANGO_DEBUG=false`),
 `DJANGO_DEBUG` (по умолчанию false), `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`,

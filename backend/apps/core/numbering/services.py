@@ -186,6 +186,6 @@ def sample_numbers() -> dict[str, str]:
 @transaction.atomic
 def seed_numbering(company: Company) -> None:
     """Создаёт правила по умолчанию. Идемпотентно: существующие правила не меняются."""
-    with tenant_context(None):
+    with tenant_context(company.id):  # RLS: WITH CHECK по app.company_id
         for kind, spec in DEFAULTS.items():
             NumberingRule.all_objects.get_or_create(company=company, kind=kind, defaults=spec)

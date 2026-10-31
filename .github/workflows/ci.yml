@@ -32,7 +32,16 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - run: pip install -e ".[dev]"
       - run: ruff check .
+      - name: Роль приложения logistix_app (как в docker-compose)
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f ../deploy/db-init.sql
       - run: pytest -q
+      - name: RLS под ролью приложения
+        env:
+          DJANGO_DEBUG: "true"
+        run: |
+          python manage.py migrate --noinput
+          DATABASE_URL=postgres://logistix_app:logistix_app@127.0.0.1:5432/logistix \
+            python manage.py check_rls
 
   web:
     runs-on: ubuntu-latest

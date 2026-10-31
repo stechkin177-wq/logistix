@@ -2,7 +2,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import Membership
-from .tenancy import set_current_company
+from .tenancy import set_current_company, tenant_context
 
 
 class CompanyJWTAuthentication(JWTAuthentication):
@@ -17,11 +17,14 @@ class CompanyJWTAuthentication(JWTAuthentication):
         company_id = token.get("company_id")
         if company_id is None:
             raise AuthenticationFailed("В токене нет компании")
-        membership = (
-            Membership.objects.select_related("role", "company")
-            .filter(user_id=user.pk, company_id=company_id, is_active=True)
-            .first()
-        )
+        # Membership без RLS, но присоединённая роль (Role - TenantModel) под RLS видна
+        # только в контексте её компании; контекст запроса ставится лишь после проверки.
+        with tenant_context(company_id):
+            membership = (
+                Membership.objects.select_related("role", "company")
+                .filter(user_id=user.pk, company_id=company_id, is_active=True)
+                .first()
+            )
         if membership is None:
             raise AuthenticationFailed("Доступ к компании закрыт")
         request.membership = membership

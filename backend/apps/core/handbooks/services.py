@@ -12,7 +12,7 @@ from .models import STATUS_HANDBOOK_CODES, Handbook, HandbookValue
 def seed_handbooks(company: Company) -> None:
     """Создаёт справочники по умолчанию. Идемпотентно: значения заполняются только у
     вновь созданного справочника, поэтому правки и удаления пользователя не затираются."""
-    with tenant_context(None):
+    with tenant_context(company.id):  # RLS: WITH CHECK по app.company_id
         for code, spec in DEFAULTS.items():
             handbook, created = Handbook.all_objects.get_or_create(
                 company=company, code=code, defaults={"name": spec["name"], "group": spec["group"]}

@@ -20,13 +20,14 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     """Компания + системные роли + юрлицо по умолчанию + членство владельца (Администратор).
 
     Контекст компании после возврата не остаётся: записи создаются с явным company_id
-    при сброшенном контексте, внешний контекст восстанавливается.
+    во временном контексте новой компании (иначе их не пропустит RLS), внешний контекст
+    восстанавливается.
     """
     modules = list(modules)
     if not modules or not set(modules) <= VALID_MODULES:
         raise ValueError(f"modules должен быть непустым подмножеством {sorted(VALID_MODULES)}")
     company = Company.objects.create(name=name, modules=modules)
-    with tenant_context(None):
+    with tenant_context(company.id):  # RLS: строки пишутся в контексте новой компании
         roles = {
             role_name: Role.all_objects.create(
                 company=company, name=role_name, is_system=True, permissions=list(perms)
