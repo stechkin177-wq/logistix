@@ -7,6 +7,7 @@ from apps.billing.models import Plan, Subscription
 
 from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
+from .numbering.services import seed_numbering
 from .permissions_catalog import ADMIN_ROLE_NAME, SYSTEM_ROLES
 from .tenancy import tenant_context
 
@@ -37,6 +38,7 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
         user=owner, company=company, role=roles[ADMIN_ROLE_NAME], is_active=True
     )
     seed_handbooks(company)
+    seed_numbering(company)
     now = timezone.now()
     Subscription.objects.create(
         company=company,

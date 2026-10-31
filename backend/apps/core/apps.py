@@ -8,3 +8,4 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         from .handbooks import models  # noqa: F401  (регистрация моделей справочников)
+        from .numbering import models as numbering_models  # noqa: F401
