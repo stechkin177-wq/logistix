@@ -21,8 +21,9 @@ DEFAULTS: dict[str, dict] = {
             {"name": "На погрузке"},
             {"name": "В пути"},
             {"name": "На выгрузке"},
-            {"name": "Завершён", "is_final": True},
-            {"name": "Отменён", "is_final": True},
+            # code нужен бизнес-логике заказов: completed_at ставится по коду, не по названию
+            {"name": "Завершён", "code": "completed", "is_final": True},
+            {"name": "Отменён", "code": "cancelled", "is_final": True},
         ],
     },
     "consignment_status": {

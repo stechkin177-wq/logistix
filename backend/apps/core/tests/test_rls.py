@@ -291,7 +291,7 @@ def test_savepoint_rollback_does_not_leave_cache_out_of_sync(db):
         assert guc() == "1"
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_transaction_rollback_does_not_leave_cache_out_of_sync():
     with tenant_context(1):
         assert guc() == "1"  # автокоммит: значение закреплено в сессии
@@ -306,7 +306,7 @@ def test_transaction_rollback_does_not_leave_cache_out_of_sync():
         assert guc() == "1"
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_reconnect_resyncs():
     with tenant_context(7):
         assert guc() == "7"

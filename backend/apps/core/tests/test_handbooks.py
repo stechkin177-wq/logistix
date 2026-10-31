@@ -65,6 +65,11 @@ def test_order_status_seeded_in_order(company):
     assert [v.order for v in vals] == [1, 2, 3, 4, 5, 6, 7]
     assert [v.name for v in vals if v.is_initial] == ["Новый"]
     assert [v.name for v in vals if v.is_final] == ["Завершён", "Отменён"]
+    # коды для бизнес-логики заказов (completed_at ставится по коду, а не по названию)
+    assert {v.name: v.code for v in vals if v.code} == {
+        "Завершён": "completed",
+        "Отменён": "cancelled",
+    }
 
 
 @pytest.mark.parametrize("code", STATUS_CODES)

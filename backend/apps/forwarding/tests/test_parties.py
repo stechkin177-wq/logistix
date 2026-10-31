@@ -65,11 +65,11 @@ def test_create_with_bin(admin_client, company, resource):
     assert r.status_code == 201, r.content
     d = r.data
     assert d["bin_iin"] == BIN and d["type_name"] == "ИП" and d["status"] == "active"
-    assert d["contacts"] == [] and "created_at" in d and "orders_count" not in d
+    assert d["contacts"] == [] and "created_at" in d
     if resource == "clients":
-        assert d["credit_limit"] == "0.00"
+        assert d["credit_limit"] == "0.00" and d["orders_count"] == 0
     else:
-        assert d["rating"] is None
+        assert d["rating"] is None and "orders_count" not in d
     assert admin_client.get(f"{URLS[resource]}{d['id']}/").data["name"] == "ТОО Алма"
 
 

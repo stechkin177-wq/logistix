@@ -126,3 +126,8 @@ class Contact(TenantModel):
     def save(self, *args, **kwargs):
         self.normalize()
         super().save(*args, **kwargs)
+
+
+# Заказы и грузы живут в подпакетах; импорт нужен, чтобы Django нашёл модели приложения.
+from .consignments.models import Consignment, ConsignmentPoint  # noqa: E402,F401
+from .orders.models import Order, OrderStatusHistory  # noqa: E402,F401

@@ -69,6 +69,9 @@ class TrashRestoreView(APIView):
             raise Http404 from None
         if obj is None:
             raise Http404
+        blocker = getattr(obj, "restore_blocker", None)  # модель может запретить восстановление
+        if blocker is not None and (reason := blocker()):
+            return Response({"detail": reason}, status=status.HTTP_409_CONFLICT)
         try:
             with transaction.atomic():
                 obj.restore()

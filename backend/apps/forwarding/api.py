@@ -1,6 +1,7 @@
 import re
 
 from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from rest_framework import serializers, viewsets
 
 from apps.billing.permissions import ModuleRequired
@@ -10,7 +11,7 @@ from apps.core.handbooks.models import HandbookValue
 from apps.core.pagination import StandardPagination
 
 from .filters import filter_parties
-from .models import Carrier, Client, Contact
+from .models import Carrier, Client, Contact, Order
 
 BIN_RE = re.compile(r"[0-9]{10,12}")  # только ASCII: \d принимает и арабо-индийские цифры
 DUPLICATE_BIN_MESSAGE = "Контрагент с таким БИН/ИИН уже есть"
@@ -139,6 +140,12 @@ class PartySerializer(serializers.ModelSerializer):
 class ClientSerializer(PartySerializer):
     parent_field = "client"
     type = HandbookTypeField("client_type", allow_null=True, required=False)
+    orders_count = serializers.SerializerMethodField()
+
+    def get_orders_count(self, obj):
+        """Не удалённые заказы клиента: аннотация списка/деталей, иначе (после создания) запрос."""
+        count = getattr(obj, "orders_count", None)
+        return Order.objects.filter(client=obj).count() if count is None else count
 
     class Meta:
         model = Client
@@ -150,6 +157,7 @@ class ClientSerializer(PartySerializer):
             "type_name",
             "status",
             "credit_limit",
+            "orders_count",
             "notes",
             "contacts",
             "created_at",
@@ -221,6 +229,13 @@ class ClientViewSet(PartyViewSet):
     serializer_class = ClientSerializer
     model = Client
     ordering_fields = ("name", "created_at")
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .annotate(orders_count=Count("orders", filter=Q(orders__deleted_at__isnull=True)))
+        )
 
 
 class CarrierViewSet(PartyViewSet):
