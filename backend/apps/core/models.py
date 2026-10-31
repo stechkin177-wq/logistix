@@ -1,43 +1,82 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from .managers import AllObjectsManager, SoftDeleteManager, TenantManager
+from .phone import normalize_phone
 from .tenancy import NoTenantContext, TenantMismatch, get_current_company_id
 
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
-    def create_user(self, email, password=None, **extra):
-        user = self.model(email=self.normalize_email(email), **extra)
+    def create_user(self, email=None, password=None, phone=None, **extra):
+        user = self.model(email=email, phone=phone, **extra)
+        user.normalize_contacts()
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra):
+    def create_superuser(self, email=None, password=None, phone=None, **extra):
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
-        return self.create_user(email, password, **extra)
+        extra.setdefault("is_platform_admin", True)
+        return self.create_user(email, password, phone, **extra)
+
+    def get_by_natural_key(self, username):
+        return self.get(email=username.strip().lower())
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Минимальная модель для запуска проекта; будет переработана в Task 3."""
+    """Пользователь платформы. Нужен хотя бы один из email/phone (CHECK в БД).
 
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=32, blank=True)
+    email хранится в нижнем регистре, phone - в формате +7XXXXXXXXXX; пустые значения
+    сохраняются как NULL, чтобы unique не конфликтовал.
+    """
+
+    email = models.EmailField(unique=True, null=True, blank=True)
+    phone = models.CharField(max_length=32, unique=True, null=True, blank=True)
     full_name = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_platform_admin = models.BooleanField(default=False)
 
     objects = UserManager()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(email__isnull=False) | Q(phone__isnull=False),
+                name="user_email_or_phone",
+            ),
+        ]
+
     def __str__(self):
-        return self.email
+        return self.email or self.phone or f"user#{self.pk}"
+
+    def normalize_contacts(self):
+        self.email = (self.email or "").strip().lower() or None
+        phone = (self.phone or "").strip()
+        self.phone = normalize_phone(phone) if phone else None
+
+    def clean(self):
+        super().clean()
+        try:
+            self.normalize_contacts()
+        except ValueError as exc:
+            raise ValidationError({"phone": str(exc)}) from None
+        if not self.email and not self.phone:
+            raise ValidationError("Нужно указать email или телефон")
+
+    def save(self, *args, **kwargs):
+        self.normalize_contacts()
+        super().save(*args, **kwargs)
 
 
 def default_modules():
@@ -110,3 +149,26 @@ class LegalEntity(TenantModel):
 
     def __str__(self):
         return self.name
+
+
+class Membership(models.Model):
+    """Членство пользователя в компании.
+
+    В Task 3 только user/company/is_active/created_at. Task 4 добавит FK
+    department (null) и role миграцией, когда появятся Role/Department.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="memberships")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "company"], name="membership_user_company_uniq"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} @ {self.company}"
