@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, ProtectedError
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, serializers, status, viewsets
@@ -12,6 +12,7 @@ from apps.core.tenancy import get_current_company_id
 from .models import Handbook, HandbookValue
 from .services import is_status_handbook, make_initial, validate_value_change
 
+CONFLICT_MESSAGE = "Конфликт данных: значение с таким кодом или начальный статус уже есть"
 IN_USE_MESSAGE = "Значение используется в записях и не может быть удалено; деактивируйте его"
 
 
@@ -24,12 +25,18 @@ class HandbookValueSerializer(serializers.ModelSerializer):
         model = HandbookValue
         fields = ["id", "handbook", "name", "code", "order", "is_initial", "is_final", "is_active"]
         read_only_fields = ["id"]
+        extra_kwargs = {"code": {"trim_whitespace": False}}
 
     def validate_name(self, value):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Название не может быть пустым")
         return value
+
+    def validate_code(self, value):
+        if value and not value.strip():
+            raise serializers.ValidationError("Код не может состоять из пробелов")
+        return value.strip()
 
     def validate(self, attrs):
         instance = self.instance
@@ -73,6 +80,23 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
         qs = HandbookValue.objects.select_related("handbook").order_by("handbook_id", "order", "id")
         return self.filter_values(qs, self.request.query_params)
 
+    def _conflict(self):
+        return Response({"detail": CONFLICT_MESSAGE}, status=status.HTTP_409_CONFLICT)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            return self._conflict()
+
+    def update(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                return super().update(request, *args, **kwargs)
+        except IntegrityError:
+            return self._conflict()
+
     def perform_create(self, serializer):
         data = serializer.validated_data
         extra = {"company_id": get_current_company_id()}
@@ -93,7 +117,10 @@ class HandbookValueViewSet(HandbookValueFilterMixin, SectionPermissionMixin, vie
             raise ValidationError(
                 {"detail": "Начальное значение есть только у справочников статусов"}
             )
-        value = make_initial(value)
+        try:
+            value = make_initial(value)
+        except IntegrityError:
+            return self._conflict()
         return Response(self.get_serializer(value).data)
 
     def destroy(self, request, *args, **kwargs):

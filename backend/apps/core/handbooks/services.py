@@ -43,6 +43,10 @@ def validate_value_change(handbook: Handbook, instance, data: dict) -> None:
     data - итоговые значения полей (после слияния с instance). Бросает ValidationError.
     """
     if not is_status_handbook(handbook):
+        if data.get("is_initial"):
+            raise ValidationError(
+                {"is_initial": "Начальное значение задаётся только в справочниках статусов"}
+            )
         return
     is_initial = data.get("is_initial", instance.is_initial if instance else False)
     is_active = data.get("is_active", instance.is_active if instance else True)

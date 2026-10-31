@@ -377,3 +377,84 @@ def test_readonly_subscription_blocks_writes(admin_client, company):
         "/api/handbook-values/", {"handbook": "packaging", "name": "x"}, format="json"
     )
     assert r.status_code == 403 and r.json()["code"] == "subscription_readonly"
+
+
+# --- fix round 1 ---
+
+
+def test_non_status_handbook_rejects_is_initial(admin_client, company):
+    vid = value_id(company, "packaging", "Бочка")
+    r = admin_client.patch(f"/api/handbook-values/{vid}/", {"is_initial": True}, format="json")
+    assert r.status_code == 400 and "статус" in str(r.json()).lower()
+    r = admin_client.post(
+        "/api/handbook-values/",
+        {"handbook": "packaging", "name": "x", "is_initial": True},
+        format="json",
+    )
+    assert r.status_code == 400
+    assert not any(v.is_initial for v in values_of(company, "packaging"))
+
+
+def test_integrity_error_maps_to_409(admin_client, company, monkeypatch):
+    from apps.core.handbooks import api
+
+    def boom(*a, **kw):
+        raise IntegrityError("simulated")
+
+    vid = value_id(company, "order_status", "В работе")
+    monkeypatch.setattr(api.HandbookValueSerializer, "save", boom)
+    r = admin_client.post(
+        "/api/handbook-values/", {"handbook": "packaging", "name": "x"}, format="json"
+    )
+    assert r.status_code == 409
+    r = admin_client.patch(f"/api/handbook-values/{vid}/", {"name": "y"}, format="json")
+    assert r.status_code == 409
+    monkeypatch.setattr(api, "make_initial", boom)
+    assert admin_client.post(f"/api/handbook-values/{vid}/make-initial/").status_code == 409
+
+
+def test_code_is_stripped_and_blank_code_rejected(admin_client, company):
+    r = admin_client.post(
+        "/api/handbook-values/",
+        {"handbook": "currency", "name": "Юань", "code": " CNY "},
+        format="json",
+    )
+    assert r.status_code == 201 and r.json()["code"] == "CNY"
+    r = admin_client.post(
+        "/api/handbook-values/",
+        {"handbook": "currency", "name": "Иена", "code": "   "},
+        format="json",
+    )
+    assert r.status_code == 400
+
+
+def test_handbooks_endpoints_isolated(make_company):
+    a, _, client_a = make_company("A")
+    b, _, client_b = make_company("B")
+    Handbook.all_objects.create(company=a, code="only_a", name="Только A")
+    assert len(client_a.get("/api/handbooks/").json()) == 12
+    assert len(client_b.get("/api/handbooks/").json()) == 11
+    ids_a = set(Handbook.all_objects.filter(company=a).values_list("id", flat=True))
+    ids_b = set(Handbook.all_objects.filter(company=b).values_list("id", flat=True))
+    assert len(ids_b) == 11 and not ids_a & ids_b
+    assert client_a.get("/api/handbooks/?code=only_a").status_code == 200
+    assert client_b.get("/api/handbooks/?code=only_a").status_code == 404
+    assert client_b.get("/api/handbooks/only_a/").status_code == 404
+
+
+def test_make_initial_isolated(make_company):
+    a, _, _ = make_company("A")
+    _, _, client_b = make_company("B")
+    vid = value_id(a, "order_status", "В работе")
+    assert client_b.post(f"/api/handbook-values/{vid}/make-initial/").status_code == 404
+    assert [v.name for v in values_of(a, "order_status") if v.is_initial] == ["Новый"]
+
+
+def test_readonly_blocks_delete_and_make_initial(admin_client, company):
+    Subscription.objects.filter(company=company).update(ends_at=timezone.now() - timedelta(days=20))
+    vid = value_id(company, "order_status", "В работе")
+    for r in (
+        admin_client.delete(f"/api/handbook-values/{vid}/"),
+        admin_client.post(f"/api/handbook-values/{vid}/make-initial/"),
+    ):
+        assert r.status_code == 403 and r.json()["code"] == "subscription_readonly"
