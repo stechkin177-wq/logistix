@@ -1,8 +1,16 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import SimpleRouter
 
 from apps.core.api.auth import LoginView, MeView, RefreshView, SwitchCompanyView
+from apps.core.api.roles import DepartmentViewSet, RoleViewSet
+from apps.core.api.users import MembershipViewSet
 from apps.core.views import health
+
+router = SimpleRouter()
+router.register("roles", RoleViewSet, basename="role")
+router.register("departments", DepartmentViewSet, basename="department")
+router.register("users", MembershipViewSet, basename="user")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -11,4 +19,5 @@ urlpatterns = [
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/switch-company/", SwitchCompanyView.as_view()),
     path("api/auth/me/", MeView.as_view()),
+    path("api/", include(router.urls)),
 ]

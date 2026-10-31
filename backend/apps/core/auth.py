@@ -17,12 +17,13 @@ class CompanyJWTAuthentication(JWTAuthentication):
         company_id = token.get("company_id")
         if company_id is None:
             raise AuthenticationFailed("В токене нет компании")
-        active = Membership.objects.filter(
-            user_id=user.pk,
-            company_id=company_id,
-            is_active=True,
-        ).exists()
-        if not active:
+        membership = (
+            Membership.objects.select_related("role")
+            .filter(user_id=user.pk, company_id=company_id, is_active=True)
+            .first()
+        )
+        if membership is None:
             raise AuthenticationFailed("Доступ к компании закрыт")
+        request.membership = membership
         set_current_company(company_id)
         return user, token

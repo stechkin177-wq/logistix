@@ -151,15 +151,45 @@ class LegalEntity(TenantModel):
         return self.name
 
 
-class Membership(models.Model):
-    """Членство пользователя в компании.
+class Department(TenantModel):
+    name = models.CharField(max_length=255)
 
-    В Task 3 только user/company/is_active/created_at. Task 4 добавит FK
-    department (null) и role миграцией, когда появятся Role/Department.
-    """
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="department_company_name_uniq"
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Role(TenantModel):
+    name = models.CharField(max_length=255)
+    is_system = models.BooleanField(default=False)
+    permissions = models.JSONField(default=list)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="role_company_name_uniq"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Membership(models.Model):
+    """Членство пользователя в компании. Роль null (старые записи) = нет прав."""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="memberships")
+    department = models.ForeignKey(
+        Department, null=True, blank=True, on_delete=models.SET_NULL, related_name="memberships"
+    )
+    role = models.ForeignKey(
+        Role, null=True, blank=True, on_delete=models.PROTECT, related_name="memberships"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
