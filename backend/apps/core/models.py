@@ -3,8 +3,8 @@ from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
-from .managers import ScopedManager
-from .tenancy import NoTenantContext, get_current_company_id
+from .managers import AllObjectsManager, SoftDeleteManager, TenantManager
+from .tenancy import NoTenantContext, TenantMismatch, get_current_company_id
 
 
 class UserManager(BaseUserManager):
@@ -59,27 +59,31 @@ class Company(models.Model):
 class TenantModel(models.Model):
     company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="+")
 
-    objects = ScopedManager()
-    all_objects = models.Manager()
+    objects = TenantManager()
+    all_objects = AllObjectsManager()
 
     class Meta:
         abstract = True
 
     def save(self, *args, **kwargs):
+        current = get_current_company_id()
         if self.company_id is None:
-            company_id = get_current_company_id()
-            if company_id is None:
+            if current is None:
                 raise NoTenantContext(f"Нет текущей компании для сохранения {type(self).__name__}")
-            self.company_id = company_id
+            self.company_id = current
+        elif current is not None and self.company_id != current:
+            raise TenantMismatch(
+                f"{type(self).__name__}: company_id={self.company_id}, контекст={current}"
+            )
         super().save(*args, **kwargs)
 
 
 class SoftDeleteModel(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    objects = ScopedManager()
-    trash = ScopedManager(deleted=True)
-    all_objects = models.Manager()
+    objects = SoftDeleteManager()
+    trash = SoftDeleteManager(deleted=True)
+    all_objects = AllObjectsManager()
 
     class Meta:
         abstract = True
@@ -87,6 +91,9 @@ class SoftDeleteModel(models.Model):
     def delete(self, using=None, keep_parents=False):
         self.deleted_at = timezone.now()
         self.save(update_fields=["deleted_at"])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        return super().delete(using=using, keep_parents=keep_parents)
 
     def restore(self):
         self.deleted_at = None
