@@ -6,9 +6,10 @@ SaaS для экспедиторов и перевозчиков Казахст�
 ## Структура
 - `backend/` - Django + DRF (`config/` настройки, `apps/` приложения)
 - `web/` - фронтенд: React 19 + TypeScript + Vite + Tailwind (см. `web/README.md`)
-- `deploy/` - SQL инициализации БД (роль `logistix_app`)
-- `docker-compose.yml` - PostgreSQL 16 и Redis 7
-- `.github/workflows/ci.yml` - CI (backend, web)
+- `deploy/` - продакшен: Dockerfile, `docker-compose.prod.yml`, nginx, бэкап/восстановление, SQL инициализации БД (роль `logistix_app`)
+- `docs/ops/RUNBOOK.md` - **регламент эксплуатации и деплоя (hoster.kz)**
+- `docker-compose.yml` - PostgreSQL 16 и Redis 7 для разработки
+- `.github/workflows/` - CI (`ci.yml`) и деплой (`deploy.yml`)
 
 ## Запуск для разработки
 ```bash
@@ -67,3 +68,14 @@ cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check 
 `REDIS_URL` в продакшене ОБЯЗАТЕЛЕН: без него кэш - LocMem на процесс, и счётчики throttle
 (публичный `/api/branding/`) не общие между воркерами; ключ throttle - IP по `TRUST_PROXY_HEADERS`,
 `BRANDING_THROTTLE_RATE` (лимит публичного `/api/branding/`, по умолчанию `60/min`).
+
+### Продакшен
+`DJANGO_ALLOWED_HOSTS` (в продакшене задаётся явно), `DJANGO_CSRF_TRUSTED_ORIGINS`,
+`DJANGO_BEHIND_TLS_PROXY` (доверять `X-Forwarded-Proto`, secure-cookie, редирект на https),
+`DJANGO_ADMIN_ENABLED` (по умолчанию `true`; в продакшене `false`), `DJANGO_HSTS_SECONDS` и др.,
+`SENTRY_DSN`/`SENTRY_ENVIRONMENT`/`SENTRY_TRACES_SAMPLE_RATE`. Полный список с пояснениями -
+`deploy/.env.prod.example`. **Sentry:** DSN должен указывать на собственный/казахстанский Sentry
+либо быть пустым (резидентность данных); персональные данные и тела запросов не отправляются.
+
+Создание первой компании: `python manage.py bootstrap_company --name ... --owner-login ... --password-env VAR`.
+Деплой, TLS, бэкапы, откат и чек-листы: [docs/ops/RUNBOOK.md](docs/ops/RUNBOOK.md).

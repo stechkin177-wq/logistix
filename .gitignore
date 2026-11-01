@@ -15,3 +15,5 @@ backend/media/
 deploy/.env.prod
 *.dump
 *.dump.gpg
+deploy/.current_tag
+deploy/.previous_tag
