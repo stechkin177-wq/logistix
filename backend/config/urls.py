@@ -1,9 +1,12 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 
 from apps.billing.api import PlanListView, SubscriptionView
 from apps.core.api.auth import LoginView, MeView, RefreshView, SwitchCompanyView
+from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
 from apps.core.api.trash import TrashListView, TrashRestoreView
@@ -44,8 +47,13 @@ urlpatterns = [
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
     path("api/company/settings/", CompanySettingsView.as_view()),
+    path("api/company/branding/", CompanyBrandingView.as_view()),
+    path("api/branding/", PublicBrandingView.as_view()),
     path("api/dashboard/summary/", DashboardSummaryView.as_view()),
     path("api/trash/", TrashListView.as_view()),
     path("api/trash/<str:code>/<str:pk>/restore/", TrashRestoreView.as_view()),
     path("api/", include(router.urls)),
 ]
+
+# Логотипы с локального диска: только в разработке (DEBUG); в продакшене - прокси/S3 (этап 5)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

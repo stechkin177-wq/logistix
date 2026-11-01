@@ -95,6 +95,10 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Загружаемые файлы (логотипы компаний). Локальный диск; переход на S3/MinIO - этап 5.
+MEDIA_ROOT = Path(env("MEDIA_ROOT") or BASE_DIR / "media")
+MEDIA_URL = env("MEDIA_URL") or "/media/"
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.core.auth.CompanyJWTAuthentication",
@@ -104,6 +108,8 @@ REST_FRAMEWORK = {
         "apps.billing.permissions.SubscriptionGate",
     ],
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    # публичный эндпоинт оформления экрана входа; лимит на IP
+    "DEFAULT_THROTTLE_RATES": {"branding": env("BRANDING_THROTTLE_RATE", "60/min")},
 }
 
 SIMPLE_JWT = {

@@ -9,3 +9,4 @@ dist/
 staticfiles/
 .pytest_cache/
 .ruff_cache/
+backend/media/

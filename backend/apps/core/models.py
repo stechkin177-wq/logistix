@@ -3,8 +3,10 @@ from django.contrib.auth.models import PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
+from . import branding
 from .managers import AllObjectsManager, SoftDeleteManager, TenantManager
 from .phone import normalize_phone
 from .tenancy import NoTenantContext, TenantMismatch, get_current_company_id
@@ -98,6 +100,47 @@ class Company(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CompanyBranding(models.Model):
+    """Оформление компании: название приложения, логотип, цвет, тема, свой домен.
+
+    ОБЫЧНАЯ модель (не TenantModel, без RLS): публичный эндпоинт экрана входа читает её до
+    появления контекста компании (принятый пробел, см. rls.py). Создаётся лениво при первой
+    правке. custom_domain в API компании только читается: его задаёт платформа (этап 5).
+    """
+
+    company = models.OneToOneField(Company, on_delete=models.PROTECT, related_name="branding")
+    app_name = models.CharField(max_length=64, blank=True)
+    logo = models.FileField(
+        upload_to=branding.logo_upload_to, blank=True, validators=[branding.validate_logo]
+    )
+    primary_color = models.CharField(
+        max_length=7, default=branding.DEFAULT_COLOR, validators=[branding.validate_color]
+    )
+    theme = models.CharField(
+        max_length=8, choices=branding.THEME_CHOICES, default=branding.DEFAULT_THEME
+    )
+    custom_domain = models.CharField(max_length=255, null=True, blank=True, unique=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(custom_domain__isnull=True)
+                | (~Q(custom_domain="") & Q(custom_domain=Lower("custom_domain"))),
+                name="companybranding_domain_lower",
+            ),
+            models.CheckConstraint(
+                condition=Q(theme__in=branding.THEMES), name="companybranding_theme_valid"
+            ),
+        ]
+
+    def __str__(self):
+        return f"Оформление {self.company_id}"
+
+    def save(self, *args, **kwargs):
+        self.custom_domain = (self.custom_domain or "").strip().lower() or None
+        super().save(*args, **kwargs)
 
 
 class TenantModel(models.Model):

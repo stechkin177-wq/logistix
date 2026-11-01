@@ -50,9 +50,12 @@ cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check 
 - Новая модель `TenantModel` обязана получить в своей миграции
   `apps.core.rls.EnableRLS("app.Model")`, иначе упадёт тест
   `test_every_tenant_table_has_rls`. Таблицы `Company`, `User`, `Membership`,
-  `Subscription`, `Plan` без RLS: они читаются до выбора компании (вход, аутентификация).
+  `Subscription`, `Plan`, `CompanyBranding` без RLS: они читаются до выбора компании (вход,
+  аутентификация, публичный `GET /api/branding/?host=` для экрана входа).
 
 ## Переменные окружения
 См. `.env.example`: `DJANGO_SECRET_KEY` (обязателен при `DJANGO_DEBUG=false`),
 `DJANGO_DEBUG` (по умолчанию false), `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`,
-`REDIS_URL`, `CORS_ALLOWED_ORIGINS`, `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS`.
+`REDIS_URL`, `CORS_ALLOWED_ORIGINS`, `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS`,
+`MEDIA_ROOT`/`MEDIA_URL` (логотипы компаний на локальном диске; S3/MinIO - этап 5),
+`BRANDING_THROTTLE_RATE` (лимит публичного `/api/branding/`, по умолчанию `60/min`).
