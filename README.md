@@ -60,6 +60,22 @@ cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check 
   `Subscription`, `Plan`, `CompanyBranding` без RLS: они читаются до выбора компании (вход,
   аутентификация, публичный `GET /api/branding/?host=` для экрана входа).
 
+**Пулеры соединений:** PgBouncer в режимах transaction и statement НЕ ПОДДЕРЖИВАЕТСЯ (текущая
+компания хранится в параметре сессии PostgreSQL и в клиентском кэше соединения); допустимо прямое
+подключение или PgBouncer в режиме session.
+
+## Пользователи и пароли
+- Новый сотрудник: администратор задаёт ему начальный пароль (проходит валидаторы Django).
+- Добавление уже зарегистрированного аккаунта в компанию требует его ДЕЙСТВУЮЩЕГО пароля
+  (согласие владельца аккаунта); без него или с неверным паролем - 400 и членство не создаётся.
+- Смена собственного пароля: `POST /api/auth/password/` `{old_password, new_password}` -> 204
+  (лимит `PASSWORD_CHANGE_THROTTLE_RATE`). **Ранее выданные refresh-токены остаются действительными
+  до истечения срока** (`JWT_REFRESH_DAYS`): чёрного списка токенов нет, он запланирован на этап 5.
+
+## Примечания к релизу
+- Лимиты тарифов предварительные: `max_users` применяется, а `max_orders_per_month` в тарифы
+  занесён, но пока НЕ применяется (контролируется только число сотрудников).
+
 ## Переменные окружения
 См. `.env.example`: `DJANGO_SECRET_KEY` (обязателен при `DJANGO_DEBUG=false`),
 `DJANGO_DEBUG` (по умолчанию false), `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`,
@@ -67,7 +83,10 @@ cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check 
 `MEDIA_ROOT`/`MEDIA_URL` (логотипы компаний на локальном диске; S3/MinIO - этап 5),
 `REDIS_URL` в продакшене ОБЯЗАТЕЛЕН: без него кэш - LocMem на процесс, и счётчики throttle
 (публичный `/api/branding/`) не общие между воркерами; ключ throttle - IP по `TRUST_PROXY_HEADERS`,
-`BRANDING_THROTTLE_RATE` (лимит публичного `/api/branding/`, по умолчанию `60/min`).
+`BRANDING_THROTTLE_RATE` (лимит публичного `/api/branding/`, по умолчанию `60/min`),
+`DJANGO_LOG_LEVEL` (по умолчанию `INFO`), `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND` (по умолчанию `REDIS_URL`),
+`MEMBER_ATTACH_THROTTLE_RATE` (добавление существующего аккаунта в компанию, `20/min` на сотрудника),
+`PASSWORD_CHANGE_THROTTLE_RATE` (смена пароля, `5/min` на пользователя).
 
 ### Продакшен
 `DJANGO_ALLOWED_HOSTS` (в продакшене задаётся явно), `DJANGO_CSRF_TRUSTED_ORIGINS`,

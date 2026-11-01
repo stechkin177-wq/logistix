@@ -103,9 +103,9 @@ sudo certbot renew --dry-run
    ```bash
    cd /opt/logistix
    # ПРОДАКШЕН: явный релизный тег (git-тег vX.Y.Z уже собран workflow), НИКОГДА не staging
-   ./deploy/release.sh v1.0.0 v1.0.0
+   ./deploy/release.sh v1.0.0           # git-ref = тег v1.0.0 (выводится из тега)
    # СТЕНД (staging): тег конкретного коммита, собранного из main, например
-   ./deploy/release.sh sha-1a2b3c4 1a2b3c4
+   ./deploy/release.sh sha-1a2b3c4     # git-ref = коммит 1a2b3c4 (выводится из тега)
    ./deploy/dc.sh ps -a     # migrate: Exited (0)
    ```
    `release.sh` пишет тег в `deploy/.image_tag.env` (права 600, не в git) - это ЕДИНСТВЕННЫЙ источник тега:
@@ -158,14 +158,14 @@ Workflow `.github/workflows/deploy.yml`: `main` -> staging, тег `vX.Y.Z` -> p
 ## 6. Обновление
 
 Штатно - через workflow (push в `main`, затем тег релиза: `git tag v1.2.0 && git push origin v1.2.0`,
-подтвердить в GitHub). Вручную на сервере: `./deploy/release.sh v1.2.0 v1.2.0` (тег образа, git-ref).
+подтвердить в GitHub). Вручную на сервере: `./deploy/release.sh v1.2.0` (git-ref выводится из тега; второй аргумент - явный git-ref, необязателен).
 Перед рискованными миграциями - `./deploy/backup.sh`. Миграции выполняются при каждом обновлении
 (`migrate`), поэтому делайте их обратно-совместимыми (сначала добавление, потом удаление).
 
 ## 7. Откат
 
 1. Код/образы: `workflow_dispatch` -> окружение + предыдущий `image_tag` (он записан в
-   `deploy/.previous_tag`), либо на сервере `./deploy/release.sh $(cat deploy/.previous_tag) $(cat deploy/.previous_tag)`.
+   `deploy/.previous_tag`), либо на сервере `./deploy/release.sh "$(cat deploy/.previous_tag)"` (git-ref выводится из тега: vX.Y.Z -> git-тег, sha-<hex> -> коммит).
 2. Если миграция изменила схему несовместимо: остановить приложение
    (`./deploy/dc.sh stop backend worker beat`), восстановить БД из бэкапа ДО выкладки (раздел 8), затем запустить
    предыдущую версию. Откат `migrate` назад без бэкапа не предусмотрен.
@@ -234,7 +234,7 @@ check_rls идут через `docker compose run --rm --no-deps` и работ�
 | `DJANGO_SECRET_KEY` и JWT | сменить в `.env.prod`, `./deploy/dc.sh up -d backend worker beat`; **все токены станут недействительными** (повторный вход) |
 | пароль роли приложения `APP_DB_PASSWORD` | `ALTER ROLE logistix_app PASSWORD '...'` в postgres (`./deploy/dc.sh exec -T postgres psql -U logistix -d logistix`), затем новое значение в `.env.prod` и `./deploy/dc.sh up -d` |
 | пароль владельца `POSTGRES_PASSWORD` | `ALTER ROLE logistix PASSWORD '...'`, затем `.env.prod` |
-| `REDIS_PASSWORD` | `.env.prod`, `up -d` (пересоздаст redis и клиентов; кэш/очередь сбросятся) |
+| `REDIS_PASSWORD` | `.env.prod`, `./deploy/dc.sh up -d` (пересоздаст redis и клиентов; кэш/очередь сбросятся) |
 | SSH-ключ деплоя, `GHCR_PULL_TOKEN` | заменить в GitHub Environments и на сервере (`authorized_keys`) |
 | пароль GPG бэкапов | новая парольная фраза применяется к НОВЫМ копиям; старые расшифровываются старой |
 
@@ -284,7 +284,7 @@ check_rls идут через `docker compose run --rm --no-deps` и работ�
 - [ ] Роль приложения `logistix_app` не суперпользователь и без BYPASSRLS: `migrate` вызывает `check_rls` при
   каждой выкладке; вручную: `./deploy/dc.sh exec backend python manage.py check_rls`.
 - [ ] Админка выключена (`DJANGO_ADMIN_ENABLED=false`) либо `/admin/` ограничен по IP.
-- [ ] `DJANGO_DEBUG=false`; `check --deploy` без предупреждений (в CI проверяется на примере окружения).
+- [ ] `DJANGO_DEBUG=false`; `check --deploy` без предупреждений, кроме ожидаемого security.W004, пока HSTS выключен (в CI проверяется на примере окружения с заглушённым W004).
 - [ ] HTTPS работает, редирект с 80; HSTS включён по разделу «HSTS» (или осознанно оставлен выключенным).
 - [ ] Порты наружу: только 22/80/443 (`ss -ltnp`, `nmap` с другой машины).
 - [ ] `deploy/.env.prod` права 600, в git его нет; пароли разные и случайные.
@@ -297,7 +297,7 @@ check_rls идут через `docker compose run --rm --no-deps` и работ�
 Подготовлено в среде без Docker daemon и без nginx. **Проверено:** `docker compose config -q`; `bash -n`
 всех скриптов; парсинг YAML workflow; разбор `nginx.conf` парсером crossplane (контексты и аргументы директив,
 но НЕ `nginx -t`); gunicorn локально (DEBUG=false, PostgreSQL, Redis) + `smoke.sh`; `migrate`/`check_rls`
-под ролью приложения; `bootstrap_company`; `check --deploy` без предупреждений; `db-init.sql` и `initdb` с
+под ролью приложения; `bootstrap_company`; `check --deploy` (только ожидаемое W004 при выключенном HSTS); `db-init.sql` и `initdb` с
 ICU-локалью на временном кластере PostgreSQL 16; `backup.sh` -> `restore.sh` с GPG на локальном PostgreSQL со
 сверкой числа строк; сборка SPA (в `index.html` нет inline-скриптов, внешних ресурсов нет).
 

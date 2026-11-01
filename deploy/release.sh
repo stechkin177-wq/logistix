@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Выкладка на сервере (вызывается из .github/workflows/deploy.yml по SSH или вручную):
 #   deploy/release.sh <IMAGE_TAG> [GIT_REF]
+# GIT_REF необязателен: для vX.Y.Z берётся одноимённый git-тег, для sha-<hex> - коммит <hex>
+# (откат: ./deploy/release.sh "$(cat deploy/.previous_tag)").
 # Токен чтения GHCR (read:packages) - в stdin, если сервер ещё не залогинен: он не попадает ни
 # в argv, ни в логи. Файл deploy/.env.prod должен лежать на сервере заранее (в git его нет).
 # Шаги: git checkout GIT_REF (если задан) -> docker compose pull -> up -d (ждёт успешный migrate)
@@ -13,6 +15,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 IMAGE_TAG="${1:?использование: release.sh <IMAGE_TAG> [GIT_REF]}"
 GIT_REF="${2:-}"
 [[ "$IMAGE_TAG" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || die "недопустимый тег образа"
+if [[ -z "$GIT_REF" ]]; then
+  if [[ "$IMAGE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then GIT_REF="$IMAGE_TAG"
+  elif [[ "$IMAGE_TAG" =~ ^sha-([0-9a-f]{7,40})$ ]]; then GIT_REF="${BASH_REMATCH[1]}"
+  fi
+fi
 [[ -z "$GIT_REF" || "$GIT_REF" =~ ^[A-Za-z0-9._/-]{1,128}$ ]] || die "недопустимый git ref"
 [[ -f "$ENV_FILE" ]] || die "нет $ENV_FILE (создайте из deploy/.env.prod.example)"
 

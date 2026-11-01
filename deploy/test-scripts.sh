@@ -22,6 +22,26 @@ check "dc.sh без .image_tag.env: сообщение про release.sh" grep -
 out="$(DC_PRINT=1 IMAGE_TAG_FILE="$HERE/.image_tag.env.example" ENV_FILE="$HERE/.env.prod.example" "$HERE/dc.sh" up -d)"
 check "dc: два --env-file (.env.prod и .image_tag.env)" bash -c '[[ "$1" == *"--env-file"*".env.prod.example"*"--env-file"*".image_tag.env.example"* ]]' _ "$out"
 
+# --- dc(): экспортированный IMAGE_TAG не перебивает .image_tag.env ---
+mkdir -p "$T/stub"
+printf '#!/bin/sh\necho "IMAGE_TAG=${IMAGE_TAG-unset} ARGS=$*"\n' >"$T/stub/docker"; chmod +x "$T/stub/docker"
+out="$(PATH="$T/stub:$PATH" IMAGE_TAG=evil IMAGE_TAG_FILE="$HERE/.image_tag.env.example" ENV_FILE="$HERE/.env.prod.example" "$HERE/dc.sh" ps)"
+check "dc: IMAGE_TAG из окружения сброшен перед compose" grep -q "^IMAGE_TAG=unset " <<<"$out"
+
+# --- release.sh: git-ref выводится из тега (docker/git подменены заглушками) ---
+printf '#!/bin/sh\necho "git $*" >>"$GIT_LOG"\n[ "$3" = rev-parse ] && echo abc1234\nexit 0\n' >"$T/stub/git"; chmod +x "$T/stub/git"
+printf '#!/bin/sh\n[ "$1" = inspect ] && echo 0\nexit 0\n' >"$T/stub/docker"; chmod +x "$T/stub/docker"
+release_ref() { # <тег> [ref] -> аргумент git checkout
+  : >"$T/git.log"
+  PATH="$T/stub:$PATH" GIT_LOG="$T/git.log" IMAGE_TAG_FILE="$T/rel.env" ENV_FILE="$HERE/.env.prod.example" \
+    "$HERE/release.sh" "$@" </dev/null >/dev/null 2>&1
+  sed -n 's/^git .*checkout --detach //p' "$T/git.log"
+}
+check "release.sh vX.Y.Z без ref: checkout тега" test "$(release_ref v1.2.3)" = v1.2.3
+check "release.sh sha-<hex> без ref: checkout коммита" test "$(release_ref sha-1a2b3c4)" = 1a2b3c4
+check "release.sh явный ref сохраняется" test "$(release_ref v1.2.3 main)" = main
+rm -f "$T/rel.env" "$T/rel.env.bak"
+
 # --- compose: тег закреплён, без файла тега конфиг не собирается ---
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
   cfg="$(docker compose -f "$HERE/docker-compose.prod.yml" --env-file "$HERE/.env.prod.example" --env-file "$HERE/.image_tag.env.example" config 2>&1)"

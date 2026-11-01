@@ -1,5 +1,5 @@
-# Продакшен/стейджинг Logistix. Запуск из каталога deploy/:
-#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# Продакшен/стейджинг Logistix. Запуск из корня репозитория (тег образа - из .image_tag.env):
+#   ./deploy/dc.sh up -d
 # Проверка синтаксиса без запуска:
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod.example --env-file .image_tag.env.example config -q
 # Наружу публикует порты ТОЛЬКО nginx (80/443). Образы собирает CI (GHCR); секция build -
@@ -29,9 +29,12 @@ x-backend-env: &backend-env
   JWT_ACCESS_MINUTES: ${JWT_ACCESS_MINUTES:-30}
   JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-14}
   BRANDING_THROTTLE_RATE: ${BRANDING_THROTTLE_RATE:-60/min}
+  DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
   # Приложение подключается РОЛЬЮ БЕЗ прав суперпользователя и BYPASSRLS
   DATABASE_URL: postgres://logistix_app:${APP_DB_PASSWORD:?задайте APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-logistix}
   REDIS_URL: redis://:${REDIS_PASSWORD:?задайте REDIS_PASSWORD}@redis:6379/0
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:${REDIS_PASSWORD}@redis:6379/0}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://:${REDIS_PASSWORD}@redis:6379/0}
   MEDIA_ROOT: /var/lib/logistix/media
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
@@ -200,7 +203,8 @@ services:
     image: redis:7.4
     restart: unless-stopped
     logging: *logging
-    # Пароль виден только внутри контейнера (argv); порт наружу не публикуется
+    # Пароль виден в argv контейнера, в `docker compose config` и `docker inspect` (доступ к docker
+    # = доступ к паролю; права на сервере ограничить); порт наружу не публикуется
     # Без sh -c: entrypoint официального образа видит redis-server и сам понижает root до пользователя redis
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     environment:

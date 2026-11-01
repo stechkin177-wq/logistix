@@ -146,7 +146,12 @@ if [[ -n "$media_plain" ]]; then
   log "восстановление медиа"
   if ! step_media <"$media_plain"; then
     log "ОШИБКА: БД $TARGET_DB ВОССТАНОВЛЕНА, но медиа НЕ восстановлено; check_rls и сверка строк не выполнялись."
-    log "Повторите только медиа: tar -xzf <архив> в том media (docker compose run --rm --no-deps -T backend tar -xzf - -C /var/lib/logistix/media < архив.tar.gz), затем ./deploy/dc.sh run --rm --no-deps backend python manage.py check_rls"
+    if [[ "$PG_MODE" == local ]]; then
+      log "Повторите только медиа: tar -xzf <архив> -C \"\$MEDIA_DIR\", затем check_rls ролью приложения на БД $TARGET_DB (CHECK_RLS_DATABASE_URL)"
+    else
+      log "Повторите только медиа: ./deploy/dc.sh run --rm --no-deps -T backend tar -xzf - -C /var/lib/logistix/media < <архив.tar.gz>"
+      log "затем: ./deploy/dc.sh run --rm --no-deps -e DATABASE_URL=postgres://logistix_app:<APP_DB_PASSWORD>@postgres:5432/$TARGET_DB backend python manage.py check_rls"
+    fi
     exit 4
   fi
 fi

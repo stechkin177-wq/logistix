@@ -37,6 +37,8 @@ IMAGE_TAG_FILE="${IMAGE_TAG_FILE:-$DEPLOY_DIR/.image_tag.env}"
 
 # DC_PRINT=1 - только напечатать команду (для проверки состава команд без Docker)
 dc() {
+  # экспортированный IMAGE_TAG приоритетнее --env-file и подменил бы тег из .image_tag.env
+  unset IMAGE_TAG
   if [[ ! -f "$IMAGE_TAG_FILE" ]]; then
     die "нет $IMAGE_TAG_FILE: тег образа задаёт deploy/release.sh <тег> (первый деплой - release.sh)"
   fi
