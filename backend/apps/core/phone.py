@@ -10,9 +10,11 @@ def normalize_phone(raw: str) -> str:
     """
     if not isinstance(raw, str):
         raise ValueError("Некорректный номер телефона")
-    value = raw.strip()
+    # любые Unicode-пробелы (NBSP, узкий NBSP, тонкий пробел...) и разделители ()-. убираем
+    # ДО проверки цифр; "+" остаётся
+    value = re.sub(r"[\s()\-.\u00a0\u202f\u2009]+", "", raw)
     # только ASCII-цифры: арабо-индийские и полноширинные цифры дали бы дубли аккаунтов
-    if re.search(r"[^0-9 \t()+\-.]", value) or value.count("+") > 1 or "+" in value[1:]:
+    if re.search(r"[^0-9+]", value) or value.count("+") > 1 or "+" in value[1:]:
         raise ValueError(f"Некорректный номер телефона: {raw!r}")
     digits = re.sub(r"[^0-9]", "", value)
     if value.startswith("+"):
