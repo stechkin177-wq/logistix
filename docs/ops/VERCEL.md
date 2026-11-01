@@ -147,6 +147,24 @@ Output `dist`. Переменные окружения не нужны. Адре
 HSTS мы не задаём: HTTPS на `*.vercel.app` обеспечивает Vercel. Заголовки CSP, nosniff,
 X-Frame-Options, Referrer-Policy, Permissions-Policy заданы в `web/vercel.json` (как в nginx).
 
+### 6a. Вариант без своего компьютера: миграции из сборки Vercel (только Supabase)
+
+Если до базы нет сети (например, работаете из облачной среды), миграции и первую компанию можно
+выполнить из СБОРКИ временного проекта Vercel скриптом `backend/scripts/vercel_bootstrap.py`
+(Root Directory `backend`, Build Command `pip install -r requirements.txt && python scripts/vercel_bootstrap.py`).
+Скрипт сам подбирает рабочий адрес session-пулера Supabase (`aws-0`/`aws-1`, порт 5432, затем прямой хост),
+запускает `migrate` под ролью `logistix_owner`, `check_rls` под `logistix_app` (сборка падает, если проверка
+не пройдена) и `bootstrap_company`. Переменные временного проекта (все секретные - типа sensitive):
+`SB_REF`, `SB_REGION`, `OWNER_PW`, `APP_PW`, `DEMO_OWNER_LOGIN`, `DEMO_OWNER_PW` (и по желанию
+`DEMO_COMPANY_NAME`, `DEMO_OWNER_NAME`). Секреты в логи не попадают, печатается только выбранный хост.
+После успешного запуска **временный проект нужно удалить** (в нём лежат пароли роли-владельца).
+
+Перед первой миграцией на Supabase обязательно закройте публичный REST (Data API): отзовите право
+`USAGE` на схему `public` у `PUBLIC`, `anon` и `authenticated` (иначе таблицы без RLS, например с
+хэшами паролей, были бы доступны по публичному ключу проекта) и создайте роли `logistix_owner`
+(владелец, `NOBYPASSRLS`) и `logistix_app` (`NOBYPASSRLS`) с `ALTER DEFAULT PRIVILEGES FOR ROLE
+logistix_owner ... GRANT ... TO logistix_app`.
+
 ### 7. Проверка после первого деплоя
 
 ```bash
