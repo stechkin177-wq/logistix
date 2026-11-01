@@ -1,0 +1,234 @@
+# Продакшен/стейджинг Logistix. Запуск из каталога deploy/:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# Проверка синтаксиса без запуска:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod.example config -q
+# Наружу публикует порты ТОЛЬКО nginx (80/443). Образы собирает CI (GHCR); секция build -
+# для локальной сборки (`docker compose build`, контекст - корень репозитория).
+# Запуск этого стека в среде разработки не выполнялся (нет Docker daemon).
+name: logistix
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend-env: &backend-env
+  DJANGO_SETTINGS_MODULE: config.settings
+  DJANGO_DEBUG: "false"
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?задайте DJANGO_SECRET_KEY}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?задайте DJANGO_ALLOWED_HOSTS}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+  DJANGO_BEHIND_TLS_PROXY: ${DJANGO_BEHIND_TLS_PROXY:-false}
+  DJANGO_ADMIN_ENABLED: ${DJANGO_ADMIN_ENABLED:-false}
+  DJANGO_HSTS_SECONDS: ${DJANGO_HSTS_SECONDS:-0}
+  DJANGO_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_HSTS_INCLUDE_SUBDOMAINS:-false}
+  DJANGO_HSTS_PRELOAD: ${DJANGO_HSTS_PRELOAD:-false}
+  TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  JWT_ACCESS_MINUTES: ${JWT_ACCESS_MINUTES:-30}
+  JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-14}
+  BRANDING_THROTTLE_RATE: ${BRANDING_THROTTLE_RATE:-60/min}
+  # Приложение подключается РОЛЬЮ БЕЗ прав суперпользователя и BYPASSRLS
+  DATABASE_URL: postgres://logistix_app:${APP_DB_PASSWORD:?задайте APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-logistix}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?задайте REDIS_PASSWORD}@redis:6379/0
+  MEDIA_ROOT: /var/lib/logistix/media
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?задайте BACKEND_IMAGE}:${IMAGE_TAG:-staging}
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile.backend
+  restart: unless-stopped
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - internal
+    - default
+
+services:
+  nginx:
+    image: ${WEB_IMAGE:?задайте WEB_IMAGE}:${IMAGE_TAG:-staging}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - static:/srv/static:ro
+      - media:/srv/media:ro
+      - ${LETSENCRYPT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot
+    depends_on:
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+    networks:
+      - default
+
+  backend:
+    <<: *backend
+    # порт 8000 наружу НЕ публикуется: только nginx через внутреннюю сеть
+    environment:
+      <<: *backend-env
+      WEB_CONCURRENCY: ${GUNICORN_WORKERS:-3}
+      HEALTHCHECK_HOST: localhost
+    volumes:
+      - media:/var/lib/logistix/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 768M
+
+  # Одноразовая задача: миграции ролью-ВЛАДЕЛЬЦЕМ, сборка статики в общий том, затем check_rls
+  # ролью ПРИЛОЖЕНИЯ (падает, если роль суперпользователь/BYPASSRLS или у таблицы нет RLS).
+  migrate:
+    <<: *backend
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - >-
+        python manage.py migrate --noinput
+        && python manage.py collectstatic --noinput
+        && DATABASE_URL="$$APP_DATABASE_URL" python manage.py check_rls
+    environment:
+      <<: *backend-env
+      DATABASE_URL: postgres://${POSTGRES_USER:-logistix}:${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-logistix}
+      APP_DATABASE_URL: postgres://logistix_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-logistix}
+    volumes:
+      - static:/app/staticfiles
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=2"]
+    environment:
+      <<: *backend-env
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "config", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres:
+    image: postgres:16.6
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-logistix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-logistix}
+      # Пароль роли logistix_app для deploy/db-init.sql (\getenv); не пароль разработки
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?задайте APP_DB_PASSWORD}
+      # UTF-8 и ICU-сортировка: от локали зависит регистронезависимый поиск по кириллице/казахскому
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8 --locale-provider=icu --icu-locale=ru-RU"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db-init.sql:/docker-entrypoint-initdb.d/10-db-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    networks:
+      - internal
+
+  redis:
+    image: redis:7.4
+    restart: unless-stopped
+    logging: *logging
+    # Пароль виден только внутри контейнера (argv); порт наружу не публикуется
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?задайте REDIS_PASSWORD}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - internal
+
+  # MinIO (S3-хранилище файлов) здесь намеренно НЕТ: хранилище подключается на этапе 5, а
+  # лишний сервис с учётными данными без потребителя - риск без пользы. Пока медиа - том media.
+
+networks:
+  # internal: БД и Redis без выхода наружу; backend/worker/beat подключены и к default
+  # (исходящие вызовы, напр. к Sentry в Казахстане); порты публикует только nginx
+  internal:
+    internal: true
+  default: {}
+
+volumes:
+  pgdata:
+  redisdata:
+  static:
+  media:
+  certbot-webroot:

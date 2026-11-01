@@ -1,0 +1,15 @@
+.git
+.github
+.superpowers
+docs
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+deploy/.env.prod
+backend/media
+backend/staticfiles
+backend/.pytest_cache
+backend/.ruff_cache
+web/node_modules
+web/dist
