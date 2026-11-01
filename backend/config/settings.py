@@ -180,3 +180,16 @@ SILENCED_SYSTEM_CHECKS = ["security.W021"]
 SENTRY_DSN = env("SENTRY_DSN", "")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", "production")
 SENTRY_TRACES_SAMPLE_RATE = float(env("SENTRY_TRACES_SAMPLE_RATE", "0"))
+
+# Логи в stderr контейнера (docker logs / json-file). По умолчанию Django в продакшене пишет
+# ошибки запросов только в mail_admins (почты нет) - 500 остались бы без следа.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO")},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}

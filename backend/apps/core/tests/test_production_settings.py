@@ -146,3 +146,10 @@ def test_scrub_event_drops_bodies_cookies_auth():
     out = observability.scrub_event(event)
     assert out["request"] == {"headers": {"Accept": "*/*"}}
     assert "user" not in out
+
+
+def test_logging_goes_to_console():
+    from django.conf import settings
+
+    assert "console" in settings.LOGGING["root"]["handlers"]
+    assert "console" in settings.LOGGING["loggers"]["django.request"]["handlers"]
