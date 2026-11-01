@@ -864,6 +864,52 @@ def test_order_in_trash_hidden_without_permission(company, admin_client):
 # --- API грузов ---
 
 
+def _cargo_with_handbooks(company, country, method):
+    body = cargo()
+    for pt in body["points"]:
+        pt["country"], pt["method"] = country.pk, method.pk
+    return body
+
+
+def test_consignment_patch_tolerates_unchanged_inactive_handbook_values(admin_client, company):
+    d = new_order(admin_client, make_client(company))
+    with tenant_context(company.id):
+        countries = list(HandbookValue.objects.filter(handbook__code="country", is_active=True)[:3])
+        method = HandbookValue.objects.filter(handbook__code="loading_method").first()
+    country, other_country = countries[0], countries[1:]
+    body = {**_cargo_with_handbooks(company, country, method), "order": d["id"]}
+    r = admin_client.post(CONSIGNMENTS, body, format="json")
+    assert r.status_code == 201, r.content
+    url = f"{CONSIGNMENTS}{r.data['id']}/"
+    with tenant_context(company.id):
+        HandbookValue.objects.filter(pk__in=[country.pk, method.pk]).update(is_active=False)
+        HandbookValue.objects.filter(pk=other_country[1].pk).update(is_active=False)
+    # фронтенд всегда шлёт points целиком: неизменённые отключённые значения допустимы
+    got = admin_client.get(url).data
+    r = admin_client.patch(url, {"weight_kg": "11", "points": got["points"]}, format="json")
+    assert r.status_code == 200, r.content
+    assert r.data["weight_kg"] == "11.00"
+    # другое отключённое значение - по-прежнему ошибка
+    pts = [dict(p) for p in got["points"]]
+    pts[0]["country"] = other_country[1].pk
+    r = admin_client.patch(url, {"points": pts}, format="json")
+    assert r.status_code == 400 and "points" in r.data
+    # значение из точки другого вида тоже не считается «текущим»
+    pts = [dict(p) for p in got["points"]]
+    with tenant_context(company.id):
+        HandbookValue.objects.filter(pk=other_country[0].pk).update(is_active=False)
+    pts[0]["country"] = other_country[0].pk
+    assert admin_client.patch(url, {"points": pts}, format="json").status_code == 400
+    # создание с отключённым значением - ошибка
+    body = {**cargo(), "order": d["id"]}
+    body["points"][0]["country"] = country.pk
+    assert admin_client.post(CONSIGNMENTS, body, format="json").status_code == 400
+    r = admin_client.post(
+        ORDERS, order_payload(make_client(company), consignments=[body]), format="json"
+    )
+    assert r.status_code == 400 and "consignments" in r.data
+
+
 def test_consignment_crud(admin_client, company):
     d = new_order(admin_client, make_client(company))
     body = {**cargo(), "order": d["id"]}

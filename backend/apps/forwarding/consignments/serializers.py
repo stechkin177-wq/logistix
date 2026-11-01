@@ -6,13 +6,20 @@ from ..models import Consignment, ConsignmentPoint, Order
 from . import services
 
 
-class PointSerializer(serializers.ModelSerializer):
-    """Точка груза. Ограничение: значения справочников (страна, способ) проверяются на
-    активность всегда, без допуска «неизменённого» отключённого значения (как у заказа):
-    вложенный сериализатор не знает текущего значения."""
+class _AnyHandbookField(ActiveHandbookField):
+    """Значение справочника компании без проверки активности: активность проверяет
+    validate_points родительского сериализатора, который знает текущие точки груза."""
 
-    country = ActiveHandbookField("country", allow_null=True, required=False)
-    method = ActiveHandbookField("loading_method", allow_null=True, required=False)
+    def to_internal_value(self, data):
+        return serializers.PrimaryKeyRelatedField.to_internal_value(self, data)
+
+
+class PointSerializer(serializers.ModelSerializer):
+    """Точка груза. Отключённые значения справочников (страна, способ) отвергаются в
+    ConsignmentBaseSerializer.validate_points, кроме неизменённого значения той же точки."""
+
+    country = _AnyHandbookField("country", allow_null=True, required=False)
+    method = _AnyHandbookField("loading_method", allow_null=True, required=False)
     country_name = serializers.SerializerMethodField()
     method_name = serializers.SerializerMethodField()
 
@@ -86,6 +93,21 @@ class ConsignmentBaseSerializer(serializers.ModelSerializer):
         kinds = [item.get("kind") for item in items]
         if sorted(map(str, kinds)) != sorted(services.KINDS):
             raise serializers.ValidationError("Нужны ровно две точки: погрузка и выгрузка")
+        current = {}
+        if isinstance(self.instance, Consignment):
+            current = {p.kind: p for p in self.instance.points.all()}
+        errors = {}
+        for index, item in enumerate(items):
+            old = current.get(item.get("kind"))
+            for field, attr in (("country", "country_id"), ("method", "method_id")):
+                value = item.get(field)
+                if value is None or value.is_active:
+                    continue
+                if old is not None and getattr(old, attr) == value.pk:
+                    continue  # неизменённое значение той же точки остаётся допустимым
+                errors.setdefault(index, {})[field] = ["Значение справочника отключено"]
+        if errors:
+            raise serializers.ValidationError(errors)
         return items
 
 
