@@ -30,17 +30,43 @@ check "dc: IMAGE_TAG из окружения сброшен перед compose" 
 
 # --- release.sh: git-ref выводится из тега (docker/git подменены заглушками) ---
 printf '#!/bin/sh\necho "git $*" >>"$GIT_LOG"\n[ "$3" = rev-parse ] && echo abc1234\nexit 0\n' >"$T/stub/git"; chmod +x "$T/stub/git"
-printf '#!/bin/sh\n[ "$1" = inspect ] && echo 0\nexit 0\n' >"$T/stub/docker"; chmod +x "$T/stub/docker"
-release_ref() { # <тег> [ref] -> аргумент git checkout
-  : >"$T/git.log"
-  PATH="$T/stub:$PATH" GIT_LOG="$T/git.log" IMAGE_TAG_FILE="$T/rel.env" ENV_FILE="$HERE/.env.prod.example" \
-    "$HERE/release.sh" "$@" </dev/null >/dev/null 2>&1
-  sed -n 's/^git .*checkout --detach //p' "$T/git.log"
+printf '#!/bin/sh\necho "IMAGE_TAG=${IMAGE_TAG-unset} $*" >>"$DOCKER_LOG"\ncase "$*" in *"$DOCKER_FAIL_ON"*) [ -n "$DOCKER_FAIL_ON" ] && exit 1;; esac\n[ "$1" = inspect ] && echo 0\nexit 0\n' >"$T/stub/docker"; chmod +x "$T/stub/docker"
+# запуск release.sh с заглушками; код выхода и вывод сохраняются в $REL_RC / $T/rel.out
+run_release() { # <аргументы release.sh>
+  : >"$T/git.log"; : >"$T/docker.log"
+  PATH="$T/stub:$PATH" GIT_LOG="$T/git.log" DOCKER_LOG="$T/docker.log" DOCKER_FAIL_ON="${DOCKER_FAIL_ON:-}" \
+    IMAGE_TAG_FILE="$T/rel.env" PREVIOUS_TAG_FILE="$T/rel.prev" ENV_FILE="$HERE/.env.prod.example" \
+    "$HERE/release.sh" "$@" </dev/null >"$T/rel.out" 2>&1
+  REL_RC=$?
 }
+release_ref() { run_release "$@"; sed -n 's/^git .*checkout --detach //p' "$T/git.log"; }
 check "release.sh vX.Y.Z без ref: checkout тега" test "$(release_ref v1.2.3)" = v1.2.3
 check "release.sh sha-<hex> без ref: checkout коммита" test "$(release_ref sha-1a2b3c4)" = 1a2b3c4
 check "release.sh явный ref сохраняется" test "$(release_ref v1.2.3 main)" = main
-rm -f "$T/rel.env" "$T/rel.env.bak"
+
+# (a) первый деплой: код 0, тег записан, .previous_tag не создан
+rm -f "$T/rel.env" "$T/rel.env.bak" "$T/rel.prev"
+run_release v1.2.3
+check "release.sh первый деплой: код 0" test "$REL_RC" -eq 0
+check "release.sh первый деплой: .image_tag.env с новым тегом" grep -qx "IMAGE_TAG=v1.2.3" "$T/rel.env"
+check "release.sh первый деплой: .previous_tag не создан" test ! -e "$T/rel.prev"
+# (b) существующий тег: новый тег, .previous_tag = прежний
+printf 'IMAGE_TAG=v1.0.0\n' >"$T/rel.env"
+run_release v1.2.3
+check "release.sh обновление: код 0" test "$REL_RC" -eq 0
+check "release.sh обновление: новый тег в файле" grep -qx "IMAGE_TAG=v1.2.3" "$T/rel.env"
+check "release.sh обновление: .previous_tag = прежний" test "$(cat "$T/rel.prev" 2>/dev/null)" = v1.0.0
+# (c) сбой шага выкладки: тег возвращён, код != 0
+printf 'IMAGE_TAG=v1.0.0\n' >"$T/rel.env"
+DOCKER_FAIL_ON="up -d" run_release v1.3.0
+check "release.sh сбой up: код != 0" test "$REL_RC" -ne 0
+check "release.sh сбой up: тег возвращён" grep -qx "IMAGE_TAG=v1.0.0" "$T/rel.env"
+# (d) экспортированный IMAGE_TAG не доходит до compose, а файл тега при этом используется
+IMAGE_TAG=staging run_release v1.4.0
+check "release.sh при экспортированном IMAGE_TAG: код 0" test "$REL_RC" -eq 0
+check "compose не получает экспортированный IMAGE_TAG" bash -c '! grep -q "^IMAGE_TAG=staging" "$1" && grep -q "^IMAGE_TAG=unset " "$1"' _ "$T/docker.log"
+check "release.sh при экспортированном IMAGE_TAG: в файле новый тег" grep -qx "IMAGE_TAG=v1.4.0" "$T/rel.env"
+rm -f "$T/rel.env" "$T/rel.env.bak" "$T/rel.prev"
 
 # --- compose: тег закреплён, без файла тега конфиг не собирается ---
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then

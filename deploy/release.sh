@@ -66,7 +66,7 @@ if [[ "$exit_code" != 0 ]]; then
   die "migrate завершился с кодом $exit_code"
 fi
 
-if [[ -n "$current" && "$current" != "$IMAGE_TAG" ]]; then printf '%s\n' "$current" >"$DEPLOY_DIR/.previous_tag"; fi
+if [[ -n "$current" && "$current" != "$IMAGE_TAG" ]]; then printf '%s\n' "$current" >"${PREVIOUS_TAG_FILE:-$DEPLOY_DIR/.previous_tag}"; fi
 rm -f "$IMAGE_TAG_FILE.bak"
 dc ps
 log "выкладка $IMAGE_TAG завершена"
