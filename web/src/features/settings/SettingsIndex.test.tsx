@@ -21,10 +21,10 @@ describe('/settings и финансы', () => {
     expect(await screen.findByText('Нет доступа')).toBeInTheDocument()
   })
 
-  it('/finance - честное пояснение, без «Раздел готовится»', async () => {
+  it('/finance - рабочий раздел с вкладками, без «Раздел готовится»', async () => {
     loggedIn([])
     renderApp('/finance')
-    expect(await screen.findByText('Счета и платежи появятся на следующем этапе')).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Курсы' })).toBeInTheDocument()
     expect(screen.queryByText('Раздел готовится')).not.toBeInTheDocument()
   })
 })

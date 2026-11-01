@@ -1,13 +1,34 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { EmptyState } from '../../shared/ui/EmptyState'
+import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
+import { Tabs } from '../../shared/ui/Tabs'
+import { RatesTab } from './RatesTab'
 
-/** Финансы: счета и платежи появятся на следующем этапе; интерфейс не выдумываем. */
+const TAB_KEYS = ['rates'] as const
+type TabKey = (typeof TAB_KEYS)[number]
+
+const PANELS: Record<TabKey, () => ReactNode> = {
+  rates: () => <RatesTab />,
+}
+
+const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'rates') }
+
+/** Финансы: вкладки раздела; выбранная вкладка хранится в адресе (?tab=). */
 export function FinancePage() {
   const { t } = useTranslation()
+  const [state, setState] = useUrlState(SCHEMA)
   return (
-    <div>
+    <div className="space-y-3">
       <h1 className="text-base font-semibold">{t('nav.finance')}</h1>
-      <EmptyState title={t('finance.title')} hint={t('finance.hint')} />
+      <Tabs
+        label={t('finance.tabsLabel')}
+        active={state.tab}
+        tabs={TAB_KEYS.map((key) => ({ key, label: t(`finance.tabs.${key}`) }))}
+        onChange={(tab) => { setState({ tab: tab as TabKey }) }}
+      />
+      <div role="tabpanel" id={`panel-${state.tab}`} aria-labelledby={`tab-${state.tab}`}>
+        {PANELS[state.tab]()}
+      </div>
     </div>
   )
 }
