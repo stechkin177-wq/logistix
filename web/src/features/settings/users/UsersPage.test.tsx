@@ -42,34 +42,67 @@ describe('Сотрудники', () => {
     renderApp('/settings/users')
     const dialog = await fillNew('n@x.kz')
     await userEvent.type(within(dialog).getByLabelText('Имя'), 'Новый')
-    await userEvent.type(within(dialog).getByLabelText('Пароль'), 'S3cret-pass!')
+    await userEvent.type(within(dialog).getByLabelText(/^Пароль/), 'S3cret-pass!')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ login: 'n@x.kz', full_name: 'Новый', role: 2, department: null, password: 'S3cret-pass!' }) })
     expect(await screen.findByText('Сотрудник создан')).toBeInTheDocument()
   })
 
-  it('присоединение существующего: пароль не нужен и не отправляется, ответ без профиля даёт «добавлен»', async () => {
+  it('присоединение существующего: отправляется его действующий пароль, ответ без профиля даёт «добавлен»', async () => {
     const m = loggedIn([['POST', '/api/users/', { status: 201, body: { id: 3, user_id: 9, role: 2, role_name: 'Менеджер', department: null, is_active: true, login: 'old@x.kz' } }], ...base])
     renderApp('/settings/users')
     const dialog = await fillNew('old@x.kz')
+    await userEvent.type(within(dialog).getByLabelText(/^Пароль/), 'their-own-pass')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
-    await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ login: 'old@x.kz', full_name: '', role: 2, department: null }) })
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ login: 'old@x.kz', full_name: '', role: 2, department: null, password: 'their-own-pass' }) })
     expect(await screen.findByText(/Существующий пользователь old@x.kz добавлен в компанию/)).toBeInTheDocument()
+  })
+
+  it('пароль показан в обоих сценариях с пояснением; текста «пароль не нужен» нет', async () => {
+    loggedIn(base)
+    renderApp('/settings/users')
+    const dialog = await fillNew('x@x.kz')
+    const field = within(dialog).getByLabelText(/^Пароль/)
+    expect(field).toHaveAttribute('type', 'password')
+    expect(field).toHaveAttribute('autocomplete', 'new-password')
+    expect(within(dialog).getByText(/для нового сотрудника - пароль, который вы задаёте; для уже зарегистрированного - его действующий пароль/i)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/пароль не нужен/i)).not.toBeInTheDocument()
+  })
+
+  it('без пароля форма не отправляется: ошибка у поля', async () => {
+    const m = loggedIn(base)
+    renderApp('/settings/users')
+    const dialog = await fillNew('x@x.kz')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    expect(await within(dialog).findByText('Обязательное поле')).toBeInTheDocument()
+    expect(m.calls.find((c) => c.method === 'POST')).toBeUndefined()
+  })
+
+  it('неверный пароль существующего аккаунта (400 login) показывается у логина', async () => {
+    loggedIn([['POST', '/api/users/', { status: 400, body: { login: ['Пользователь уже зарегистрирован; для добавления нужен его действующий пароль'] } }], ...base])
+    renderApp('/settings/users')
+    const dialog = await fillNew('old@x.kz')
+    await userEvent.type(within(dialog).getByLabelText(/^Пароль/), 'wrong-pass-1')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    expect(await within(dialog).findByText(/нужен его действующий пароль/)).toBeInTheDocument()
+    expect(within(dialog).getByLabelText(/^Email или телефон/)).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('«для нового пользователя нужен пароль» ложится на поле', async () => {
     loggedIn([['POST', '/api/users/', { status: 400, body: { password: ['Для нового пользователя нужен пароль'] } }], ...base])
     renderApp('/settings/users')
     const dialog = await fillNew('n@x.kz')
+    await userEvent.type(within(dialog).getByLabelText(/^Пароль/), 'x')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     expect(await within(dialog).findByText('Для нового пользователя нужен пароль')).toBeInTheDocument()
-    expect(within(dialog).getByLabelText('Пароль')).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dialog).getByLabelText(/^Пароль/)).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('лимит тарифа (402 limit_exceeded) показывается понятным текстом', async () => {
     loggedIn([['POST', '/api/users/', { status: 402, body: { detail: 'Достигнут лимит тарифа', code: 'limit_exceeded' } }], ...base])
     renderApp('/settings/users')
     const dialog = await fillNew('n@x.kz')
+    await userEvent.type(within(dialog).getByLabelText(/^Пароль/), 'x')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     expect(await within(dialog).findByText(/Достигнут лимит пользователей по тарифу/)).toBeInTheDocument()
   })

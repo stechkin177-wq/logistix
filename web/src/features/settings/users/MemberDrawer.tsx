@@ -67,6 +67,7 @@ export function MemberDrawer({ member, onClose }: { member: CompanyUser | null; 
   const submit = () => {
     const local: Record<string, string> = {}
     if (!editing && !login.trim()) local.login = t('errors.requiredField')
+    if (!editing && !password) local.password = t('errors.requiredField')
     if (!role) local.role = t('errors.requiredField')
     if (Object.keys(local).length > 0) {
       setErrors({ fields: local, banner: undefined })
@@ -86,7 +87,7 @@ export function MemberDrawer({ member, onClose }: { member: CompanyUser | null; 
         full_name: fullName.trim(),
         role: Number(role),
         department: department ? Number(department) : null,
-        ...(password ? { password } : {}),
+        password,
       })
     }
   }
@@ -114,7 +115,7 @@ export function MemberDrawer({ member, onClose }: { member: CompanyUser | null; 
             <Banner kind="info">{t('users.attachHint')}</Banner>
             <TextField label={t('users.login')} required value={login} error={f.login} hint={t('users.loginHint')} autoComplete="off" onChange={(e) => { setLogin(e.target.value) }} />
             <TextField label={t('users.fullName')} value={fullName} error={f.full_name} onChange={(e) => { setFullName(e.target.value) }} />
-            <TextField label={t('users.password')} type="password" value={password} error={f.password} hint={t('users.passwordHint')} autoComplete="new-password" onChange={(e) => { setPassword(e.target.value) }} />
+            <TextField label={t('users.password')} type="password" required value={password} error={f.password} hint={t('users.passwordHint')} autoComplete="new-password" onChange={(e) => { setPassword(e.target.value) }} />
           </>
         )}
         <Select
