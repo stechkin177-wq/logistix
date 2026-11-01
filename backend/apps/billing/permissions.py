@@ -41,10 +41,17 @@ def subscription_state(request):
 
 
 def enforce_subscription(request):
-    """Бросает отказ по подписке. Неаутентифицированные запросы не трогает."""
+    """Бросает отказ по подписке. Неаутентифицированные запросы не трогает.
+
+    Аутентифицированный запрос без членства (контекста компании) - отказ (fail closed):
+    у него нет подписки, по которой можно решить. Эндпоинты без компании намеренно
+    не используют шлюз (вход, обновление токена, health - AllowAny; switch-company).
+    """
     user = request.user
-    if not (user and user.is_authenticated) or _company_id(request) is None:
+    if not (user and user.is_authenticated):
         return
+    if _company_id(request) is None:
+        raise SubscriptionBlocked()
     _, state = subscription_state(request)
     if state == Subscription.BLOCKED:
         raise SubscriptionBlocked()

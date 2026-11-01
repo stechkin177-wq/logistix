@@ -538,3 +538,14 @@ def test_plans_endpoint_lists_active_without_prices(client_a):
 def test_billing_requires_auth(api_client):
     assert api_client.get("/api/billing/subscription/").status_code == 401
     assert api_client.get("/api/billing/plans/").status_code == 401
+
+
+def test_gate_fails_closed_for_authenticated_user_without_membership(api_client):
+    make_user("nomember@x.kz")
+    r = api_client.get("/api/_probe/nomembership/")
+    assert r.status_code == 403 and r.json()["code"] == "subscription_blocked"
+
+
+def test_gate_still_ignores_anonymous_requests(api_client):
+    assert api_client.get("/api/health/").status_code == 200
+    assert api_client.get("/api/_probe/nomembership/").status_code in (401, 403)
