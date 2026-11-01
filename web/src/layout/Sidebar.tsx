@@ -8,6 +8,7 @@ import { LANGUAGES, setLanguage, type Language } from '../shared/i18n'
 import { Button } from '../shared/ui/Button'
 import { pushToast } from '../shared/ui/toast'
 import { errorMessage } from '../shared/api/errors'
+import { ChangePasswordDialog } from '../features/account/ChangePasswordDialog'
 import { visibleNav, type NavItem } from './nav'
 
 function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
@@ -88,6 +89,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { t, i18n } = useTranslation()
   const { session } = useSession()
   const { logout } = useAuth()
+  const [changingPassword, setChangingPassword] = useState(false)
   const branding = useBranding()
   const items = session ? visibleNav(session) : []
 
@@ -130,6 +132,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             {t('auth.logout')}
           </Button>
         </div>
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={() => {
+            setChangingPassword(true)
+          }}
+        >
+          {t('account.changePassword')}
+        </Button>
+        {changingPassword ? (
+          <ChangePasswordDialog
+            onClose={() => {
+              setChangingPassword(false)
+            }}
+          />
+        ) : null}
       </div>
     </aside>
   )
