@@ -8,6 +8,10 @@
 #   vars:    DEPLOY_PATH (каталог клона репозитория на сервере), APP_URL (https://...)
 # Production: в настройках Environment ОБЯЗАТЕЛЬНО ограничить развёртывание тегами v* и веткой main.
 # .env.prod лежит на сервере заранее (в GitHub не хранится). Секреты в логи не печатаются.
+# Перед сборкой образов запускается весь CI (.github/workflows/ci.yml как reusable workflow,
+# job tests); при ручном откате (workflow_dispatch) тесты пропускаются: образ уже собран и
+# проверен, а CI на текущем main ничего не говорит об откатываемом коммите. CI не использует
+# секреты, поэтому передача secrets не нужна; права вызываемого workflow - contents: read.
 # Файл проверен только парсером YAML: actionlint и GitHub в разработке были недоступны.
 name: Deploy
 
@@ -87,9 +91,16 @@ jobs:
             echo "build=$build"
           } >>"$GITHUB_OUTPUT"
 
-  build:
+  tests:
     needs: prepare
     if: needs.prepare.outputs.build == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [prepare, tests]
+    if: ${{ needs.prepare.outputs.build == 'true' && needs.tests.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -132,9 +143,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   deploy:
-    needs: [prepare, build]
-    # build пропускается при ручном откате (образ уже в реестре)
-    if: ${{ !cancelled() && needs.prepare.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    needs: [prepare, tests, build]
+    # tests и build пропускаются при ручном откате (образ уже в реестре); упавший CI или
+    # сборка (failure) выкладку блокируют
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && (needs.tests.result == 'success' || needs.tests.result == 'skipped') && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ needs.prepare.outputs.environment }}

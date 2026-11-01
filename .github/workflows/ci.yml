@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  # вызывается из deploy.yml: образы не собираются и выкладка не идёт, пока CI не зелёный
+  workflow_call:
 
 jobs:
   backend:
