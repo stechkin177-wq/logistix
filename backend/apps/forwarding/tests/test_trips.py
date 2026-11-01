@@ -1134,3 +1134,103 @@ def test_concurrent_consolidated_trips_get_distinct_gap_free_numbers(make_compan
     results = _run_trip_threads(company, admin.pk, [ids1 + ids2 for _ in range(6)], 3)
     assert sorted(results) == sorted(f"C{i}" for i in range(1, 7))
     assert counter(company, "consolidated_trip") == 7
+
+
+# --- порядок блокировок и взаимоблокировки ---
+
+
+def test_locking_query_is_ordered_by_pk(company):
+    from apps.forwarding.trips.services import locked_consignments_qs
+
+    with tenant_context(company.id):
+        qs = locked_consignments_qs([5, 3, 9])
+    assert qs.query.order_by == ("pk",)
+    assert qs.query.select_for_update and 'ORDER BY "forwarding_consignment"."id"' in str(qs.query)
+
+
+def _race(company, user_id, jobs):
+    """jobs - вызываемые (user) -> результат; запускаются одновременно, возвращают ошибки."""
+    errors = []
+    barrier = threading.Barrier(len(jobs))
+
+    def worker(job):
+        try:
+            with tenant_context(company.id):
+                barrier.wait(timeout=10)
+                job(User.objects.get(pk=user_id))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=worker, args=(j,)) for j in jobs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return errors
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_overlapping_cargo_sets_in_opposite_order_do_not_deadlock(make_company):
+    company, admin, _ = make_company("DeadlockCo")
+    _, ids1 = make_cargos(company, 2)
+    _, ids2 = make_cargos(company, 2)
+    cargos = [ids1[0], ids2[0], ids1[1], ids2[1]]
+    with tenant_context(company.id):
+        base = create_trip([cargos[0]], None, {}, User.objects.get(pk=admin.pk))
+    for _ in range(5):
+        errors = _race(
+            company,
+            admin.pk,
+            [
+                lambda u: create_trip(cargos, None, {}, u),
+                lambda u: create_trip(cargos[::-1], None, {}, u),
+                lambda u: reassign(base, cargos[::-1], u),
+                lambda u: reassign(base, cargos, u),
+            ],
+        )
+        assert not errors, errors
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_same_order_overlapping_creates_do_not_deadlock(make_company):
+    company, admin, _ = make_company("DeadlockSame")
+    _, ids = make_cargos(company, 3)
+    for _ in range(5):
+        errors = _race(
+            company,
+            admin.pk,
+            [
+                lambda u: create_trip(ids, None, {}, u),
+                lambda u: create_trip(ids[::-1], None, {}, u),
+            ],
+        )
+        assert not errors, errors
+
+
+def test_deadlock_maps_to_409(admin_client, company, monkeypatch):
+    from django.db.utils import OperationalError
+
+    from apps.forwarding.trips import serializers
+
+    class Cause(Exception):
+        sqlstate = "40P01"
+
+    def boom(*args, **kwargs):
+        raise OperationalError("deadlock detected") from Cause()
+
+    monkeypatch.setattr(serializers, "create_trip", boom)
+    _, ids = make_cargos(company)
+    r = admin_client.post(TRIPS, {"consignments": ids}, format="json")
+    assert r.status_code == 409 and r.data["code"] == "concurrent_change"
+    assert "повторите" in r.data["detail"]
+
+
+def test_other_operational_errors_are_not_mapped(admin_client, company, monkeypatch):
+    from django.db.utils import OperationalError
+
+    from apps.forwarding.trips.services import is_concurrency_failure
+
+    assert not is_concurrency_failure(OperationalError("x"))
+    assert not is_concurrency_failure(ValueError("x"))

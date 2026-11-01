@@ -1,10 +1,20 @@
-from django.db import IntegrityError, transaction
+"""Сервисы рейсов.
+
+Порядок блокировок строк (select_for_update) единый для всех сервисов, иначе параллельные
+вызовы с пересекающимися грузами могут взаимно заблокироваться (deadlock):
+1) строка рейса (reassign, change_trip_status);
+2) строка заказа (только путь «грузы одного заказа» в create_trip - под ней считается n);
+3) строки грузов по возрастанию pk.
+Сборный путь заказы не блокирует (счётчик сборных рейсов даёт уникальность).
+"""
+
+from django.db import IntegrityError, OperationalError, transaction
 from rest_framework import status as http_status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from apps.core.audit import services as audit
 from apps.core.handbooks.models import HandbookValue
-from apps.core.numbering.services import next_number
+from apps.core.numbering.services import next_number, peek_number
 
 from ..consignments.models import Consignment
 from ..consignments.services import initial_status
@@ -28,18 +38,48 @@ def _unique(ids) -> list[int]:
     return list(dict.fromkeys(ids))
 
 
-def _load_consignments(consignment_ids) -> list[Consignment]:
+DEADLOCK_PGCODES = ("40P01", "40001")  # deadlock_detected, serialization_failure
+
+
+class ConcurrentChange(APIException):
+    status_code = http_status.HTTP_409_CONFLICT
+    default_detail = "Конфликт одновременных изменений, повторите запрос"
+    default_code = "concurrent_change"
+
+
+def is_concurrency_failure(exc: BaseException) -> bool:
+    """Только deadlock и сбой сериализации PostgreSQL (по pgcode), не прочие ошибки БД."""
+    if not isinstance(exc, OperationalError):
+        return False
+    code = getattr(exc.__cause__, "sqlstate", None) or getattr(exc.__cause__, "pgcode", None)
+    return code in DEADLOCK_PGCODES
+
+
+def locked_consignments_qs(ids):
+    """Запрос блокировки грузов: всегда по возрастанию pk (единый порядок блокировок)."""
+    return (
+        Consignment.objects.select_for_update(of=("self",))
+        .select_related("order")
+        .filter(pk__in=ids, order__deleted_at__isnull=True)
+        .order_by("pk")
+    )
+
+
+def _load_consignments(consignment_ids, *, lock_single_order=False) -> list[Consignment]:
     """Грузы текущей компании (не удалённые, заказ не удалён), заблокированные до конца
     транзакции, чтобы их нельзя было удалить параллельно. Иначе 400 с перечнем id."""
     ids = _unique(consignment_ids)
     if not ids:
         raise ValidationError({"consignments": "В рейсе должен быть хотя бы один груз"})
-    found = {
-        c.pk: c
-        for c in Consignment.objects.select_for_update(of=("self",))
-        .select_related("order")
-        .filter(pk__in=ids, order__deleted_at__isnull=True)
-    }
+    if lock_single_order:  # шаг 2 порядка блокировок: заказ раньше грузов
+        order_ids = set(
+            Consignment.objects.filter(pk__in=ids, order__deleted_at__isnull=True).values_list(
+                "order_id", flat=True
+            )
+        )
+        if len(order_ids) == 1:
+            Order.objects.select_for_update().filter(pk=next(iter(order_ids))).first()
+    found = {c.pk: c for c in locked_consignments_qs(ids)}
     missing = [pk for pk in ids if pk not in found]
     if missing:
         raise ValidationError(
@@ -65,11 +105,10 @@ def _check_price(price) -> None:
 def _single_order_number(order: Order) -> str:
     """Номер {order}-{n}: n = 1 + число рейсов (в т.ч. мягко удалённых), везивших груз заказа.
 
-    Строка заказа заблокирована, поэтому параллельные рейсы заказа получают разные n. Если
-    груз рейса переназначили в другой заказ, счёт уменьшился, а номер остался занятым: n
-    увеличивается, пока номер не окажется свободным.
+    Строка заказа заблокирована вызывающим (_load_consignments), поэтому параллельные рейсы
+    заказа получают разные n. Если груз рейса переназначили в другой заказ, счёт уменьшился,
+    а номер остался занятым: n увеличивается, пока номер не окажется свободным.
     """
-    Order.objects.select_for_update().get(pk=order.pk)
     n = (
         TripConsignment.all_objects.filter(
             company_id=order.company_id, consignment__order_id=order.pk
@@ -80,9 +119,10 @@ def _single_order_number(order: Order) -> str:
         + 1
     )
     while True:
-        number = next_number("trip", order=order.number, n=n)
-        if not Trip.all_objects.filter(company_id=order.company_id, number=number).exists():
-            return number
+        # проба без расхода счётчика ({index} в шаблоне); номер выдаём, когда он свободен
+        probe = peek_number("trip", order=order.number, n=n)
+        if not Trip.all_objects.filter(company_id=order.company_id, number=probe).exists():
+            return next_number("trip", order=order.number, n=n)
         n += 1
 
 
@@ -103,7 +143,7 @@ def create_trip(
     начальный trip_status, валюта по умолчанию KZT. data - проверенные поля
     vehicle_plate, driver_name, price, currency (остальные игнорируются). Пишет аудит create.
     """
-    consignments = _load_consignments(consignment_ids)
+    consignments = _load_consignments(consignment_ids, lock_single_order=True)
     carrier = _carrier(carrier_id)
     fields = {
         k: data[k] for k in ("vehicle_plate", "driver_name", "price", "currency") if k in data

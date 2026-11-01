@@ -1,3 +1,6 @@
+from contextlib import contextmanager
+
+from django.db import OperationalError
 from django.db.models import Exists, OuterRef, Prefetch, Q
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -18,6 +21,19 @@ from .serializers import (
     TripSerializer,
     TripStatusSerializer,
 )
+from .services import ConcurrentChange, is_concurrency_failure
+
+
+@contextmanager
+def concurrency_guard():
+    """Взаимоблокировка/сбой сериализации (только эти pgcode) -> 409 вместо 500."""
+    try:
+        yield
+    except OperationalError as exc:
+        if not is_concurrency_failure(exc):
+            raise
+        raise ConcurrentChange() from None
+
 
 UPDATE_ACTIONS = ("reassign", "change_status")
 
@@ -67,7 +83,8 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        trip = serializer.save()  # create_trip сам пишет аудит
+        with concurrency_guard():
+            trip = serializer.save()  # create_trip сам пишет аудит
         return Response(self._output(trip), status=http_status.HTTP_201_CREATED)
 
     def _output(self, trip):
@@ -80,7 +97,8 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         trip = self.get_object()
         serializer = ReassignSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(trip, request.user, ip=client_ip(request))
+        with concurrency_guard():
+            serializer.save(trip, request.user, ip=client_ip(request))
         return Response(self._output(trip))
 
     @action(detail=True, methods=["post"], url_path="status")
@@ -89,5 +107,6 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         trip = self.get_object()
         serializer = TripStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(trip, request.user, ip=client_ip(request))
+        with concurrency_guard():
+            serializer.save(trip, request.user, ip=client_ip(request))
         return Response(self._output(trip))
