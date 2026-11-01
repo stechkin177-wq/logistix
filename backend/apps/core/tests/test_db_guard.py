@@ -14,6 +14,18 @@ DENIED = [
     "postgresql://u:p@db.example.com:5432/db?pgbouncer=true",
     "postgresql://u:p@db.example.com:5432/db?sslmode=require&pgbouncer=TRUE",
     "postgresql://u:p@db.example.com:5432/db?pgbouncer=1",
+    "postgresql://u:p@db.example.com:6432/db",
+    "postgresql://u:p@db.example.com:5432/db?host=other.example.com",
+    "postgresql://u:p@db.example.com:5432/db?hostaddr=10.0.0.1",
+    "postgresql://u:p@db.example.com/db?sslmode=require&HOST=/tmp",
+]
+UNPARSABLE = [
+    "postgresql://u:p@h1:5432,h2:5432/db",
+    "postgresql://u:p@db.example.com:99999/db",
+    "postgresql://u:p@db.example.com:abc/db",
+    "postgresql://u:p@[::1/db",
+    "not a url at all",
+    "postgresql:///db",
 ]
 ALLOWED = [
     "postgresql://u:p@ep-cool-123.c-2.eu-central-1.aws.neon.tech/db?sslmode=require",
@@ -63,3 +75,27 @@ def test_debug_non_serverless_not_checked():
 def test_allowed_urls_pass_in_serverless():
     for url in ALLOWED:
         check_database_url(url, serverless=True, debug=False, pooler_ok=False)
+
+
+@pytest.mark.parametrize("url", UNPARSABLE)
+def test_unparsable_fails_closed_when_guard_active(url):
+    for kwargs in (
+        {"serverless": True, "debug": True, "pooler_ok": True},
+        {"serverless": False, "debug": False, "pooler_ok": False},
+    ):
+        with pytest.raises(ImproperlyConfigured, match="разобрать") as exc:
+            check_database_url(url, **kwargs)
+        assert "SuperSecret" not in str(exc.value) and url not in str(exc.value)
+
+
+@pytest.mark.parametrize("url", UNPARSABLE)
+def test_unparsable_not_checked_when_guard_inactive(url):
+    check_database_url(url, serverless=False, debug=True, pooler_ok=False)
+    check_database_url(url, serverless=False, debug=False, pooler_ok=True)
+
+
+def test_unparsable_message_has_no_password():
+    url = "postgresql://u:SuperSecretPw@h1:5432,h2:5432/db"
+    with pytest.raises(ImproperlyConfigured) as exc:
+        check_database_url(url, serverless=True, debug=False, pooler_ok=False)
+    assert "SuperSecretPw" not in str(exc.value)

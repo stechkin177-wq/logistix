@@ -52,6 +52,21 @@ def test_ssl_require_keeps_stricter_url_mode(monkeypatch):
     assert s.DATABASES["default"]["OPTIONS"]["sslmode"] == "verify-full"
 
 
+@pytest.mark.parametrize("mode", ["disable", "allow", "prefer"])
+def test_ssl_require_upgrades_weak_url_modes(monkeypatch, mode):
+    s = load_settings(
+        monkeypatch,
+        DATABASE_SSL_REQUIRE="true",
+        DATABASE_URL=f"postgres://u:p@h:5432/d?sslmode={mode}",
+    )
+    assert s.DATABASES["default"]["OPTIONS"]["sslmode"] == "require"
+
+
+def test_ssl_weak_mode_untouched_without_switch(monkeypatch):
+    s = load_settings(monkeypatch, DATABASE_URL="postgres://u:p@h:5432/d?sslmode=prefer")
+    assert s.DATABASES["default"]["OPTIONS"]["sslmode"] == "prefer"
+
+
 def test_ssl_via_url(monkeypatch):
     s = load_settings(monkeypatch, DATABASE_URL=DIRECT)
     assert s.DATABASES["default"]["OPTIONS"]["sslmode"] == "require"
@@ -112,3 +127,24 @@ def test_login_throttle_rate_env(monkeypatch):
 def test_demo_has_no_wildcard_hosts(monkeypatch):
     s = load_settings(monkeypatch, DJANGO_SERVERLESS="true", DATABASE_URL=DIRECT)
     assert "*" not in s.ALLOWED_HOSTS and s.ALLOWED_HOSTS == []
+
+
+def test_ssl_redirect_flag_defaults_to_behind_proxy(monkeypatch):
+    s = load_settings(monkeypatch, DJANGO_BEHIND_TLS_PROXY="true")
+    assert s.SSL_REDIRECT is True and s.SECURE_SSL_REDIRECT is True
+    s = load_settings(monkeypatch)
+    assert s.SSL_REDIRECT is False and not hasattr(s, "SECURE_SSL_REDIRECT")
+
+
+def test_ssl_redirect_false_keeps_other_tls_proxy_settings(monkeypatch):
+    s = load_settings(monkeypatch, DJANGO_BEHIND_TLS_PROXY="true", DJANGO_SSL_REDIRECT="false")
+    assert s.SSL_REDIRECT is False
+    assert not getattr(s, "SECURE_SSL_REDIRECT", False)
+    assert s.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
+    assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE
+
+
+def test_ssl_redirect_true_without_proxy_is_not_enabled(monkeypatch):
+    # редирект без доверенного X-Forwarded-Proto дал бы бесконечный цикл
+    s = load_settings(monkeypatch, DJANGO_SSL_REDIRECT="true")
+    assert not getattr(s, "SECURE_SSL_REDIRECT", False)

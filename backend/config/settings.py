@@ -99,9 +99,12 @@ DATABASES = {
     )
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
-# SSL: либо sslmode в URL, либо DATABASE_SSL_REQUIRE=true (строже заданного в URL не ослабляет).
+# SSL: sslmode в URL либо DATABASE_SSL_REQUIRE=true. Переключатель ПРИНУЖДАЕТ: отсутствующий или
+# слабый режим (disable/allow/prefer) становится require; require/verify-ca/verify-full не меняются.
 if env_bool("DATABASE_SSL_REQUIRE", False):
-    DATABASES["default"].setdefault("OPTIONS", {}).setdefault("sslmode", "require")
+    _db_options = DATABASES["default"].setdefault("OPTIONS", {})
+    if _db_options.get("sslmode") not in ("require", "verify-ca", "verify-full"):
+        _db_options["sslmode"] = "require"
 
 AUTH_USER_MODEL = "core.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -182,6 +185,9 @@ CELERY_TIMEZONE = TIME_ZONE
 # --- Продакшен (DEBUG=false) -------------------------------------------------------------
 # Статика собирается collectstatic в STATIC_ROOT и раздаётся nginx; медиа (MEDIA_ROOT) - тоже nginx.
 BEHIND_TLS_PROXY = env_bool("DJANGO_BEHIND_TLS_PROXY", False)
+# Редирект http->https в Django. По умолчанию как BEHIND_TLS_PROXY (VPS не меняется). false -
+# только для демо на Vercel, где TLS завершает платформа (см. docs/ops/VERCEL.md).
+SSL_REDIRECT = env_bool("DJANGO_SSL_REDIRECT", BEHIND_TLS_PROXY)
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
 
 if not DEBUG:
@@ -189,8 +195,9 @@ if not DEBUG:
     if BEHIND_TLS_PROXY:
         SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
         # nginx редиректит сам; здесь страховка. Healthcheck контейнера ходит по http напрямую.
-        SECURE_SSL_REDIRECT = True
-        SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
+        if SSL_REDIRECT:
+            SECURE_SSL_REDIRECT = True
+            SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
     SESSION_COOKIE_SECURE = BEHIND_TLS_PROXY
     CSRF_COOKIE_SECURE = BEHIND_TLS_PROXY
     SESSION_COOKIE_HTTPONLY = True

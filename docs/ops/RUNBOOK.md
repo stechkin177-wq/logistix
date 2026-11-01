@@ -3,6 +3,10 @@
 Стек: Docker Compose на VPS в Казахстане. Сервисы: `nginx` (прокси, SPA, статика, медиа, TLS),
 `backend` (gunicorn), `migrate` (одноразовый), `worker`/`beat` (Celery), `postgres:16`, `redis:7`.
 Временный демо-запуск на бесплатном Vercel (только вымышленные данные): [VERCEL.md](VERCEL.md).
+Поведение продакшена (`DJANGO_DEBUG=false`): (а) `DATABASE_URL`, похожий на транзакционный пулер
+(Neon `-pooler`, порты 6543/6432, `pgbouncer=true`), отклоняется при старте, пока не задано
+`DATABASE_POOLER_OK=true` - RLS держит `app.company_id` в сессии, транзакционный пулер смешал бы
+компании (разрешайте только для пулера в режиме SESSION); (б) API отдаёт только JSON (без BrowsableAPI).
 Наружу открыты только порты 80/443 (публикует nginx). Все файлы: каталог `deploy/`.
 
 > **Что НЕ проверялось при подготовке (среда разработки без Docker и nginx).** См. раздел

@@ -50,8 +50,12 @@
 2. Connection string: переключатель **Pooled connection ВЫКЛЮЧЕН** - нужна **прямая** строка
    (хост вида `ep-...eu-central-1.aws.neon.tech`). Строку с `-pooler` в хосте **никогда** не
    используйте: транзакционный PgBouncer смешивает сессии, а RLS держит `app.company_id` в сессии -
-   это утечка данных между компаниями. Приложение с такой строкой не запустится (защита в
-   `config/dbguard.py`).
+   это утечка данных между компаниями.
+3. **Защита в `config/dbguard.py` - эвристика, а не гарантия.** Она распознаёт только: хосты Neon с
+   `-pooler.`, порты 6543 (Supabase) и 6432 (PgBouncer по умолчанию), `pgbouncer=true`, ключи
+   `host`/`hostaddr` в строке; неразбираемые строки (несколько хостов, неверный порт) отклоняются.
+   **Другие пулеры (на нестандартных портах и хостах) НЕ распознаются.** Ответственность за прямую
+   строку - на владельце.
 
 ### 2. Роли и права
 
@@ -91,7 +95,7 @@ DATABASE_URL='<APP role direct url>' DJANGO_DEBUG=true DJANGO_SERVERLESS=true \
 ### 5. Первая компания (вымышленная)
 
 ```bash
-DEMO_OWNER_PASSWORD='<придумайте>' DATABASE_URL='<owner direct url>' DJANGO_DEBUG=true \
+DEMO_OWNER_PASSWORD='<придумайте>' DATABASE_URL='<owner direct url>' DJANGO_DEBUG=true DJANGO_SERVERLESS=true \
   python manage.py bootstrap_company --name "Демо Логистик" --owner-login demo@example.com \
   --owner-name "Демо Владелец" --password-env DEMO_OWNER_PASSWORD
 ```
@@ -116,11 +120,21 @@ DEMO_OWNER_PASSWORD='<придумайте>' DATABASE_URL='<owner direct url>' D
 | `DJANGO_ALLOWED_HOSTS` | `logistix-api.vercel.app,<web-host>` (без `*`) | |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<web-host>` | |
 | `CORS_ALLOWED_ORIGINS` | `https://<web-host>` | |
-| `DJANGO_BEHIND_TLS_PROXY` | `true` | |
+| `DJANGO_BEHIND_TLS_PROXY` | `true` (cookie только по https, доверие `X-Forwarded-Proto`) | |
+| `DJANGO_SSL_REDIRECT` | `false` - см. пояснение ниже | |
+| `MEDIA_ROOT` | `/tmp/media` (на serverless доступна запись только в `/tmp`) | |
 | `TRUST_PROXY_HEADERS` | `false` (IP, который видит API, - инфраструктура Vercel, не пользователь) | |
 | `DJANGO_ADMIN_ENABLED` | `false` | |
 | `THROTTLE_LOGIN` | `10/minute` (по умолчанию) | |
 | `SENTRY_DSN`, `REDIS_URL` | не задавать | |
+
+**Почему `DJANGO_SSL_REDIRECT=false` и почему это допустимо ТОЛЬКО для демо.** Если Vercel не
+передаёт `X-Forwarded-Proto: https` через внешний rewrite, Django видит каждый запрос как http и
+отвечает 301 на https-адрес - получается бесконечный цикл на всех `/api/*` (исключение для
+`/api/health/` скрывает цикл именно на health). Для демо редирект отключаем: TLS завершает Vercel,
+`web` отдаётся только по HTTPS, а адрес api на `*.vercel.app` тоже только HTTPS. На продакшене с
+собственным прокси так делать нельзя (там флаг не задаётся, по умолчанию равен
+`DJANGO_BEHIND_TLS_PROXY`).
 
 С внешним rewrite API видит хост назначения (`logistix-api.vercel.app`), поэтому он обязан быть в
 `DJANGO_ALLOWED_HOSTS`.
@@ -137,10 +151,17 @@ X-Frame-Options, Referrer-Policy, Permissions-Policy заданы в `web/vercel
 
 ```bash
 SMOKE_SKIP_WEB=0 SMOKE_CHECK_HEADERS=1 SMOKE_TIMEOUT=30 deploy/smoke.sh https://<web-host>.vercel.app
-curl -si https://<web-host>.vercel.app/api/health/ | head -20
+curl -si https://<web-host>.vercel.app/api/health/ | head -5          # ОБЯЗАТЕЛЬНО 200, не 301
+curl -si -X POST https://<web-host>.vercel.app/api/auth/login/ \
+  -H 'Content-Type: application/json' -d '{"login":"x","password":"y"}' | head -5   # 401 или 429
 curl -si https://<web-host>.vercel.app/orders | head -20      # 200, HTML SPA
 curl -sI https://<web-host>.vercel.app/ | grep -i content-security
 ```
+
+POST на логин - настоящая проверка: исключение для `/api/health/` скрывает цикл редиректов именно на
+health. Ожидается 401 (или 400/429), **не 301/308**. Если всё же 301 - убедитесь, что в проекте api
+задано `DJANGO_SSL_REDIRECT=false` и выполнен передеплой (переменные применяются только к новым
+деплоям); если после этого 301 остаётся - остановитесь и сообщите разработчику.
 
 Первый запрос может быть медленным (холодный старт функции, пробуждение Neon) - поэтому таймаут 30.
 Затем войдите в браузере вымышленным владельцем и откройте консоль: нет ли нарушений CSP.
@@ -157,10 +178,13 @@ curl -sI https://<web-host>.vercel.app/ | grep -i content-security
 
 - Холодные старты функции и автоусыпление Neon (первые секунды после простоя).
 - Лимит времени одной функции (`maxDuration: 30`); тяжёлые отчёты/выгрузки могут не уложиться.
-- Логотипы компаний не сохраняются (нет диска, `/media` не раздаётся).
+- Логотипы: загрузка может «пройти успешно» (запись в `/tmp/media`), но файл пропадёт при смене
+  экземпляра функции, а `/media` не раздаётся. На логотипы в демо не рассчитывайте.
 - Счётчики throttle - на экземпляр функции (нет Redis; общий Redis можно подключить, например
-  Upstash, через `REDIS_URL` - по желанию). Защита входа - лимит на логин (`THROTTLE_LOGIN`), но
-  экземпляров может быть несколько, поэтому фактический предел выше.
+  Upstash, через `REDIS_URL` - по желанию). Защита входа - лимит на логин (`THROTTLE_LOGIN`):
+  любой, кто знает чужой логин, может блокировать его вход на минуту за раз; разные логины между
+  собой не ограничены; счётчик на экземпляр обходится параллельными/новыми (холодными) экземплярами,
+  поэтому фактический предел выше. Это не защита от целенаправленного перебора.
 - Нет edge-лимитов nginx (`limit_req`), нет Celery/beat/cron.
 - Бесплатная БД может приостанавливаться/удаляться при неактивности и имеет лимиты по размеру и
   времени вычислений - **сверьте актуальные условия Neon и Vercel**.
