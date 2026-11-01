@@ -21,6 +21,8 @@ dependencies = [
   "openpyxl>=3.1",
   "gunicorn>=23.0",
   "sentry-sdk>=2.20",
+  "docxtpl>=0.20",
+  "num2words>=0.5.14",
 ]
 
 [project.optional-dependencies]

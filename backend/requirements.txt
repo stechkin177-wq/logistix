@@ -10,3 +10,5 @@ celery>=5.4
 redis>=5.0
 openpyxl>=3.1
 sentry-sdk>=2.20
+docxtpl>=0.20
+num2words>=0.5.14
