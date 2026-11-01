@@ -15,6 +15,9 @@
   --color-brand-800: var(--brand-800, #1e40af);
   --color-brand-900: var(--brand-900, #1e3a8a);
   --color-brand-950: var(--brand-950, #172554);
+  /* текст на сплошном фоне бренда (bg-brand-600) и цвет фона при наведении */
+  --color-brand-fg: var(--brand-fg, #ffffff);
+  --color-brand-solid-hover: var(--brand-solid-hover, #1d4ed8);
 }
 
 :root {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyBranding, safeAppName, safeLogoUrl } from './applyBranding'
-import { SHADE_KEYS, shadeScale } from './palette'
+import { DARK_FG, LIGHT_FG, SHADE_KEYS, contrastRatio, readableForeground, shadeScale } from './palette'
 
 const root = document.documentElement
 const brand500 = () => root.style.getPropertyValue('--brand-500')
@@ -93,5 +93,50 @@ describe('безопасные значения', () => {
     expect(safeAppName('A\u0000B')).toBe('AB')
     expect(safeAppName('x'.repeat(200))).toHaveLength(64)
     expect(safeAppName(5)).toBe('Logistix')
+  })
+})
+
+describe('читаемый текст на цвете бренда (WCAG)', () => {
+  it('белый или тёмный по яркости цвета', () => {
+    expect(readableForeground('#ffff00')).toBe(DARK_FG)
+    expect(readableForeground('#2563eb')).toBe(LIGHT_FG)
+    expect(readableForeground('#000000')).toBe(LIGHT_FG)
+    expect(readableForeground('#ffffff')).toBe(DARK_FG)
+    expect(readableForeground('мусор')).toBe(LIGHT_FG) // цвет по умолчанию
+  })
+
+  it('контраст эталонных пар', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 5)
+    expect(contrastRatio('#ffffff', '#ffffff')).toBeCloseTo(1, 5)
+  })
+
+  const SAMPLES = ['#ffff00', '#ffffff', '#000000', '#2563eb', '#ff0000', '#00ff00', '#00ffff', '#ff00ff', '#808080', '#767676', '#777777', '#f59e0b', '#16a34a', '#facc15', '#e5e7eb', '#0f172a', '#7c3aed', '#fb923c', '#bada55']
+
+  it.each(SAMPLES)('%s: выбранный цвет текста даёт контраст не ниже 4.5:1', (hex) => {
+    const fg = readableForeground(hex)
+    expect(contrastRatio(hex, fg)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(SAMPLES)('%s: applyBranding задаёт --brand-fg, читаемый на оттенке 600 и при наведении', (hex) => {
+    applyBranding({ primary_color: hex })
+    const scale = shadeScale(hex)
+    const fg = root.style.getPropertyValue('--brand-fg')
+    const hover = root.style.getPropertyValue('--brand-solid-hover')
+    expect(fg).toBe(readableForeground(scale[600]))
+    expect(contrastRatio(scale[600], fg)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(hover, fg)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('жёлтый бренд даёт тёмный текст, синий - белый', () => {
+    applyBranding({ primary_color: '#ffff00' })
+    expect(root.style.getPropertyValue('--brand-fg')).toBe(DARK_FG)
+    applyBranding({ primary_color: '#2563eb' })
+    expect(root.style.getPropertyValue('--brand-fg')).toBe(LIGHT_FG)
+  })
+
+  it.each(SAMPLES)('%s: активный пункт меню читаем (тёмный на оттенке 100, белый на 900)', (hex) => {
+    const s = shadeScale(hex)
+    expect(contrastRatio(s[100], '#0f172a'), `light ${hex}`).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(s[900], '#ffffff'), `dark ${hex}`).toBeGreaterThanOrEqual(4.5)
   })
 })

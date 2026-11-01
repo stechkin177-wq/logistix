@@ -82,3 +82,35 @@ export function shadeScale(hex: string): Record<ShadeKey, string> {
     950: at(baseL * DARKER[950]),
   }
 }
+
+export const LIGHT_FG = '#ffffff'
+export const DARK_FG = '#020617'
+
+function channelLinear(value: number): number {
+  const c = value / 255
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+/** Относительная яркость WCAG 2.x для #RRGGBB (0..1). */
+export function relativeLuminance(hex: string): number {
+  const r = channelLinear(parseInt(hex.slice(1, 3), 16))
+  const g = channelLinear(parseInt(hex.slice(3, 5), 16))
+  const b = channelLinear(parseInt(hex.slice(5, 7), 16))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** Контраст WCAG двух цветов #RRGGBB (1..21). */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+}
+
+/**
+ * Цвет текста на фоне hex: белый или почти чёрный, у которого контраст выше. Лучший из двух
+ * даёт не менее 4.5:1 (WCAG AA для обычного текста) на любом фоне.
+ */
+export function readableForeground(hex: string): string {
+  const bg = isHexColor(hex) ? hex : DEFAULT_COLOR
+  return contrastRatio(bg, LIGHT_FG) >= contrastRatio(bg, DARK_FG) ? LIGHT_FG : DARK_FG
+}

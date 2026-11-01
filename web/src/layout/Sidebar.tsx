@@ -27,7 +27,7 @@ function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           className={({ isActive }) =>
             `block rounded py-1 pr-3 text-sm ${pad} ${
               isActive
-                ? 'bg-brand-100 font-medium text-brand-800 dark:bg-brand-900 dark:text-brand-50'
+                ? 'bg-brand-100 font-medium text-slate-900 dark:bg-brand-900 dark:text-white'
                 : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             }`
           }

@@ -83,7 +83,7 @@ export function OrdersPage() {
                 type="button"
                 aria-pressed={state.view === view}
                 onClick={() => { setState({ view }, { replace: true }) }}
-                className={`h-8 px-3 text-sm ${state.view === view ? 'bg-brand-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200'}`}
+                className={`h-8 px-3 text-sm ${state.view === view ? 'bg-brand-600 text-brand-fg' : 'bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200'}`}
               >
                 {t(view === 'list' ? 'orders.viewList' : 'orders.viewBoard')}
               </button>

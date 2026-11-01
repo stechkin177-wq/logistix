@@ -1,5 +1,5 @@
 import type { Branding, Theme } from '../api/types'
-import { DEFAULT_COLOR, SHADE_KEYS, isHexColor, shadeScale } from './palette'
+import { DEFAULT_COLOR, LIGHT_FG, SHADE_KEYS, isHexColor, readableForeground, shadeScale } from './palette'
 
 export const DEFAULT_APP_NAME = 'Logistix'
 const THEMES: readonly string[] = ['light', 'dark', 'system']
@@ -74,12 +74,17 @@ function applyTheme(theme: Theme): void {
   }
 }
 
-/** Выставляет CSS-переменные --brand-50..950, класс dark и заголовок страницы. */
+/** Выставляет CSS-переменные --brand-50..950, --brand-fg, --brand-solid-hover, класс dark и заголовок страницы. */
 export function applyBranding(input: Partial<Record<keyof Branding, unknown>>): void {
   const branding = sanitizeBranding(input)
   const root = document.documentElement
   const scale = shadeScale(branding.primary_color)
   for (const key of SHADE_KEYS) root.style.setProperty(`--brand-${key}`, scale[key])
+  // текст на сплошном фоне бренда (кнопки, активный вид): читаемый цвет для оттенка 600;
+  // при наведении светлый текст темнит фон (700), тёмный - осветляет (500), контраст не падает
+  const fg = readableForeground(scale[600])
+  root.style.setProperty('--brand-fg', fg)
+  root.style.setProperty('--brand-solid-hover', fg === LIGHT_FG ? scale[700] : scale[500])
   applyTheme(branding.theme)
   document.title = branding.app_name
 }

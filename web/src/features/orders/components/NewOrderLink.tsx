@@ -11,7 +11,7 @@ export function NewOrderLink() {
   const { hasPermission } = useSession()
   if (canWrite) {
     return (
-      <Link to="/orders/new" className="inline-flex h-8 items-center rounded bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
+      <Link to="/orders/new" className="inline-flex h-8 items-center rounded bg-brand-600 px-3 text-sm font-medium text-brand-fg hover:bg-brand-solid-hover">
         {t('orders.new')}
       </Link>
     )

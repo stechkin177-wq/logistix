@@ -111,6 +111,17 @@ describe('Оформление', () => {
     expect(m.calls.some((c) => c.method === 'PATCH')).toBe(false)
   })
 
+  it('предпросмотр цвета обновляет и читаемый цвет текста (--brand-fg)', async () => {
+    await brandingForm()
+    const color = screen.getByLabelText('Основной цвет')
+    await userEvent.clear(color)
+    await userEvent.type(color, '#FFFF00')
+    expect(document.documentElement.style.getPropertyValue('--brand-fg')).toBe('#020617')
+    await userEvent.clear(color)
+    await userEvent.type(color, '#2563EB')
+    expect(document.documentElement.style.getPropertyValue('--brand-fg')).toBe('#ffffff')
+  })
+
   it('предпросмотр применяется сразу, сохранение шлёт multipart и обновляет сессию', async () => {
     const m = await brandingForm()
     const color = screen.getByLabelText('Основной цвет')

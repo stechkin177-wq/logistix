@@ -82,7 +82,7 @@ describe('Смена пароля', () => {
     await save(dialog)
     await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
     expect(m.calls.length).toBeGreaterThan(0)
-    const dump = JSON.stringify({ ...window.localStorage }) + JSON.stringify({ ...window.sessionStorage }) + router.state.location.search + router.state.location.pathname
+    const dump = JSON.stringify(Object.entries(window.localStorage)) + JSON.stringify(Object.entries(window.sessionStorage)) + router.state.location.search + router.state.location.pathname
     expect(dump).not.toContain('old-password-1')
     expect(dump).not.toContain('Brand-new-pass-42')
     dialog = await open()
