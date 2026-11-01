@@ -14,12 +14,15 @@ class PartyBase(TenantModel, SoftDeleteModel):
     INACTIVE = "inactive"
     STATUSES = [(ACTIVE, "Активен"), (INACTIVE, "Неактивен")]
 
-    audit_masked_fields = ("bin_iin", "notes")
+    audit_masked_fields = ("bin_iin", "notes", "iban")
 
     name = models.CharField(max_length=255)
     bin_iin = models.CharField(max_length=12, blank=True)
     status = models.CharField(max_length=16, choices=STATUSES, default=ACTIVE)
     notes = models.TextField(blank=True)
+    address = models.CharField(max_length=500, blank=True)
+    bank = models.CharField(max_length=255, blank=True)
+    iban = models.CharField(max_length=34, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

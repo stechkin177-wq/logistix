@@ -169,6 +169,9 @@ class ClientSerializer(PartySerializer):
             "credit_limit",
             "orders_count",
             "notes",
+            "address",
+            "bank",
+            "iban",
             "contacts",
             "created_at",
         ]
@@ -191,6 +194,9 @@ class CarrierSerializer(PartySerializer):
             "status",
             "rating",
             "notes",
+            "address",
+            "bank",
+            "iban",
             "contacts",
             "created_at",
         ]
