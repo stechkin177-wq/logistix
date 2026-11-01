@@ -8,6 +8,7 @@ SaaS для экспедиторов и перевозчиков Казахст�
 - `web/` - фронтенд: React 19 + TypeScript + Vite + Tailwind (см. `web/README.md`)
 - `deploy/` - продакшен: Dockerfile, `docker-compose.prod.yml`, nginx, бэкап/восстановление, SQL инициализации БД (роль `logistix_app`)
 - `docs/ops/RUNBOOK.md` - **регламент эксплуатации и деплоя (hoster.kz)**
+- `docs/ops/VERCEL.md` - временный демо-запуск на бесплатном Vercel + Neon (только вымышленные данные)
 - `docker-compose.yml` - PostgreSQL 16 и Redis 7 для разработки
 - `.github/workflows/` - CI (`ci.yml`) и деплой (`deploy.yml`)
 
