@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.*.example
+.vercel/
 .superpowers/
 node_modules/
 dist/

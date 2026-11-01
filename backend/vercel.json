@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
+  "functions": {
+    "config/wsgi.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{**/tests/**,**/test_*.py,**/conftest.py,**/__pycache__/**,staticfiles/**,media/**,.pytest_cache/**,.ruff_cache/**,.venv/**,venv/**,.env*}"
+    }
+  }
+}
