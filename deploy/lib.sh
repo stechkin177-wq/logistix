@@ -31,7 +31,23 @@ load_env() {
 #   local                 - pg_dump/psql с хоста, параметры из PGHOST/PGPORT/PGUSER/PGPASSWORD (env).
 PG_MODE="${PG_MODE:-docker}"
 
-dc() { docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
+# Тег образа - ЕДИНЫЙ источник: deploy/.image_tag.env (пишет только release.sh). Каждый вызов
+# compose читает его вторым --env-file; без файла dc() падает (иначе подставился бы чужой тег).
+IMAGE_TAG_FILE="${IMAGE_TAG_FILE:-$DEPLOY_DIR/.image_tag.env}"
+
+# DC_PRINT=1 - только напечатать команду (для проверки состава команд без Docker)
+dc() {
+  if [[ ! -f "$IMAGE_TAG_FILE" ]]; then
+    die "нет $IMAGE_TAG_FILE: тег образа задаёт deploy/release.sh <тег> (первый деплой - release.sh)"
+  fi
+  if [[ "${DC_PRINT:-0}" == 1 ]]; then
+    printf 'docker compose -f %s --env-file %s --env-file %s' "$COMPOSE_FILE" "$ENV_FILE" "$IMAGE_TAG_FILE"
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --env-file "$IMAGE_TAG_FILE" "$@"
+}
 
 # pg_owner <команда pg_*> [аргументы...] - выполнить клиентскую утилиту ролью-ВЛАДЕЛЬЦЕМ
 pg_owner() {

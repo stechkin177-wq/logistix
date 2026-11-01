@@ -1,7 +1,7 @@
 # Продакшен/стейджинг Logistix. Запуск из каталога deploy/:
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 # Проверка синтаксиса без запуска:
-#   docker compose -f docker-compose.prod.yml --env-file .env.prod.example config -q
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod.example --env-file .image_tag.env.example config -q
 # Наружу публикует порты ТОЛЬКО nginx (80/443). Образы собирает CI (GHCR); секция build -
 # для локальной сборки (`docker compose build`, контекст - корень репозитория).
 # Запуск этого стека в среде разработки не выполнялся (нет Docker daemon).
@@ -38,7 +38,7 @@ x-backend-env: &backend-env
   SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
 
 x-backend: &backend
-  image: ${BACKEND_IMAGE:?задайте BACKEND_IMAGE}:${IMAGE_TAG:-staging}
+  image: ${BACKEND_IMAGE:?задайте BACKEND_IMAGE}:${IMAGE_TAG:?тег образа задаёт deploy/release.sh (файл .image_tag.env)}
   build:
     context: ..
     dockerfile: deploy/Dockerfile.backend
@@ -54,7 +54,7 @@ x-backend: &backend
 
 services:
   nginx:
-    image: ${WEB_IMAGE:?задайте WEB_IMAGE}:${IMAGE_TAG:-staging}
+    image: ${WEB_IMAGE:?задайте WEB_IMAGE}:${IMAGE_TAG:?тег образа задаёт deploy/release.sh (файл .image_tag.env)}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.web
@@ -152,6 +152,9 @@ services:
   beat:
     <<: *backend
     command: ["celery", "-A", "config", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    # HTTP-проверка образа backend для beat неприменима (порта нет)
+    healthcheck:
+      disable: true
     environment:
       <<: *backend-env
     depends_on:
@@ -198,7 +201,8 @@ services:
     restart: unless-stopped
     logging: *logging
     # Пароль виден только внутри контейнера (argv); порт наружу не публикуется
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    # Без sh -c: entrypoint официального образа видит redis-server и сам понижает root до пользователя redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?задайте REDIS_PASSWORD}
       REDISCLI_AUTH: ${REDIS_PASSWORD}

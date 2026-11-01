@@ -5,7 +5,7 @@
 # в argv, ни в логи. Файл deploy/.env.prod должен лежать на сервере заранее (в git его нет).
 # Шаги: git checkout GIT_REF (если задан) -> docker compose pull -> up -d (ждёт успешный migrate)
 # -> проверка кода выхода migrate. Код выхода != 0 при любой неудаче; прошлый тег - в
-# deploy/.previous_tag (для отката: release.sh $(cat deploy/.previous_tag)).
+# deploy/.previous_tag, текущий - deploy/.image_tag.env (для отката: release.sh $(cat deploy/.previous_tag)).
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -30,9 +30,19 @@ if [[ -n "$GIT_REF" ]]; then
   log "исходники: $(git -C "$DEPLOY_DIR/.." rev-parse --short HEAD)"
 fi
 
+# Единый источник тега: .image_tag.env читают ВСЕ вызовы compose (lib.sh dc). Если выкладка
+# не удастся, возвращаем прежний тег.
 current=""
-[[ -f "$DEPLOY_DIR/.current_tag" ]] && current="$(<"$DEPLOY_DIR/.current_tag")"
-export IMAGE_TAG
+if [[ -f "$IMAGE_TAG_FILE" ]]; then
+  current="$(sed -n 's/^IMAGE_TAG=//p' "$IMAGE_TAG_FILE")"
+  cp -p "$IMAGE_TAG_FILE" "$IMAGE_TAG_FILE.bak"
+fi
+revert_tag() {
+  if [[ -f "$IMAGE_TAG_FILE.bak" ]]; then mv -f "$IMAGE_TAG_FILE.bak" "$IMAGE_TAG_FILE"; else rm -f "$IMAGE_TAG_FILE"; fi
+}
+trap 'rc=$?; ((rc)) && revert_tag; exit $rc' EXIT
+( umask 077; printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" >"$IMAGE_TAG_FILE" )
+chmod 600 "$IMAGE_TAG_FILE"
 log "pull образов, тег $IMAGE_TAG"
 dc pull
 log "up -d (ждёт миграции и healthcheck backend)"
@@ -49,7 +59,7 @@ if [[ "$exit_code" != 0 ]]; then
   die "migrate завершился с кодом $exit_code"
 fi
 
-[[ -n "$current" && "$current" != "$IMAGE_TAG" ]] && printf '%s\n' "$current" >"$DEPLOY_DIR/.previous_tag"
-printf '%s\n' "$IMAGE_TAG" >"$DEPLOY_DIR/.current_tag"
+if [[ -n "$current" && "$current" != "$IMAGE_TAG" ]]; then printf '%s\n' "$current" >"$DEPLOY_DIR/.previous_tag"; fi
+rm -f "$IMAGE_TAG_FILE.bak"
 dc ps
 log "выкладка $IMAGE_TAG завершена"
