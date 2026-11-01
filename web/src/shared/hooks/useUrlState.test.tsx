@@ -71,3 +71,19 @@ describe('useUrlState', () => {
     expect(router.state.location.search).toContain('tab=finance')
   })
 })
+
+describe('useUrlState: сброс страницы', () => {
+  it('смена фильтра без явной page сбрасывает страницу, явная page сохраняется', () => {
+    const router = createMemoryRouter([{ path: '*', element: <Holder /> }], { initialEntries: ['/?page=4&q=a'] })
+    const out: { current: ReturnType<typeof useUrlState<typeof SCHEMA>> | null } = { current: null }
+    function Holder(): ReactNode {
+      out.current = useUrlState(SCHEMA, { pageKey: 'page' })
+      return null
+    }
+    render(<RouterProvider router={router} />)
+    act(() => { out.current![1]({ q: 'b' }) })
+    expect(router.state.location.search).not.toContain('page=')
+    act(() => { out.current![1]({ page: 3 }) })
+    expect(router.state.location.search).toContain('page=3')
+  })
+})

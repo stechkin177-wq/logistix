@@ -3,7 +3,8 @@ import type { Session } from '../shared/api/types'
 import { mockFetch } from './fetchMock'
 import { BRANDING, makeSession } from './fixtures'
 
-type Routes = Parameters<typeof mockFetch>[0]
+export type MockRoutes = Parameters<typeof mockFetch>[0]
+type Routes = MockRoutes
 
 /**
  * Вход в тестах: токены + мок fetch. Маршруты теста идут первыми (первый совпавший побеждает), затем

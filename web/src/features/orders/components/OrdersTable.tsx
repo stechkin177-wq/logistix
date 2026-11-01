@@ -11,6 +11,7 @@ import { Money } from '../../../shared/ui/Money'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { useCurrencies, useOrderList } from '../hooks'
 import type { Order, OrderListParams } from '../types'
+import { NewOrderLink } from './NewOrderLink'
 import { StatusControl } from './StatusControl'
 
 /** Самая ранняя погрузка заказа по его грузам (как считает бэкенд для фильтра/канбана). */
@@ -27,12 +28,11 @@ export function loadingAt(order: Order): string | null {
 interface Props {
   params: OrderListParams
   filtered: boolean
-  canCreate: boolean
   onChange: (patch: Partial<OrderListParams>) => void
   onReset: () => void
 }
 
-export function OrdersTable({ params, filtered, canCreate, onChange, onReset }: Props) {
+export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const list = useOrderList(params)
@@ -98,11 +98,7 @@ export function OrdersTable({ params, filtered, canCreate, onChange, onReset }: 
             </EmptyState>
           ) : (
             <EmptyState title={t('orders.empty')} hint={t('orders.emptyHint')}>
-              {canCreate ? (
-                <Link to="/orders/new" className="inline-flex h-8 items-center rounded bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
-                  {t('orders.new')}
-                </Link>
-              ) : null}
+              <NewOrderLink />
             </EmptyState>
           )
         }

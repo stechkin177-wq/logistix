@@ -20,9 +20,15 @@ Dev-сервер проксирует `/api` и `/media` на `http://127.0.0.1:
 - `src/shared/auth/` - токены, `AuthProvider`, `useSession`, `useAuth`, `useCanWrite`, `RequireAuth`
 - `src/shared/i18n/` - `ru.json` (источник), `kk.json`, `index.ts`
 - `src/shared/branding/` - `applyBranding`, `palette` (шкала `--brand-50..950`), `useBranding`
-- `src/shared/ui/` - Button, Input, Spinner, Banner, EmptyState, WriteButton, Toaster
+- `src/shared/ui/` - Button, Input, TextField/TextArea, Select, Combobox (async), DateInput, FormField, Badge, Money, DateTime,
+  DataTable (сортировка -> `ordering` API), Pagination (конверт DRF), FilterBar, Overlay/Dialog/Drawer/ConfirmDialog (Escape, trap, возврат фокуса),
+  Tabs, Banner, EmptyState, WriteButton, Toaster
+- `src/shared/format/` - `formatMoney` (денежные строки без float), даты в поясе компании (`useFormat`)
+- `src/shared/hooks/useUrlState.ts` - фильтры/страница/сортировка в адресе (мусор -> значения по умолчанию)
+- `src/shared/forms/` - `serverErrors` (ошибки API -> поля формы / баннер), `useFocusInvalid`
+- `src/shared/handbooks`, `src/shared/users` - справочники и сотрудники (деградируют без прав)
 - `src/layout/` - `AppLayout`, `Sidebar`, `nav.ts` (`visibleNav`), `ReadonlyBanner`
-- `src/features/` - `auth` (вход), `dashboard`, `errors` (403/404/«Доступ приостановлен»), `placeholder`
+- `src/features/` - `auth` (вход), `dashboard`, `parties` (общий код клиентов и перевозчиков), `clients`, `carriers`, `orders`, `errors` (403/404/«Доступ приостановлен»), `placeholder`
 - `src/test/` - помощники тестов (`mockFetch`, `renderApp`, `makeSession`)
 
 ## Токены

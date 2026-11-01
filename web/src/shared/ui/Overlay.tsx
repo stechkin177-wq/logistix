@@ -36,7 +36,7 @@ export function Overlay({
     if (!open) return
     returnTo.current = document.activeElement
     const root = panel.current
-    const first = root?.querySelector<HTMLElement>('[data-autofocus], ' + FOCUSABLE)
+    const first = root?.querySelector<HTMLElement>('[data-autofocus]') ?? root?.querySelector<HTMLElement>(FOCUSABLE)
     ;(first ?? root)?.focus()
     return () => {
       const target = returnTo.current

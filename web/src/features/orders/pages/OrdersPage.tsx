@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
 import { ApiError, errorMessage } from '../../../shared/api/errors'
-import { useCanWrite } from '../../../shared/auth/useCanWrite'
 import { codecs, useUrlState } from '../../../shared/hooks/useUrlState'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { PAGE_SIZES } from '../../../shared/ui/Pagination'
 import { exportOrders } from '../api'
+import { NewOrderLink } from '../components/NewOrderLink'
 import { EMPTY_FILTERS, OrderFilters, hasFilters } from '../components/OrderFilters'
 import { OrdersBoard } from '../components/OrdersBoard'
 import { OrdersTable } from '../components/OrdersTable'
@@ -47,7 +46,6 @@ function saveBlob(blob: Blob, filename: string): void {
 export function OrdersPage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(ORDERS_SCHEMA, { pageKey: 'page' })
-  const canCreate = useCanWrite('orders.create')
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
@@ -93,11 +91,7 @@ export function OrdersPage() {
           <Button onClick={() => void download()} disabled={exporting}>
             {exporting ? t('orders.exporting') : t('orders.excel')}
           </Button>
-          {canCreate ? (
-            <Link to="/orders/new" className="inline-flex h-8 items-center rounded bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
-              {t('orders.new')}
-            </Link>
-          ) : null}
+          <NewOrderLink />
         </div>
       </div>
       <OrderFilters
@@ -111,7 +105,6 @@ export function OrdersPage() {
         <OrdersTable
           params={params}
           filtered={hasFilters(filters)}
-          canCreate={canCreate}
           onChange={({ ordering, ...rest }) => {
             const valid = ORDERINGS.find((o) => o === ordering)
             setState({ ...rest, ...(valid ? { ordering: valid } : {}) })

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useCanWrite } from '../../../shared/auth/useCanWrite'
+import { useSession } from '../../../shared/auth/useSession'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { useUsers, userLabel } from '../../../shared/users/useUsers'
 import { DateTime } from '../../../shared/ui/DateTime'
@@ -30,7 +30,7 @@ export function OverviewTab({ order }: { order: Order }) {
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const update = useUpdateOrder(order.id)
-  const canUpdate = useCanWrite('orders.update')
+  const { hasPermission } = useSession()
   const { users } = useUsers()
   const { codeOf } = useCurrencies()
   const client = useQuery({
@@ -62,7 +62,7 @@ export function OverviewTab({ order }: { order: Order }) {
   }
   return (
     <div className="space-y-3">
-      {canUpdate ? (
+      {hasPermission('orders.update') ? (
         <WriteButton permission="orders.update" onClick={() => { setEditing(true) }}>{t('common.edit')}</WriteButton>
       ) : null}
       <dl className="max-w-3xl">

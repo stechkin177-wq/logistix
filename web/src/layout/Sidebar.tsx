@@ -22,7 +22,7 @@ function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
       ) : (
         <NavLink
           to={item.path}
-          end={item.path === '/' || Boolean(item.children)}
+          end={item.path === '/'}
           className={({ isActive }) =>
             `block rounded py-1 pr-3 text-sm ${pad} ${
               isActive
