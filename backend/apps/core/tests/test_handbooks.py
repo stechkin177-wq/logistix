@@ -119,7 +119,7 @@ def test_seed_is_idempotent(company):
     seed_handbooks(company)
     with tenant_context(company.id):
         assert (Handbook.objects.count(), HandbookValue.objects.count()) == before
-    assert before[0] == 11
+    assert before[0] == 12
 
 
 def test_seed_leaves_no_tenant_context(company):
@@ -438,11 +438,11 @@ def test_handbooks_endpoints_isolated(make_company):
     a, _, client_a = make_company("A")
     b, _, client_b = make_company("B")
     Handbook.all_objects.create(company=a, code="only_a", name="Только A")
-    assert len(client_a.get("/api/handbooks/").json()) == 12
-    assert len(client_b.get("/api/handbooks/").json()) == 11
+    assert len(client_a.get("/api/handbooks/").json()) == 13
+    assert len(client_b.get("/api/handbooks/").json()) == 12
     ids_a = set(Handbook.all_objects.filter(company=a).values_list("id", flat=True))
     ids_b = set(Handbook.all_objects.filter(company=b).values_list("id", flat=True))
-    assert len(ids_b) == 11 and not ids_a & ids_b
+    assert len(ids_b) == 12 and not ids_a & ids_b
     assert client_a.get("/api/handbooks/?code=only_a").status_code == 200
     assert client_b.get("/api/handbooks/?code=only_a").status_code == 404
     assert client_b.get("/api/handbooks/only_a/").status_code == 404
