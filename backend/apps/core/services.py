@@ -9,6 +9,7 @@ from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
 from .numbering.services import seed_numbering
 from .permissions_catalog import ADMIN_ROLE_NAME, SYSTEM_ROLES
+from .signals import company_created
 from .tenancy import tenant_context
 
 VALID_MODULES = {"forwarding", "fleet"}
@@ -49,4 +50,5 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
         starts_at=now,
         ends_at=now + timedelta(days=FREE_PERIOD_DAYS),
     )
+    company_created.send(sender=Company, company=company)
     return company

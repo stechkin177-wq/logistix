@@ -18,7 +18,18 @@ from apps.core.tenancy import NoTenantContext, tenant_context
 pytestmark = pytest.mark.django_db
 
 JUNE_2026 = datetime(2026, 6, 1, 12, 0, tzinfo=dt_tz.utc)
-ALL_KINDS = ["order", "trip", "consolidated_trip", "invoice_out", "invoice_in"]
+ALL_KINDS = [
+    "order",
+    "trip",
+    "consolidated_trip",
+    "invoice_out",
+    "invoice_in",
+    "contract",
+    "act",
+    "carrier_order",
+    "cmr",
+    "letter",
+]
 
 
 @pytest.fixture(autouse=True)
@@ -48,6 +59,11 @@ def test_kinds_and_defaults(company):
         "consolidated_trip": ("C{index}", 0),
         "invoice_out": ("СЧ-{year}-{index}", 5),
         "invoice_in": ("ПС-{year}-{index}", 5),
+        "contract": ("Д-{year}-{index}", 5),
+        "act": ("АКТ-{year}-{index}", 5),
+        "carrier_order": ("ЗП-{year}-{index}", 5),
+        "cmr": ("CMR-{year}-{index}", 5),
+        "letter": ("ИСХ-{year}-{index}", 5),
     }
     assert {k: (v["template"], v["digits"]) for k, v in DEFAULTS.items()} == expected
     for kind, (template, digits) in expected.items():
@@ -61,7 +77,7 @@ def test_seed_is_idempotent_and_keeps_edits(company):
     seed_numbering(company)
     seed_numbering(company)
     with tenant_context(company.id):
-        assert NumberingRule.objects.count() == 5
+        assert NumberingRule.objects.count() == 10
     r = rule(company, "order")
     assert (r.template, r.next_value) == ("X-{index}", 50)
 
@@ -226,7 +242,7 @@ def test_frozen_time_is_visible_in_threads(make_company):
 URL = "/api/numbering/"
 
 
-def test_list_returns_five_rules_with_samples(admin_client):
+def test_list_returns_all_rules_with_samples(admin_client):
     r = admin_client.get(URL)
     assert r.status_code == 200
     data = r.json()

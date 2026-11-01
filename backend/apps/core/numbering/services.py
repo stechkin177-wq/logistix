@@ -56,6 +56,36 @@ KINDS: dict[str, dict] = {
         "required": {"index"},
         "allowed": BASE_PLACEHOLDERS,
     },
+    "contract": {
+        "name": "Договоры",
+        "description": "Номер договора",
+        "required": {"index"},
+        "allowed": BASE_PLACEHOLDERS,
+    },
+    "act": {
+        "name": "Акты",
+        "description": "Номер акта выполненных работ",
+        "required": {"index"},
+        "allowed": BASE_PLACEHOLDERS,
+    },
+    "carrier_order": {
+        "name": "Заявки перевозчикам",
+        "description": "Номер заявки перевозчику",
+        "required": {"index"},
+        "allowed": BASE_PLACEHOLDERS,
+    },
+    "cmr": {
+        "name": "CMR",
+        "description": "Номер накладной CMR",
+        "required": {"index"},
+        "allowed": BASE_PLACEHOLDERS,
+    },
+    "letter": {
+        "name": "Исходящие письма",
+        "description": "Номер исходящего письма",
+        "required": {"index"},
+        "allowed": BASE_PLACEHOLDERS,
+    },
 }
 
 DEFAULTS: dict[str, dict] = {
@@ -64,6 +94,11 @@ DEFAULTS: dict[str, dict] = {
     "consolidated_trip": {"template": "C{index}", "digits": 0},
     "invoice_out": {"template": "СЧ-{year}-{index}", "digits": 5},
     "invoice_in": {"template": "ПС-{year}-{index}", "digits": 5},
+    "contract": {"template": "Д-{year}-{index}", "digits": 5},
+    "act": {"template": "АКТ-{year}-{index}", "digits": 5},
+    "carrier_order": {"template": "ЗП-{year}-{index}", "digits": 5},
+    "cmr": {"template": "CMR-{year}-{index}", "digits": 5},
+    "letter": {"template": "ИСХ-{year}-{index}", "digits": 5},
 }
 
 

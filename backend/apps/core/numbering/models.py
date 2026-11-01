@@ -8,6 +8,11 @@ KIND_CHOICES = [
     ("consolidated_trip", "Сборный рейс"),
     ("invoice_out", "Счёт клиенту"),
     ("invoice_in", "Счёт от перевозчика"),
+    ("contract", "Договор"),
+    ("act", "Акт"),
+    ("carrier_order", "Заявка перевозчику"),
+    ("cmr", "CMR"),
+    ("letter", "Исходящее письмо"),
 ]
 
 

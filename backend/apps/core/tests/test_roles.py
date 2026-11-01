@@ -70,7 +70,7 @@ def admin_client(api_client, owner_a, company_a):
 
 
 def test_catalog_has_48_unique_codes():
-    assert len(ALL_PERMISSIONS) == 50 == len(set(ALL_PERMISSIONS))
+    assert len(ALL_PERMISSIONS) == 54 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
 
 
