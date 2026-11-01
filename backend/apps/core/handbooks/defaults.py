@@ -49,6 +49,17 @@ DEFAULTS: dict[str, dict] = {
             {"name": "Отменён", "is_final": True},
         ],
     },
+    "vat_rate": {
+        "name": "Ставки НДС",
+        "group": "Финансы",
+        # code - процент ставки (строка) либо none для «Без НДС»; читает finance.money.vat_percent
+        "values": _coded(
+            ("Без НДС", "none"),
+            ("НДС 0%", "0"),
+            ("НДС 12%", "12"),
+            ("НДС 16%", "16"),
+        ),
+    },
     "currency": {
         "name": "Валюты",
         "group": "Финансы",

@@ -21,3 +21,4 @@ deploy/.env.prod
 deploy/.previous_tag
 deploy/.image_tag.env
 deploy/.image_tag.env.bak
+*.egg-info/

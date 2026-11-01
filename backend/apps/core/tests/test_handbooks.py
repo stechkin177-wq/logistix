@@ -21,6 +21,7 @@ CODES = [
     "consignment_status",
     "trip_status",
     "currency",
+    "vat_rate",
     "client_type",
     "carrier_type",
     "packaging",
