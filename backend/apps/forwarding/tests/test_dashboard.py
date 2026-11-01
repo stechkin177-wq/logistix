@@ -215,6 +215,44 @@ def test_manager_dashboard_has_finance(company):
     assert s["month_profit"] == "500.00" and s["month_margin_pct"] == "100.00"
 
 
+def test_dashboard_profit_counts_only_base_currency(company):
+    _, api = client_with_role(company, "Менеджер")
+    make_order(company, client_rate=500000)  # KZT
+    usd = make_order(company, client_rate=1000, currency=hv(company, "currency", code="USD"))
+    eur = make_order(company, client_rate=700, currency=hv(company, "currency", code="EUR"))
+    add_line(company, usd, expense=100)
+    add_line(company, eur, expense=50)
+    s = summary(api)
+    assert s["currency"] == "KZT"
+    assert s["month_profit"] == "500000.00" and s["month_margin_pct"] == "100.00"
+    assert s["excluded_orders"] == 2
+
+
+def test_dashboard_cancelled_foreign_order_is_not_excluded_order(company):
+    _, api = client_with_role(company, "Менеджер")
+    make_order(company, client_rate=500)
+    usd = make_order(company, client_rate=1000, currency=hv(company, "currency", code="USD"))
+    set_status(company, usd, "Отменён")
+    s = summary(api)
+    assert s["excluded_orders"] == 0 and s["month_profit"] == "500.00"
+
+
+def test_dashboard_single_currency_unchanged(company):
+    _, api = client_with_role(company, "Менеджер")
+    order = make_order(company, client_rate=1000)
+    add_line(company, order, expense=250)
+    s = summary(api)
+    assert s["month_profit"] == "750.00" and s["month_margin_pct"] == "75.00"
+    assert s["currency"] == "KZT" and s["excluded_orders"] == 0
+
+
+def test_dashboard_without_finance_hides_currency_fields(company):
+    _, api = client_with_role(company, "Диспетчер")
+    make_order(company, client_rate=500)
+    s = summary(api)
+    assert s["currency"] is None and s["excluded_orders"] is None
+
+
 def test_driver_has_no_dashboard(company):
     _, api = client_with_role(company, "Водитель")
     assert api.get(SUMMARY).status_code == 403

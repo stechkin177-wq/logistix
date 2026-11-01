@@ -15,6 +15,7 @@ from ..trips.models import TripConsignment
 from .models import Order, OrderStatusHistory
 
 COMPLETED_CODE = "completed"
+BASE_CURRENCY_CODE = "KZT"  # базовая валюта компании: в ней считается прибыль дашборда
 NUMBER_CONSTRAINT = "order_company_number_uniq"
 
 
@@ -38,10 +39,12 @@ def carried_with_carrier(order=OuterRef("pk")):
 
 def _default_currency() -> HandbookValue:
     value = HandbookValue.objects.filter(
-        handbook__code="currency", code="KZT", is_active=True
+        handbook__code="currency", code=BASE_CURRENCY_CODE, is_active=True
     ).first()
     if value is None:
-        raise ValidationError({"currency": "Укажите валюту: значение KZT недоступно"})
+        raise ValidationError(
+            {"currency": f"Укажите валюту: значение {BASE_CURRENCY_CODE} недоступно"}
+        )
     return value
 
 

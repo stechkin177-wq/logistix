@@ -3,13 +3,15 @@
 Права: orders.view; финансовые поля (month_profit, month_margin_pct) - только с finance.view,
 иначе null. Месяц и «сегодня» считаются в часовом поясе компании. В прибыль месяца входят строки
 заказов с датой в текущем месяце и не раньше Company.accounting_start; строки отменённых
-(код статуса cancelled) и мягко удалённых заказов исключены. Запросов к БД фиксированное число
+(код статуса cancelled) и мягко удалённых заказов исключены. Суммируются только заказы в
+базовой валюте (BASE_CURRENCY_CODE, currency в ответе); число заказов с данными в других
+валютах - excluded_orders (null без finance.view). Запросов к БД фиксированное число
 (не зависит от числа заказов).
 """
 
 from datetime import datetime, time
 
-from django.db.models import Count, Exists, Sum
+from django.db.models import Count, Exists, Q, Sum
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,7 +24,7 @@ from apps.core.models import Company
 from .finance_lines.models import OrderService, company_zone
 from .finance_lines.services import ZERO, margin_pct
 from .models import Carrier, Client, Order
-from .orders.services import COMPLETED_CODE, carried_with_carrier
+from .orders.services import BASE_CURRENCY_CODE, COMPLETED_CODE, carried_with_carrier
 
 CANCELLED_CODE = "cancelled"
 
@@ -42,16 +44,27 @@ def month_bounds(today):
 
 
 def _month_finance(company, today) -> dict:
+    """Прибыль месяца только по заказам в базовой валюте; заказы в других валютах не
+    суммируются (разные валюты нельзя складывать) и считаются в excluded_orders."""
     first, nxt = month_bounds(today)
     start = max(first, company.accounting_start) if company.accounting_start else first
-    sums = (
-        OrderService.objects.filter(order__deleted_at__isnull=True, date__gte=start, date__lt=nxt)
-        .exclude(order__status__code=CANCELLED_CODE)
-        .aggregate(revenue=Sum("income"), cost=Sum("expense"))
+    lines = OrderService.objects.filter(
+        order__deleted_at__isnull=True, date__gte=start, date__lt=nxt
+    ).exclude(order__status__code=CANCELLED_CODE)
+    base = Q(order__currency__code=BASE_CURRENCY_CODE)
+    sums = lines.aggregate(
+        revenue=Sum("income", filter=base),
+        cost=Sum("expense", filter=base),
+        excluded=Count("order_id", filter=~base, distinct=True),
     )
     revenue, cost = sums["revenue"] or ZERO, sums["cost"] or ZERO
     profit = revenue - cost
-    return {"month_profit": profit, "month_margin_pct": margin_pct(revenue, profit)}
+    return {
+        "month_profit": profit,
+        "month_margin_pct": margin_pct(revenue, profit),
+        "currency": BASE_CURRENCY_CODE,
+        "excluded_orders": sums["excluded"],
+    }
 
 
 def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
@@ -83,6 +96,8 @@ def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
         "unassigned_orders": unassigned.count(),
         "month_profit": None,
         "month_margin_pct": None,
+        "currency": None,
+        "excluded_orders": None,
     }
     if with_finance:
         result.update(_month_finance(company, today))
