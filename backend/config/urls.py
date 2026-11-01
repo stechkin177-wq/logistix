@@ -23,6 +23,7 @@ from apps.core.handbooks.api import HandbookValueViewSet, HandbookViewSet
 from apps.core.numbering.api import NumberingRuleViewSet
 from apps.core.views import health
 from apps.finance.api.invoices import InvoiceViewSet
+from apps.finance.api.operations import OperationsExportView, OperationsView
 from apps.finance.api.payments import PaymentViewSet
 from apps.finance.api.trips import TripExpenseLinesView
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
@@ -51,6 +52,8 @@ router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/finance/operations/", OperationsView.as_view()),
+    path("api/finance/operations/export/", OperationsExportView.as_view()),
     path("api/finance/trips/<int:pk>/expense-lines/", TripExpenseLinesView.as_view()),
     path("api/auth/login/", LoginView.as_view()),
     path("api/auth/refresh/", RefreshView.as_view()),
