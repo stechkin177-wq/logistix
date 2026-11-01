@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from django.db.models import OuterRef
 from django.utils import timezone
 from rest_framework import status as http_status
 from rest_framework.exceptions import APIException, ValidationError
@@ -9,6 +10,7 @@ from apps.core.models import LegalEntity
 from apps.core.numbering.services import next_number
 
 from ..consignments.services import create_consignment, created_changes, initial_status
+from ..trips.models import TripConsignment
 from .models import Order, OrderStatusHistory
 
 COMPLETED_CODE = "completed"
@@ -21,6 +23,16 @@ class NumberConflict(APIException):
         "Номер заказа уже занят: проверьте счётчик нумерации заказов в настройках компании"
     )
     default_code = "number_conflict"
+
+
+def carried_with_carrier(order=OuterRef("pk")):
+    """Груз заказа едет в не удалённом рейсе с перевозчиком (рейс без перевозчика не считается)."""
+    return TripConsignment.objects.filter(
+        consignment__order=order,
+        consignment__deleted_at__isnull=True,
+        trip__deleted_at__isnull=True,
+        trip__carrier__isnull=False,
+    )
 
 
 def _default_currency() -> HandbookValue:

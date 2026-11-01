@@ -10,7 +10,7 @@ from ..consignments.models import ConsignmentPoint
 from ..consignments.serializers import NestedConsignmentSerializer
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..models import Client, Contact, Order, OrderStatusHistory
-from .services import change_status, create_order
+from .services import carried_with_carrier, change_status, create_order
 
 FORBIDDEN_FIELDS = {
     "number": "Номер выдаётся автоматически",
@@ -73,6 +73,7 @@ class OrderSerializer(serializers.ModelSerializer):
     status_name = serializers.CharField(source="status.name", read_only=True)
     manager_name = serializers.SerializerMethodField()
     route = serializers.SerializerMethodField()
+    has_carrier = serializers.SerializerMethodField()
     history = serializers.SerializerMethodField()
 
     class Meta:
@@ -101,6 +102,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "status_name",
             "completed_at",
             "route",
+            "has_carrier",
             "consignments",
             "history",
             "created_by",
@@ -130,6 +132,13 @@ class OrderSerializer(serializers.ModelSerializer):
                     f"{points[ConsignmentPoint.LOAD].city} → {points[ConsignmentPoint.UNLOAD].city}"
                 )
         return ""
+
+    def get_has_carrier(self, obj):
+        """Аннотация списка/деталей; у только что созданного заказа - запрос."""
+        value = getattr(obj, "has_carrier", None)
+        if value is None:
+            value = carried_with_carrier(obj.pk).exists()
+        return value
 
     def get_history(self, obj):
         return HistorySerializer(obj.history.all(), many=True).data

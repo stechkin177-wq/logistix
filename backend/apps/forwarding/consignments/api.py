@@ -1,4 +1,4 @@
-from django.db.models import Prefetch
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from rest_framework import viewsets
 
 from apps.billing.permissions import ModuleRequired
@@ -6,8 +6,8 @@ from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
 
-from ..models import Consignment, ConsignmentPoint
-from ..orders.api import int_param
+from ..models import Consignment, ConsignmentPoint, TripConsignment
+from ..orders.api import flag_param, int_param
 from .serializers import ConsignmentSerializer
 
 
@@ -23,6 +23,9 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
         qs = (
             Consignment.objects.filter(order__deleted_at__isnull=True)  # груз скрыт с заказом
             .select_related("order", "status", "packaging")
+            .annotate(
+                trips_count=Count("trip_links", filter=Q(trip_links__trip__deleted_at__isnull=True))
+            )
             .prefetch_related(
                 Prefetch(
                     "points",
@@ -34,6 +37,11 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
             params = self.request.query_params
             if (order := int_param(params, "order")) is not None:
                 qs = qs.filter(order_id=order)
+            if flag_param(params, "without_trip"):  # очередь распределения по рейсам
+                in_trip = TripConsignment.objects.filter(
+                    consignment=OuterRef("pk"), trip__deleted_at__isnull=True
+                )
+                qs = qs.filter(~Exists(in_trip))
             if q := (params.get("q") or "").strip():
                 qs = qs.filter(name__icontains=q)
             qs = qs.order_by("id")

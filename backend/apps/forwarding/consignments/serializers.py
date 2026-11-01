@@ -122,12 +122,20 @@ class OrderRefField(serializers.PrimaryKeyRelatedField):
 class ConsignmentSerializer(ConsignmentBaseSerializer):
     order = OrderRefField()
     order_number = serializers.CharField(source="order.number", read_only=True)
+    trips_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Consignment
-        fields = ["order", "order_number", *NESTED_FIELDS]
+        fields = ["order", "order_number", *NESTED_FIELDS, "trips_count"]
         read_only_fields = ["id", "created_at"]
         extra_kwargs = {"weight_kg": {"min_value": 0}, "volume_m3": {"min_value": 0}}
+
+    def get_trips_count(self, obj):
+        """Не удалённые рейсы с грузом: аннотация списка/деталей, иначе (после создания) запрос."""
+        count = getattr(obj, "trips_count", None)
+        if count is None:
+            count = obj.trip_links.filter(trip__deleted_at__isnull=True).count()
+        return count
 
     def validate_order(self, value):
         if self.instance is not None and value.pk != self.instance.order_id:

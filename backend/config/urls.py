@@ -14,6 +14,7 @@ from apps.core.views import health
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
 from apps.forwarding.orders.api import OrderViewSet
+from apps.forwarding.trips.api import TripViewSet
 
 router = SimpleRouter()
 router.register("roles", RoleViewSet, basename="role")
@@ -27,6 +28,7 @@ router.register("clients", ClientViewSet, basename="client")
 router.register("carriers", CarrierViewSet, basename="carrier")
 router.register("orders", OrderViewSet, basename="order")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
+router.register("trips", TripViewSet, basename="trip")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

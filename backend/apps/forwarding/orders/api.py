@@ -12,6 +12,7 @@ from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, ConsignmentPoint, Order, OrderStatusHistory
 from .serializers import OrderSerializer, StatusChangeSerializer
+from .services import carried_with_carrier
 
 ORDERING_FIELDS = ("created_at", "number")
 DEFAULT_ORDERING = "-created_at"
@@ -24,6 +25,15 @@ def int_param(params, name):
     if not value.isascii() or not value.isdigit():
         raise ValidationError({name: "Ожидается числовой id"})
     return int(value)
+
+
+def flag_param(params, name) -> bool:
+    value = (params.get(name) or "").strip().lower()
+    if value in ("", "0", "false"):
+        return False
+    if value in ("1", "true"):
+        return True
+    raise ValidationError({name: "Допустимо: 1 или 0"})
 
 
 def consignments_prefetch() -> Prefetch:
@@ -71,8 +81,10 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         return context
 
     def get_queryset(self):
-        qs = Order.objects.select_related("client", "status", "manager").prefetch_related(
-            "extra_managers", consignments_prefetch()
+        qs = (
+            Order.objects.select_related("client", "status", "manager")
+            .prefetch_related("extra_managers", consignments_prefetch())
+            .annotate(has_carrier=Exists(carried_with_carrier()))
         )
         if self.action != "list":
             qs = qs.prefetch_related(

@@ -161,7 +161,7 @@ def test_create_order_with_consignment_and_points(admin_client, company, admin_u
     assert d["currency"] == hv(company, "currency", code="KZT").pk
     with tenant_context(company.id):
         assert d["legal_entity"] == LegalEntity.objects.get(is_default=True).pk
-    assert "has_carrier" not in d and d["created_by"] == admin_user.pk
+    assert d["has_carrier"] is False and d["created_by"] == admin_user.pk
     [c] = d["consignments"]
     assert c["name"] == "Мука" and c["weight_kg"] == "1500.50" and c["pallets"] == 4
     assert c["status_name"] == "Принят"
