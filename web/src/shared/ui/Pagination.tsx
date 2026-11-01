@@ -37,7 +37,7 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
               onChange={(event) => {
                 onPageSize(Number(event.target.value))
               }}
-              className="h-7 rounded border border-slate-300 bg-white px-1 dark:border-slate-600 dark:bg-slate-900"
+              className="h-8 rounded border border-slate-300 bg-white px-1 dark:border-slate-600 dark:bg-slate-900"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>

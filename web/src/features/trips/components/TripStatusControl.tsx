@@ -25,7 +25,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           { onError: (error) => { pushToast('error', errorMessage(error, t)) } },
         )
       }}
-      className="h-7 rounded border border-slate-300 bg-white px-1.5 text-xs dark:border-slate-600 dark:bg-slate-900"
+      className="h-8 rounded border border-slate-300 bg-white px-1.5 text-xs dark:border-slate-600 dark:bg-slate-900"
     >
       {selectableValues(statuses.all, trip.status).map((s) => (
         <option key={s.id} value={s.id}>{s.name}</option>

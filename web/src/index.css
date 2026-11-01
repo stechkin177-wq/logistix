@@ -24,3 +24,19 @@
 body {
   margin: 0;
 }
+
+/* Видимое кольцо фокуса для клавиатуры у ссылок, кнопок и полей без своего оформления */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand-500, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* Страница не должна уходить в горизонтальный скролл: длинные слова переносятся, таблицы прокручиваются внутри своего контейнера */
+main {
+  overflow-wrap: anywhere;
+}

@@ -41,8 +41,10 @@ export function ReassignDrawer({ trip, onClose }: { trip: Trip; onClose: () => v
     )
   }
 
+  // строки не исчезают при снятии флажка (можно вернуть); добавленные из поиска остаются в списке
+  const listed = [...trip.consignments, ...[...chosen.values()].filter((c) => !trip.consignments.some((own) => own.id === c.id))]
   const found: TripCargo[] = (search.data?.results ?? [])
-    .filter((c) => !trip.consignments.some((own) => own.id === c.id))
+    .filter((c) => !listed.some((own) => own.id === c.id))
     .map((c) => ({ id: c.id, name: c.name, order: c.order, order_number: c.order_number }))
 
   return (
@@ -66,9 +68,9 @@ export function ReassignDrawer({ trip, onClose }: { trip: Trip; onClose: () => v
         <section aria-labelledby="reassign-current">
           <h3 id="reassign-current" className="mb-1 text-xs font-medium">{t('trips.cargoInTrip', { count: chosen.size })}</h3>
           <ul className="divide-y divide-slate-100 rounded border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
-            {[...chosen.values()].map((c) => (
+            {listed.map((c) => (
               <li key={c.id} className="px-2">
-                <Checkbox checked label={`${c.name} (${c.order_number})`} onChange={() => { toggle(c) }} />
+                <Checkbox checked={chosen.has(c.id)} label={`${c.name} (${c.order_number})`} onChange={() => { toggle(c) }} />
               </li>
             ))}
           </ul>

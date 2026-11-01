@@ -50,7 +50,7 @@ export function AppLayout() {
           <span className="truncate text-sm font-semibold">{branding.app_name}</span>
         </header>
         <ReadonlyBanner />
-        <main className="min-h-0 flex-1 overflow-auto p-4">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-4">
           {/* key: при смене компании страницы монтируются заново и не держат чужие данные */}
           <Outlet key={session?.company.id} />
         </main>

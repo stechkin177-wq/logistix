@@ -28,7 +28,7 @@ Dev-сервер проксирует `/api` и `/media` на `http://127.0.0.1:
 - `src/shared/forms/` - `serverErrors` (ошибки API -> поля формы / баннер), `useFocusInvalid`
 - `src/shared/handbooks`, `src/shared/users` - справочники и сотрудники (деградируют без прав)
 - `src/layout/` - `AppLayout`, `Sidebar`, `nav.ts` (`visibleNav`), `ReadonlyBanner`
-- `src/features/` - `auth` (вход), `dashboard`, `parties` (общий код клиентов и перевозчиков), `clients`, `carriers`, `orders`, `errors` (403/404/«Доступ приостановлен»), `placeholder`
+- `src/features/` - `auth` (вход), `dashboard`, `parties` (общий код клиентов и перевозчиков), `clients`, `carriers`, `orders`, `errors` (403/404/«Доступ приостановлен»), `consignments` (очередь распределения, создание рейса), `trips` (список, карточка, смена грузов, статус), `trash`, `finance` (пояснение: счета и платежи на следующем этапе), `settings/{company,users,departments,roles,handbooks,numbering}`
 - `src/test/` - помощники тестов (`mockFetch`, `renderApp`, `makeSession`)
 
 ## Токены
@@ -43,3 +43,19 @@ Access-токен хранится только в памяти, refresh - в `s
 ## Язык
 Строки - через i18next. `ru.json` - источник, `kk.json` обязан иметь тот же набор ключей (проверяет тест).
 **Казахские строки переведены приблизительно и требуют проверки носителем языка до релиза.**
+
+## Адаптивность и доступность: что и как проверено
+**Честно: реального браузера и живого бэкенда в этой среде нет. Всё ниже проверено только jsdom-тестами (Vitest +
+Testing Library), чтением разметки/классов Tailwind и `vite build`. Визуально, на 375 px и на устройстве НЕ проверялось.**
+
+| Пункт | Как обеспечено | Как проверено |
+| --- | --- | --- |
+| Нет горизонтального скролла страницы на 375 px | таблицы в `DataTable` лежат в `overflow-x-auto`; `main` с `min-w-0` и `overflow-x-hidden`; фильтры переносятся (`flex-wrap`); матрица прав и справочники скроллятся внутри своих блоков; сетка справочников одна колонка до `md` | только чтением классов (jsdom не считает вёрстку) |
+| Drawer на всю ширину на мобильных | `Overlay`: `w-full max-w-xl` (матрица прав `max-w-2xl`) | чтением классов |
+| Цели нажатия не меньше 32 px | `Button` `h-8`, `Checkbox` `min-h-8`, селекты статусов и размера страницы `h-8` | чтением классов |
+| Видимый фокус | глобальное правило `:focus-visible` в `index.css`, `focus-visible:outline-2` у кнопок | чтением CSS |
+| `aria-live` у уведомлений | контейнер `Toaster` `aria-live="polite"`, ошибки `role="alert"` | тесты ловят тексты уведомлений (`findByText`) |
+| Диалоги: ловушка Tab, Escape, возврат фокуса | `Overlay` | `Overlay.test.tsx` (16a) |
+| Подписи и `aria-invalid` | `FormField` у всех полей; серверные ошибки ложатся на поля, фокус на первое невалидное (`useFocusInvalid`) | тесты форм проверяют `aria-invalid` |
+| Матрица прав | каждый флажок имеет `aria-label` «Раздел: действие»; недоступные права отключены с `title` | `RolesPage.test.tsx` |
+| Права и readonly | все кнопки записи через `WriteButton` | тест «в режиме только чтения ... отключена» на каждой странице |
