@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from apps.billing.services import check_limit
 from apps.core.api_permissions import SectionPermissionMixin
@@ -17,7 +18,12 @@ from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
 
 User = get_user_model()
+ATTACH_ERROR = "Пользователь уже зарегистрирован; для добавления нужен его действующий пароль"
 FORBIDDEN_FIELDS = ("is_platform_admin", "is_staff", "is_superuser")
+
+
+class MemberAttachThrottle(UserRateThrottle):
+    scope = "member_attach"
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -117,6 +123,12 @@ class MembershipViewSet(
     permission_section = "users"
     pagination_class = None
 
+    def get_throttles(self):
+        # подбор чужого пароля через «добавить существующего» ограничиваем по сотруднику
+        if self.action == "create":
+            return [MemberAttachThrottle()]
+        return super().get_throttles()
+
     def get_queryset(self):
         # Membership не TenantModel: фильтр по компании токена обязателен
         return (
@@ -144,12 +156,10 @@ class MembershipViewSet(
             enforce_user_limit(company_id)
             user = User.objects.filter(**{field: login}).first()
             attached = user is not None
+            password = data.get("password")
+            if not password:
+                raise serializers.ValidationError({"password": "Укажите пароль"})
             if user is None:
-                password = data.get("password")
-                if not password:
-                    raise serializers.ValidationError(
-                        {"password": "Для нового пользователя нужен пароль"}
-                    )
                 try:
                     validate_password(
                         password,
@@ -162,6 +172,10 @@ class MembershipViewSet(
                 )
             elif Membership.objects.filter(user=user, company_id=company_id).exists():
                 raise serializers.ValidationError({"login": "Пользователь уже в компании"})
+            elif not (user.is_active and user.check_password(password)):
+                # согласие владельца аккаунта: нужен его действующий пароль; какая именно
+                # проверка не прошла (нет аккаунта/неактивен/пароль) не раскрываем
+                raise serializers.ValidationError({"login": ATTACH_ERROR})
             try:
                 with transaction.atomic():
                     membership = Membership.objects.create(
@@ -205,6 +219,9 @@ class MembershipViewSet(
             ser.is_valid(raise_exception=True)
             data = ser.validated_data
             actor = request.membership
+            # управлять можно только сотрудниками, чья ТЕКУЩАЯ роль в пределах своих прав
+            if instance.role is not None:
+                ensure_can_grant(actor, instance.role.permissions)
             if instance.pk == actor.pk:
                 if "role" in data and data["role"] != instance.role:
                     raise PermissionDenied("Нельзя менять собственную роль")
@@ -213,6 +230,8 @@ class MembershipViewSet(
             if "role" in data and data["role"] != instance.role:
                 ensure_can_grant(actor, data["role"].permissions)
             if data.get("is_active") is True and not instance.is_active:
+                if data.get("role", instance.role) is not None:
+                    ensure_can_grant(actor, data.get("role", instance.role).permissions)
                 enforce_user_limit(instance.company_id)
             was_admin = instance.is_active and _is_admin(instance)
             new_role = data.get("role", instance.role)

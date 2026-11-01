@@ -358,21 +358,88 @@ def test_new_user_requires_password(admin_client, company_a):
     assert not User.objects.filter(email="np@x.kz").exists()
 
 
-def test_attach_existing_user_keeps_password(admin_client, company_a, company_b, owner_b):
-    role = role_of(company_a, "Менеджер")
-    r = admin_client.post(
-        "/api/users/",
-        {"login": "OWNER-B@x.kz", "password": "attacker-pass-9", "role": role.id},
-        format="json",
+def _attach(client, company, login, password=None, role_name="Менеджер"):
+    body = {"login": login, "role": role_of(company, role_name).id}
+    if password is not None:
+        body["password"] = password
+    return client.post("/api/users/", body, format="json")
+
+
+def test_attach_existing_without_password_rejected(admin_client, company_a, owner_b):
+    r = _attach(admin_client, company_a, "owner-b@x.kz")
+    assert r.status_code == 400 and "password" in r.data
+    assert not Membership.objects.filter(user=owner_b, company=company_a).exists()
+
+
+@pytest.mark.parametrize("wrong", ["attacker-pass-9", "", " "])
+def test_attach_existing_wrong_password_rejected(admin_client, company_a, owner_b, wrong):
+    r = _attach(admin_client, company_a, "owner-b@x.kz", wrong)
+    assert r.status_code == 400
+    assert not Membership.objects.filter(user=owner_b, company=company_a).exists()
+    assert "owner-b" not in str(r.data) and "email" not in r.data and "full_name" not in r.data
+
+
+def test_attach_wrong_password_message_is_generic(admin_client, company_a, owner_b):
+    r = _attach(admin_client, company_a, "owner-b@x.kz", "attacker-pass-9")
+    assert r.data["login"] == (
+        "Пользователь уже зарегистрирован; для добавления нужен его действующий пароль"
     )
+
+
+def test_attach_inactive_user_rejected_with_same_error(admin_client, company_a, owner_b):
+    owner_b.is_active = False
+    owner_b.save()
+    r = _attach(admin_client, company_a, "owner-b@x.kz", PASSWORD)
+    assert r.status_code == 400 and "действующий пароль" in str(r.data["login"])
+    assert not Membership.objects.filter(user=owner_b, company=company_a).exists()
+
+
+def test_attach_existing_with_right_password(admin_client, company_a, owner_b):
+    r = _attach(admin_client, company_a, "OWNER-B@x.kz", PASSWORD)
     assert r.status_code == 201, r.data
-    owner_b.refresh_from_db()
     assert "phone" not in r.data and "full_name" not in r.data and "email" not in r.data
     assert r.data["login"] == "owner-b@x.kz"
     owner_b.refresh_from_db()
-    assert owner_b.check_password(PASSWORD) and not owner_b.check_password("attacker-pass-9")
+    assert owner_b.check_password(PASSWORD)  # пароль не менялся
     assert Membership.objects.filter(user=owner_b, company=company_a).exists()
     assert User.objects.filter(email="owner-b@x.kz").count() == 1
+
+
+def test_attach_password_never_in_audit(admin_client, company_a, owner_b):
+    from apps.core.audit.models import AuditLog
+
+    assert _attach(admin_client, company_a, "owner-b@x.kz", PASSWORD).status_code == 201
+    assert _attach(admin_client, company_a, "fresh@x.kz", "fresh-long-pass-7").status_code == 201
+    dump = " ".join(str(a.changes) + a.object_repr for a in AuditLog.all_objects.all())
+    assert PASSWORD not in dump and "fresh-long-pass-7" not in dump
+
+
+def test_foreign_profile_not_visible_before_membership(
+    admin_client, company_a, company_b, owner_b
+):
+    assert _attach(admin_client, company_a, "owner-b@x.kz", "wrong-pass-123").status_code == 400
+    foreign = Membership.objects.get(user=owner_b)
+    assert "owner-b@x.kz" not in str(admin_client.get("/api/users/").data)
+    assert admin_client.get(f"/api/users/{foreign.id}/").status_code == 404
+
+
+def test_attach_by_phone_needs_password_too(admin_client, company_a):
+    User.objects.create_user(phone="+77009998877", password=PASSWORD)
+    assert _attach(admin_client, company_a, "8 700 999 88 77").status_code == 400
+    assert _attach(admin_client, company_a, "8 700 999 88 77", "nope-nope-1").status_code == 400
+    assert _attach(admin_client, company_a, "8 700 999 88 77", PASSWORD).status_code == 201
+
+
+def test_attach_is_throttled(admin_client, company_a, owner_b, monkeypatch):
+    from django.core.cache import cache
+
+    from apps.core.api.users import MemberAttachThrottle
+
+    cache.clear()
+    monkeypatch.setattr(MemberAttachThrottle, "THROTTLE_RATES", {"member_attach": "3/min"})
+    codes = [_attach(admin_client, company_a, "owner-b@x.kz", f"g-{i}").status_code for i in range(5)]
+    cache.clear()
+    assert codes[:3] == [400, 400, 400] and codes[3:] == [429, 429]
 
 
 def test_duplicate_member_rejected(admin_client, company_a, owner_a):
@@ -463,7 +530,7 @@ def hr_client(api_client, company_a, extra=()):
 
 
 def test_last_admin_cannot_be_deactivated_or_demoted(api_client, company_a, owner_a):
-    client, _ = hr_client(api_client, company_a)
+    client, _ = hr_client(api_client, company_a, extra=ALL_PERMISSIONS)
     m = Membership.objects.get(user=owner_a, company=company_a)
     r = client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
     assert r.status_code == 400
@@ -484,14 +551,14 @@ def test_admin_can_be_demoted_when_another_active_admin_exists(api_client, compa
     )
     assert r.status_code == 200
     # теперь второй - последний; другой администратор отсутствует
-    client, _ = hr_client(api_client, company_a)
+    client, _ = hr_client(api_client, company_a, extra=ALL_PERMISSIONS)
     r = client.patch(f"/api/users/{second.id}/", {"is_active": False}, format="json")
     assert r.status_code == 400
 
 
 def test_inactive_admin_does_not_count(api_client, company_a, owner_a):
     add_member(company_a, ADMIN, email="adm3@x.kz", is_active=False)
-    client, _ = hr_client(api_client, company_a)
+    client, _ = hr_client(api_client, company_a, extra=ALL_PERMISSIONS)
     m = Membership.objects.get(user=owner_a, company=company_a)
     r = client.patch(f"/api/users/{m.id}/", {"is_active": False}, format="json")
     assert r.status_code == 400
@@ -530,8 +597,9 @@ def test_hr_cannot_assign_admin_or_bigger_role(api_client, company_a):
 def test_hr_can_assign_role_within_own_permissions(api_client, company_a):
     client, hr = hr_only(api_client, company_a)
     small = Role.all_objects.create(company=company_a, name="Мелкая", permissions=["users.view"])
-    victim = add_member(company_a, "Наблюдатель", email="v@x.kz")
-    r = client.patch(f"/api/users/{victim.id}/", {"role": small.id}, format="json")
+    victim = Membership.objects.create(user=make_user("v@x.kz"), company=company_a, role=small)
+    other = Role.all_objects.create(company=company_a, name="Иная", permissions=["users.create"])
+    r = client.patch(f"/api/users/{victim.id}/", {"role": other.id}, format="json")
     assert r.status_code == 200
     r = client.post(
         "/api/users/",
@@ -553,6 +621,92 @@ def test_only_admin_can_assign_admin_role(api_client, company_a, admin_client):
     assert r.status_code == 403
     other.refresh_from_db()
     assert other.role.name == "Менеджер"
+
+
+def test_users_update_cannot_touch_higher_ranked_admin(api_client, company_a, owner_a):
+    client, _ = hr_only(api_client, company_a)
+    second = add_member(company_a, ADMIN, email="adm2@x.kz")
+    dormant = add_member(company_a, ADMIN, email="adm3@x.kz", is_active=False)
+    low = role_of(company_a, "Водитель")
+    for target, body in (
+        (dormant, {"is_active": True}),
+        (second, {"role": low.id}),
+        (second, {"is_active": False}),
+        (second, {"department": None}),
+    ):
+        r = client.patch(f"/api/users/{target.id}/", body, format="json")
+        assert r.status_code == 403, (body, r.data)
+    second.refresh_from_db()
+    dormant.refresh_from_db()
+    assert second.is_active and second.role.name == ADMIN
+    assert not dormant.is_active and dormant.role.name == ADMIN
+
+
+def test_cannot_reactivate_into_higher_role_in_same_request(api_client, company_a):
+    client, _ = hr_only(api_client, company_a)
+    small = Role.all_objects.create(company=company_a, name="Мелкая", permissions=["users.view"])
+    dormant = Membership.objects.create(
+        user=make_user("d@x.kz"), company=company_a, role=small, is_active=False
+    )
+    admin_role = role_of(company_a, ADMIN)
+    r = client.patch(
+        f"/api/users/{dormant.id}/", {"is_active": True, "role": admin_role.id}, format="json"
+    )
+    assert r.status_code == 403
+    dormant.refresh_from_db()
+    assert not dormant.is_active and dormant.role_id == small.id
+    # в пределах своих прав - можно
+    r = client.patch(f"/api/users/{dormant.id}/", {"is_active": True}, format="json")
+    assert r.status_code == 200
+    dormant.refresh_from_db()
+    assert dormant.is_active
+
+
+def test_manager_level_actor_manages_members_within_rights(api_client, company_a):
+    client, _ = hr_client(api_client, company_a)
+    victim = add_member(company_a, "Менеджер", email="mm@x.kz")
+    r = client.patch(f"/api/users/{victim.id}/", {"is_active": False}, format="json")
+    assert r.status_code == 200
+    r = client.patch(f"/api/users/{victim.id}/", {"is_active": True}, format="json")
+    assert r.status_code == 200
+    r = client.patch(
+        f"/api/users/{victim.id}/", {"role": role_of(company_a, "Диспетчер").id}, format="json"
+    )
+    assert r.status_code == 200
+
+
+def _roles_actor(api_client, company_a, perms):
+    role = Role.all_objects.create(
+        company=company_a, name="RolesEd", permissions=["roles.view", "roles.update", *perms]
+    )
+    role.permissions = [*role.permissions, "roles.delete"]
+    role.save()
+    m = Membership.objects.create(user=make_user("re@x.kz"), company=company_a, role=role)
+    client_for(api_client, m.user, company_a)
+    return api_client
+
+
+def test_roles_update_cannot_edit_or_delete_bigger_role(api_client, company_a):
+    client = _roles_actor(api_client, company_a, ["orders.view"])
+    big = Role.all_objects.create(
+        company=company_a, name="Большая", permissions=["orders.view", "users.delete"]
+    )
+    r = client.patch(f"/api/roles/{big.id}/", {"permissions": ["orders.view"]}, format="json")
+    assert r.status_code == 403
+    r = client.patch(f"/api/roles/{big.id}/", {"name": "Переименована"}, format="json")
+    assert r.status_code == 403
+    assert client.delete(f"/api/roles/{big.id}/").status_code == 403
+    big.refresh_from_db()
+    assert big.name == "Большая" and big.permissions == ["orders.view", "users.delete"]
+
+
+def test_roles_update_and_delete_within_rights_still_work(api_client, company_a):
+    client = _roles_actor(api_client, company_a, ["orders.view", "orders.update"])
+    small = Role.all_objects.create(company=company_a, name="Мелкая", permissions=["orders.view"])
+    r = client.patch(f"/api/roles/{small.id}/", {"permissions": ["orders.update"]}, format="json")
+    assert r.status_code == 200
+    assert client.delete(f"/api/roles/{small.id}/").status_code == 204
+    assert not Role.all_objects.filter(pk=small.id).exists()
 
 
 def test_cannot_change_own_role_or_deactivate_self(api_client, company_a):

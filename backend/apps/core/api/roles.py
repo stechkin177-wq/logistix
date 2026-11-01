@@ -61,6 +61,8 @@ class RoleViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         return Response(ser.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
+        # править можно только роль, права которой целиком входят в свои
+        ensure_can_grant(self.request.membership, serializer.instance.permissions)
         if "permissions" in serializer.validated_data:
             ensure_can_grant(self.request.membership, serializer.validated_data["permissions"])
         super().perform_update(serializer)
@@ -76,10 +78,12 @@ class RoleViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
             return conflict
 
     def _destroy(self, conflict):
+        request_membership = self.request.membership
         with transaction.atomic():
             role = self.get_object()
             if role.is_system:
                 raise ValidationError({"detail": "Системную роль удалять нельзя"})
+            ensure_can_grant(request_membership, role.permissions)
             if role.memberships.exists():
                 return conflict
             snapshot = copy(role)

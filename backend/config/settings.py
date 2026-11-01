@@ -118,7 +118,11 @@ REST_FRAMEWORK = {
     ],
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
     # публичный эндпоинт оформления экрана входа; лимит на IP
-    "DEFAULT_THROTTLE_RATES": {"branding": env("BRANDING_THROTTLE_RATE", "60/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "branding": env("BRANDING_THROTTLE_RATE", "60/min"),
+        "member_attach": env("MEMBER_ATTACH_THROTTLE_RATE", "20/min"),
+        "password_change": env("PASSWORD_CHANGE_THROTTLE_RATE", "5/min"),
+    },
 }
 
 SIMPLE_JWT = {
