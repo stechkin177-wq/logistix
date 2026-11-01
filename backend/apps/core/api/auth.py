@@ -1,3 +1,5 @@
+import hashlib
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
@@ -7,7 +9,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import SimpleRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -52,9 +54,36 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Некорректный номер телефона") from None
 
 
+class LoginThrottle(SimpleRateThrottle):
+    """Лимит попыток входа на ОДИН логин (не на IP: за прокси/на serverless IP общий).
+
+    Ключ - sha256 нормализованного логина (email в нижнем регистре / телефон по normalize_phone;
+    при ошибке нормализации - сырая строка). Считаются и неудачные, и успешные попытки.
+    Пароль в ключ не входит, исходный логин в кэше не хранится.
+    """
+
+    scope = "login"
+
+    def get_cache_key(self, request, view):
+        raw = request.data.get("login") if hasattr(request.data, "get") else None
+        if not isinstance(raw, str):
+            return None  # без логина запрос всё равно закончится 400 до проверки пароля
+        value = raw.strip()
+        if "@" in value:
+            value = value.lower()
+        else:
+            try:
+                value = normalize_phone(value)
+            except ValueError:
+                pass
+        ident = hashlib.sha256(value.encode()).hexdigest()
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
 class LoginView(APIView):
     authentication_classes: list = []
     permission_classes = [AllowAny]
+    throttle_classes = [LoginThrottle]
 
     def get_authenticate_header(self, request):
         return "Bearer"  # без этого DRF превратит 401 в 403

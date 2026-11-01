@@ -5,6 +5,8 @@ from pathlib import Path
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
+from config.dbguard import check_database_url
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -78,13 +80,28 @@ TEMPLATES = [
     },
 ]
 
+# Serverless (демо на Vercel): соединения не переживают вызов функции, поэтому CONN_MAX_AGE=0,
+# а URL базы проверяется на пулер (см. config/dbguard.py). В VPS/разработке не включается.
+SERVERLESS = env_bool("DJANGO_SERVERLESS", False)
+
+DATABASE_URL = env("DATABASE_URL", "postgres://logistix:logistix@127.0.0.1:5432/logistix")
+# Вне serverless и без DEBUG пулер запрещён, пока не задано DATABASE_POOLER_OK=true.
+check_database_url(
+    DATABASE_URL,
+    serverless=SERVERLESS,
+    debug=DEBUG,
+    pooler_ok=env_bool("DATABASE_POOLER_OK", False),
+)
 DATABASES = {
     "default": dj_database_url.parse(
-        env("DATABASE_URL", "postgres://logistix:logistix@127.0.0.1:5432/logistix"),
-        conn_max_age=60,
+        DATABASE_URL,
+        conn_max_age=int(env("DATABASE_CONN_MAX_AGE") or (0 if SERVERLESS else 60)),
     )
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
+# SSL: либо sslmode в URL, либо DATABASE_SSL_REQUIRE=true (строже заданного в URL не ослабляет).
+if env_bool("DATABASE_SSL_REQUIRE", False):
+    DATABASES["default"].setdefault("OPTIONS", {}).setdefault("sslmode", "require")
 
 AUTH_USER_MODEL = "core.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -125,8 +142,13 @@ REST_FRAMEWORK = {
         "branding": env("BRANDING_THROTTLE_RATE", "60/min"),
         "member_attach": env("MEMBER_ATTACH_THROTTLE_RATE", "20/min"),
         "password_change": env("PASSWORD_CHANGE_THROTTLE_RATE", "5/min"),
+        # вход: по нормализованному логину, а не по IP (за внешним прокси IP общий)
+        "login": env("THROTTLE_LOGIN", "10/minute"),
     },
 }
+# Продакшен/serverless: только JSON (BrowsableAPI тянет статику и шаблоны, которых там нет).
+if SERVERLESS or not DEBUG:
+    REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = ["rest_framework.renderers.JSONRenderer"]
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("JWT_ACCESS_MINUTES", "30"))),
