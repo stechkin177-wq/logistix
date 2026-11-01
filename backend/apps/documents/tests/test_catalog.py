@@ -54,3 +54,75 @@ def test_kind_membership():
     assert not any(n.startswith("client.") for n in names)
     assert "doc.number" in names and "company.iban" in names
     assert "order.consignments[].load.city" in {p["name"] for p in placeholders("order_request")}
+
+
+def _expand(prefix, leaves):
+    return {f"{prefix}.{leaf}" for leaf in leaves}
+
+
+_POINT = ["city", "address", "date"]
+_PARTY = [
+    "name",
+    "bin_iin",
+    "type",
+    "address",
+    "bank",
+    "iban",
+    "contact.name",
+    "contact.position",
+    "contact.phone",
+    "contact.email",
+]
+_CARGO = ["name", "weight_kg", "volume_m3", "pallets"]
+
+_EXPECTED_BLOCKS = {
+    "doc": _expand("doc", ["number", "date", "date_long"]),
+    "company": _expand("company", ["name", "bin", "address", "bank", "iban"]),
+    "client": _expand("client", _PARTY),
+    "carrier": _expand("carrier", _PARTY),
+    "order": _expand(
+        "order",
+        ["number", "date", "contract_number", "client_ref", "rate", "rate_words"]
+        + ["currency", "payment_delay_days", "comment", "manager"]
+        + [f"consignments[].{x}" for x in _CARGO]
+        + [f"consignments[].load.{x}" for x in _POINT]
+        + [f"consignments[].unload.{x}" for x in _POINT],
+    ),
+    "trip": _expand(
+        "trip",
+        ["number", "price", "price_words", "currency", "vehicle_plate", "driver_name"]
+        + [f"loading.{x}" for x in _POINT]
+        + [f"delivery.{x}" for x in _POINT]
+        + ["orders[].number", "orders[].client"]
+        + [f"consignments[].{x}" for x in _CARGO + ["order"]]
+        + [f"consignments[].load.{x}" for x in _POINT]
+        + [f"consignments[].unload.{x}" for x in _POINT],
+    ),
+    "invoice": _expand(
+        "invoice",
+        ["number", "date", "due_date", "currency", "vat_rate"]
+        + ["items[].n", "items[].title", "items[].amount_net"]
+        + ["net", "vat", "gross", "gross_words"],
+    ),
+    "letter": _expand("letter", ["recipient", "subject", "body"]),
+}
+
+_EXPECTED_KIND_BLOCKS = {
+    "contract": ["doc", "company", "client"],
+    "order_request": ["doc", "company", "client", "order"],
+    "carrier_order": ["doc", "company", "carrier", "trip"],
+    "act": ["doc", "company", "client", "invoice", "order"],
+    "invoice_print": ["doc", "company", "client", "invoice", "order"],
+    "cmr": ["doc", "company", "carrier", "trip"],
+    "letter": ["doc", "company", "letter"],
+}
+
+
+def test_expected_kinds_cover_all_kinds():
+    assert set(_EXPECTED_KIND_BLOCKS) == set(KINDS)
+
+
+@pytest.mark.parametrize("kind", sorted(_EXPECTED_KIND_BLOCKS))
+def test_placeholder_names_equal_spec(kind):
+    expected = set().union(*(_EXPECTED_BLOCKS[b] for b in _EXPECTED_KIND_BLOCKS[kind]))
+    assert {p["name"] for p in placeholders(kind)} == expected
