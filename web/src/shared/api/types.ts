@@ -42,6 +42,10 @@ export interface DashboardSummary {
   orders_by_status: { status_id: number; status: string; count: number }[]
   month_profit: string | null
   month_margin_pct: string | null
+  /** Базовая валюта прибыли (null без права finance.view). */
+  currency: string | null
+  /** Заказов месяца в другой валюте: в прибыль не входят (null без finance.view). */
+  excluded_orders: number | null
 }
 
 export interface HandbookValue {

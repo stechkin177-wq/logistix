@@ -90,12 +90,17 @@ export function DashboardPage() {
           </div>
           {data.month_profit !== null ? (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              <Stat label={t('dashboard.monthProfit')} value={money(data.month_profit)} />
+              <Stat label={t('dashboard.monthProfit')} value={money(data.month_profit, data.currency ?? undefined)} />
               <Stat
                 label={t('dashboard.monthMargin')}
                 value={data.month_margin_pct === null ? '—' : `${money(data.month_margin_pct)} %`}
               />
             </div>
+          ) : null}
+          {data.month_profit !== null && (data.excluded_orders ?? 0) > 0 ? (
+            <p className="text-xs text-slate-500">
+              {t('dashboard.excludedOrders', { count: data.excluded_orders ?? 0, currency: data.currency ?? '' })}
+            </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Link
