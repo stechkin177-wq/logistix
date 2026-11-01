@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.billing",
     "apps.forwarding",
+    "apps.finance",
 ]
 
 # Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP
