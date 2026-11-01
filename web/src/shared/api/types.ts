@@ -43,3 +43,21 @@ export interface DashboardSummary {
   month_profit: string | null
   month_margin_pct: string | null
 }
+
+export interface HandbookValue {
+  id: number
+  handbook: string
+  name: string
+  code: string
+  order: number
+  is_initial: boolean
+  is_final: boolean
+  is_active: boolean
+}
+
+export interface HandbookDetail {
+  code: string
+  name: string
+  group: string
+  values: HandbookValue[]
+}

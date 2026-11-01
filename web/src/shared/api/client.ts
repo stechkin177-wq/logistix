@@ -5,7 +5,7 @@ import { emitApiEvent } from './events'
 /** Единственное место, где вызывается fetch. */
 const BASE = '/api'
 
-type Query = Record<string, string | number | boolean | null | undefined>
+export type Query = Record<string, string | number | boolean | null | undefined>
 
 interface RequestOptions {
   query?: Query
@@ -13,6 +13,8 @@ interface RequestOptions {
   form?: FormData
   /** false - без Authorization и без обновления токена (вход, refresh). */
   auth?: boolean
+  /** Отмена запроса (TanStack Query передаёт сигнал при смене фильтров). */
+  signal?: AbortSignal
 }
 
 function buildUrl(path: string, query?: Query): string {
@@ -38,8 +40,9 @@ async function send(method: string, path: string, opts: RequestOptions): Promise
     body = JSON.stringify(opts.body)
   }
   try {
-    return await fetch(buildUrl(path, opts.query), { method, headers, body })
-  } catch {
+    return await fetch(buildUrl(path, opts.query), { method, headers, body, signal: opts.signal })
+  } catch (error) {
+    if (opts.signal?.aborted) throw error // отмена - не сбой сети
     throw new ApiError(0, 'network_error', '')
   }
 }
@@ -110,7 +113,8 @@ function sessionLost(): void {
   emitApiEvent('logout')
 }
 
-async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
+/** Запрос с авторизацией и одним обновлением токена; возвращает ответ (в т.ч. не-2xx, кроме 401). */
+async function execute(method: string, path: string, opts: RequestOptions): Promise<Response> {
   const authed = opts.auth !== false
   const startEpoch = getEpoch()
   // чужой (позже начавшейся) сессии этот запрос не трогает: только своя эпоха может её завершить
@@ -137,24 +141,50 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
       throw buildApiError(401, await readBody(response))
     }
   }
-  const data = await readBody(response)
-  if (!response.ok) {
-    const error = buildApiError(response.status, data)
-    if (error.code === 'subscription_blocked') emitApiEvent('blocked')
-    if (error.code === 'subscription_readonly') emitApiEvent('readonly')
-    throw error
+  return response
+}
+
+async function failWith(response: Response): Promise<never> {
+  const error = buildApiError(response.status, await readBody(response))
+  if (error.code === 'subscription_blocked') emitApiEvent('blocked')
+  if (error.code === 'subscription_readonly') emitApiEvent('readonly')
+  throw error
+}
+
+async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
+  const response = await execute(method, path, opts)
+  if (!response.ok) return failWith(response)
+  return (await readBody(response)) as T
+}
+
+function filenameFrom(response: Response): string | null {
+  const header = response.headers.get('Content-Disposition') ?? ''
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1])
+    } catch {
+      // падаем на обычное имя
+    }
   }
-  return data as T
+  const plain = /filename="?([^";]+)"?/i.exec(header)
+  return plain?.[1] ?? null
 }
 
 export const api = {
-  get: <T>(path: string, query?: Query, opts?: Pick<RequestOptions, 'auth'>) =>
+  get: <T>(path: string, query?: Query, opts?: Pick<RequestOptions, 'auth' | 'signal'>) =>
     request<T>('GET', path, { ...opts, query }),
   post: <T>(path: string, body?: unknown, opts?: Pick<RequestOptions, 'auth'>) =>
     request<T>('POST', path, { ...opts, body }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, { body }),
   delete: <T = void>(path: string) => request<T>('DELETE', path),
+  /** Скачивание файла (Excel): тело как blob, имя из Content-Disposition. Ошибки - ApiError как у остальных. */
+  download: async (path: string, query?: Query, opts?: Pick<RequestOptions, 'signal'>) => {
+    const response = await execute('GET', path, { ...opts, query })
+    if (!response.ok) return failWith(response)
+    return { blob: await response.blob(), filename: filenameFrom(response) }
+  },
   /** multipart/form-data (загрузки файлов). */
   upload: <T>(path: string, form: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST') =>
     request<T>(method, path, { form }),

@@ -1,4 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
+import { CarriersPage } from '../features/carriers/CarriersPage'
+import { ClientsPage } from '../features/clients/ClientsPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
@@ -11,6 +13,8 @@ import { RootRoute } from './RootRoute'
 
 function pageFor(item: NavItem) {
   if (item.path === '/') return <DashboardPage />
+  if (item.path === '/clients') return <ClientsPage />
+  if (item.path === '/carriers') return <CarriersPage />
   return <PlaceholderPage titleKey={item.labelKey} />
 }
 

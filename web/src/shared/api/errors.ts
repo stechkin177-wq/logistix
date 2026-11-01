@@ -24,11 +24,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function messages(value: unknown): string[] {
-  if (typeof value === 'string') return [value]
-  if (Array.isArray(value)) return value.flatMap(messages)
-  if (isRecord(value)) return Object.values(value).flatMap(messages)
-  return []
+/**
+ * Плоские пути ошибок полей: вложенные ответы DRF ({"consignments":[{"points":[{},{"city":["x"]}]}]})
+ * превращаются в {"consignments.0.points.1.city": ["x"]}.
+ */
+function collect(path: string, value: unknown, out: Record<string, string[]>): void {
+  if (typeof value === 'string') {
+    ;(out[path] ??= []).push(value)
+  } else if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      collect(typeof item === 'string' ? path : `${path}.${index}`, item, out)
+    })
+  } else if (isRecord(value)) {
+    for (const [key, item] of Object.entries(value)) collect(path ? `${path}.${key}` : key, item, out)
+  }
 }
 
 export function buildApiError(status: number, body: unknown): ApiError {
@@ -38,10 +47,7 @@ export function buildApiError(status: number, body: unknown): ApiError {
     return new ApiError(status, typeof code === 'string' ? code : `http_${status}`, detail)
   }
   const fields: Record<string, string[]> = {}
-  for (const [name, value] of Object.entries(rest)) {
-    const list = messages(value)
-    if (list.length > 0) fields[name] = list
-  }
+  for (const [name, value] of Object.entries(rest)) collect(name, value, fields)
   const first = Object.values(fields)[0]?.[0] ?? ''
   return new ApiError(status, typeof code === 'string' ? code : 'validation_error', first, fields)
 }
@@ -62,7 +68,13 @@ export function errorMessage(error: unknown, t: Translate): string {
       return t('errors.moduleDisabled')
     case 'limit_exceeded':
       return t('errors.limitExceeded')
+    case 'contact_in_use':
+      return t('errors.contactInUse')
+    case 'number_conflict':
+      return t('errors.numberConflict')
   }
+  if (error.status === 409) return error.detail || t('errors.conflict')
+  if ((error.status === 400 || error.status === 422) && error.detail) return error.detail
   if (error.status === 403) return t('errors.forbidden')
   if (error.status === 404) return t('errors.notFound')
   if (error.status === 429) return t('errors.tooMany')

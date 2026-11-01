@@ -27,3 +27,8 @@ export const BRANDING = {
   primary_color: '#2563EB',
   theme: 'light',
 }
+
+/** Конверт постраничного ответа бэкенда. */
+export function page<T>(results: T[], count = results.length) {
+  return { count, next: null, previous: null, results }
+}
