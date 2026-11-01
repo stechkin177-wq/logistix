@@ -10,3 +10,8 @@ staticfiles/
 .pytest_cache/
 .ruff_cache/
 backend/media/
+
+# Продакшен
+deploy/.env.prod
+*.dump
+*.dump.gpg

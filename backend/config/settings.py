@@ -26,7 +26,9 @@ if not SECRET_KEY:
     if not DEBUG:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false")
     SECRET_KEY = "dev-insecure-secret-key-change-me"
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+# В продакшене список хостов задаётся явно (без подстановочного по умолчанию); значения по
+# умолчанию только для разработки. Пользовательские домены компаний (этап 5) надо добавлять сюда.
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver" if DEBUG else "")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -41,6 +43,10 @@ INSTALLED_APPS = [
     "apps.billing",
     "apps.forwarding",
 ]
+
+# Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP
+# на прокси); в разработке включена по умолчанию.
+ADMIN_ENABLED = env_bool("DJANGO_ADMIN_ENABLED", True)
 
 MIDDLEWARE = [
     "apps.core.middleware.TenantContextMiddleware",
@@ -98,6 +104,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Загружаемые файлы (логотипы компаний). Локальный диск; переход на S3/MinIO - этап 5.
 MEDIA_ROOT = Path(env("MEDIA_ROOT") or BASE_DIR / "media")
 MEDIA_URL = env("MEDIA_URL") or "/media/"
+# Файлы и каталоги читаемы nginx (другой пользователь) независимо от umask gunicorn.
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -140,3 +149,34 @@ else:
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_TIMEZONE = TIME_ZONE
+
+# --- Продакшен (DEBUG=false) -------------------------------------------------------------
+# Статика собирается collectstatic в STATIC_ROOT и раздаётся nginx; медиа (MEDIA_ROOT) - тоже nginx.
+BEHIND_TLS_PROXY = env_bool("DJANGO_BEHIND_TLS_PROXY", False)
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+
+if not DEBUG:
+    # Доверять X-Forwarded-Proto можно только за НАШИМ nginx, который его перезаписывает.
+    if BEHIND_TLS_PROXY:
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+        # nginx редиректит сам; здесь страховка. Healthcheck контейнера ходит по http напрямую.
+        SECURE_SSL_REDIRECT = True
+        SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
+    SESSION_COOKIE_SECURE = BEHIND_TLS_PROXY
+    CSRF_COOKIE_SECURE = BEHIND_TLS_PROXY
+    SESSION_COOKIE_HTTPONLY = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"
+    # HSTS по умолчанию выключен, пока TLS не подтверждён (ошибка закрепляется в браузерах).
+    SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_HSTS_INCLUDE_SUBDOMAINS", False)
+    SECURE_HSTS_PRELOAD = env_bool("DJANGO_HSTS_PRELOAD", False)
+
+# Предзагрузка HSTS (preload) - осознанное решение владельца домена, не включается по умолчанию.
+SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+# Sentry: инициализируется в config/observability.py только при заданном SENTRY_DSN.
+SENTRY_DSN = env("SENTRY_DSN", "")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", "production")
+SENTRY_TRACES_SAMPLE_RATE = float(env("SENTRY_TRACES_SAMPLE_RATE", "0"))

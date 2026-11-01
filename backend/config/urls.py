@@ -39,7 +39,6 @@ router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/health/", health),
     path("api/auth/login/", LoginView.as_view()),
     path("api/auth/refresh/", RefreshView.as_view()),
@@ -58,4 +57,7 @@ urlpatterns = [
 ]
 
 # Логотипы с локального диска: только в разработке (DEBUG); в продакшене - прокси/S3 (этап 5)
+if settings.ADMIN_ENABLED:
+    urlpatterns.insert(0, path("admin/", admin.site.urls))
+
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
