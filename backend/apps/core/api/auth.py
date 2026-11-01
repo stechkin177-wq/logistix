@@ -1,9 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -119,6 +123,47 @@ class MeView(APIView):
                 "context_company_id": get_current_company_id(),
             }
         )
+
+
+class PasswordChangeThrottle(UserRateThrottle):
+    scope = "password_change"
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(trim_whitespace=False, write_only=True)
+    new_password = serializers.CharField(trim_whitespace=False, write_only=True)
+
+
+class PasswordChangeView(APIView):
+    """Смена собственного пароля: POST {old_password, new_password} -> 204.
+
+    ВНИМАНИЕ: выданные refresh-токены остаются действительными до истечения срока
+    (чёрного списка токенов нет, он запланирован на этап 5). Значения паролей не
+    логируются и не попадают в аудит (там только маска).
+    """
+
+    throttle_classes = [PasswordChangeThrottle]
+
+    def post(self, request):
+        ser = PasswordChangeSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        old, new = ser.validated_data["old_password"], ser.validated_data["new_password"]
+        user = request.user
+        if not user.check_password(old):
+            raise serializers.ValidationError({"old_password": "Неверный текущий пароль"})
+        if old == new:
+            raise serializers.ValidationError(
+                {"new_password": "Новый пароль должен отличаться от текущего"}
+            )
+        try:
+            validate_password(new, user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": list(exc.messages)}) from None
+        with transaction.atomic():
+            user.set_password(new)
+            user.save(update_fields=["password"])
+            audit.log("update", user, user, {"password": "***"}, ip=audit.client_ip(request))
+        return Response(status=204)
 
 
 class RefreshView(TokenRefreshView):

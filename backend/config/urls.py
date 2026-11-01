@@ -5,7 +5,13 @@ from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 
 from apps.billing.api import PlanListView, SubscriptionView
-from apps.core.api.auth import LoginView, MeView, RefreshView, SwitchCompanyView
+from apps.core.api.auth import (
+    LoginView,
+    MeView,
+    PasswordChangeView,
+    RefreshView,
+    SwitchCompanyView,
+)
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
@@ -44,6 +50,7 @@ urlpatterns = [
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/switch-company/", SwitchCompanyView.as_view()),
     path("api/auth/me/", MeView.as_view()),
+    path("api/auth/password/", PasswordChangeView.as_view()),
     path("api/session/", SessionView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
