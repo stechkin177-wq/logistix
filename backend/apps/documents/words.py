@@ -89,7 +89,12 @@ def amount_in_words(amount: Decimal, currency_code: str, language: str) -> str:
     без названия единицы. Модуль суммы больше 10**15 - ValueError.
     """
     _check_language(language)
-    amount = Decimal(amount)
+    try:
+        amount = Decimal(amount)
+    except (ArithmeticError, TypeError, ValueError):
+        raise ValueError("Сумма должна быть числом") from None
+    if not amount.is_finite():
+        raise ValueError("Сумма должна быть конечным числом")
     if abs(amount) > MAX_AMOUNT:
         raise ValueError("Сумма слишком велика для записи прописью")
     negative = amount < 0

@@ -75,3 +75,22 @@ def test_date_long():
     assert date_long(date(2026, 3, 8), "ru") == "8 марта 2026 г."
     assert date_long(date(2026, 11, 1), "kk") == "2026 жылғы 1 қараша"
     assert date_long(date(2026, 12, 31), "kk") == "2026 жылғы 31 желтоқсан"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        Decimal("NaN"),
+        Decimal("sNaN"),
+        "NaN",
+        "sNaN",
+        "abc",
+        "",
+        None,
+        Decimal("Infinity"),
+        "-Infinity",
+    ],
+)
+def test_non_numeric_or_non_finite_raises_value_error(bad):
+    with pytest.raises(ValueError):
+        amount_in_words(bad, "KZT", "ru")
