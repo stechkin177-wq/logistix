@@ -45,17 +45,18 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
-    # Пропускается, пока не появится web/package.json (Task 15).
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
-      - name: Проверка наличия web/package.json
-        id: detect
-        run: |
-          if [ -f web/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-node@v4
-        if: steps.detect.outputs.present == 'true'
         with:
-          node-version: "20"
-      - if: steps.detect.outputs.present == 'true'
-        working-directory: web
-        run: npm ci && npm run lint --if-present && npm test --if-present && npm run build
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

@@ -5,7 +5,7 @@ SaaS для экспедиторов и перевозчиков Казахст�
 
 ## Структура
 - `backend/` - Django + DRF (`config/` настройки, `apps/` приложения)
-- `web/` - фронтенд на React (появится в Task 15)
+- `web/` - фронтенд: React 19 + TypeScript + Vite + Tailwind (см. `web/README.md`)
 - `deploy/` - SQL инициализации БД (роль `logistix_app`)
 - `docker-compose.yml` - PostgreSQL 16 и Redis 7
 - `.github/workflows/ci.yml` - CI (backend, web)
@@ -22,6 +22,12 @@ cd backend
 ~/.venv-logistix/bin/python manage.py runserver
 ```
 Проверка: `GET http://localhost:8000/api/health/` -> `{"status": "ok"}`.
+
+## Фронтенд
+```bash
+cd web && npm ci && npm run dev    # http://localhost:5173, /api и /media идут на 127.0.0.1:8000
+npm run typecheck && npm run lint && npm test && npm run build
+```
 
 ## Тесты и линтер
 Тесты идут на реальном PostgreSQL (без SQLite):
