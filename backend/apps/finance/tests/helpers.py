@@ -59,3 +59,59 @@ def add_line(company, order, income=0, expense=0, title="Услуга", day=None
 def first_user(company):
     with tenant_context(company.id):
         return Membership.objects.filter(company=company).first().user
+
+
+def issue_invoice(
+    company,
+    *,
+    order=None,
+    amount="1000",
+    currency="KZT",
+    percent="0",
+    day=date(2026, 5, 1),
+    due=None,
+    direction="out",
+    carrier=None,
+    trip=None,
+):
+    """Выставленный счёт: клиенту по новой строке дохода заказа либо от перевозчика (in)."""
+    from apps.finance import invoices as svc
+
+    user = first_user(company)
+    order = order or make_order(company, currency=currency)
+    with tenant_context(company.id):
+        if direction == "out":
+            line = add_line(company, order, income=amount)
+            inv = svc.create_draft(
+                direction="out",
+                party=order.client,
+                order=order,
+                currency=cur(company, currency),
+                vat_rate=vat(company, percent),
+                due_date=due,
+                items=[{"title": "x", "amount_net": Decimal(str(amount)), "line": line}],
+                user=user,
+            )
+        else:
+            line = add_line(company, order, expense=amount)
+            inv = svc.create_draft(
+                direction="in",
+                party=carrier,
+                order=order,
+                trip=trip,
+                currency=cur(company, currency),
+                vat_rate=vat(company, percent),
+                due_date=due,
+                items=[{"title": "x", "amount_net": Decimal(str(amount)), "line": line}],
+                user=user,
+            )
+        return svc.issue(inv, user=user, issue_date=day)
+
+
+def pay_invoice(company, invoice, amount, day=date(2026, 5, 2)):
+    from apps.finance import payments as pay
+
+    with tenant_context(company.id):
+        return pay.add_payment(
+            invoice, date=day, amount=Decimal(str(amount)), method="bank", user=first_user(company)
+        )

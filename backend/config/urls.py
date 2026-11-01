@@ -25,6 +25,7 @@ from apps.core.views import health
 from apps.finance.api.invoices import InvoiceViewSet
 from apps.finance.api.operations import OperationsExportView, OperationsView
 from apps.finance.api.payments import PaymentViewSet
+from apps.finance.api.reports import CarrierDebtsView, ClientDebtsView, SummaryView
 from apps.finance.api.trips import TripExpenseLinesView
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
@@ -52,6 +53,9 @@ router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/finance/debts/clients/", ClientDebtsView.as_view()),
+    path("api/finance/debts/carriers/", CarrierDebtsView.as_view()),
+    path("api/finance/summary/", SummaryView.as_view()),
     path("api/finance/operations/", OperationsView.as_view()),
     path("api/finance/operations/export/", OperationsExportView.as_view()),
     path("api/finance/trips/<int:pk>/expense-lines/", TripExpenseLinesView.as_view()),
