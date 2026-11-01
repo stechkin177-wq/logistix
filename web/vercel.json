@@ -3,8 +3,8 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://logistix-api-sable.vercel.app/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://logistix-api-sable.vercel.app/api/$1"
     },
     {
       "source": "/((?!api/|assets/|.*\\.[A-Za-z0-9]+$).*)",

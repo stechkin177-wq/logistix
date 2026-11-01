@@ -141,7 +141,7 @@ DEMO_OWNER_PASSWORD='<придумайте>' DATABASE_URL='<owner direct url>' D
 
 **Проект `logistix-web`:** Root Directory `web`, preset Vite, Install `npm ci`, Build `npm run build`,
 Output `dist`. Переменные окружения не нужны. Адрес API - в `web/vercel.json`
-(`rewrites[0].destination`, по умолчанию `https://logistix-api.vercel.app/api/:path*`).
+(`rewrites[0].destination`, по умолчанию `https://logistix-api.vercel.app/api/$1`).
 **Замените, если имя проекта `logistix-api` занято** (Vercel даст другой адрес) - и закоммитьте.
 
 HSTS мы не задаём: HTTPS на `*.vercel.app` обеспечивает Vercel. Заголовки CSP, nosniff,

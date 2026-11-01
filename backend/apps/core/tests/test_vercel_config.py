@@ -74,9 +74,12 @@ def test_web_vercel_json_rewrites():
     cfg = _load(path)
     assert cfg["framework"] == "vite"
     rewrites = cfg["rewrites"]
-    assert rewrites[0]["source"] == "/api/:path*"
+    # Именно регулярное выражение: `:path*` не срабатывает для адресов со слэшем в конце
+    # (/api/auth/login/), а Django использует только такие адреса.
+    assert rewrites[0]["source"] == "/api/(.*)"
+    assert re.fullmatch(rewrites[0]["source"], "/api/auth/login/")
     assert rewrites[0]["destination"].startswith("https://")
-    assert rewrites[0]["destination"].endswith("/api/:path*")
+    assert rewrites[0]["destination"].endswith("/api/$1")
     assert all(not r["source"].startswith("/media") for r in rewrites)
     last = rewrites[-1]
     assert last["destination"] == "/index.html"
