@@ -9,6 +9,7 @@ from apps.core.api.auth import LoginView, MeView, RefreshView, SwitchCompanyView
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
+from apps.core.api.session import SessionView
 from apps.core.api.trash import TrashListView, TrashRestoreView
 from apps.core.api.users import MembershipViewSet
 from apps.core.audit.api import AuditLogViewSet
@@ -44,6 +45,7 @@ urlpatterns = [
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/switch-company/", SwitchCompanyView.as_view()),
     path("api/auth/me/", MeView.as_view()),
+    path("api/session/", SessionView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
     path("api/company/settings/", CompanySettingsView.as_view()),

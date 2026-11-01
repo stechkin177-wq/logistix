@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timedelta
 
 from django.utils import timezone
@@ -33,6 +34,21 @@ def effective_status(sub: Subscription, now: datetime) -> str:
     if now <= grace_end + timedelta(days=READONLY_DAYS):
         return Subscription.READONLY
     return Subscription.BLOCKED
+
+
+def days_left(sub: Subscription, now: datetime) -> int | None:
+    """Дней до окончания подписки (неполные сутки считаются за день); None - бессрочно."""
+    if sub.ends_at is None:
+        return None
+    return max(0, math.ceil((sub.ends_at - now).total_seconds() / 86400))
+
+
+def grace_days_left(sub: Subscription, now: datetime) -> int | None:
+    """Дней льготного периода до перехода в «только чтение» (только в статусе grace, иначе None)."""
+    if effective_status(sub, now) != Subscription.GRACE:
+        return None
+    grace_end = sub.ends_at + timedelta(days=GRACE_DAYS)
+    return max(0, math.ceil((grace_end - now).total_seconds() / 86400))
 
 
 def get_subscription(company_id) -> Subscription | None:
