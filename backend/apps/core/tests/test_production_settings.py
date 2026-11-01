@@ -31,6 +31,13 @@ def load_settings(monkeypatch, **env):
     return module
 
 
+def test_example_env_keeps_hsts_off():
+    env = _example_env()
+    assert env["DJANGO_HSTS_SECONDS"] == "0"
+    assert env["DJANGO_HSTS_INCLUDE_SUBDOMAINS"] == "false"
+    assert "IMAGE_TAG" not in env
+
+
 def test_prod_defaults_are_conservative(monkeypatch):
     s = load_settings(monkeypatch)
     assert s.ALLOWED_HOSTS == []
@@ -79,7 +86,9 @@ def _example_env():
 
 def test_check_deploy_clean_with_example_prod_env(monkeypatch, settings):
     """manage.py check --deploy без предупреждений с настройками из deploy/.env.prod.example."""
-    s = load_settings(monkeypatch, **_example_env())
+    # HSTS в примере выключен намеренно (включается ступенями после проверки TLS), поэтому
+    # security.W004 глушится только здесь и в CI - так же, как в .github/workflows/ci.yml
+    s = load_settings(monkeypatch, **_example_env(), DJANGO_SILENCED_CHECKS="security.W004")
     for name in (
         "DEBUG",
         "ALLOWED_HOSTS",

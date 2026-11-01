@@ -42,6 +42,11 @@ class Command(BaseCommand):
             "--modules", default="forwarding", help="Модули через запятую: forwarding[,fleet]"
         )
         parser.add_argument(
+            "--allow-existing-user",
+            action="store_true",
+            help="Разрешить сделать администратором компании уже существующего пользователя",
+        )
+        parser.add_argument(
             "--password-env", default="", help="Имя переменной окружения с паролем владельца"
         )
 
@@ -56,7 +61,17 @@ class Command(BaseCommand):
             raise CommandError("Пароли не совпадают")
         return password
 
-    def handle(self, *args, name, owner_login, owner_name, modules, password_env, **options):
+    def handle(
+        self,
+        *args,
+        name,
+        owner_login,
+        owner_name,
+        modules,
+        password_env,
+        allow_existing_user,
+        **options,
+    ):
         name = name.strip()
         if not name:
             raise CommandError("--name не может быть пустым")
@@ -71,6 +86,11 @@ class Command(BaseCommand):
                 f"Компания «{name}» с владельцем {login} уже существует - ничего не создано"
             )
 
+        if owner is not None and not allow_existing_user:
+            raise CommandError(
+                f"Пользователь {login} уже существует; чтобы сделать его администратором новой "
+                "компании, добавьте --allow-existing-user (пароль не меняется)"
+            )
         password = None
         if owner is None:  # пароль существующего пользователя не меняется
             password = self._read_password(password_env)
@@ -80,6 +100,7 @@ class Command(BaseCommand):
             except ValidationError as exc:
                 raise CommandError("Пароль не принят: " + " ".join(exc.messages)) from None
 
+        existing = owner is not None
         with transaction.atomic():
             if owner is None:
                 owner = User.objects.create_user(
@@ -90,4 +111,9 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"Компания создана: id={company.id}, название={company.name}")
         )
+        if existing:
+            self.stdout.write(
+                f"существующий пользователь {login} добавлен администратором "
+                "компании (пароль не менялся)"
+            )
         self.stdout.write(f"Логин владельца: {login}")

@@ -174,7 +174,8 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = env_bool("DJANGO_HSTS_PRELOAD", False)
 
 # Предзагрузка HSTS (preload) - осознанное решение владельца домена, не включается по умолчанию.
-SILENCED_SYSTEM_CHECKS = ["security.W021"]
+# DJANGO_SILENCED_CHECKS - только для CI-примера (HSTS по умолчанию выключен, см. RUNBOOK).
+SILENCED_SYSTEM_CHECKS = ["security.W021", *env_list("DJANGO_SILENCED_CHECKS")]
 
 # Sentry: инициализируется в config/observability.py только при заданном SENTRY_DSN.
 SENTRY_DSN = env("SENTRY_DSN", "")

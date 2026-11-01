@@ -58,7 +58,12 @@ def test_second_run_fails_without_duplicates(monkeypatch, capsys):
 @pytest.mark.django_db
 def test_existing_user_gets_second_company_password_untouched(monkeypatch, capsys):
     run(monkeypatch, capsys)
-    run(monkeypatch, capsys, name="ТОО Бета", password=None)  # пароль не нужен
+    with pytest.raises(CommandError, match="allow-existing-user"):
+        run(monkeypatch, capsys, "--modules", "forwarding", name="ТОО Бета", password=None)
+    assert Company.objects.count() == 1
+    out = run(monkeypatch, capsys, "--allow-existing-user", name="ТОО Бета", password=None)
+    assert "существующий пользователь owner@alfa.kz добавлен администратором" in out
+    assert STRONG not in out
     assert Company.objects.count() == 2
     assert User.objects.get(email="owner@alfa.kz").check_password(STRONG)
 
