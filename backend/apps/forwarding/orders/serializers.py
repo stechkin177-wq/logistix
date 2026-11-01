@@ -101,9 +101,15 @@ class OrderSerializer(serializers.ModelSerializer):
     manager_name = serializers.SerializerMethodField()
     route = serializers.SerializerMethodField()
     has_carrier = serializers.SerializerMethodField()
-    revenue = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
-    cost = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
-    profit = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    revenue = serializers.DecimalField(
+        max_digits=18, decimal_places=2, read_only=True, allow_null=True
+    )
+    cost = serializers.DecimalField(
+        max_digits=18, decimal_places=2, read_only=True, allow_null=True
+    )
+    profit = serializers.DecimalField(
+        max_digits=18, decimal_places=2, read_only=True, allow_null=True
+    )
     margin_pct = serializers.DecimalField(
         max_digits=20, decimal_places=2, read_only=True, allow_null=True
     )
@@ -174,8 +180,14 @@ class OrderSerializer(serializers.ModelSerializer):
         return HistorySerializer(obj.history.all(), many=True).data
 
     def to_representation(self, instance):
-        attach_totals(instance)  # аннотация списка/деталей; у только что созданного - запрос
-        return super().to_representation(instance)
+        data_with_finance = self.context.get("with_finance", False)
+        if data_with_finance:
+            attach_totals(instance)  # аннотация списка/деталей; у только что созданного - запрос
+        data = super().to_representation(instance)
+        if not data_with_finance:  # ключи остаются, значения скрыты (как в сводке дашборда)
+            for key in ("revenue", "cost", "profit", "margin_pct"):
+                data[key] = None
+        return data
 
     def get_fields(self):
         fields = super().get_fields()

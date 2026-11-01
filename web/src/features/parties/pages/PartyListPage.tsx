@@ -5,6 +5,7 @@ import { useCanWrite } from '../../../shared/auth/useCanWrite'
 import { useSession } from '../../../shared/auth/useSession'
 import { errorMessage } from '../../../shared/api/errors'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
+import { usePageFallback } from '../../../shared/hooks/usePageFallback'
 import { codecs, useUrlState } from '../../../shared/hooks/useUrlState'
 import { Badge } from '../../../shared/ui/Badge'
 import { Button } from '../../../shared/ui/Button'
@@ -45,6 +46,7 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
   const { hasPermission } = useSession()
   const [state, setState] = useUrlState(SCHEMAS[kind], { pageKey: 'page' })
   const list = usePartyList(kind, state)
+  usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
   const types = useHandbookValues(kind === 'clients' ? 'client_type' : 'carrier_type')
   const remove = useDeleteParty(kind)
   const canCreate = useCanWrite(`${kind}.create`)

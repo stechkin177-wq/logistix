@@ -309,3 +309,60 @@ def test_db_constraints(company):
             OrderService.objects.create(order=order, title="y", is_base=True)
         other = make_order(company)
         assert OrderService.objects.filter(order=other, is_base=True).count() == 1
+
+
+# --- финансовые поля заказа скрыты без finance.view (fix round 1, 16a) ---
+
+FINANCE_KEYS = ("revenue", "cost", "profit", "margin_pct")
+
+
+def test_dispatcher_gets_null_finance_on_list_detail_create_and_patch(admin_client, company):
+    order = new_order(admin_client, make_client(company), client_rate="500")
+    _, dispatcher = client_with_role(
+        company, "Диспетчер"
+    )  # orders.view/update/create, без finance.view
+    listed = next(x for x in dispatcher.get(ORDERS).data["results"] if x["id"] == order["id"])
+    detail = dispatcher.get(f"{ORDERS}{order['id']}/").data
+    patched = dispatcher.patch(f"{ORDERS}{order['id']}/", {"comment": "x"}, format="json")
+    created = dispatcher.post(
+        ORDERS, {"client": make_client(company, "Другой").pk, "client_rate": "10"}, format="json"
+    )
+    assert patched.status_code == 200 and created.status_code == 201
+    for data in (listed, detail, patched.data, created.data):
+        for key in FINANCE_KEYS:
+            assert key in data and data[key] is None, (key, data)
+
+
+@pytest.mark.parametrize("role", ["Бухгалтер", "Менеджер"])
+def test_finance_roles_get_numbers(admin_client, company, role):
+    order = new_order(admin_client, make_client(company), client_rate="500")
+    _, api = client_with_role(company, role)
+    assert api.get(f"{ORDERS}{order['id']}/").data["revenue"] == "500.00"
+    row = next(x for x in api.get(ORDERS).data["results"] if x["id"] == order["id"])
+    assert row["profit"] == "500.00" and row["margin_pct"] == "100.00"
+
+
+def test_admin_gets_numbers(admin_client, company):
+    order = new_order(admin_client, make_client(company), client_rate="500")
+    assert admin_client.get(f"{ORDERS}{order['id']}/").data["revenue"] == "500.00"
+
+
+def test_finance_hidden_does_not_cross_companies(two):
+    (a, _, admin_a), (b, _, _) = two
+    _, dispatcher_b = client_with_role(b, "Диспетчер")
+    order_a = new_order(admin_a, make_client(a), client_rate="700")
+    mine_b = new_order(dispatcher_b, make_client(b), client_rate="9")
+    assert mine_b["revenue"] is None
+    assert dispatcher_b.get(f"{ORDERS}{order_a['id']}/").status_code == 404
+    assert admin_a.get(f"{ORDERS}{order_a['id']}/").data["revenue"] == "700.00"
+
+
+@pytest.mark.parametrize("role", ["Диспетчер", "Бухгалтер"])
+def test_list_query_bound_holds_with_and_without_finance(
+    admin_client, company, role, django_assert_max_num_queries
+):
+    for i in range(5):
+        new_order(admin_client, make_client(company, f"К{i}"), client_rate="5")
+    _, api = client_with_role(company, role)
+    with django_assert_max_num_queries(10):
+        assert api.get(ORDERS).status_code == 200

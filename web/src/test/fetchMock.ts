@@ -10,6 +10,7 @@ export interface MockCall {
 export interface MockReply {
   status?: number
   body?: unknown
+  headers?: Record<string, string>
 }
 
 type Handler = MockReply | ((call: MockCall) => MockReply | Promise<MockReply>)
@@ -45,7 +46,7 @@ export function mockFetch(routes: [string, string | RegExp, Handler][]) {
     const status = reply.status ?? 200
     return new Response(reply.body === undefined ? null : JSON.stringify(reply.body), {
       status,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...reply.headers },
     })
   })
   vi.stubGlobal('fetch', fn)

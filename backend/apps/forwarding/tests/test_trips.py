@@ -1234,3 +1234,65 @@ def test_other_operational_errors_are_not_mapped(admin_client, company, monkeypa
 
     assert not is_concurrency_failure(OperationalError("x"))
     assert not is_concurrency_failure(ValueError("x"))
+
+
+# --- фильтр ?order= (fix round 1, 16a) ---
+
+
+def listed_ids(api, **params):
+    r = api.get(TRIPS, params)
+    assert r.status_code == 200, r.content
+    return {t["id"] for t in r.data["results"]}
+
+
+def test_filter_by_order_finds_single_and_consolidated_without_duplicates(admin_client, company):
+    order1, ids1 = make_cargos(company, n=2)
+    order2, ids2 = make_cargos(company)
+    single = new_trip(admin_client, ids1[:1])
+    both_cargos = new_trip(admin_client, ids1)  # два груза одного заказа: рейс не дублируется
+    consolidated = new_trip(admin_client, ids1[:1] + ids2)
+    only2 = new_trip(admin_client, ids2)
+    r = admin_client.get(TRIPS, {"order": order1.pk})
+    assert r.data["count"] == 3
+    assert {t["id"] for t in r.data["results"]} == {
+        single["id"],
+        both_cargos["id"],
+        consolidated["id"],
+    }
+    assert listed_ids(admin_client, order=order2.pk) == {consolidated["id"], only2["id"]}
+
+
+def test_filter_by_order_ignores_deleted_trips_and_cargos(admin_client, company):
+    order, ids = make_cargos(company, n=2)
+    keep = new_trip(admin_client, ids[:1])
+    gone = new_trip(admin_client, ids[1:])
+    with tenant_context(company.id):
+        Trip.objects.get(pk=gone["id"]).delete()
+    assert listed_ids(admin_client, order=order.pk) == {keep["id"]}
+    with tenant_context(company.id):
+        Consignment.objects.get(pk=ids[0]).delete()
+    assert listed_ids(admin_client, order=order.pk) == set()
+
+
+@pytest.mark.parametrize("bad", ["abc", "-1", "1.5", "٣", str(2**70)])
+def test_filter_by_order_bad_value_is_400_naming_order(admin_client, bad):
+    r = admin_client.get(TRIPS, {"order": bad})
+    assert r.status_code == 400 and "order" in r.data
+
+
+def test_filter_by_order_of_other_company_matches_nothing(two):
+    (comp_a, _, api_a), (comp_b, _, api_b) = two
+    order_a, ids_a = make_cargos(comp_a)
+    new_trip(api_a, ids_a)
+    assert api_b.get(TRIPS, {"order": order_a.pk}).data["count"] == 0
+    assert api_a.get(TRIPS, {"order": order_a.pk}).data["count"] == 1
+
+
+def test_list_query_bound_holds_with_order_filter(
+    admin_client, company, django_assert_max_num_queries
+):
+    order, ids = make_cargos(company, n=3)
+    for cargo_id in ids:
+        new_trip(admin_client, [cargo_id])
+    with django_assert_max_num_queries(TRIP_LIST_QUERY_BOUND):
+        assert admin_client.get(TRIPS, {"order": order.pk}).data["count"] == 3

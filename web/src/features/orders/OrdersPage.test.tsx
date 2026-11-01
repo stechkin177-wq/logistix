@@ -151,13 +151,15 @@ describe('Заказы: канбан', () => {
 })
 
 describe('Заказы: Excel', () => {
-  it('скачивает blob через клиент с заголовком авторизации и фильтрами', async () => {
+  it('скачивает blob через клиент с заголовком авторизации и фильтрами; имя очищено, ссылка отозвана', async () => {
     const created: Blob[] = []
-    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: (b: Blob) => { created.push(b); return 'blob:x' }, revokeObjectURL: vi.fn() }))
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    const revoke = vi.fn()
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: (b: Blob) => { created.push(b); return 'blob:x' }, revokeObjectURL: revoke }))
+    const names: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
     const m = loggedIn([
       ordersRoute(),
-      ['GET', /^\/api\/orders\/export\//, () => ({ body: undefined })],
+      ['GET', /^\/api\/orders\/export\//, { headers: { 'Content-Disposition': 'attachment; filename="../../evil.exe"' } }],
       ...common,
     ])
     renderApp('/orders?q=abc&status=1')
@@ -169,6 +171,8 @@ describe('Заказы: Excel', () => {
     expect(call.path).toContain('status=1')
     expect(call.headers.Authorization).toBe('Bearer a')
     expect(created).toHaveLength(1)
+    expect(names).toEqual(['evil.exe'])
+    expect(revoke).toHaveBeenCalledWith('blob:x')
     click.mockRestore()
   })
 
@@ -182,5 +186,17 @@ describe('Заказы: Excel', () => {
     await screen.findByRole('link', { name: 'ORD-2026-00005' })
     await userEvent.click(screen.getByRole('button', { name: 'Excel' }))
     expect(await screen.findByText(/Слишком много заказов для выгрузки/)).toBeInTheDocument()
+  })
+
+  it('страница за последней (404) возвращает на первую, а не показывает ошибку', async () => {
+    const m = loggedIn([
+      ['GET', /^\/api\/orders\/\?.*page=9/, { status: 404, body: { detail: 'Неверная страница.' } }],
+      ordersRoute(),
+      ...common,
+    ])
+    const { router } = renderApp('/orders?page=9')
+    expect(await screen.findByRole('link', { name: 'ORD-2026-00005' })).toBeInTheDocument()
+    expect(router.state.location.search).not.toContain('page=9')
+    expect(m.calls.some((c) => c.path.includes('page=9'))).toBe(true)
   })
 })

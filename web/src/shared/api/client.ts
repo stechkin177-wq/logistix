@@ -1,6 +1,7 @@
 import { applyRefreshed, clearTokens, getAccess, getEpoch, getRefresh } from '../auth/tokens'
 import { ApiError, buildApiError } from './errors'
 import { emitApiEvent } from './events'
+import { safeFilename } from './filename'
 
 /** Единственное место, где вызывается fetch. */
 const BASE = '/api'
@@ -162,13 +163,13 @@ function filenameFrom(response: Response): string | null {
   const star = /filename\*=UTF-8''([^;]+)/i.exec(header)
   if (star?.[1]) {
     try {
-      return decodeURIComponent(star[1])
+      return safeFilename(decodeURIComponent(star[1]), '') || null
     } catch {
       // падаем на обычное имя
     }
   }
   const plain = /filename="?([^";]+)"?/i.exec(header)
-  return plain?.[1] ?? null
+  return safeFilename(plain?.[1], '') || null
 }
 
 export const api = {

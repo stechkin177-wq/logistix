@@ -295,3 +295,32 @@ describe('отмена и скачивание', () => {
     await expect(api.download('/orders/export/')).rejects.toMatchObject({ status: 400, detail: 'Слишком много заказов' })
   })
 })
+
+
+describe('имя скачиваемого файла', () => {
+  const names = async (disposition: string) => {
+    setTokens({ access: 'a', refresh: 'r' })
+    const fn = vi.fn<typeof fetch>()
+    fn.mockResolvedValue(new Response('x', { headers: { 'Content-Disposition': disposition } }))
+    vi.stubGlobal('fetch', fn)
+    return (await api.download('/orders/export/')).filename
+  }
+  it('обычное имя сохраняется', async () => {
+    expect(await names('attachment; filename="orders-2026-11-01.xlsx"')).toBe('orders-2026-11-01.xlsx')
+  })
+  it('путь и .. отбрасываются', async () => {
+    expect(await names('attachment; filename="../../evil.exe"')).toBe('evil.exe')
+    expect(await names("attachment; filename*=UTF-8''..%2F..%2Fx.xlsx")).toBe('x.xlsx')
+    expect(await names('attachment; filename="C:\\dir\\y.xlsx"')).toBe('y.xlsx')
+  })
+  it('управляющие символы и кавычки убираются, длина ограничена', async () => {
+    expect(await names("attachment; filename*=UTF-8''a%00b%0D%0Ac%22d.xlsx")).toBe('abcd.xlsx')
+    const long = await names(`attachment; filename="${'a'.repeat(300)}.xlsx"`)
+    expect(long?.length).toBeLessThanOrEqual(100)
+    expect(long?.endsWith('.xlsx')).toBe(true)
+  })
+  it('пустое после очистки -> null (страница подставит orders.xlsx)', async () => {
+    expect(await names('attachment; filename="../"')).toBeNull()
+    expect(await names('attachment')).toBeNull()
+  })
+})

@@ -39,24 +39,29 @@ export const createConsignment = (body: unknown) => api.post<unknown>('/consignm
 export const updateConsignment = (id: number, body: unknown) => api.patch<unknown>(`/consignments/${String(id)}/`, body)
 export const deleteConsignment = (id: number) => api.delete(`/consignments/${String(id)}/`)
 
-export const listOrderLines = (order: number, signal?: AbortSignal) =>
-  api.get<Paginated<OrderLine>>('/order-lines/', { order, page_size: 200 }, { signal })
+const LINES_PAGE_SIZE = 200
+const LINES_MAX_PAGES = 20
+
+/** Все строки заказа: страницы подгружаются по `next` (не больше LINES_MAX_PAGES), итоги на странице не расходятся с таблицей. */
+export async function listOrderLines(order: number, signal?: AbortSignal): Promise<Paginated<OrderLine>> {
+  const results: OrderLine[] = []
+  let count = 0
+  for (let page = 1; page <= LINES_MAX_PAGES; page++) {
+    const part = await api.get<Paginated<OrderLine>>('/order-lines/', { order, page_size: LINES_PAGE_SIZE, page }, { signal })
+    results.push(...part.results)
+    count = part.count
+    if (!part.next) break
+  }
+  return { count, next: null, previous: null, results }
+}
 export const createOrderLine = (body: OrderLinePayload) => api.post<OrderLine>('/order-lines/', body)
 export const updateOrderLine = (id: number, body: OrderLinePayload) => api.patch<OrderLine>(`/order-lines/${String(id)}/`, body)
 export const deleteOrderLine = (id: number) => api.delete(`/order-lines/${String(id)}/`)
 
-/** Рейсы, везущие груз заказа. Фильтра по заказу у API рейсов нет: обычные рейсы находятся по номеру заказа
- * в номере рейса ({order}-{n}), сборные - просмотром сборных рейсов и отбором по составу. */
-export async function tripsOfOrder(order: { id: number; number: string }, signal?: AbortSignal): Promise<TripRef[]> {
-  const [single, consolidated] = await Promise.all([
-    api.get<Paginated<TripRef>>('/trips/', { q: order.number, page_size: 200 }, { signal }),
-    api.get<Paginated<TripRef>>('/trips/', { only_consolidated: 1, page_size: 200 }, { signal }),
-  ])
-  const seen = new Map<number, TripRef>()
-  for (const trip of [...single.results, ...consolidated.results]) {
-    if (trip.orders.some((o) => o.id === order.id)) seen.set(trip.id, trip)
-  }
-  return [...seen.values()].sort((a, b) => a.id - b.id)
+/** Рейсы, везущие груз заказа: GET /trips/?order=<id> (одиночные и сборные, без дублей). */
+export async function tripsOfOrder(order: { id: number }, signal?: AbortSignal): Promise<TripRef[]> {
+  const result = await api.get<Paginated<TripRef>>('/trips/', { order: order.id, page_size: 200 }, { signal })
+  return result.results
 }
 
 export const orderOption = (o: Order): ComboOption => ({ id: o.id, label: o.number })

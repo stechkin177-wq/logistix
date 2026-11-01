@@ -34,7 +34,12 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["with_history"] = self.action != "list"
+        context["with_finance"] = self.with_finance()
         return context
+
+    def with_finance(self) -> bool:
+        """Выручка, расходы и прибыль видны только с finance.view (иначе поля равны null)."""
+        return "finance.view" in self.request.membership.role.permissions
 
     def get_queryset(self):
         qs = (
@@ -42,7 +47,8 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
             .prefetch_related("extra_managers", consignments_prefetch())
             .annotate(has_carrier=Exists(carried_with_carrier()))
         )
-        qs = annotate_order_totals(qs)
+        if self.with_finance():  # без права подзапросы итогов не нужны
+            qs = annotate_order_totals(qs)
         if self.action != "list":
             qs = qs.prefetch_related(
                 Prefetch(

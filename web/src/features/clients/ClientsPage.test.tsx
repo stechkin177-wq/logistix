@@ -165,4 +165,37 @@ describe('Клиенты', () => {
     renderApp('/clients')
     expect(await screen.findByText('Нет доступа')).toBeInTheDocument()
   })
+
+  it('контакты отключены, если нельзя сохранять (нет clients.update)', async () => {
+    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], typesRoute], {
+      session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'clients.update') },
+    })
+    renderApp('/clients')
+    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('dialog')
+    expect(within(drawer).getByLabelText(/^Имя/)).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: 'Добавить контакт' })).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: 'Убрать контакт 1' })).toBeDisabled()
+  })
+
+  it('режим только чтения отключает контакты', async () => {
+    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], typesRoute], {
+      session: { subscription: { status: 'readonly', plan_code: 'start', days_left: 0, grace_days_left: null, is_free_period: false } },
+    })
+    renderApp('/clients')
+    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('dialog')
+    expect(within(drawer).getByRole('button', { name: 'Добавить контакт' })).toBeDisabled()
+  })
+
+  it('страница за последней (404) возвращает на первую', async () => {
+    loggedIn([
+      ['GET', /^\/api\/clients\/\?.*page=7/, { status: 404, body: { detail: 'Неверная страница.' } }],
+      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }],
+      typesRoute,
+    ])
+    const { router } = renderApp('/clients?page=7')
+    expect(await screen.findByText('ТОО Ромашка')).toBeInTheDocument()
+    expect(router.state.location.search).not.toContain('page=7')
+  })
 })

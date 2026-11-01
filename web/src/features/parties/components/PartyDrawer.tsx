@@ -161,7 +161,7 @@ export function PartyDrawer({ kind, party, open, onClose }: Props) {
           )}
         </div>
         <TextArea label={t('parties.notes')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
-        <ContactsEditor rows={form.contacts} errors={f} onChange={(rows) => { set('contacts', rows) }} />
+        <ContactsEditor disabled={!canSave} rows={form.contacts} errors={f} onChange={(rows) => { set('contacts', rows) }} />
       </form>
     </Drawer>
   )

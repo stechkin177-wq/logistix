@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '../../../shared/api/errors'
 import { useSession } from '../../../shared/auth/useSession'
+import { usePageFallback } from '../../../shared/hooks/usePageFallback'
 import { Badge } from '../../../shared/ui/Badge'
 import { Button } from '../../../shared/ui/Button'
 import { DataTable, type Column } from '../../../shared/ui/DataTable'
@@ -36,6 +37,7 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const list = useOrderList(params)
+  usePageFallback(list.error, params.page, () => { onChange({ page: 1 }) })
   const { codeOf } = useCurrencies()
   const rows = list.data?.results
   const showFinance = hasPermission('finance.view') && (rows ?? []).some((o) => o.cost !== null)

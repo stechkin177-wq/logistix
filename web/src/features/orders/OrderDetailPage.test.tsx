@@ -180,22 +180,22 @@ describe('Карточка заказа', () => {
     expect(within(rows[2]!).getByText('31.10.2026, 10:00')).toBeInTheDocument()
   })
 
-  it('вкладка «Рейсы»: рейсы с грузом заказа, остальные отсеяны', async () => {
-    loggedIn([
+  it('вкладка «Рейсы»: один запрос ?order=<id>, рейсы показываются как есть', async () => {
+    const m = loggedIn([
       ['GET', '/api/orders/5/', { body: makeOrder() }],
-      ['GET', /^\/api\/trips\/\?only_consolidated=1/, { body: page([
-        { id: 2, number: 'C00001', carrier_name: 'ИП Быстров', status_name: 'Планируется', is_consolidated: true, vehicle_plate: 'A1', driver_name: '', orders: [{ id: 5, number: 'ORD-2026-00005' }, { id: 9, number: 'X' }] },
-        { id: 3, number: 'C00002', carrier_name: null, status_name: 'Планируется', is_consolidated: true, vehicle_plate: '', driver_name: '', orders: [{ id: 9, number: 'X' }] },
-      ]) }],
       ['GET', /^\/api\/trips\/\?/, { body: page([
         { id: 1, number: 'ORD-2026-00005-1', carrier_name: 'ТОО Перевоз', status_name: 'В пути', is_consolidated: false, vehicle_plate: '', driver_name: '', orders: [{ id: 5, number: 'ORD-2026-00005' }] },
+        { id: 2, number: 'C00001', carrier_name: 'ИП Быстров', status_name: 'Планируется', is_consolidated: true, vehicle_plate: 'A1', driver_name: '', orders: [{ id: 5, number: 'ORD-2026-00005' }, { id: 9, number: 'X' }] },
       ]) }],
       ...common,
     ])
     renderApp('/orders/5?tab=trips')
     expect(await screen.findByRole('link', { name: 'ORD-2026-00005-1' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'C00001' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'C00002' })).not.toBeInTheDocument()
+    const trips = m.calls.filter((c) => c.path.startsWith('/api/trips/'))
+    expect(trips).toHaveLength(1)
+    expect(new URL(trips[0]!.path, 'http://x').searchParams.get('order')).toBe('5')
+    expect(trips[0]!.path).not.toContain('only_consolidated')
   })
 
   it('удаление заказа: подтверждение, DELETE и переход к списку', async () => {
@@ -234,5 +234,18 @@ describe('Карточка заказа', () => {
     expect(screen.getByRole('button', { name: 'Удалить заказ' })).toBeDisabled()
     expect(screen.queryByRole('combobox', { name: /Статус заказа/ })).not.toBeInTheDocument()
   })
-})
 
+  it('строки заказа: подгружаются все страницы (205 строк)', async () => {
+    const mk = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => makeLine({ id: 1000 + from + i, title: `Строка ${String(from + i)}`, is_base: false }))
+    const m = loggedIn([
+      ['GET', '/api/orders/5/', { body: makeOrder() }],
+      ['GET', /^\/api\/order-lines\/\?.*page=2/, { body: { count: 205, next: null, previous: 'x', results: mk(201, 205) } }],
+      ['GET', /^\/api\/order-lines\/\?/, { body: { count: 205, next: 'http://x/?page=2', previous: null, results: mk(1, 200) } }],
+      ...common,
+    ])
+    renderApp('/orders/5?tab=finance')
+    expect(await screen.findByText('Строка 205')).toBeInTheDocument()
+    expect(screen.getByText('Строка 1')).toBeInTheDocument()
+    expect(m.calls.filter((c) => c.path.startsWith('/api/order-lines/'))).toHaveLength(2)
+  })
+})

@@ -13,7 +13,7 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.audit.services import client_ip
 from apps.core.pagination import StandardPagination
 
-from ..models import Consignment, Trip
+from ..models import Consignment, Trip, TripConsignment
 from ..orders.filters import flag_param, int_param
 from .serializers import (
     ReassignSerializer,
@@ -39,11 +39,19 @@ UPDATE_ACTIONS = ("reassign", "change_status")
 
 
 def filter_trips(qs, params):
-    """status (id), carrier (id), only_consolidated (1), q (номер, перевозчик, название груза)."""
+    """status (id), carrier (id), order (id заказа с грузом в рейсе), only_consolidated (1),
+    q (номер, перевозчик, название груза)."""
     if (status := int_param(params, "status")) is not None:
         qs = qs.filter(status_id=status)
     if (carrier := int_param(params, "carrier")) is not None:
         qs = qs.filter(carrier_id=carrier)
+    if (order := int_param(params, "order")) is not None:
+        carried = TripConsignment.objects.filter(
+            trip=OuterRef("pk"),
+            consignment__order_id=order,
+            consignment__deleted_at__isnull=True,
+        )
+        qs = qs.filter(Exists(carried))
     if flag_param(params, "only_consolidated"):
         qs = qs.filter(is_consolidated=True)
     if q := (params.get("q") or "").strip():

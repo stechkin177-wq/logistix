@@ -5,6 +5,7 @@ import { codecs, useUrlState } from '../../../shared/hooks/useUrlState'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { PAGE_SIZES } from '../../../shared/ui/Pagination'
+import { safeFilename } from '../../../shared/api/filename'
 import { exportOrders } from '../api'
 import { NewOrderLink } from '../components/NewOrderLink'
 import { EMPTY_FILTERS, OrderFilters, hasFilters } from '../components/OrderFilters'
@@ -62,7 +63,7 @@ export function OrdersPage() {
     setExportError(null)
     try {
       const { blob, filename } = await exportOrders(params)
-      saveBlob(blob, filename ?? 'orders.xlsx')
+      saveBlob(blob, safeFilename(filename, 'orders.xlsx'))
     } catch (error) {
       setExportError(error instanceof ApiError && error.status === 400 && error.detail ? error.detail : errorMessage(error, t))
     } finally {
