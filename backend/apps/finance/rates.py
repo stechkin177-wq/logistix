@@ -23,7 +23,5 @@ def rate_on(currency, on: date) -> Decimal:
         .first()
     )
     if rate is None:
-        raise FinanceError(
-            "rate_missing", f"Нет курса {currency.code} к тенге на {on.isoformat()}"
-        )
+        raise FinanceError("rate_missing", f"Нет курса {currency.code} к тенге на {on.isoformat()}")
     return rate

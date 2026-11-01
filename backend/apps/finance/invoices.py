@@ -25,7 +25,14 @@ from .rates import rate_on
 CANCELLED_ORDER_CODE = "cancelled"
 LIGHT_FIELDS = ("due_date", "external_number", "comment")
 DRAFT_FIELDS = (
-    "party", "order", "trip", "currency", "vat_rate", "due_date", "external_number", "comment",
+    "party",
+    "order",
+    "trip",
+    "currency",
+    "vat_rate",
+    "due_date",
+    "external_number",
+    "comment",
 )
 _MONEY = DecimalField(max_digits=18, decimal_places=2)
 
@@ -114,8 +121,18 @@ def _write_items(invoice: Invoice, items: list[dict]):
 
 @transaction.atomic
 def create_draft(
-    *, direction, party, order=None, trip=None, currency, vat_rate, due_date=None,
-    external_number="", comment="", items, user,
+    *,
+    direction,
+    party,
+    order=None,
+    trip=None,
+    currency,
+    vat_rate,
+    due_date=None,
+    external_number="",
+    comment="",
+    items,
+    user,
 ) -> Invoice:
     """Создаёт черновик счёта; party - Client (out) или Carrier (in)."""
     _check_header(direction, party, order, trip, currency)
@@ -163,7 +180,8 @@ def update_draft(invoice: Invoice, *, items=None, **fields) -> Invoice:
         ]
     _check_items(
         {"direction": invoice.direction, "order": invoice.order, "trip": invoice.trip},
-        items, invoice,
+        items,
+        invoice,
     )
     invoice.save()
     _write_items(invoice, items)
@@ -214,10 +232,14 @@ def client_debt_kzt(client: Client) -> Decimal:
     paid = Coalesce(
         Subquery(
             Payment.objects.filter(invoice=OuterRef("pk"))
-            .order_by().values("invoice").annotate(s=Sum("amount")).values("s"),
+            .order_by()
+            .values("invoice")
+            .annotate(s=Sum("amount"))
+            .values("s"),
             output_field=_MONEY,
         ),
-        Value(ZERO), output_field=_MONEY,
+        Value(ZERO),
+        output_field=_MONEY,
     )
     debt = Decimal("0")
     for gross, paid_amount, rate in (
@@ -231,12 +253,18 @@ def client_debt_kzt(client: Client) -> Decimal:
 
 @transaction.atomic
 def issue(
-    invoice: Invoice, *, user, issue_date: date | None = None,
-    can_override: bool = False, override_reason: str | None = None,
+    invoice: Invoice,
+    *,
+    user,
+    issue_date: date | None = None,
+    can_override: bool = False,
+    override_reason: str | None = None,
 ) -> Invoice:
-    invoice = Invoice.objects.select_for_update(of=("self",)).select_related(
-        "currency", "vat_rate", "client", "order", "trip"
-    ).get(pk=invoice.pk)
+    invoice = (
+        Invoice.objects.select_for_update(of=("self",))
+        .select_related("currency", "vat_rate", "client", "order", "trip")
+        .get(pk=invoice.pk)
+    )
     if invoice.status != "draft":
         raise _not_editable()
     items = list(invoice.items.all())
@@ -253,12 +281,13 @@ def issue(
                 "invoice_exceeds_order_income", "Сумма счетов превышает доход заказа"
             )
         client = Client.objects.select_for_update().get(pk=invoice.client_id)
-        if client.credit_limit and client_debt_kzt(client) + to_kzt(gross, rate) > client.credit_limit:
+        if (
+            client.credit_limit
+            and client_debt_kzt(client) + to_kzt(gross, rate) > client.credit_limit
+        ):
             reason = (override_reason or "").strip()
             if not (can_override and reason):
-                raise FinanceError(
-                    "credit_limit_exceeded", "Превышен кредитный лимит клиента"
-                )
+                raise FinanceError("credit_limit_exceeded", "Превышен кредитный лимит клиента")
             override_used = reason
     invoice.number = next_number("invoice_out" if invoice.direction == "out" else "invoice_in")
     if invoice.due_date is None:
@@ -303,7 +332,10 @@ def annotate_paid(queryset):
     """Добавляет счетам paid (сумма неудалённых оплат) подзапросом - без N+1."""
     per_invoice = (
         Payment.objects.filter(invoice=OuterRef("pk"))
-        .order_by().values("invoice").annotate(s=Sum("amount")).values("s")
+        .order_by()
+        .values("invoice")
+        .annotate(s=Sum("amount"))
+        .values("s")
     )
     return queryset.annotate(
         paid=Coalesce(Subquery(per_invoice, output_field=_MONEY), Value(ZERO), output_field=_MONEY)

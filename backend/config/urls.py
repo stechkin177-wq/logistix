@@ -22,6 +22,8 @@ from apps.core.audit.api import AuditLogViewSet
 from apps.core.handbooks.api import HandbookValueViewSet, HandbookViewSet
 from apps.core.numbering.api import NumberingRuleViewSet
 from apps.core.views import health
+from apps.finance.api.invoices import InvoiceViewSet
+from apps.finance.api.payments import PaymentViewSet
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
 from apps.forwarding.dashboard import DashboardSummaryView
@@ -43,6 +45,8 @@ router.register("orders", OrderViewSet, basename="order")
 router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
+router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
+router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 
 urlpatterns = [
     path("api/health/", health),

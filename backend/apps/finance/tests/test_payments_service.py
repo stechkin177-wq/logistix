@@ -25,8 +25,12 @@ def issued(company, *, currency="KZT", amount="1000", percent="0", day=date(2026
     user = first_user(company)
     with tenant_context(company.id):
         inv = inv_svc.create_draft(
-            direction="out", party=order.client, order=order, currency=cur(company, currency),
-            vat_rate=vat(company, percent), items=[{"title": "x", "amount_net": D(amount), "line": line}],
+            direction="out",
+            party=order.client,
+            order=order,
+            currency=cur(company, currency),
+            vat_rate=vat(company, percent),
+            items=[{"title": "x", "amount_net": D(amount), "line": line}],
             user=user,
         )
         return inv_svc.issue(inv, user=user, issue_date=day)
@@ -65,8 +69,13 @@ def test_payment_on_draft_rejected(company):
     user = first_user(company)
     with tenant_context(company.id):
         draft = inv_svc.create_draft(
-            direction="out", party=order.client, order=order, currency=cur(company),
-            vat_rate=vat(company), items=[{"title": "x", "amount_net": D("10"), "line": line}], user=user,
+            direction="out",
+            party=order.client,
+            order=order,
+            currency=cur(company),
+            vat_rate=vat(company),
+            items=[{"title": "x", "amount_net": D("10"), "line": line}],
+            user=user,
         )
     with pytest.raises(FinanceError) as exc:
         add(company, draft, 1)
@@ -110,7 +119,7 @@ def test_missing_rate_on_payment_date(company):
     assert code(exc) == "rate_missing"
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_concurrent_payments_one_wins(company):
     inv = issued(company)
     results = []

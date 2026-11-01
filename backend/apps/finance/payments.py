@@ -16,13 +16,21 @@ from .rates import rate_on
 
 @transaction.atomic
 def add_payment(
-    invoice: Invoice, *, date: date, amount: Decimal, method: str, payment_ref: str = "",
-    comment: str = "", user,
+    invoice: Invoice,
+    *,
+    date: date,
+    amount: Decimal,
+    method: str,
+    payment_ref: str = "",
+    comment: str = "",
+    user,
 ) -> Payment:
     """Оплата в валюте счёта. Счёт блокируется: параллельные оплаты не превысят остаток."""
     locked = Invoice.objects.select_for_update().select_related("currency").get(pk=invoice.pk)
     if locked.status != "issued":
-        raise FinanceError("invoice_not_editable", "Оплату можно внести только по выставленному счёту")
+        raise FinanceError(
+            "invoice_not_editable", "Оплату можно внести только по выставленному счёту"
+        )
     if amount > balance(locked):
         raise FinanceError("payment_exceeds_balance", "Сумма оплаты больше остатка по счёту")
     payment = Payment.objects.create(
@@ -43,10 +51,14 @@ def add_payment(
 def delete_payment(payment: Payment, *, user) -> None:
     Invoice.objects.select_for_update().get(pk=payment.invoice_id)  # сериализует с оплатами
     payment.delete()
-    audit.log("delete", payment, user, {"invoice": payment.invoice_id, "amount": str(payment.amount)})
+    audit.log(
+        "delete", payment, user, {"invoice": payment.invoice_id, "amount": str(payment.amount)}
+    )
 
 
 def payment_fx_difference(payment: Payment) -> Decimal:
     """Курсовая разница оплаты в тенге (курс платежа против курса счёта)."""
     invoice = payment.invoice
-    return fx_difference(payment.amount, payment.rate_to_kzt, invoice.rate_to_kzt, invoice.direction)
+    return fx_difference(
+        payment.amount, payment.rate_to_kzt, invoice.rate_to_kzt, invoice.direction
+    )

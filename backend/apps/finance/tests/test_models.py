@@ -53,8 +53,12 @@ def test_payment_amount_positive(company):
     invoice = inv(company)
     with pytest.raises(IntegrityError), transaction.atomic(), tenant_context(company.id):
         Payment.objects.create(
-            company=company, invoice=invoice, date=date(2026, 5, 1), amount=Decimal("0"),
-            rate_to_kzt=Decimal("1"), method="bank",
+            company=company,
+            invoice=invoice,
+            date=date(2026, 5, 1),
+            amount=Decimal("0"),
+            rate_to_kzt=Decimal("1"),
+            method="bank",
         )
 
 

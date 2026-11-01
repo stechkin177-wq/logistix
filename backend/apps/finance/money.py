@@ -31,7 +31,9 @@ def vat_percent(value) -> Decimal:
     return percent
 
 
-def compute_totals(amounts: Iterable[Decimal], percent: Decimal) -> tuple[Decimal, Decimal, Decimal]:
+def compute_totals(
+    amounts: Iterable[Decimal], percent: Decimal
+) -> tuple[Decimal, Decimal, Decimal]:
     """(без НДС, НДС, всего). НДС считается от общей суммы, а не по позициям."""
     net = quantize_money(sum((Decimal(a) for a in amounts), Decimal("0")))
     vat = quantize_money(net * Decimal(percent) / HUNDRED)
@@ -42,7 +44,9 @@ def to_kzt(amount: Decimal, rate: Decimal) -> Decimal:
     return quantize_money(Decimal(amount) * Decimal(rate))
 
 
-def fx_difference(amount: Decimal, pay_rate: Decimal, invoice_rate: Decimal, direction: str) -> Decimal:
+def fx_difference(
+    amount: Decimal, pay_rate: Decimal, invoice_rate: Decimal, direction: str
+) -> Decimal:
     """Курсовая разница оплаты в тенге: плюс для out при росте курса, минус для in."""
     diff = quantize_money(Decimal(amount) * (Decimal(pay_rate) - Decimal(invoice_rate)))
     return diff if direction == "out" else -diff

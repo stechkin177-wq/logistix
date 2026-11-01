@@ -1,5 +1,5 @@
 import threading
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from datetime import timezone as dt_tz
 from decimal import Decimal as D
 
@@ -49,7 +49,10 @@ def draft(company, order, lines, *, client=None, currency="KZT", percent="16", *
             trip=None,
             currency=cur(company, currency),
             vat_rate=vat(company, percent),
-            items=[{"title": f"п{i}", "amount_net": amt, "line": ln} for i, (ln, amt) in enumerate(lines)],
+            items=[
+                {"title": f"п{i}", "amount_net": amt, "line": ln}
+                for i, (ln, amt) in enumerate(lines)
+            ],
             user=user,
             **extra,
         )
@@ -72,7 +75,11 @@ def test_issue_assigns_number_and_snapshot(company, order):
     assert out.number == "СЧ-2026-00001"
     assert out.status == "issued" and out.issue_date == date(2026, 10, 15)
     assert out.rate_to_kzt == D("1")
-    assert (out.total_net, out.total_vat, out.total_gross) == (D("1000.00"), D("160.00"), D("1160.00"))
+    assert (out.total_net, out.total_vat, out.total_gross) == (
+        D("1000.00"),
+        D("160.00"),
+        D("1160.00"),
+    )
 
 
 def test_issue_twice_forbidden(company, order):
@@ -138,7 +145,9 @@ def test_deleted_or_cancelled_order_line_rejected(company):
             else:
                 from apps.core.handbooks.models import HandbookValue
 
-                order.status = HandbookValue.objects.get(handbook__code="order_status", code="cancelled")
+                order.status = HandbookValue.objects.get(
+                    handbook__code="order_status", code="cancelled"
+                )
                 order.save()
         with pytest.raises(FinanceError) as exc:
             draft(company, order, [(line, D("100"))])
@@ -161,7 +170,9 @@ def test_due_date_default_from_order_delay(company):
     line = add_line(company, order, income=100)
     out = issue(company, draft(company, order, [(line, D("100"))]))
     assert out.due_date == date(2026, 10, 25)
-    explicit = draft(company, order, [(add_line(company, order, income=5), D("5"))], due_date=date(2026, 12, 1))
+    explicit = draft(
+        company, order, [(add_line(company, order, income=5), D("5"))], due_date=date(2026, 12, 1)
+    )
     assert issue(company, explicit).due_date == date(2026, 12, 1)
 
 
@@ -183,7 +194,9 @@ def test_credit_limit_blocks_and_override(company):
     out = issue(company, second, can_override=True, override_reason="согласовано с директором")
     assert out.status == "issued"
     with tenant_context(company.id):
-        assert AuditLog.objects.filter(changes__credit_limit_override="согласовано с директором").exists()
+        assert AuditLog.objects.filter(
+            changes__credit_limit_override="согласовано с директором"
+        ).exists()
 
 
 def test_zero_limit_means_no_limit(company, order):
@@ -208,8 +221,12 @@ def test_cancel_with_payment_rejected(company, order):
     out = issue(company, draft(company, order, [(line, D("100"))]))
     with tenant_context(company.id):
         Payment.objects.create(
-            company=company, invoice=out, date=date(2026, 10, 15), amount=D("10"),
-            rate_to_kzt=D("1"), method="bank",
+            company=company,
+            invoice=out,
+            date=date(2026, 10, 15),
+            amount=D("10"),
+            rate_to_kzt=D("1"),
+            method="bank",
         )
         with pytest.raises(FinanceError) as exc:
             svc.cancel(out, user=first_user(company))
@@ -245,16 +262,22 @@ def test_in_invoice_for_trip_and_numbering(company):
     user = first_user(company)
     with tenant_context(company.id):
         inv = svc.create_draft(
-            direction="in", party=carrier, order=None, trip=trip, currency=cur(company),
-            vat_rate=vat(company, "none"), external_number="А-77",
-            items=[{"title": "Перевозка", "amount_net": D("800"), "line": exp}], user=user,
+            direction="in",
+            party=carrier,
+            order=None,
+            trip=trip,
+            currency=cur(company),
+            vat_rate=vat(company, "none"),
+            external_number="А-77",
+            items=[{"title": "Перевозка", "amount_net": D("800"), "line": exp}],
+            user=user,
         )
         out = svc.issue(inv, user=user)
     assert out.number == "ПС-2026-00001" and out.external_number == "А-77"
     assert out.total_gross == D("800.00")
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_numbers_unique_under_concurrency(company):
     order = make_order(company)
     invs = []
