@@ -42,14 +42,15 @@ MEDIA="$BASE-media.tar.gz"
 COUNTS="$BASE.counts"
 SUMS="$BASE.sha256"
 PARTIALS=()
-# При ЛЮБОМ сбое (кроме 20 - сбой только выгрузки) удаляем всё, что записано в эту копию,
+DONE=0  # 1 - копия целиком записана и сверена: дальнейшие сбои её не удаляют
+# При сбое ДО готовности копии (кроме 20 - сбой только выгрузки) удаляем всё, что записано в эту копию,
 # в первую очередь незашифрованные .dump/.tar.gz (по возможности shred), чтобы открытые
 # персональные данные не оставались на диске и не было неполного набора файлов.
 cleanup() {
   local rc=$?
   trap - EXIT
   local f list=("${PARTIALS[@]}")
-  if ((rc != 0 && rc != 20)); then list+=("$DUMP" "$MEDIA" "$COUNTS" "$SUMS" "$DUMP.gpg" "$MEDIA.gpg"); fi
+  if ((rc != 0 && rc != 20 && !DONE)); then list+=("$DUMP" "$MEDIA" "$COUNTS" "$SUMS" "$DUMP.gpg" "$MEDIA.gpg"); fi
   if ((${#list[@]})); then
     for f in "${list[@]}"; do
       [[ -e "$f" ]] || continue
@@ -97,11 +98,15 @@ fi
 ( cd "$BACKUP_DIR" && sha256sum -- "${FILES[@]##*/}" >"$SUMS" )
 FILES+=("$SUMS")
 chmod 600 "${FILES[@]}"
+DONE=1
 log "готово: $(printf "%s " "${FILES[@]##*/}")"
 
+# Срок хранения: сбой чистки - предупреждение, а не ошибка (копия уже готова и в порядке)
 if [[ "$BACKUP_KEEP_DAYS" -gt 0 ]]; then
-  find "$BACKUP_DIR" -maxdepth 1 -type f -name 'logistix-*' -mtime "+$BACKUP_KEEP_DAYS" -print -delete \
-    | sed 's/^/удалено (срок хранения): /' >&2
+  if ! find "$BACKUP_DIR" -maxdepth 1 -type f -name 'logistix-*' -mtime "+$BACKUP_KEEP_DAYS" -print -delete \
+    | sed 's/^/удалено (срок хранения): /' >&2; then
+    log "ПРЕДУПРЕЖДЕНИЕ: очистка старых копий не удалась (новая копия сохранена)"
+  fi
 fi
 
 if [[ -n "${BACKUP_REMOTE:-}" ]]; then

@@ -74,6 +74,14 @@ if command -v pg_isready >/dev/null && pg_isready -q -h "$PGHOST" -p "$PGPORT" &
   check "restore с битым медиа: отказ" test $? -ne 0
   check "restore с битым медиа: БД не тронута (0 строк)" test "$(psql -X -At -d "$DST" -c 'SELECT count(*) FROM t')" = 0
 
+  # сбой чистки по сроку хранения не уничтожает готовую копию
+  mkdir -p "$T/failbin"; printf '#!/bin/sh\nexit 1\n' >"$T/failbin/find"; chmod +x "$T/failbin/find"
+  PATH="$T/failbin:$PATH" "${common[@]}" POSTGRES_DB=$SRC BACKUP_DIR="$T/bk3" MEDIA_DIR="$T/media" \
+    BACKUP_KEEP_DAYS=7 BACKUP_GPG_PASSPHRASE_FILE="$T/pass" "$HERE/backup.sh" >"$T/bk3.out" 2>&1
+  check "backup: сбой чистки по сроку -> код 0" test $? -eq 0
+  check "backup: сбой чистки -> предупреждение" grep -q "ПРЕДУПРЕЖДЕНИЕ: очистка" "$T/bk3.out"
+  check "backup: сбой чистки -> копия на месте и сверена" bash -c 'cd "$1" && ls *.dump.gpg *.sha256 >/dev/null && sha256sum -c --quiet *.sha256' _ "$T/bk3"
+
   # сбой шифрования: не остаётся ни открытых, ни неполных файлов
   "${common[@]}" POSTGRES_DB=$SRC BACKUP_DIR="$T/bk2" MEDIA_DIR="$T/media" BACKUP_GPG_RECIPIENT=nobody-$$@invalid.example "$HERE/backup.sh" >/dev/null 2>&1
   check "backup: сбой GPG -> код != 0" test $? -ne 0
