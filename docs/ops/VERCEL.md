@@ -151,7 +151,7 @@ X-Frame-Options, Referrer-Policy, Permissions-Policy заданы в `web/vercel
 
 Если до базы нет сети (например, работаете из облачной среды), миграции и первую компанию можно
 выполнить из СБОРКИ временного проекта Vercel скриптом `backend/scripts/vercel_bootstrap.py`
-(Root Directory `backend`, Build Command `pip install -r requirements.txt && python scripts/vercel_bootstrap.py`).
+(Root Directory - КОРЕНЬ репозитория, чтобы не подхватился `backend/vercel.json` с `functions`, иначе сборка падает с `unused_function`; Install Command `true`; Output Directory `public`; Build Command `python3 -m venv /tmp/v && /tmp/v/bin/pip install --quiet -r backend/requirements.txt && cd backend && /tmp/v/bin/python scripts/vercel_bootstrap.py && cd .. && mkdir -p public && echo ok > public/index.html`; системный `pip` в сборке запрещён (PEP 668), поэтому нужен venv). Проверено на Supabase `eu-central-1`: рабочим оказался `aws-1-eu-central-1.pooler.supabase.com:5432`, а `aws-0` отвечает `tenant/user not found`.
 Скрипт сам подбирает рабочий адрес session-пулера Supabase (`aws-0`/`aws-1`, порт 5432, затем прямой хост),
 запускает `migrate` под ролью `logistix_owner`, `check_rls` под `logistix_app` (сборка падает, если проверка
 не пройдена) и `bootstrap_company`. Переменные временного проекта (все секретные - типа sensitive):
