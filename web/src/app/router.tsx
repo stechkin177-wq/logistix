@@ -11,6 +11,8 @@ import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
 import { ConsignmentsPage } from '../features/consignments/pages/ConsignmentsPage'
 import { FinancePage } from '../features/finance/FinancePage'
+import { InvoiceDetailPage } from '../features/finance/InvoiceDetailPage'
+import { InvoiceFormPage } from '../features/finance/InvoiceFormPage'
 import { CompanyPage } from '../features/settings/company/CompanyPage'
 import { DepartmentsPage } from '../features/settings/departments/DepartmentsPage'
 import { HandbooksPage } from '../features/settings/handbooks/HandbooksPage'
@@ -63,6 +65,14 @@ export function createRoutes(): RouteObject[] {
         { path: '/orders/:id', element: <RequireAccess item={ordersItem}><OrderDetailPage /></RequireAccess> },
       ]
     : []
+  const financeItem = flattenNav(NAV).find((item) => item.key === 'finance')
+  const financePages: RouteObject[] = financeItem
+    ? [
+        { path: '/finance/invoices/new', element: <RequireAccess item={financeItem}><InvoiceFormPage /></RequireAccess> },
+        { path: '/finance/invoices/:id/edit', element: <RequireAccess item={financeItem}><InvoiceFormPage /></RequireAccess> },
+        { path: '/finance/invoices/:id', element: <RequireAccess item={financeItem}><InvoiceDetailPage /></RequireAccess> },
+      ]
+    : []
   return [
     {
       element: <RootRoute />,
@@ -70,7 +80,7 @@ export function createRoutes(): RouteObject[] {
         { path: '/login', element: <LoginPage /> },
         {
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
+          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...financePages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
         },
       ],
     },

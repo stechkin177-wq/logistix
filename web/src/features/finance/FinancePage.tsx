@@ -2,16 +2,20 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Tabs } from '../../shared/ui/Tabs'
+import { InvoicesTab } from './InvoicesTab'
+import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
 
-const TAB_KEYS = ['rates'] as const
+const TAB_KEYS = ['invoices', 'payments', 'rates'] as const
 type TabKey = (typeof TAB_KEYS)[number]
 
 const PANELS: Record<TabKey, () => ReactNode> = {
+  invoices: () => <InvoicesTab />,
+  payments: () => <PaymentsTab />,
   rates: () => <RatesTab />,
 }
 
-const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'rates') }
+const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'invoices') }
 
 /** Финансы: вкладки раздела; выбранная вкладка хранится в адресе (?tab=). */
 export function FinancePage() {
