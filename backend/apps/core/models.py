@@ -89,6 +89,11 @@ class Company(models.Model):
     modules = models.JSONField(default=default_modules)
     timezone = models.CharField(max_length=64, default="Asia/Almaty")
     language = models.CharField(max_length=8, default="ru")
+    accounting_start = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Начало учёта: раньше этой даты финансы и завершённые не считаются",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

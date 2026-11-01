@@ -10,6 +10,7 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.audit.services import client_ip
 from apps.core.pagination import StandardPagination
 
+from ..finance_lines.services import annotate_order_totals
 from ..models import Consignment, ConsignmentPoint, Order, OrderStatusHistory
 from .serializers import OrderSerializer, StatusChangeSerializer
 from .services import carried_with_carrier
@@ -86,6 +87,7 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
             .prefetch_related("extra_managers", consignments_prefetch())
             .annotate(has_carrier=Exists(carried_with_carrier()))
         )
+        qs = annotate_order_totals(qs)
         if self.action != "list":
             qs = qs.prefetch_related(
                 Prefetch(

@@ -10,6 +10,7 @@ from apps.core.models import LegalEntity
 from apps.core.numbering.services import next_number
 
 from ..consignments.services import create_consignment, created_changes, initial_status
+from ..finance_lines.services import sync_base_line
 from ..trips.models import TripConsignment
 from .models import Order, OrderStatusHistory
 
@@ -85,6 +86,7 @@ def create_order(data: dict, user, *, ip: str | None = None) -> Order:
     if extra_managers:
         order.extra_managers.set(extra_managers)
     OrderStatusHistory(order=order, from_status=None, to_status=status, user=user).save()
+    sync_base_line(order)  # «Начальная ставка» = client_rate; аудит заказа её уже покрывает
     changes = audit.diff({}, audit.snapshot(order))
     if extra_managers:  # как при PATCH: [было, стало] списками id
         changes["extra_managers"] = [[], sorted(u.pk for u in extra_managers)]

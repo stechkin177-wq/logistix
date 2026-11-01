@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.core.audit.services import client_ip
@@ -9,6 +10,7 @@ from apps.core.models import LegalEntity
 from ..consignments.models import ConsignmentPoint
 from ..consignments.serializers import NestedConsignmentSerializer
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
+from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
 from ..models import Client, Contact, Order, OrderStatusHistory
 from .services import carried_with_carrier, change_status, create_order
 
@@ -74,6 +76,12 @@ class OrderSerializer(serializers.ModelSerializer):
     manager_name = serializers.SerializerMethodField()
     route = serializers.SerializerMethodField()
     has_carrier = serializers.SerializerMethodField()
+    revenue = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    cost = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    profit = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    margin_pct = serializers.DecimalField(
+        max_digits=20, decimal_places=2, read_only=True, allow_null=True
+    )
     history = serializers.SerializerMethodField()
 
     class Meta:
@@ -103,6 +111,10 @@ class OrderSerializer(serializers.ModelSerializer):
             "completed_at",
             "route",
             "has_carrier",
+            "revenue",
+            "cost",
+            "profit",
+            "margin_pct",
             "consignments",
             "history",
             "created_by",
@@ -143,6 +155,10 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_history(self, obj):
         return HistorySerializer(obj.history.all(), many=True).data
 
+    def to_representation(self, instance):
+        attach_totals(instance)  # аннотация списка/деталей; у только что созданного - запрос
+        return super().to_representation(instance)
+
     def get_fields(self):
         fields = super().get_fields()
         if not self.context.get("with_history"):  # история - только в карточке заказа
@@ -176,7 +192,11 @@ class OrderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         extra = validated_data.pop("extra_managers", None)
         instance._extra_managers_diff = None
-        instance = super().update(instance, validated_data)
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if "client_rate" in validated_data:
+                sync_base_line(instance)
+                forget_totals(instance)
         if extra is not None:
             old = sorted(instance.extra_managers.values_list("pk", flat=True))
             new = sorted(u.pk for u in extra)

@@ -4,6 +4,7 @@ from rest_framework.routers import SimpleRouter
 
 from apps.billing.api import PlanListView, SubscriptionView
 from apps.core.api.auth import LoginView, MeView, RefreshView, SwitchCompanyView
+from apps.core.api.company import CompanySettingsView
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
 from apps.core.api.trash import TrashListView, TrashRestoreView
 from apps.core.api.users import MembershipViewSet
@@ -13,6 +14,8 @@ from apps.core.numbering.api import NumberingRuleViewSet
 from apps.core.views import health
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
+from apps.forwarding.dashboard import DashboardSummaryView
+from apps.forwarding.finance_lines.api import OrderServiceViewSet
 from apps.forwarding.orders.api import OrderViewSet
 from apps.forwarding.trips.api import TripViewSet
 
@@ -27,6 +30,7 @@ router.register("handbook-values", HandbookValueViewSet, basename="handbook-valu
 router.register("clients", ClientViewSet, basename="client")
 router.register("carriers", CarrierViewSet, basename="carrier")
 router.register("orders", OrderViewSet, basename="order")
+router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
 
@@ -39,6 +43,8 @@ urlpatterns = [
     path("api/auth/me/", MeView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
+    path("api/company/settings/", CompanySettingsView.as_view()),
+    path("api/dashboard/summary/", DashboardSummaryView.as_view()),
     path("api/trash/", TrashListView.as_view()),
     path("api/trash/<str:code>/<str:pk>/restore/", TrashRestoreView.as_view()),
     path("api/", include(router.urls)),

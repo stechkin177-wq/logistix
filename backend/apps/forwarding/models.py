@@ -130,5 +130,6 @@ class Contact(TenantModel):
 
 # Заказы и грузы живут в подпакетах; импорт нужен, чтобы Django нашёл модели приложения.
 from .consignments.models import Consignment, ConsignmentPoint  # noqa: E402,F401
+from .finance_lines.models import OrderService  # noqa: E402,F401
 from .orders.models import Order, OrderStatusHistory  # noqa: E402,F401
 from .trips.models import Trip, TripConsignment  # noqa: E402,F401
