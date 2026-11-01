@@ -38,6 +38,8 @@ jobs:
       - name: check --deploy с примером продакшен-окружения (без предупреждений)
         run: |
           set -a; . ../deploy/.env.prod.example; set +a
+          # HSTS в примере выключен намеренно (включается ступенями после проверки TLS, см. RUNBOOK)
+          export DJANGO_SILENCED_CHECKS=security.W004
           python manage.py check --deploy --fail-level WARNING
       - name: RLS под ролью приложения
         env:
@@ -72,4 +74,6 @@ jobs:
       - name: Синтаксис shell-скриптов
         run: for f in deploy/*.sh; do bash -n "$f"; done
       - name: docker compose config
-        run: docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod.example config -q
+        run: docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod.example --env-file deploy/.image_tag.env.example config -q
+      - name: Тесты shell-скриптов (без Docker)
+        run: bash deploy/test-scripts.sh

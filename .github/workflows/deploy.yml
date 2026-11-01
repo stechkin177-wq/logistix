@@ -6,6 +6,7 @@
 # Секреты и переменные - в Environments (staging, production), список в docs/ops/RUNBOOK.md:
 #   secrets: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER, DEPLOY_KNOWN_HOSTS, GHCR_PULL_TOKEN
 #   vars:    DEPLOY_PATH (каталог клона репозитория на сервере), APP_URL (https://...)
+# Production: в настройках Environment ОБЯЗАТЕЛЬНО ограничить развёртывание тегами v* и веткой main.
 # .env.prod лежит на сервере заранее (в GitHub не хранится). Секреты в логи не печатаются.
 # Файл проверен только парсером YAML: actionlint и GitHub в разработке были недоступны.
 name: Deploy
@@ -38,6 +39,9 @@ jobs:
       git_ref: ${{ steps.p.outputs.git_ref }}
       build: ${{ steps.p.outputs.build }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - id: p
         env:
           EVENT: ${{ github.event_name }}
@@ -49,11 +53,29 @@ jobs:
         run: |
           set -euo pipefail
           short="sha-${SHA::7}"
+          release_re='^v[0-9]+\.[0-9]+\.[0-9]+$'
           if [[ "$EVENT" == workflow_dispatch ]]; then
-            [[ "$IN_TAG" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || { echo "недопустимый image_tag"; exit 1; }
+            # откат/повтор: только релизный тег vX.Y.Z или sha-<7 hex>; плавающий staging не принимается
             env_name="$IN_ENV"; tag="$IN_TAG"; build=false
-            if [[ "$tag" == sha-* ]]; then ref="${tag#sha-}"; else ref="$tag"; fi
+            if [[ "$tag" =~ $release_re ]]; then
+              git rev-parse --verify --quiet "refs/tags/$tag^{commit}" >/dev/null \
+                || { echo "::error::git-тег $tag не существует"; exit 1; }
+              ref="$tag"
+            elif [[ "$tag" =~ ^sha-[0-9a-f]{7}$ ]]; then
+              [[ "$env_name" == staging ]] \
+                || { echo "::error::в production можно выкладывать только релизные теги vX.Y.Z"; exit 1; }
+              ref="${tag#sha-}"
+              git rev-parse --verify --quiet "$ref^{commit}" >/dev/null \
+                || { echo "::error::коммит $ref не существует"; exit 1; }
+              git merge-base --is-ancestor "$ref" origin/main \
+                || { echo "::error::коммит $ref не входит в main"; exit 1; }
+            else
+              echo "::error::image_tag должен быть vX.Y.Z или sha-<7 hex> (плавающие теги, в т.ч. staging, не допускаются)"
+              exit 1
+            fi
           elif [[ "$REF_TYPE" == tag ]]; then
+            [[ "$REF_NAME" =~ $release_re ]] \
+              || { echo "::error::тег $REF_NAME не соответствует vX.Y.Z"; exit 1; }
             env_name=production; tag="$REF_NAME"; ref="$REF_NAME"; build=true
           else
             env_name=staging; tag="$short"; ref="$SHA"; build=true

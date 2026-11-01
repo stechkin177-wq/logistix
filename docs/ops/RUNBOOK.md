@@ -31,7 +31,7 @@
   клиентам и перевозчикам. Compose создаёт кластер с `--encoding=UTF8 --locale=C.UTF-8 --locale-provider=icu
   --icu-locale=ru-RU` (`POSTGRES_INITDB_ARGS`). Проверка после старта:
   ```bash
-  docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod exec postgres \
+  ./deploy/dc.sh exec postgres \
     psql -U logistix -d logistix -c "SELECT datname, pg_encoding_to_char(encoding), datcollate, daticulocale FROM pg_database WHERE datname='logistix'"
   ```
   Ожидается `UTF8`, `C.UTF-8`, `ru-RU`. Если БД восстанавливаете в иной кластер - создавайте её с
@@ -59,11 +59,11 @@ sudo certbot certonly --standalone --cert-name logistix -d app.example.kz
 ```bash
 sudo tee /etc/letsencrypt/renewal-hooks/pre/logistix-stop.sh >/dev/null <<'H'
 #!/bin/sh
-docker compose -f /opt/logistix/deploy/docker-compose.prod.yml --env-file /opt/logistix/deploy/.env.prod stop nginx
+/opt/logistix/deploy/dc.sh stop nginx
 H
 sudo tee /etc/letsencrypt/renewal-hooks/post/logistix-start.sh >/dev/null <<'H'
 #!/bin/sh
-docker compose -f /opt/logistix/deploy/docker-compose.prod.yml --env-file /opt/logistix/deploy/.env.prod start nginx
+/opt/logistix/deploy/dc.sh start nginx
 H
 sudo chmod +x /etc/letsencrypt/renewal-hooks/{pre,post}/logistix-*.sh
 sudo certbot renew --dry-run
@@ -71,15 +71,13 @@ sudo certbot renew --dry-run
 (Минута простоя раз в ~60 дней. Альтернатива без простоя: nginx уже отдаёт `/.well-known/acme-challenge/`
 из тома `certbot-webroot`; после первого запуска стека можно перейти на
 `certbot certonly --webroot -w <путь тома certbot-webroot> --cert-name logistix -d ...` и использовать
-`--deploy-hook "docker compose ... exec nginx nginx -s reload"`. Не проверено.)
+`--deploy-hook "/opt/logistix/deploy/dc.sh exec nginx nginx -s reload"`. Не проверено.)
 
 **Сертификат hoster.kz / иного удостоверяющего центра:** положите цепочку и ключ в
 `/etc/letsencrypt/live/logistix/fullchain.pem` и `privkey.pem` (права ключа 600), перезагрузите nginx:
-`docker compose ... exec nginx nginx -s reload`.
+`./deploy/dc.sh exec nginx nginx -s reload`.
 
-**HSTS** выключен по умолчанию в nginx (`deploy/nginx-security-headers.conf`, строка закомментирована) и в Django
-(`DJANGO_HSTS_SECONDS`). Включайте ступенями (3600 -> 604800 -> 31536000) ТОЛЬКО после проверки, что весь
-сайт и поддомены работают по https. Значения в nginx и `.env.prod` держите согласованными.
+**HSTS** — см. раздел «HSTS: когда и как включать» ниже; по умолчанию выключен.
 
 ## 4. Первый деплой
 
@@ -101,23 +99,26 @@ sudo certbot renew --dry-run
 3. Сертификат (раздел 3).
 4. Вход в реестр (если пакеты приватные; токен PAT с `read:packages`):
    `echo "$TOKEN" | docker login ghcr.io -u <пользователь> --password-stdin`.
-5. Запуск (нужные образы уже собраны CI; для первого запуска без CI - `docker compose ... build`):
+5. Запуск (нужные образы уже собраны CI; для первого запуска без CI - `./deploy/dc.sh build` (после release.sh с тегом или с готовым `deploy/.image_tag.env`)):
    ```bash
    cd /opt/logistix
-   IMAGE_TAG=staging ./deploy/release.sh staging     # pull + up -d + проверка migrate
-   # либо вручную:
-   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod pull
-   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up -d
-   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod ps -a   # migrate: Exited (0)
+   # ПРОДАКШЕН: явный релизный тег (git-тег vX.Y.Z уже собран workflow), НИКОГДА не staging
+   ./deploy/release.sh v1.0.0 v1.0.0
+   # СТЕНД (staging): тег конкретного коммита, собранного из main, например
+   ./deploy/release.sh sha-1a2b3c4 1a2b3c4
+   ./deploy/dc.sh ps -a     # migrate: Exited (0)
    ```
+   `release.sh` пишет тег в `deploy/.image_tag.env` (права 600, не в git) - это ЕДИНСТВЕННЫЙ источник тега:
+   `release.sh` и обёртка `./deploy/dc.sh` (= `docker compose` с `--env-file .env.prod --env-file .image_tag.env`)
+   читают его, а в `.env.prod` IMAGE_TAG не задаётся, и compose без тега не запускается. Не вызывайте
+   `docker compose` напрямую без обоих файлов. Откат тега при сбое выкладки делает сам скрипт.
    `migrate` выполняет `migrate` под владельцем БД, собирает статику в общий том и запускает `check_rls`
    под ролью приложения. При ошибке `backend`/`worker`/`beat` не стартуют; смотрите
-   `docker compose ... logs migrate`.
+   `./deploy/dc.sh logs migrate`.
 6. Первая компания и владелец (пароль - из переменной окружения или интерактивно, не в аргументах):
    ```bash
-   dc="docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod"
    read -rs OWNER_PW && export OWNER_PW
-   $dc exec -e OWNER_PW backend python manage.py bootstrap_company \
+   ./deploy/dc.sh exec -e OWNER_PW backend python manage.py bootstrap_company \
      --name "ТОО Пример" --owner-login owner@example.kz --owner-name "Иван Иванов" \
      --modules forwarding --password-env OWNER_PW
    unset OWNER_PW
@@ -125,17 +126,20 @@ sudo certbot renew --dry-run
    Команда печатает id компании и логин (пароль - никогда), проверяет пароль валидаторами Django. Повторный
    запуск с теми же логином и названием завершится ошибкой без дублей.
 7. Суперпользователь Django - только если включаете админку (`DJANGO_ADMIN_ENABLED=true`, и тогда закройте
-   `/admin/` по IP в `nginx.conf`): `$dc exec backend python manage.py createsuperuser`.
+   `/admin/` по IP в `nginx.conf`): `./deploy/dc.sh exec backend python manage.py createsuperuser`.
 8. Проверка: `SMOKE_CHECK_HEADERS=1 ./deploy/smoke.sh https://app.example.kz` (код выхода 0), вход в SPA,
-   `$dc exec backend python manage.py check --deploy` (без предупреждений при боевых значениях).
+   `./deploy/dc.sh exec backend python manage.py check --deploy` (единственное ожидаемое предупреждение - security.W004, пока HSTS выключен).
 
 ## 5. GitHub Actions: секреты и окружения
 
 Workflow `.github/workflows/deploy.yml`: `main` -> staging, тег `vX.Y.Z` -> production, ручной запуск
 (`workflow_dispatch`: окружение + `image_tag`) для повторной выкладки и отката.
 
-Создайте в GitHub Environments `staging` и `production`. Для **production** включите Required reviewers
-(ручное подтверждение) и, по желанию, ограничение на теги. В каждом окружении:
+Создайте в GitHub Environments `staging` и `production`. Для **production** ОБЯЗАТЕЛЬНО включите Required reviewers
+(ручное подтверждение) и Deployment branches and tags: только теги `v*` и ветка `main` (без этого любая ветка
+сможет запустить выкладку в production). Workflow дополнительно проверяет тег regexp `^v[0-9]+\.[0-9]+\.[0-9]+$`;
+при ручном откате принимаются только существующий `vX.Y.Z` или `sha-<7 hex>` из main (в production - только `vX.Y.Z`),
+плавающий `staging` отклоняется. В каждом окружении:
 
 | Тип | Имя | Значение |
 |---|---|---|
@@ -163,7 +167,7 @@ Workflow `.github/workflows/deploy.yml`: `main` -> staging, тег `vX.Y.Z` -> p
 1. Код/образы: `workflow_dispatch` -> окружение + предыдущий `image_tag` (он записан в
    `deploy/.previous_tag`), либо на сервере `./deploy/release.sh $(cat deploy/.previous_tag) $(cat deploy/.previous_tag)`.
 2. Если миграция изменила схему несовместимо: остановить приложение
-   (`$dc stop backend worker beat`), восстановить БД из бэкапа ДО выкладки (раздел 8), затем запустить
+   (`./deploy/dc.sh stop backend worker beat`), восстановить БД из бэкапа ДО выкладки (раздел 8), затем запустить
    предыдущую версию. Откат `migrate` назад без бэкапа не предусмотрен.
 
 ## 8. Бэкапы и восстановление
@@ -176,6 +180,9 @@ Workflow `.github/workflows/deploy.yml`: `main` -> staging, тег `vX.Y.Z` -> p
 хранилище; блокировка от параллельных запусков. Коды выхода: 0 успех, 1 ошибка, 2 уже выполняется,
 20 копия сделана локально, но выгрузка не удалась. **Без шифрования копия содержит персональные данные в
 открытом виде - в продакшене настройте шифрование.** Ключ/парольную фразу храните отдельно от бэкапов.
+
+**Хранение на удалённом хранилище:** `backup.sh` чистит только локальный `BACKUP_DIR` (`BACKUP_KEEP_DAYS`); срок
+хранения на `BACKUP_REMOTE` настраивайте отдельно (cron на стороне хранилища, lifecycle-правило).
 
 **Расписание (cron, пользователь `deploy`, 02:30 по времени сервера):**
 ```cron
@@ -202,13 +209,20 @@ WantedBy=timers.target
 **Восстановление** (`deploy/restore.sh [--force] [--target-db ИМЯ] [--media АРХИВ] ДАМП`): проверяет `.sha256`,
 расшифровывает, отказывается трогать непустую БД без `--force`, делает `pg_restore` одной транзакцией,
 заново выдаёт права `logistix_app` (`db-init.sql`, нужен `APP_DB_PASSWORD`), запускает `check_rls` под ролью
-приложения, печатает число строк и сверяет с `.counts` (расхождение = код 3). Боевое восстановление:
+приложения, печатает число строк и сверяет с `.counts` (расхождение = код 3). ВСЕ дешёвые проверки (файлы,
+контрольные суммы дампа и медиа, расшифровка, целостность архива) выполняются ДО изменения БД. Медиа и
+check_rls идут через `docker compose run --rm --no-deps` и работают при остановленных сервисах; если медиа не
+восстановилось уже после замены БД, скрипт выходит с кодом 4 и печатает команду для повтора. `--print-commands`
+печатает docker-команды без выполнения. Боевое восстановление:
 ```bash
-$dc stop backend worker beat
+./deploy/dc.sh stop backend worker beat
 ./deploy/restore.sh --force --media /var/backups/logistix/logistix-<метка>-media.tar.gz.gpg \
     /var/backups/logistix/logistix-<метка>.dump.gpg
-$dc up -d
+./deploy/dc.sh up -d      # тег - из deploy/.image_tag.env (текущий релиз)
 ```
+**Ограничения `--force`:** `pg_restore --clean` заменяет объекты из дампа, но таблицы из более новых миграций,
+которых в дампе нет, остаются; после восстановления на более раннюю схему запустите `./deploy/release.sh` с
+соответствующим тегом (миграции дойдут до актуальной схемы). Медиа накладывается поверх (лишние файлы не удаляются).
 **Учения (раз в квартал):** восстановить последнюю копию в отдельную БД и сверить: `./deploy/restore.sh
 --target-db drill_$(date +%Y%m%d) <дамп>` (сверка строк с `.counts` встроена), затем `DROP DATABASE`.
 Фиксируйте дату и результат.
@@ -217,26 +231,37 @@ $dc up -d
 
 | Что | Как |
 |---|---|
-| `DJANGO_SECRET_KEY` и JWT | сменить в `.env.prod`, `up -d backend worker beat`; **все токены станут недействительными** (повторный вход) |
-| пароль роли приложения `APP_DB_PASSWORD` | `ALTER ROLE logistix_app PASSWORD '...'` в postgres (`$dc exec -T postgres psql -U logistix -d logistix`), затем новое значение в `.env.prod` и `up -d` |
+| `DJANGO_SECRET_KEY` и JWT | сменить в `.env.prod`, `./deploy/dc.sh up -d backend worker beat`; **все токены станут недействительными** (повторный вход) |
+| пароль роли приложения `APP_DB_PASSWORD` | `ALTER ROLE logistix_app PASSWORD '...'` в postgres (`./deploy/dc.sh exec -T postgres psql -U logistix -d logistix`), затем новое значение в `.env.prod` и `./deploy/dc.sh up -d` |
 | пароль владельца `POSTGRES_PASSWORD` | `ALTER ROLE logistix PASSWORD '...'`, затем `.env.prod` |
 | `REDIS_PASSWORD` | `.env.prod`, `up -d` (пересоздаст redis и клиентов; кэш/очередь сбросятся) |
 | SSH-ключ деплоя, `GHCR_PULL_TOKEN` | заменить в GitHub Environments и на сервере (`authorized_keys`) |
 | пароль GPG бэкапов | новая парольная фраза применяется к НОВЫМ копиям; старые расшифровываются старой |
 
-После смены паролей БД выполните `./deploy/smoke.sh` и `docker compose ... logs migrate`.
+После смены паролей БД выполните `./deploy/smoke.sh` и `./deploy/dc.sh logs migrate`.
 
 ## 10. Мониторинг и логи
 
-- Логи контейнеров: `$dc logs -f --tail=200 backend nginx worker`; ротация json-file 10 МБ x 5 файлов на сервис.
+- Логи контейнеров: `./deploy/dc.sh logs -f --tail=200 backend nginx worker`; ротация json-file 10 МБ x 5 файлов на сервис.
   Ошибки запросов (500) пишутся в stderr backend (`django.request`), доступ - в логах gunicorn и nginx.
-- Состояние: `$dc ps`; healthcheck есть у nginx, backend, postgres, redis, worker.
+- Состояние: `./deploy/dc.sh ps`; healthcheck есть у nginx, backend, postgres, redis, worker; у `beat` его нет (HTTP-проверка образа отключена), смотрите его логи.
 - Внешний мониторинг: опрашивайте `https://app.example.kz/api/health/` (ожидается 200 и `{"status":"ok"}`)
   каждую минуту (UptimeRobot-аналог в РК либо собственный).
 - Sentry: `SENTRY_DSN` пуст = выключен. Включайте только с **собственным или казахстанским** Sentry;
   отправляются исключения без тел запросов, cookie, Authorization и персональных данных
   (`send_default_pii=False`, `max_request_body_size="never"`, фильтр `before_send`).
 - Диск: следите за `df -h` и `docker system df` (тома `pgdata`, `media`, логи, `BACKUP_DIR`).
+
+## HSTS: когда и как включать
+
+По умолчанию HSTS ВЫКЛЮЧЕН: `DJANGO_HSTS_SECONDS=0`, `DJANGO_HSTS_INCLUDE_SUBDOMAINS=false` в
+`.env.prod.example`. Единственный источник — `.env.prod` (nginx HSTS не добавляет). `includeSubDomains` не
+включайте: платформа обслуживает пользовательские домены и поддомены компаний, и браузер закрепит https на всех.
+Порядок: убедитесь, что https работает на всех хостах, сертификат продлевается автоматически и редирект с 80
+стабилен; затем `DJANGO_HSTS_SECONDS=3600` -> через неделю `604800` -> `31536000`, каждый раз
+`./deploy/dc.sh up -d backend`. Заголовок Django ставит только на https-ответах (за прокси `X-Forwarded-Proto`).
+Откатить закреплённый HSTS до истечения срока нельзя. При включённом HSTS `check --deploy` предупреждений
+по W004 не даёт; при выключенном они ожидаемы (в CI и тесте W004 заглушается переменной `DJANGO_SILENCED_CHECKS`).
 
 ## 11. Резидентность данных (чек-лист)
 
@@ -257,10 +282,10 @@ $dc up -d
   в журнале аудита и лимиты запросов будут привязаны к балансировщику.
 - [ ] `REDIS_URL` задан (compose задаёт): общие счётчики throttle между воркерами.
 - [ ] Роль приложения `logistix_app` не суперпользователь и без BYPASSRLS: `migrate` вызывает `check_rls` при
-  каждой выкладке; вручную: `$dc exec backend python manage.py check_rls`.
+  каждой выкладке; вручную: `./deploy/dc.sh exec backend python manage.py check_rls`.
 - [ ] Админка выключена (`DJANGO_ADMIN_ENABLED=false`) либо `/admin/` ограничен по IP.
 - [ ] `DJANGO_DEBUG=false`; `check --deploy` без предупреждений (в CI проверяется на примере окружения).
-- [ ] HTTPS работает, редирект с 80, HSTS включён ступенями после проверки.
+- [ ] HTTPS работает, редирект с 80; HSTS включён по разделу «HSTS» (или осознанно оставлен выключенным).
 - [ ] Порты наружу: только 22/80/443 (`ss -ltnp`, `nmap` с другой машины).
 - [ ] `deploy/.env.prod` права 600, в git его нет; пароли разные и случайные.
 - [ ] Медиа отдаёт nginx с `X-Content-Type-Options: nosniff`, типом по расширению (картинки) и CSP `sandbox`; тело запроса
@@ -286,10 +311,14 @@ ICU-локалью на временном кластере PostgreSQL 16; `back
   `POSTGRES_INITDB_ARGS` с ICU на официальном образе (на системном PostgreSQL 16 проверено);
 - GitHub Actions (`deploy.yml`) - не запускались, actionlint не использовался; окружения и секреты не созданы;
 - выгрузка бэкапа через rsync на удалённое хранилище (в среде нет rsync; проверен лишь код выхода 20 при сбое);
-- `release.sh` и режим `PG_MODE=docker` у `backup.sh`/`restore.sh` (проверен только `PG_MODE=local`);
+- `release.sh` и режим `PG_MODE=docker` у `backup.sh`/`restore.sh` (проверен только `PG_MODE=local`; для docker-пути
+  тест `deploy/test-scripts.sh` лишь проверяет напечатанные команды: `run`, а не `exec`);
 - нагрузка, число воркеров gunicorn, лимиты памяти контейнеров.
 
-**Известные ограничения продукта:** MinIO/S3 не подключены (медиа - том `media`, этап 5); пользовательские домены
+**Известные ограничения продукта:** Sentry: `before_send` чистит события, но `before_send_transaction` и
+хлебные крошки (breadcrumbs) не очищаются (включайте трассировку `SENTRY_TRACES_SAMPLE_RATE>0` осознанно); лимит входа
+5 запросов в минуту на IP (+ всплеск 5) может мешать офисам за одним NAT - при жалобах поднимите `rate` в
+`nginx.conf` и пересоберите web-образ; MinIO/S3 не подключены (медиа - том `media`, этап 5); пользовательские домены
 компаний требуют ручного добавления в `DJANGO_ALLOWED_HOSTS`/CSRF/CORS и отдельного сертификата; один сервер
 (нет отказоустойчивости); у owner-роли PostgreSQL в официальном образе права суперпользователя (используется
 только `migrate` и бэкапами, приложение работает под `logistix_app`); образ nginx содержит и SPA, и конфиг,
