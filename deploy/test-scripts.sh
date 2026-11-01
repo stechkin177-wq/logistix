@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Тесты shell-скриптов без Docker: bash deploy/test-scripts.sh
+#  - dc() требует тег образа и всегда передаёт .image_tag.env вторым --env-file;
+#  - restore.sh в docker-режиме использует `run`, а не `exec`, для медиа и check_rls;
+#  - (если доступен PostgreSQL по PG*-переменным, по умолчанию 127.0.0.1 logistix/logistix)
+#    backup -> restore с --media и GPG в одноразовую БД, сбой GPG не оставляет открытых файлов.
+# Docker-путь реально НЕ выполняется (только печать команд): это ограничение теста.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FAILS=0
+ok() { printf 'ok    %s\n' "$1"; }
+bad() { printf 'FAIL  %s\n' "$1" >&2; FAILS=$((FAILS + 1)); }
+check() { local name="$1"; shift; if "$@"; then ok "$name"; else bad "$name"; fi; }
+T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+
+# --- dc() без тега падает громко ---
+out="$(IMAGE_TAG_FILE="$T/none.env" ENV_FILE="$HERE/.env.prod.example" "$HERE/dc.sh" ps 2>&1)"; rc=$?
+check "dc.sh без .image_tag.env: код != 0" test "$rc" -ne 0
+check "dc.sh без .image_tag.env: сообщение про release.sh" grep -q "release.sh" <<<"$out"
+
+# --- dc() печатает оба env-файла ---
+out="$(DC_PRINT=1 IMAGE_TAG_FILE="$HERE/.image_tag.env.example" ENV_FILE="$HERE/.env.prod.example" "$HERE/dc.sh" up -d)"
+check "dc: два --env-file (.env.prod и .image_tag.env)" bash -c '[[ "$1" == *"--env-file"*".env.prod.example"*"--env-file"*".image_tag.env.example"* ]]' _ "$out"
+
+# --- compose: тег закреплён, без файла тега конфиг не собирается ---
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  cfg="$(docker compose -f "$HERE/docker-compose.prod.yml" --env-file "$HERE/.env.prod.example" --env-file "$HERE/.image_tag.env.example" config 2>&1)"
+  check "compose config: образ с закреплённым тегом" grep -q "logistix-backend:staging" <<<"$cfg"
+  if docker compose -f "$HERE/docker-compose.prod.yml" --env-file "$HERE/.env.prod.example" config -q >/dev/null 2>&1; then
+    bad "compose config без IMAGE_TAG должен падать"
+  else ok "compose config без IMAGE_TAG падает"; fi
+fi
+
+# --- restore.sh --print-commands: run, не exec ---
+cmds="$(PG_MODE=docker IMAGE_TAG_FILE="$HERE/.image_tag.env.example" ENV_FILE="$HERE/.env.prod.example" "$HERE/restore.sh" --print-commands 2>&1)"
+media_line="$(grep -F 'tar -xzf' <<<"$cmds")"
+rls_line="$(grep -F 'check_rls' <<<"$cmds")"
+check "restore media: docker compose run --rm --no-deps backend" grep -Eq ' run --rm --no-deps -T backend tar ' <<<"$media_line"
+check "restore media: нет exec" bash -c '[[ "$1" != *" exec "* ]]' _ "$media_line"
+check "restore check_rls: run, не exec" bash -c '[[ "$1" == *" run "* && "$1" != *" exec "* ]]' _ "$rls_line"
+
+# --- PostgreSQL-часть ---
+export PGHOST="${PGHOST:-127.0.0.1}" PGPORT="${PGPORT:-5432}" PGUSER="${PGUSER:-logistix}" PGPASSWORD="${PGPASSWORD:-logistix}"
+if command -v pg_isready >/dev/null && pg_isready -q -h "$PGHOST" -p "$PGPORT" && command -v gpg >/dev/null; then
+  SRC=ts_src_$$; DST=ts_dst_$$
+  trap 'psql -X -q -d postgres -c "DROP DATABASE IF EXISTS $SRC" -c "DROP DATABASE IF EXISTS $DST" >/dev/null 2>&1; rm -rf "$T"' EXIT
+  psql -X -q -d postgres -c "CREATE DATABASE $SRC TEMPLATE template0 ENCODING 'UTF8' LOCALE 'C.UTF-8'"
+  psql -X -q -d "$SRC" -c "CREATE TABLE t(id int primary key, v text); INSERT INTO t SELECT g, 'x'||g FROM generate_series(1,25) g"
+  mkdir -p "$T/media/branding/a" "$T/media-restored"; echo png >"$T/media/branding/a/l.png"
+  echo "pass-phrase" >"$T/pass"; chmod 600 "$T/pass"
+  printf '#!/bin/sh\necho "stub check_rls $*"\n' >"$T/py"; chmod +x "$T/py"
+  common=(env PG_MODE=local POSTGRES_USER="$PGUSER" ENV_FILE=/nonexistent APP_DB_PASSWORD=logistix_app)
+
+  "${common[@]}" POSTGRES_DB=$SRC BACKUP_DIR="$T/bk" MEDIA_DIR="$T/media" BACKUP_GPG_PASSPHRASE_FILE="$T/pass" "$HERE/backup.sh" >/dev/null 2>&1
+  check "backup: код 0" test $? -eq 0
+  check "backup: нет открытых .dump/.tar.gz" bash -c '! ls "$1"/*.dump "$1"/*.tar.gz >/dev/null 2>&1' _ "$T/bk"
+  D="$(ls "$T"/bk/*.dump.gpg)"; M="$(ls "$T"/bk/*media*.gpg)"
+
+  "${common[@]}" POSTGRES_DB=$DST BACKUP_GPG_PASSPHRASE_FILE="$T/pass" MEDIA_DIR="$T/media-restored" PYTHON="$T/py" \
+    CHECK_RLS_DATABASE_URL=x "$HERE/restore.sh" --target-db "$DST" --media "$M" "$D" >"$T/restore.out" 2>&1
+  check "restore с --media: код 0" test $? -eq 0
+  check "restore: медиа восстановлено" test -f "$T/media-restored/branding/a/l.png"
+  check "restore: число строк совпало" grep -q "число строк совпало" "$T/restore.out"
+  check "restore: 25 строк в t" test "$(psql -X -At -d "$DST" -c 'SELECT count(*) FROM t')" = 25
+
+  "${common[@]}" POSTGRES_DB=$DST BACKUP_GPG_PASSPHRASE_FILE="$T/pass" "$HERE/restore.sh" --target-db "$DST" "$D" >/dev/null 2>&1
+  check "restore в непустую БД без --force: отказ" test $? -ne 0
+
+  # битый архив медиа: отказ ДО изменения БД
+  cp "$M" "$T/badmedia.gpg"; printf x >>"$T/badmedia.gpg"
+  psql -X -q -d "$DST" -c "DELETE FROM t"
+  "${common[@]}" POSTGRES_DB=$DST BACKUP_GPG_PASSPHRASE_FILE="$T/pass" MEDIA_DIR="$T/media-restored" PYTHON="$T/py" CHECK_RLS_DATABASE_URL=x \
+    "$HERE/restore.sh" --force --target-db "$DST" --media "$T/badmedia.gpg" "$D" >/dev/null 2>&1
+  check "restore с битым медиа: отказ" test $? -ne 0
+  check "restore с битым медиа: БД не тронута (0 строк)" test "$(psql -X -At -d "$DST" -c 'SELECT count(*) FROM t')" = 0
+
+  # сбой шифрования: не остаётся ни открытых, ни неполных файлов
+  "${common[@]}" POSTGRES_DB=$SRC BACKUP_DIR="$T/bk2" MEDIA_DIR="$T/media" BACKUP_GPG_RECIPIENT=nobody-$$@invalid.example "$HERE/backup.sh" >/dev/null 2>&1
+  check "backup: сбой GPG -> код != 0" test $? -ne 0
+  check "backup: сбой GPG -> каталог без файлов копии" bash -c '[[ -z "$(find "$1" -type f ! -name .backup.lock)" ]]' _ "$T/bk2"
+else
+  echo "пропуск: нет PostgreSQL/gpg для проверки backup/restore"
+fi
+
+((FAILS)) && { echo "ПРОВАЛ: $FAILS" >&2; exit 1; }
+echo "все проверки пройдены"

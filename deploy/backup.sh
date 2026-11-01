@@ -42,7 +42,22 @@ MEDIA="$BASE-media.tar.gz"
 COUNTS="$BASE.counts"
 SUMS="$BASE.sha256"
 PARTIALS=()
-cleanup() { local rc=$?; ((${#PARTIALS[@]})) && rm -f "${PARTIALS[@]}"; exit "$rc"; }
+# При ЛЮБОМ сбое (кроме 20 - сбой только выгрузки) удаляем всё, что записано в эту копию,
+# в первую очередь незашифрованные .dump/.tar.gz (по возможности shred), чтобы открытые
+# персональные данные не оставались на диске и не было неполного набора файлов.
+cleanup() {
+  local rc=$?
+  trap - EXIT
+  local f list=("${PARTIALS[@]}")
+  if ((rc != 0 && rc != 20)); then list+=("$DUMP" "$MEDIA" "$COUNTS" "$SUMS" "$DUMP.gpg" "$MEDIA.gpg"); fi
+  if ((${#list[@]})); then
+    for f in "${list[@]}"; do
+      [[ -e "$f" ]] || continue
+      if command -v shred >/dev/null 2>&1; then shred -u -- "$f" 2>/dev/null || rm -f -- "$f"; else rm -f -- "$f"; fi
+    done
+  fi
+  exit "$rc"
+}
 trap cleanup EXIT
 
 log "дамп БД $POSTGRES_DB"
