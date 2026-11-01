@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { loggedIn } from '../../test/harness'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { loggedIn, type MockRoutes } from '../../test/harness'
+import { ALL_PERMISSIONS } from '../../test/permissions'
 import { renderApp } from '../../test/renderApp'
 
 const STATUSES = [
@@ -55,7 +56,7 @@ describe('Дашборд', () => {
   it('без finance.view финансовых карточек нет', async () => {
     loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: null, month_margin_pct: null, currency: null, excluded_orders: null } }]])
     renderApp('/')
-    await screen.findByText('Активные заказы')
+    await screen.findByText(SUMMARY.clients.toString())
     expect(screen.queryByText('Прибыль за месяц')).not.toBeInTheDocument()
     expect(screen.queryByText('Маржа за месяц')).not.toBeInTheDocument()
   })
@@ -65,5 +66,32 @@ describe('Дашборд', () => {
     renderApp('/')
     expect(await screen.findByText('Модуль не подключён')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument()
+  })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('Дашборд: финансовые плитки', () => {
+  const summaryRoute = ['GET', '/api/dashboard/summary/', { body: SUMMARY }] as MockRoutes[number]
+  const finance = { currency: 'KZT', client_debt_kzt: '500000.00', overdue_kzt: '120000.00', payable_kzt: '80000.00', month_profit_kzt: '0.00', month_margin_pct: null, fx_difference_kzt: '0.00', unconverted: 0 }
+
+  it('с finance.view показывает долг клиентов, просрочку и к оплате перевозчикам', async () => {
+    loggedIn([summaryRoute, ['GET', '/api/finance/summary/', { body: finance }]])
+    renderApp('/')
+    const debt = await screen.findByText('Долг клиентов')
+    expect(debt.closest('a')).toHaveAttribute('href', '/finance?tab=debts')
+    expect(screen.getByText(/500\s000,00/)).toBeInTheDocument()
+    expect(screen.getByText('Просрочено')).toBeInTheDocument()
+    expect(screen.getByText('К оплате перевозчикам')).toBeInTheDocument()
+  })
+
+  it('без finance.view плиток нет и запрос не отправляется', async () => {
+    const m = loggedIn([summaryRoute], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.view') } })
+    renderApp('/')
+    await screen.findByText(SUMMARY.clients.toString())
+    expect(screen.queryByText('Долг клиентов')).not.toBeInTheDocument()
+    expect(m.calls.some((c) => c.path.startsWith('/api/finance/summary'))).toBe(false)
   })
 })

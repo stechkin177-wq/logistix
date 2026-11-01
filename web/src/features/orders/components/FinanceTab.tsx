@@ -20,6 +20,7 @@ import { Money } from '../../../shared/ui/Money'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useCurrencies, useDeleteOrderLine, useOrderLines, useSaveOrderLine } from '../hooks'
+import { OrderInvoicesBlock } from './OrderInvoicesBlock'
 import type { Order, OrderLine } from '../types'
 
 const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
@@ -162,6 +163,7 @@ export function FinanceTab({ order }: { order: Order }) {
         onRetry={() => void lines.refetch()}
         empty={<EmptyState title={t('orders.noLines')} />}
       />
+      <OrderInvoicesBlock order={order} currency={code} />
       {editor ? <LineDrawer key={editor.nonce} order={order} line={editor.line} onClose={() => { setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}

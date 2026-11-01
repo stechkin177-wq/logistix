@@ -66,7 +66,9 @@ describe('Роли и права', () => {
     loggedIn(base)
     renderApp('/settings/roles')
     await userEvent.click(await screen.findByRole('button', { name: 'Новая роль' }))
-    expect(within(await screen.findByRole('dialog')).getAllByRole('checkbox')).toHaveLength(48)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(within(dialog).getByRole('table')).getAllByRole('checkbox')).toHaveLength(48)
+    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(50) // + особые права финансов
   })
 
   it('403 сервера при выдаче чужих прав показывается как есть', async () => {

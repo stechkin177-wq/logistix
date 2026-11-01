@@ -6,6 +6,7 @@ import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { PAGE_SIZES } from '../../../shared/ui/Pagination'
 import { safeFilename } from '../../../shared/api/filename'
+import { saveBlob } from '../../../shared/api/saveBlob'
 import { exportOrders } from '../api'
 import { NewOrderLink } from '../components/NewOrderLink'
 import { EMPTY_FILTERS, OrderFilters, hasFilters } from '../components/OrderFilters'
@@ -31,17 +32,6 @@ export const ORDERS_SCHEMA = {
   page: codecs.positiveInt(1),
   pageSize: codecs.choiceInt(PAGE_SIZES, 50),
   view: codecs.oneOf(['list', 'board'] as const, 'list'),
-}
-
-function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.append(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
 }
 
 export function OrdersPage() {

@@ -2,16 +2,20 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Tabs } from '../../shared/ui/Tabs'
+import { DebtsTab } from './DebtsTab'
 import { InvoicesTab } from './InvoicesTab'
+import { OperationsTab } from './OperationsTab'
 import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
 
-const TAB_KEYS = ['invoices', 'payments', 'rates'] as const
+const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates'] as const
 type TabKey = (typeof TAB_KEYS)[number]
 
 const PANELS: Record<TabKey, () => ReactNode> = {
   invoices: () => <InvoicesTab />,
   payments: () => <PaymentsTab />,
+  operations: () => <OperationsTab />,
+  debts: () => <DebtsTab />,
   rates: () => <RatesTab />,
 }
 

@@ -5,4 +5,7 @@ export const SECTIONS = [
 ] as const
 export const ACTIONS = ['view', 'create', 'update', 'delete'] as const
 
-export const ALL_CODES: string[] = SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`))
+/** Особые права сверх сетки (как EXTRA_PERMISSIONS на бэкенде). */
+export const EXTRA_CODES = ['finance.override_limit', 'finance.cancel_invoice'] as const
+
+export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES]

@@ -8,11 +8,12 @@ import { NO_ERRORS, serverErrors, type FormErrors } from '../../../shared/forms/
 import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
+import { Checkbox } from '../../../shared/ui/Checkbox'
 import { Drawer } from '../../../shared/ui/Drawer'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
-import { ACTIONS, ALL_CODES, SECTIONS } from './catalog'
+import { ACTIONS, ALL_CODES, EXTRA_CODES, SECTIONS } from './catalog'
 
 export interface Role {
   id: number
@@ -122,6 +123,22 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
             </tbody>
           </table>
         </div>
+        <fieldset className="space-y-1">
+          <legend className="text-xs font-medium">{t('roles.extra.title')}</legend>
+          {EXTRA_CODES.map((code) => {
+            const held = hasPermission(code)
+            return (
+              <Checkbox
+                key={code}
+                label={t(`roles.extra.${code}`)}
+                checked={perms.has(code)}
+                disabled={readOnlyRole || !held}
+                title={!readOnlyRole && !held ? t('roles.cannotGrant') : undefined}
+                onChange={() => { toggle(code) }}
+              />
+            )
+          })}
+        </fieldset>
       </form>
     </Drawer>
   )

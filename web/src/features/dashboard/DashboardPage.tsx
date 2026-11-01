@@ -8,6 +8,8 @@ import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Spinner } from '../../shared/ui/Spinner'
+import { useSession } from '../../shared/auth/useSession'
+import { useFinanceSummary } from '../finance/hooks'
 import { useDashboardSummary } from './hooks'
 
 function Stat({ label, value, to }: { label: string; value: string; to?: string }) {
@@ -60,6 +62,9 @@ export function DashboardPage() {
   const { money } = useFormat()
   const canCreate = useCanWrite('orders.create')
   const query = useDashboardSummary()
+  const { hasPermission } = useSession()
+  const canFinance = hasPermission('finance.view')
+  const finance = useFinanceSummary(canFinance).data
   const data = query.data
 
   const empty =
@@ -95,6 +100,13 @@ export function DashboardPage() {
                 label={t('dashboard.monthMargin')}
                 value={data.month_margin_pct === null ? '—' : `${money(data.month_margin_pct)} %`}
               />
+            </div>
+          ) : null}
+          {canFinance && finance ? (
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.currency)} to="/finance?tab=debts" />
+              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.currency)} to="/finance?tab=invoices&status=overdue" />
+              <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.currency)} to="/finance?tab=debts&kind=carriers" />
             </div>
           ) : null}
           {data.month_profit !== null && (data.excluded_orders ?? 0) > 0 ? (
