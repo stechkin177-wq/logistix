@@ -4,6 +4,8 @@ export interface Toast {
   id: number
   kind: 'info' | 'warning' | 'error'
   message: string
+  /** Ссылка действия (например, на созданный рейс). */
+  action?: { label: string; to: string }
 }
 
 let toasts: Toast[] = []
@@ -19,14 +21,14 @@ export function dismissToast(id: number): void {
   emit()
 }
 
-/** Показывает уведомление на 6 секунд. message - уже переведённый текст. */
-export function pushToast(kind: Toast['kind'], message: string): void {
+/** Показывает уведомление на 6 секунд (с ссылкой - на 12). message и action.label - уже переведённый текст. */
+export function pushToast(kind: Toast['kind'], message: string, action?: Toast['action']): void {
   const id = nextId++
-  toasts = [...toasts, { id, kind, message }].slice(-4)
+  toasts = [...toasts, { id, kind, message, action }].slice(-4)
   emit()
   setTimeout(() => {
     dismissToast(id)
-  }, 6000)
+  }, action ? 12000 : 6000)
 }
 
 export function useToasts(): Toast[] {

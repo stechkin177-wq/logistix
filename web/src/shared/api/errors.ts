@@ -81,7 +81,8 @@ export function errorMessage(error: unknown, t: Translate): string {
   }
   if (error.status === 409) return error.detail || t('errors.conflict')
   if ((error.status === 400 || error.status === 422) && error.detail) return error.detail
-  if (error.status === 403) return t('errors.forbidden')
+  // 403 с текстом сервера (нельзя менять свою роль, нельзя выдать чужие права) показываем как есть
+  if (error.status === 403) return error.detail || t('errors.forbidden')
   if (error.status === 404) return t('errors.notFound')
   if (error.status === 429) return t('errors.tooMany')
   if (error.status >= 500) return t('errors.server')

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { CarriersPage } from '../features/carriers/CarriersPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
@@ -8,21 +9,45 @@ import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
-import { PlaceholderPage } from '../features/placeholder/PlaceholderPage'
+import { ConsignmentsPage } from '../features/consignments/pages/ConsignmentsPage'
+import { FinancePage } from '../features/finance/FinancePage'
+import { CompanyPage } from '../features/settings/company/CompanyPage'
+import { DepartmentsPage } from '../features/settings/departments/DepartmentsPage'
+import { HandbooksPage } from '../features/settings/handbooks/HandbooksPage'
+import { NumberingPage } from '../features/settings/numbering/NumberingPage'
+import { RolesPage } from '../features/settings/roles/RolesPage'
+import { SettingsIndex } from '../features/settings/SettingsIndex'
+import { UsersPage } from '../features/settings/users/UsersPage'
+import { TrashPage } from '../features/trash/TrashPage'
+import { TripsPage } from '../features/trips/pages/TripsPage'
 import { AppLayout } from '../layout/AppLayout'
 import { NAV, flattenNav, type NavItem } from '../layout/nav'
 import { RequireAuth } from '../shared/auth/RequireAuth'
 import { RootRoute } from './RootRoute'
 
-function pageFor(item: NavItem) {
-  if (item.path === '/') return <DashboardPage />
-  if (item.path === '/clients') return <ClientsPage />
-  if (item.path === '/carriers') return <CarriersPage />
-  if (item.path === '/orders') return <OrdersPage />
-  return <PlaceholderPage titleKey={item.labelKey} />
+const PAGES: Record<string, () => ReactElement> = {
+  '/': DashboardPage,
+  '/clients': ClientsPage,
+  '/carriers': CarriersPage,
+  '/orders': OrdersPage,
+  '/consignments': ConsignmentsPage,
+  '/trips': TripsPage,
+  '/finance': FinancePage,
+  '/trash': TrashPage,
+  '/settings/company': CompanyPage,
+  '/settings/users': UsersPage,
+  '/settings/departments': DepartmentsPage,
+  '/settings/roles': RolesPage,
+  '/settings/handbooks': HandbooksPage,
+  '/settings/numbering': NumberingPage,
 }
 
-/** Маршруты: каждый пункт меню с path получает страницу (заглушку до Task 16) под проверкой доступа. */
+function pageFor(item: NavItem) {
+  const Page = item.path === undefined ? undefined : PAGES[item.path]
+  return Page ? <Page /> : <NotFoundPage />
+}
+
+/** Маршруты: каждый пункт меню с path получает страницу под проверкой доступа; /settings ведёт на первый доступный подраздел. */
 export function createRoutes(): RouteObject[] {
   const pages: RouteObject[] = flattenNav(NAV)
     .filter((item): item is NavItem & { path: string } => item.path !== undefined)
@@ -45,7 +70,7 @@ export function createRoutes(): RouteObject[] {
         { path: '/login', element: <LoginPage /> },
         {
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, { path: '*', element: <NotFoundPage /> }] }],
+          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
         },
       ],
     },

@@ -64,7 +64,7 @@ describe('вход', () => {
     // access не лежит ни в одном хранилище
     expect(dump(window.sessionStorage)).not.toContain('ACC')
     expect(dump(window.localStorage)).not.toContain('ACC')
-    expect(await screen.findByText('Раздел готовится')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Рейсы' })).toBeInTheDocument()
   })
 
   it('сбой загрузки сессии после входа не оставляет токены', async () => {
