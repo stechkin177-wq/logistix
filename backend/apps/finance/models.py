@@ -1,7 +1,9 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 
 from apps.core.models import SoftDeleteModel, TenantModel
+
+from .errors import FinanceError
 
 
 class ExchangeRate(TenantModel):
@@ -114,8 +116,14 @@ class InvoiceItem(TenantModel):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
     title = models.CharField(max_length=255)
     amount_net = models.DecimalField(max_digits=14, decimal_places=2)
+    # null у отменённого счёта: строка освобождается (её можно удалить и выставить заново), а
+    # название и сумма позиции остаются снимком для истории
     line = models.ForeignKey(
-        "forwarding.OrderService", on_delete=models.PROTECT, related_name="invoice_items"
+        "forwarding.OrderService",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="invoice_items",
     )
     trip = models.ForeignKey(
         "forwarding.Trip", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
@@ -151,3 +159,21 @@ class Payment(TenantModel, SoftDeleteModel):
         constraints = [
             models.CheckConstraint(condition=Q(amount__gt=0), name="payment_amount_gt_0"),
         ]
+
+    def restore_blocker(self) -> str | None:
+        """Восстановить оплату нельзя, если счёт не выставлен или не хватает остатка."""
+        invoice = Invoice.all_objects.filter(pk=self.invoice_id).first()
+        if invoice is None or invoice.deleted_at is not None or invoice.status != "issued":
+            return "Счёт оплаты отменён или удалён: восстановить оплату нельзя"
+        paid = Payment.objects.filter(invoice=invoice).aggregate(t=models.Sum("amount"))["t"] or 0
+        if self.amount > invoice.total_gross - paid:
+            return "Сумма оплаты больше остатка по счёту: восстановить оплату нельзя"
+        return None
+
+    def restore(self):
+        # счёт блокируется: восстановление не должно разойтись с параллельной оплатой
+        with transaction.atomic():
+            Invoice.all_objects.select_for_update().filter(pk=self.invoice_id).first()
+            if (reason := self.restore_blocker()) is not None:
+                raise FinanceError("payment_not_restorable", reason, status_code=409)
+            super().restore()

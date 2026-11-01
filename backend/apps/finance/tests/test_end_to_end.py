@@ -25,7 +25,9 @@ def test_full_flow_two_currencies(admin_client, company, admin_user):
     order, ids = make_cargos(company, 1, currency=cur(company, "USD"))
     line = add_line(company, order, income=1000)
     carrier = make_carrier(company)
-    trip = svc_create(company, ids, carrier=carrier, data={"price": D("600"), "currency": cur(company, "USD")})
+    trip = svc_create(
+        company, ids, carrier=carrier, data={"price": D("600"), "currency": cur(company, "USD")}
+    )
     with time_machine.travel(NOW, tick=False), app_role():
         admin_client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {issue_tokens(admin_user, company.id)['access']}"
@@ -33,8 +35,11 @@ def test_full_flow_two_currencies(admin_client, company, admin_user):
         r = admin_client.post(
             f"{F}/invoices/",
             {
-                "direction": "out", "party": order.client_id, "order": order.pk,
-                "currency": cur(company, "USD").pk, "vat_rate": vat(company, "16").pk,
+                "direction": "out",
+                "party": order.client_id,
+                "order": order.pk,
+                "currency": cur(company, "USD").pk,
+                "vat_rate": vat(company, "16").pk,
                 "due_date": "2026-06-30",
                 "items": [{"title": "Перевозка", "amount_net": "1000", "line": line.pk}],
             },
@@ -44,10 +49,14 @@ def test_full_flow_two_currencies(admin_client, company, admin_user):
         inv = r.data["id"]
         assert admin_client.post(f"{F}/invoices/{inv}/issue/", {}, format="json").status_code == 200
         got = admin_client.get(f"{F}/invoices/{inv}/").data
-        assert got["totals"]["gross"] == "1160.00" and got["rate_to_kzt"] == "470.000000"  # курс на сегодня 20.05
+        assert (
+            got["totals"]["gross"] == "1160.00" and got["rate_to_kzt"] == "470.000000"
+        )  # курс на сегодня 20.05
         for day, amount in (("2026-05-05", "600"), ("2026-05-10", "560")):
             r = admin_client.post(
-                f"{F}/invoices/{inv}/payments/", {"date": day, "amount": amount, "method": "bank"}, format="json"
+                f"{F}/invoices/{inv}/payments/",
+                {"date": day, "amount": amount, "method": "bank"},
+                format="json",
             )
             assert r.status_code == 201, r.content
         got = admin_client.get(f"{F}/invoices/{inv}/").data
@@ -56,15 +65,22 @@ def test_full_flow_two_currencies(admin_client, company, admin_user):
         # расход рейса -> счёт перевозчика
         exp = admin_client.post(
             f"{F}/trips/{trip.pk}/expense-lines/",
-            {"allocations": [{"order_id": order.pk, "amount": "600"}]}, format="json",
+            {"allocations": [{"order_id": order.pk, "amount": "600"}]},
+            format="json",
         )
         assert exp.status_code == 201, exp.content
         r = admin_client.post(
             f"{F}/invoices/",
             {
-                "direction": "in", "party": carrier.pk, "trip": trip.pk, "external_number": "К-5",
-                "currency": cur(company, "USD").pk, "vat_rate": vat(company, "none").pk,
-                "items": [{"title": "Рейс", "amount_net": "600", "line": exp.data["lines"][0]["id"]}],
+                "direction": "in",
+                "party": carrier.pk,
+                "trip": trip.pk,
+                "external_number": "К-5",
+                "currency": cur(company, "USD").pk,
+                "vat_rate": vat(company, "none").pk,
+                "items": [
+                    {"title": "Рейс", "amount_net": "600", "line": exp.data["lines"][0]["id"]}
+                ],
             },
             format="json",
         )

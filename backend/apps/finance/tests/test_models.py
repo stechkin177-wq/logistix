@@ -84,7 +84,8 @@ def test_number_unique_per_direction_nonempty(company):
 
 def test_trash_registered():
     reg = trash.registered()
-    assert "invoices" in reg and "payments" in reg
+    # счета в корзину не попадают: черновик удаляется насовсем, выставленный не удаляется (отмена)
+    assert "payments" in reg and "invoices" not in reg
 
 
 def test_rls_tables_covered(company):

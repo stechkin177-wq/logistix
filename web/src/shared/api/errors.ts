@@ -63,7 +63,7 @@ type Translate = (key: string) => string
 const FINANCE_CODES = new Set([
   'rate_missing', 'currency_mismatch', 'party_mismatch', 'item_already_invoiced', 'payment_exceeds_balance',
   'invoice_not_editable', 'invoice_has_payments', 'invoice_exceeds_order_income', 'credit_limit_exceeded', 'invoice_empty',
-  'line_unavailable', 'line_invoiced', 'allocation_mismatch', 'order_not_in_trip', 'expense_exists', 'invalid_vat',
+  'line_unavailable', 'line_invoiced', 'allocation_mismatch', 'order_not_in_trip', 'expense_exists', 'invalid_vat', 'amount_too_large', 'payment_not_restorable',
 ])
 
 /** Сообщение для пользователя: известные коды - через i18n, остальное - нейтральный текст. */

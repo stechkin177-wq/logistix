@@ -23,6 +23,7 @@ from .money import ZERO, compute_totals, to_kzt, vat_percent
 from .rates import rate_on
 
 CANCELLED_ORDER_CODE = "cancelled"
+MAX_TOTAL = Decimal("999999999999.99")  # предел max_digits=14, decimal_places=2
 LIGHT_FIELDS = ("due_date", "external_number", "comment")
 DRAFT_FIELDS = (
     "party",
@@ -70,7 +71,7 @@ def _check_header(direction, party, order, trip, currency):
         raise FinanceError("currency_mismatch", "Валюта счёта должна совпадать с валютой рейса")
 
 
-def _check_items(invoice_like: dict, items: list[dict], exclude: Invoice | None):
+def _check_items(invoice_like: dict, items: list[dict], exclude: Invoice | None, currency):
     """Строки принадлежат заказу (рейса), заказ доступен, строка не в другом активном счёте."""
     direction, order, trip = invoice_like["direction"], invoice_like["order"], invoice_like["trip"]
     allowed = {order.pk} if order is not None else _order_ids_of_trip(trip)
@@ -90,6 +91,10 @@ def _check_items(invoice_like: dict, items: list[dict], exclude: Invoice | None)
             raise FinanceError("party_mismatch", "Строка не относится к заказу счёта")
         if line.order.deleted_at is not None or line.order.status.code == CANCELLED_ORDER_CODE:
             raise FinanceError("line_unavailable", "Заказ удалён или отменён")
+        if line.order.currency_id != currency.pk:
+            raise FinanceError(
+                "currency_mismatch", "Валюта счёта должна совпадать с валютой заказа строки"
+            )
     busy = InvoiceItem.objects.filter(
         line_id__in=ids,
         invoice__direction=direction,
@@ -99,6 +104,14 @@ def _check_items(invoice_like: dict, items: list[dict], exclude: Invoice | None)
         busy = busy.exclude(invoice=exclude)
     if busy.exists():
         raise FinanceError("item_already_invoiced", "Строка заказа уже включена в другой счёт")
+
+
+def _totals(items: list, vat_rate):
+    """(без НДС, НДС, всего) по позициям; сумма выше предела хранения - ошибка 400, не 500."""
+    net, vat, gross = compute_totals([i["amount_net"] for i in items], vat_percent(vat_rate))
+    if gross > MAX_TOTAL:
+        raise FinanceError("amount_too_large", "Сумма счёта слишком велика")
+    return net, vat, gross
 
 
 def _write_items(invoice: Invoice, items: list[dict]):
@@ -136,7 +149,8 @@ def create_draft(
 ) -> Invoice:
     """Создаёт черновик счёта; party - Client (out) или Carrier (in)."""
     _check_header(direction, party, order, trip, currency)
-    _check_items({"direction": direction, "order": order, "trip": trip}, items, None)
+    _check_items({"direction": direction, "order": order, "trip": trip}, items, None, currency)
+    _totals(items, vat_rate)
     invoice = Invoice.objects.create(
         direction=direction,
         client=party if direction == "out" else None,
@@ -182,7 +196,9 @@ def update_draft(invoice: Invoice, *, items=None, **fields) -> Invoice:
         {"direction": invoice.direction, "order": invoice.order, "trip": invoice.trip},
         items,
         invoice,
+        invoice.currency,
     )
+    _totals(items, invoice.vat_rate)
     invoice.save()
     _write_items(invoice, items)
     return invoice
@@ -207,7 +223,7 @@ def delete_draft(invoice: Invoice) -> None:
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     if invoice.status != "draft":
         raise _not_editable()
-    invoice.delete()
+    invoice.hard_delete()  # черновик без оплат: позиции каскадом, строки заказа освобождаются
 
 
 # --- выставление и отмена ---------------------------------------------------------------
@@ -267,12 +283,24 @@ def issue(
     )
     if invoice.status != "draft":
         raise _not_editable()
-    items = list(invoice.items.all())
+    items = list(invoice.items.select_related("line"))
     if not items:
         raise FinanceError("invoice_empty", "В счёте нет позиций")
+    if invoice.direction == "out":
+        # заказ блокируется ДО подсчёта выставленных сумм: параллельные счета заказа выстраиваются
+        # в очередь и не превысят его доход вдвоём
+        invoice.order = Order.all_objects.select_for_update().get(pk=invoice.order_id)
+    # к моменту выставления заказ, клиент и строки могли измениться
+    _check_header(invoice.direction, _party(invoice), invoice.order, invoice.trip, invoice.currency)
+    _check_items(
+        {"direction": invoice.direction, "order": invoice.order, "trip": invoice.trip},
+        [{"title": i.title, "amount_net": i.amount_net, "line": i.line} for i in items],
+        invoice,
+        invoice.currency,
+    )
     issue_date = issue_date or company_today(invoice.company_id)
     rate = rate_on(invoice.currency, issue_date)
-    net, vat, gross = compute_totals([i.amount_net for i in items], vat_percent(invoice.vat_rate))
+    net, vat, gross = _totals([{"amount_net": i.amount_net} for i in items], invoice.vat_rate)
     override_used = None
     if invoice.direction == "out":
         order = invoice.order
@@ -313,6 +341,8 @@ def cancel(invoice: Invoice, *, user) -> Invoice:
         raise FinanceError("invoice_has_payments", "По счёту есть оплаты: сначала удалите их")
     invoice.status = "cancelled"
     invoice.save(update_fields=["status", "updated_at"])
+    # строки освобождаются (можно удалить или выставить заново); название и сумма остаются
+    InvoiceItem.objects.filter(invoice=invoice).update(line=None)
     audit.log("update", invoice, user, {"status": ["issued", "cancelled"]})
     return invoice
 

@@ -67,6 +67,9 @@ def trip_expense_lines(trip: Trip) -> dict:
 @transaction.atomic
 def create_trip_expense(trip: Trip, allocations: list[dict], *, user) -> list[OrderService]:
     """Создаёт строки расхода «Перевозка» по заказам рейса; сумма = цене рейса."""
+    # рейс блокируется: двойная отправка не создаст расход дважды (блокировка по строкам расхода
+    # ничего не держит, пока их нет)
+    trip = Trip.objects.select_for_update().get(pk=trip.pk)
     orders = {o.pk: o for o in _orders_of(trip)}
     seen = set()
     for item in allocations:

@@ -33,7 +33,7 @@ export interface InvoiceItem {
   id: number
   title: string
   amount_net: string
-  line: number
+  line: number | null
 }
 
 export interface Invoice {
@@ -76,7 +76,7 @@ export interface InvoiceListFilters {
 export interface InvoiceItemPayload {
   title: string
   amount_net: string
-  line: number
+  line: number | null
 }
 
 export interface InvoicePayload {

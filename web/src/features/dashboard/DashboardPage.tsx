@@ -105,7 +105,7 @@ export function DashboardPage() {
           {canFinance && finance ? (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.currency)} to="/finance?tab=debts" />
-              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.currency)} to="/finance?tab=invoices&status=overdue" />
+              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
               <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.currency)} to="/finance?tab=debts&kind=carriers" />
             </div>
           ) : null}

@@ -9,7 +9,6 @@ class FinanceConfig(AppConfig):
     def ready(self):
         from apps.core import trash
 
-        from .models import Invoice, Payment
+        from .models import Payment
 
-        trash.register(Invoice, "invoices", "finance.view")
         trash.register(Payment, "payments", "finance.view")

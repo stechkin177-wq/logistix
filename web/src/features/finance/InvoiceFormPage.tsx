@@ -128,9 +128,16 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
     const body: InvoicePayload = isOut && order
       ? { direction: 'out', party: order.client, order: order.id, currency: currencyId, vat_rate: vatValue.id, items }
       : { direction: 'in', party: trip?.carrier ?? 0, trip: trip?.id, currency: currencyId, vat_rate: vatValue.id, items }
-    if (dueDate) body.due_date = dueDate
-    if (comment.trim()) body.comment = comment.trim()
-    if (!isOut && external.trim()) body.external_number = external.trim()
+    // при правке черновика пустое значение отправляется явно: иначе очистка поля молча игнорируется
+    if (invoice) {
+      body.due_date = dueDate || null
+      body.comment = comment.trim()
+      if (!isOut) body.external_number = external.trim()
+    } else {
+      if (dueDate) body.due_date = dueDate
+      if (comment.trim()) body.comment = comment.trim()
+      if (!isOut && external.trim()) body.external_number = external.trim()
+    }
     save.mutate(
       { id: invoice?.id ?? null, body },
       {

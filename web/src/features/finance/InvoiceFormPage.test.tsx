@@ -129,6 +129,21 @@ describe('Правка черновика', () => {
     })
   })
 
+  it('очищенные срок оплаты и комментарий уходят на сервер явно (null и пустая строка)', async () => {
+    const draft = makeInvoice({ id: 4, status: 'draft', display_status: 'draft', number: '', due_date: '2026-12-01', comment: 'старый', items: [{ id: 1, title: 'Начальная ставка', amount_net: '1000.00', line: 100 }] })
+    const m = loggedIn([['GET', '/api/finance/invoices/4/', { body: draft }], ['PATCH', '/api/finance/invoices/4/', { body: draft }], ...orderRoutes, ...hb])
+    const user = userEvent.setup()
+    renderApp('/finance/invoices/4/edit')
+    const comment = await screen.findByLabelText('Комментарий')
+    await waitFor(() => { expect(comment).toHaveValue('старый') })
+    await user.clear(comment)
+    await user.clear(screen.getByLabelText(/Срок оплаты/))
+    await user.click(screen.getByRole('button', { name: 'Сохранить черновик' }))
+    await waitFor(() => {
+      expect(m.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ comment: '', due_date: null })
+    })
+  })
+
   it('выставленный счёт править нельзя', async () => {
     loggedIn([['GET', '/api/finance/invoices/1/', { body: makeInvoice() }], ...orderRoutes, ...hb])
     renderApp('/finance/invoices/1/edit')

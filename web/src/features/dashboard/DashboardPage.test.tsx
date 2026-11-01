@@ -83,7 +83,7 @@ describe('Дашборд: финансовые плитки', () => {
     const debt = await screen.findByText('Долг клиентов')
     expect(debt.closest('a')).toHaveAttribute('href', '/finance?tab=debts')
     expect(screen.getByText(/500\s000,00/)).toBeInTheDocument()
-    expect(screen.getByText('Просрочено')).toBeInTheDocument()
+    expect(screen.getByText('Просрочено').closest('a')).toHaveAttribute('href', '/finance?tab=invoices&status=overdue&direction=out')
     expect(screen.getByText('К оплате перевозчикам')).toBeInTheDocument()
   })
 
