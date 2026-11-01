@@ -9,6 +9,7 @@ export interface Session {
   role: { id: number; name: string } | null
   modules: string[]
   permissions: string[]
+  branding: Branding
   subscription: {
     status: SubscriptionState
     plan_code: string

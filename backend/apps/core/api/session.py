@@ -8,8 +8,10 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.billing.permissions import _subscription_state
+from apps.billing.permissions import subscription_state
 from apps.billing.services import days_left, grace_days_left
+from apps.core import branding as branding_rules
+from apps.core.models import CompanyBranding
 
 from .auth import companies_payload, memberships_of
 
@@ -24,8 +26,10 @@ class SessionView(APIView):
     def get(self, request):
         membership = request.membership
         user, company, role = request.user, membership.company, membership.role
-        sub, state = _subscription_state(request)
+        sub, state = subscription_state(request)
         now = timezone.now()
+        # оформление без права company.view (его нет у большинства ролей); строку не создаём
+        branding = CompanyBranding.objects.filter(company_id=company.pk).first()
         return Response(
             {
                 "user": {
@@ -44,6 +48,7 @@ class SessionView(APIView):
                 "role": {"id": role.pk, "name": role.name} if role else None,
                 "modules": effective_modules(company, sub.plan),
                 "permissions": list(role.permissions) if role else [],
+                "branding": branding_rules.branding_payload(branding or CompanyBranding(), request),
                 "subscription": {
                     "status": state,
                     "plan_code": sub.plan.code,

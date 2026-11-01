@@ -83,6 +83,10 @@ describe('безопасные значения', () => {
     expect(safeLogoUrl('data:image/svg+xml,<svg/>')).toBeNull()
     expect(safeLogoUrl('//evil.example/x.png')).toBeNull()
     expect(safeLogoUrl(null)).toBeNull()
+    // браузер вырезает \t и \n в URL: "/\t/evil" превратился бы в "//evil"
+    for (const bad of ['/\t/evil.com/x.png', '/\n/evil.com/x.png', '/\r/evil.com/x.png', ' /a.png', '/a b.png', 'https://a.kz/\u0000x', '/a\u007f.png']) {
+      expect(safeLogoUrl(bad), JSON.stringify(bad)).toBeNull()
+    }
   })
 
   it('app_name обрезается и очищается от управляющих символов', () => {

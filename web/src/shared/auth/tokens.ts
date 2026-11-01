@@ -11,6 +11,12 @@
 const REFRESH_KEY = 'logistix.refresh'
 
 let access: string | null = null
+/**
+ * Эпоха сессии: растёт при выходе (clearTokens) и при каждой явной установке токенов (вход,
+ * смена компании). Запись результата refresh (applyRefreshed) эпоху НЕ меняет, но сверяется с ней:
+ * запоздавший ответ refresh не может перезаписать выход или другую компанию.
+ */
+let epoch = 0
 
 function storage(): Storage | null {
   try {
@@ -28,12 +34,27 @@ export function getRefresh(): string | null {
   return storage()?.getItem(REFRESH_KEY) ?? null
 }
 
+export function getEpoch(): number {
+  return epoch
+}
+
+/** Явная установка токенов (вход, смена компании): начинает новую эпоху. */
 export function setTokens(tokens: { access: string; refresh?: string }): void {
+  epoch++
   access = tokens.access
   if (tokens.refresh) storage()?.setItem(REFRESH_KEY, tokens.refresh)
 }
 
+/** Запись результата refresh; false - сессия изменилась за время запроса, результат отброшен. */
+export function applyRefreshed(tokens: { access: string; refresh?: string }, startEpoch: number): boolean {
+  if (startEpoch !== epoch) return false
+  access = tokens.access
+  if (tokens.refresh) storage()?.setItem(REFRESH_KEY, tokens.refresh)
+  return true
+}
+
 export function clearTokens(): void {
+  epoch++
   access = null
   storage()?.removeItem(REFRESH_KEY)
 }

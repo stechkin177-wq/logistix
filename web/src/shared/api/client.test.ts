@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockFetch } from '../../test/fetchMock'
-import { getAccess, getRefresh, setTokens } from '../auth/tokens'
+import { clearTokens, getAccess, getRefresh, setTokens } from '../auth/tokens'
 import { api } from './client'
 import { ApiError } from './errors'
 import { onApiEvent } from './events'
@@ -143,5 +143,117 @@ describe('api client', () => {
     await expect(api.delete('/x/1/')).resolves.toBeUndefined()
     await api.upload('/up/', new FormData())
     expect(m.calls[1]?.headers['Content-Type']).toBeUndefined()
+  })
+
+  it('сеть или 5xx при обновлении: токены целы, ошибка повторяемая, выхода нет', async () => {
+    const onLogout = vi.fn()
+    const off = onApiEvent('logout', onLogout)
+    const unauthorized = { status: 401, body: { detail: 'x', code: 'token_not_valid' } }
+    mockFetch([
+      ['GET', '/api/a/', unauthorized],
+      ['POST', '/api/auth/refresh/', { status: 503, body: { detail: 'down' } }],
+    ])
+    await expect(api.get('/a/')).rejects.toMatchObject({ status: 503, code: 'refresh_unavailable' })
+    expect(getRefresh()).toBe('the-refresh')
+    expect(getAccess()).toBe('old-access')
+
+    // сеть
+    const base = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : ''
+      if (url === '/api/auth/refresh/') return Promise.reject(new TypeError('Failed to fetch'))
+      return Promise.resolve(new Response(JSON.stringify(unauthorized.body), { status: 401 }))
+    })
+    vi.stubGlobal('fetch', base)
+    await expect(api.get('/a/')).rejects.toMatchObject({ status: 0, code: 'network_error' })
+    expect(getRefresh()).toBe('the-refresh')
+    off()
+    expect(onLogout).not.toHaveBeenCalled()
+  })
+
+  it.each([400, 403])('обновление отклонено с %i: сессия очищена', async (status) => {
+    mockFetch([
+      ['GET', '/api/a/', { status: 401, body: { detail: 'x' } }],
+      ['POST', '/api/auth/refresh/', { status, body: { detail: 'bad' } }],
+    ])
+    await expect(api.get('/a/')).rejects.toMatchObject({ status: 401 })
+    expect(getRefresh()).toBeNull()
+  })
+})
+
+describe('запоздавший refresh не перезаписывает новую сессию', () => {
+  function pendingRefresh(refreshReply: { status: number; body: unknown }) {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const m = mockFetch([
+      [
+        'GET',
+        '/api/a/',
+        (call) =>
+          call.headers.Authorization === 'Bearer B-access'
+            ? { body: { ok: 'B' } }
+            : { status: 401, body: { detail: 'expired', code: 'token_not_valid' } },
+      ],
+      [
+        'POST',
+        '/api/auth/refresh/',
+        async () => {
+          started = true
+          await gate
+          return refreshReply
+        },
+      ],
+    ])
+    return { m, release, started: () => started }
+  }
+
+  it('выход во время refresh: токены остаются очищенными, sessionStorage пуст', async () => {
+    const { release, started } = pendingRefresh({ status: 200, body: { access: 'late-access', refresh: 'late-refresh' } })
+    const onLogout = vi.fn()
+    const off = onApiEvent('logout', onLogout)
+    const request = api.get('/a/').catch((e: unknown) => e)
+    await vi.waitFor(() => {
+      expect(started()).toBe(true)
+    })
+    clearTokens() // пользователь вышел
+    release()
+    await request
+    off()
+    expect(getAccess()).toBeNull()
+    expect(window.sessionStorage.getItem('logistix.refresh')).toBeNull()
+    expect(getRefresh()).toBeNull()
+    expect(onLogout).not.toHaveBeenCalled()
+  })
+
+  it('смена компании во время refresh старой: побеждают новые токены, запрос повторяется с ними', async () => {
+    const { release, started } = pendingRefresh({ status: 200, body: { access: 'A-late', refresh: 'A-late-refresh' } })
+    const request = api.get('/a/')
+    await vi.waitFor(() => {
+      expect(started()).toBe(true)
+    })
+    setTokens({ access: 'B-access', refresh: 'B-refresh' }) // switch-company
+    release()
+    await expect(request).resolves.toEqual({ ok: 'B' })
+    expect(getAccess()).toBe('B-access')
+    expect(getRefresh()).toBe('B-refresh')
+  })
+
+  it('отклонённый refresh старой компании не очищает новую сессию', async () => {
+    const { release, started } = pendingRefresh({ status: 401, body: { detail: 'old', code: 'token_not_valid' } })
+    const onLogout = vi.fn()
+    const off = onApiEvent('logout', onLogout)
+    const request = api.get('/a/')
+    await vi.waitFor(() => {
+      expect(started()).toBe(true)
+    })
+    setTokens({ access: 'B-access', refresh: 'B-refresh' })
+    release()
+    await expect(request).resolves.toEqual({ ok: 'B' })
+    off()
+    expect(getRefresh()).toBe('B-refresh')
+    expect(getAccess()).toBe('B-access')
+    expect(onLogout).not.toHaveBeenCalled()
   })
 })

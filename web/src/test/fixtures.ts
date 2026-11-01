@@ -9,6 +9,7 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
     role: { id: 1, name: 'Администратор' },
     modules: ['forwarding'],
     permissions: ALL_PERMISSIONS,
+    branding: { app_name: 'Logistix', logo_url: null, primary_color: '#2563EB', theme: 'light' },
     subscription: {
       status: 'active',
       plan_code: 'start',

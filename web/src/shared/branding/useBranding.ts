@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { api } from '../api/client'
-import { ApiError } from '../api/errors'
 import type { Branding } from '../api/types'
 import { useSession } from '../auth/useSession'
 import { DEFAULT_BRANDING, applyBranding, sanitizeBranding } from './applyBranding'
@@ -10,28 +9,20 @@ function publicBranding(): Promise<Branding> {
   return api.get<Branding>('/branding/', { host: window.location.hostname }, { auth: false })
 }
 
-/** До входа - публичное оформление по домену; после входа - оформление компании. */
+/**
+ * До входа - публичное оформление по домену; после входа - оформление компании из сессии
+ * (отдельный запрос company/branding не нужен: он требует company.view, которого нет у многих ролей).
+ */
 export function useBranding(): Branding {
-  const { status } = useSession()
-  const authed = status === 'authenticated'
+  const { session } = useSession()
   const query = useQuery({
-    queryKey: ['branding', authed ? 'company' : 'public'],
-    queryFn: async () => {
-      if (!authed) return publicBranding()
-      try {
-        return await api.get<Branding>('/company/branding/')
-      } catch (error) {
-        // чтение оформления требует company.view; без права берём публичное оформление домена
-        if (error instanceof ApiError && error.status === 403 && error.code !== 'subscription_blocked') {
-          return publicBranding()
-        }
-        throw error
-      }
-    },
-    enabled: status === 'authenticated' || status === 'anonymous',
+    queryKey: ['branding', 'public'],
+    queryFn: publicBranding,
+    enabled: !session,
     staleTime: 5 * 60_000,
     retry: false,
   })
+  if (session) return sanitizeBranding(session.branding)
   return query.data ? sanitizeBranding(query.data) : DEFAULT_BRANDING
 }
 

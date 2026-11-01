@@ -48,7 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear()
       setTokens({ access: data.access, refresh: data.refresh })
       setHasTokens(true)
-      await queryClient.query(sessionQuery)
+      try {
+        await queryClient.query(sessionQuery)
+      } catch (error) {
+        // вход не состоялся целиком: токены не должны остаться
+        clearTokens()
+        setHasTokens(false)
+        queryClient.clear()
+        throw error
+      }
     },
     [queryClient],
   )

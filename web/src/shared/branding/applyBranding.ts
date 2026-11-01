@@ -23,7 +23,10 @@ export function safeAppName(value: unknown): string {
 /** Логотип только как src картинки: относительный путь или http(s). Иначе null. */
 export function safeLogoUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  const url = value.trim()
+  const url = value
+  // пробелы и управляющие символы в любом месте (браузер вырезает \t, \n - "/\t/evil" стал бы "//evil")
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000- \u007f]/.test(url)) return null
   if (url.startsWith('//') || url.includes('\\')) return null
   if (/^\/[^/]/.test(url) || /^https?:\/\/[^\s]+$/i.test(url)) return url
   return null

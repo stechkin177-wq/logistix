@@ -1,4 +1,4 @@
-import { clearTokens, getAccess, getRefresh, setTokens } from '../auth/tokens'
+import { applyRefreshed, clearTokens, getAccess, getEpoch, getRefresh } from '../auth/tokens'
 import { ApiError, buildApiError } from './errors'
 import { emitApiEvent } from './events'
 
@@ -55,28 +55,50 @@ async function readBody(response: Response): Promise<unknown> {
   }
 }
 
-let refreshing: Promise<boolean> | null = null
+/**
+ * ok - токен обновлён; changed - за время запроса сессия изменилась (выход/смена компании), результат
+ * отброшен; rejected - сервер отклонил refresh (сессия очищена); unavailable - сеть/5xx (токены целы).
+ */
+type RefreshResult =
+  | { kind: 'ok' | 'changed' | 'rejected' }
+  | { kind: 'unavailable'; error: ApiError }
 
-async function doRefresh(): Promise<boolean> {
+let refreshing: Promise<RefreshResult> | null = null
+
+async function doRefresh(): Promise<RefreshResult> {
   const refresh = getRefresh()
-  if (!refresh) return false
-  try {
-    const response = await send('POST', '/auth/refresh/', { body: { refresh }, auth: false })
-    if (!response.ok) return false
-    const data = (await readBody(response)) as { access?: unknown; refresh?: unknown } | undefined
-    if (typeof data?.access !== 'string') return false
-    setTokens({
-      access: data.access,
-      refresh: typeof data.refresh === 'string' ? data.refresh : undefined,
-    })
-    return true
-  } catch {
-    return false
+  if (!refresh) {
+    return { kind: 'rejected' }
   }
+  const startEpoch = getEpoch()
+  let response: Response
+  try {
+    response = await send('POST', '/auth/refresh/', { body: { refresh }, auth: false })
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 0
+    return { kind: 'unavailable', error: new ApiError(status, 'network_error', '') }
+  }
+  if (response.ok) {
+    const data = (await readBody(response)) as { access?: unknown; refresh?: unknown } | undefined
+    if (typeof data?.access !== 'string') {
+      return { kind: 'unavailable', error: new ApiError(response.status, 'refresh_unavailable', '') }
+    }
+    const applied = applyRefreshed(
+      { access: data.access, refresh: typeof data.refresh === 'string' ? data.refresh : undefined },
+      startEpoch,
+    )
+    return { kind: applied ? 'ok' : 'changed' }
+  }
+  if ([400, 401, 403].includes(response.status)) {
+    if (startEpoch !== getEpoch()) return { kind: 'changed' }
+    sessionLost()
+    return { kind: 'rejected' }
+  }
+  return { kind: 'unavailable', error: new ApiError(response.status, 'refresh_unavailable', '') }
 }
 
 /** Одно обновление на всех: параллельные 401 ждут один и тот же promise. */
-function refreshAccess(): Promise<boolean> {
+function refreshAccess(): Promise<RefreshResult> {
   refreshing ??= doRefresh().finally(() => {
     refreshing = null
   })
@@ -90,19 +112,28 @@ function sessionLost(): void {
 
 async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
   const authed = opts.auth !== false
-  if (authed && !getAccess() && getRefresh() && !(await refreshAccess())) {
-    sessionLost()
-    throw new ApiError(401, 'session_expired', '')
+  const startEpoch = getEpoch()
+  // чужой (позже начавшейся) сессии этот запрос не трогает: только своя эпоха может её завершить
+  const loseSession = (): void => {
+    if (getEpoch() === startEpoch) sessionLost()
+  }
+  if (authed && !getAccess() && getRefresh()) {
+    const result = await refreshAccess()
+    if (result.kind === 'unavailable') throw result.error
+    if (result.kind === 'rejected') throw new ApiError(401, 'session_expired', '')
   }
   let response = await send(method, path, opts)
   if (response.status === 401 && authed) {
-    if (!getRefresh() || !(await refreshAccess())) {
-      sessionLost()
+    if (!getRefresh()) {
+      loseSession()
       throw buildApiError(401, await readBody(response))
     }
-    response = await send(method, path, opts) // повтор ровно один раз
+    const result = await refreshAccess()
+    if (result.kind === 'unavailable') throw result.error
+    if (result.kind === 'rejected') throw buildApiError(401, await readBody(response))
+    response = await send(method, path, opts) // повтор ровно один раз (с актуальными токенами)
     if (response.status === 401) {
-      sessionLost()
+      loseSession()
       throw buildApiError(401, await readBody(response))
     }
   }

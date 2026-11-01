@@ -28,7 +28,7 @@ def _company_id(request):
     return membership.company_id if membership is not None else None
 
 
-def _subscription_state(request):
+def subscription_state(request):
     """(subscription, effective_status) компании запроса; кэшируется на запросе."""
     raw = getattr(request, "_request", request)
     cached = getattr(raw, "_billing_state", None)
@@ -45,7 +45,7 @@ def enforce_subscription(request):
     user = request.user
     if not (user and user.is_authenticated) or _company_id(request) is None:
         return
-    _, state = _subscription_state(request)
+    _, state = subscription_state(request)
     if state == Subscription.BLOCKED:
         raise SubscriptionBlocked()
     if state == Subscription.READONLY and request.method not in SAFE_METHODS:
@@ -78,7 +78,7 @@ def ModuleRequired(module: str) -> type[BasePermission]:  # noqa: N802 - фаб�
                 return False
             enforce_subscription(request)
             membership = getattr(request, "membership", None)
-            sub, _ = _subscription_state(request)
+            sub, _ = subscription_state(request)
             if membership is None or sub is None:
                 return False
             if module not in (membership.company.modules or []):

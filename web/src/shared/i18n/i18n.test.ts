@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { setLanguage } from './index'
 import kk from './kk.json'
 import ru from './ru.json'
 
@@ -28,5 +29,16 @@ describe('i18n', () => {
   it('плейсхолдеры совпадают в обоих языках', () => {
     const vars = (s: string) => (s.match(/\{\{\w+\}\}/g) ?? []).sort()
     for (const key of Object.keys(ruFlat)) expect(vars(kkFlat[key] ?? ''), key).toEqual(vars(ruFlat[key] ?? ''))
+  })
+
+  it('при смене языка обновляется <html lang>', async () => {
+    setLanguage('kk')
+    await vi.waitFor(() => {
+      expect(document.documentElement.lang).toBe('kk')
+    })
+    setLanguage('ru')
+    await vi.waitFor(() => {
+      expect(document.documentElement.lang).toBe('ru')
+    })
   })
 })

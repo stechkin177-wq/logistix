@@ -137,5 +137,51 @@ def test_blocked_company_gets_403(make_company):
 
 def test_query_count_is_bounded(make_company, django_assert_max_num_queries):
     _, _, client = make_company()
-    with django_assert_max_num_queries(8):
+    with django_assert_max_num_queries(9):  # +1 запрос: оформление компании
         assert client.get(URL).status_code == 200
+
+
+# --- оформление компании в сессии ---
+
+
+def test_branding_defaults_without_row_and_no_row_created(make_company):
+    from apps.core.models import CompanyBranding
+
+    company, _, client = make_company()
+    data = client.get(URL).json()["branding"]
+    assert set(data) == {"app_name", "logo_url", "primary_color", "theme"}
+    assert data["logo_url"] is None
+    assert not CompanyBranding.objects.filter(company=company).exists()
+
+
+def test_branding_of_own_company_only(make_company):
+    from apps.core.models import CompanyBranding
+
+    a, _, client_a = make_company("Alpha")
+    b, _, client_b = make_company("Beta")
+    CompanyBranding.objects.create(
+        company=a, app_name="Альфа-Логистик", primary_color="#AA0000", theme="dark"
+    )
+    CompanyBranding.objects.create(company=b, app_name="Бета", primary_color="#00BB00")
+    data_b = client_b.get(URL).json()["branding"]
+    assert data_b["app_name"] == "Бета" and data_b["primary_color"] == "#00BB00"
+    assert "Альфа" not in str(client_b.get(URL).json()) and "#AA0000" not in str(data_b)
+    assert client_a.get(URL).json()["branding"]["app_name"] == "Альфа-Логистик"
+
+
+def test_dispatcher_without_company_view_gets_company_branding(make_company):
+    from rest_framework.test import APIClient
+
+    from apps.core.models import CompanyBranding
+
+    company, _, _ = make_company()
+    CompanyBranding.objects.create(company=company, app_name="Мой бренд", primary_color="#123456")
+    user = User.objects.create_user(email="disp@x.kz", password="s3cret-pass")
+    role = Role.all_objects.get(company=company, name="Диспетчер")
+    Membership.objects.create(user=user, company=company, role=role)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {issue_tokens(user, company.id)['access']}")
+    assert "company.view" not in role.permissions
+    assert client.get("/api/company/branding/").status_code == 403
+    data = client.get(URL).json()["branding"]
+    assert data["app_name"] == "Мой бренд" and data["primary_color"] == "#123456"

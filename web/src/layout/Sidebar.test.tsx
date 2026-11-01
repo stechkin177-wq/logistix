@@ -101,4 +101,25 @@ describe('Sidebar', () => {
     expect(getAccess()).toBeNull()
     expect(window.sessionStorage.getItem('logistix.refresh')).toBeNull()
   })
+
+  it('оформление компании берётся из сессии даже без company.view', async () => {
+    setTokens({ access: 'a', refresh: 'r' })
+    const perms = ALL_PERMISSIONS.filter((p) => p !== 'company.view')
+    const m = mockFetch(
+      base(
+        makeSession({
+          permissions: perms,
+          branding: { app_name: 'Мой бренд', logo_url: null, primary_color: '#aa0000', theme: 'light' },
+        }),
+      ),
+    )
+    renderApp('/')
+    await screen.findByRole('navigation', { name: 'Основное меню' })
+    await waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--brand-500')).toBe('#aa0000')
+    })
+    expect(document.title).toBe('Мой бренд')
+    expect(screen.getAllByText('Мой бренд').length).toBeGreaterThan(0)
+    expect(m.calls.some((c) => c.path === '/api/company/branding/')).toBe(false)
+  })
 })

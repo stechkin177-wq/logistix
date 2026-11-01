@@ -67,6 +67,20 @@ describe('вход', () => {
     expect(await screen.findByText('Раздел готовится')).toBeInTheDocument()
   })
 
+  it('сбой загрузки сессии после входа не оставляет токены', async () => {
+    mockFetch([
+      ...common,
+      ['POST', '/api/auth/login/', { body: { access: 'ACC', refresh: 'REF', companies: [] } }],
+      ['GET', '/api/session/', { status: 500, body: { detail: 'boom' } }],
+    ])
+    renderApp('/login')
+    await submitLogin('admin@example.kz', 'secret')
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(getAccess()).toBeNull()
+    expect(getRefresh()).toBeNull()
+    expect(window.sessionStorage.getItem('logistix.refresh')).toBeNull()
+  })
+
   it('неверный пароль показывает общее сообщение и не сохраняет токены', async () => {
     mockFetch([
       ...common,
