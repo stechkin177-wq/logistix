@@ -122,11 +122,13 @@ class OrderRefField(serializers.PrimaryKeyRelatedField):
 class ConsignmentSerializer(ConsignmentBaseSerializer):
     order = OrderRefField()
     order_number = serializers.CharField(source="order.number", read_only=True)
+    client = serializers.IntegerField(source="order.client_id", read_only=True)
+    client_name = serializers.CharField(source="order.client.name", read_only=True)
     trips_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Consignment
-        fields = ["order", "order_number", *NESTED_FIELDS, "trips_count"]
+        fields = ["order", "order_number", "client", "client_name", *NESTED_FIELDS, "trips_count"]
         read_only_fields = ["id", "created_at"]
         extra_kwargs = {"weight_kg": {"min_value": 0}, "volume_m3": {"min_value": 0}}
 

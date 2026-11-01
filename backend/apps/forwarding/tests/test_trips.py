@@ -1296,3 +1296,66 @@ def test_list_query_bound_holds_with_order_filter(
         new_trip(admin_client, [cargo_id])
     with django_assert_max_num_queries(TRIP_LIST_QUERY_BOUND):
         assert admin_client.get(TRIPS, {"order": order.pk}).data["count"] == 3
+
+
+# --- грузы: фильтр client и поля client/client_name ---
+
+# верхняя граница запросов списка грузов с клиентом: аутентификация и подписка, count, грузы
+# (с заказом, клиентом, статусом, упаковкой), точки, страны/способы точек = измеренный минимум
+# плюс запас; число запросов не зависит от числа грузов и клиентов
+CONSIGNMENT_LIST_QUERY_BOUND = 10
+
+
+def test_consignments_client_filter_and_fields(admin_client, company):
+    c1, c2 = make_client(company, "ТОО Один"), make_client(company, "ТОО Два")
+    o1 = make_order(company, c1, consignments=[_svc_cargo(name="Груз 1")])
+    make_order(company, c2, consignments=[_svc_cargo(name="Груз 2")])
+    r = admin_client.get(CONSIGNMENTS, {"client": c1.pk})
+    assert r.status_code == 200 and r.data["count"] == 1
+    row = r.data["results"][0]
+    assert row["client"] == c1.pk and row["client_name"] == "ТОО Один"
+    assert row["order"] == o1.pk
+    assert admin_client.get(CONSIGNMENTS, {"client": c2.pk}).data["count"] == 1
+    assert admin_client.get(CONSIGNMENTS, {"client": 999999}).data["count"] == 0
+    assert admin_client.get(CONSIGNMENTS).data["count"] == 2
+
+
+def test_consignments_client_filter_bad_value(admin_client):
+    for bad in ("abc", "-1", "1.5", "1,2"):
+        r = admin_client.get(CONSIGNMENTS, {"client": bad})
+        assert r.status_code == 400 and "client" in r.data
+
+
+def test_consignments_client_filter_isolated_between_companies(two):
+    (comp_a, _, api_a), (comp_b, _, api_b) = two
+    client_a = make_client(comp_a, "Клиент A")
+    make_cargos(comp_a)  # свой заказ с другим клиентом
+    make_order(comp_a, client_a, consignments=[_svc_cargo(name="Груз A")])
+    assert api_a.get(CONSIGNMENTS, {"client": client_a.pk}).data["count"] == 1
+    # id клиента чужой компании: пусто, а у чужого сотрудника ничего не раскрывается
+    assert api_b.get(CONSIGNMENTS, {"client": client_a.pk}).data["count"] == 0
+    assert api_b.get(CONSIGNMENTS).data["count"] == 0
+
+
+def test_consignments_client_filter_hides_deleted(admin_client, company):
+    client = make_client(company, "ТОО Удаляемый")
+    order, _ = make_cargos(company, 2, client=client)
+    assert admin_client.get(CONSIGNMENTS, {"client": client.pk}).data["count"] == 2
+    with tenant_context(company.id):
+        Consignment.objects.filter(order=order).order_by("id").first().delete()
+    assert admin_client.get(CONSIGNMENTS, {"client": client.pk}).data["count"] == 1
+    admin_client.delete(f"{ORDERS}{order.pk}/")
+    assert admin_client.get(CONSIGNMENTS, {"client": client.pk}).data["count"] == 0
+
+
+def test_consignment_list_query_count_with_client(
+    admin_client, company, django_assert_max_num_queries
+):
+    for i in range(10):
+        make_cargos(company, 2, client=make_client(company, f"Клиент {i}"))
+    with django_assert_max_num_queries(CONSIGNMENT_LIST_QUERY_BOUND):
+        r = admin_client.get(CONSIGNMENTS)
+    assert r.status_code == 200 and len(r.data["results"]) == 20
+    assert all(row["client_name"].startswith("Клиент") for row in r.data["results"])
+    with django_assert_max_num_queries(CONSIGNMENT_LIST_QUERY_BOUND):
+        assert admin_client.get(CONSIGNMENTS, {"without_trip": "1", "client": 1}).status_code == 200

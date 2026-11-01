@@ -22,7 +22,7 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
     def get_queryset(self):
         qs = (
             Consignment.objects.filter(order__deleted_at__isnull=True)  # груз скрыт с заказом
-            .select_related("order", "status", "packaging")
+            .select_related("order", "order__client", "status", "packaging")
             .annotate(
                 trips_count=Count("trip_links", filter=Q(trip_links__trip__deleted_at__isnull=True))
             )
@@ -37,6 +37,8 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
             params = self.request.query_params
             if (order := int_param(params, "order")) is not None:
                 qs = qs.filter(order_id=order)
+            if (client := int_param(params, "client")) is not None:
+                qs = qs.filter(order__client_id=client)
             if flag_param(params, "without_trip"):  # очередь распределения по рейсам
                 in_trip = TripConsignment.objects.filter(
                     consignment=OuterRef("pk"), trip__deleted_at__isnull=True
