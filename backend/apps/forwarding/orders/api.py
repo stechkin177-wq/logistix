@@ -13,7 +13,7 @@ from ..finance_lines.models import zone_from_name
 from ..finance_lines.services import annotate_order_totals
 from ..models import Order, OrderStatusHistory
 from .board import build_board, limit_param
-from .export import export_orders
+from .export import AnyAcceptNegotiation, export_orders
 from .filters import filter_orders
 from .serializers import OrderSerializer, StatusChangeSerializer, consignments_prefetch
 from .services import carried_with_carrier
@@ -65,7 +65,12 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         limit = limit_param(params)
         return Response(build_board(params, self.company_zone(), limit))
 
-    @action(detail=False, methods=["get"], url_path="export")
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="export",
+        content_negotiation_class=AnyAcceptNegotiation,
+    )
     def export(self, request):
         """Выгрузка заказов (те же фильтры, что у списка) в .xlsx."""
         with_finance = "finance.view" in request.membership.role.permissions

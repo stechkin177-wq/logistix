@@ -125,6 +125,18 @@ TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
 REDIS_URL = env("REDIS_URL", "redis://127.0.0.1:6379/0")
+
+# Кэш (и счётчики throttle) общий для воркеров только с REDIS_URL; без него - LocMem на процесс
+# (разработка и тесты). В продакшене REDIS_URL ОБЯЗАТЕЛЕН.
+if os.environ.get("REDIS_URL"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": os.environ["REDIS_URL"],
+        }
+    }
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_TIMEZONE = TIME_ZONE

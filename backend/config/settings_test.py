@@ -10,3 +10,4 @@ MIGRATION_MODULES = {"core_tests": "apps.core.tests.migrations"}
 
 # Загрузки тестов - во временный каталог, не в репозиторий
 MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="logistix-test-media-"))
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

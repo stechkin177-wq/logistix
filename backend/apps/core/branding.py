@@ -65,11 +65,13 @@ def validate_logo(file) -> None:
 
 
 def logo_upload_to(instance, filename: str) -> str:
-    """branding/<id компании>/<случайное имя>.<расширение>; имя файла клиента не используется."""
+    """branding/<случайный каталог>/<случайное имя>.<расширение>.
+
+    Ни id компании, ни имя файла клиента в пути не используются (публичный URL)."""
     ext = PurePosixPath(filename).suffix.lower().lstrip(".")
     if ext not in LOGO_EXTENSIONS:
         raise ValidationError("Логотип: недопустимое расширение")
-    return f"branding/{instance.company_id}/{uuid.uuid4().hex}.{ext}"
+    return f"branding/{uuid.uuid4().hex}/{uuid.uuid4().hex}.{ext}"
 
 
 def normalize_host(raw: str) -> str:

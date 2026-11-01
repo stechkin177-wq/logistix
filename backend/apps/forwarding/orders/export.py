@@ -8,7 +8,7 @@ Excel). Деньги пишутся числовыми ячейками из Dec
 как double с 15 значащими цифрами - этого достаточно для сумм до 10^12 с копейками.
 
 Защита от инъекции формул: текст, начинающийся с = + - @ табуляции или возврата каретки,
-получает ведущий апостроф (') и не становится формулой. Число запросов фиксировано.
+получает ведущий апостроф (') и не становится формулой. Число запросов фиксировано (10).
 """
 
 import io
@@ -18,14 +18,24 @@ from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font
 from rest_framework.exceptions import ValidationError
+from rest_framework.negotiation import DefaultContentNegotiation
 
 from ..finance_lines.services import annotate_order_totals, margin_pct
 from ..models import Order
 from .board import carrier_names, routed
 from .filters import apply_filters, apply_ordering, loading_at_subquery
 from .serializers import order_route
+
+
+class AnyAcceptNegotiation(DefaultContentNegotiation):
+    """Файл отдаётся при любом Accept (в т.ч. самом типе xlsx), а не 406."""
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        return (renderers[0], renderers[0].media_type)
+
 
 EXPORT_LIMIT = 10_000
 SHEET_NAME = "Заказы"
@@ -49,7 +59,7 @@ DATETIME_FORMAT = "DD.MM.YYYY HH:MM"
 
 def safe_text(value) -> str:
     """Текст ячейки без риска формулы: опасное начало защищается ведущим апострофом."""
-    text = str(value or "")
+    text = ILLEGAL_CHARACTERS_RE.sub("", str(value or ""))  # иначе openpyxl падает с 500
     return "'" + text if text.startswith(DANGEROUS_PREFIXES) else text
 
 
@@ -95,12 +105,12 @@ def export_orders(params, zone, *, with_finance: bool) -> HttpResponse:
     if with_finance:
         qs = annotate_order_totals(qs)
     qs = apply_ordering(apply_filters(qs, params, zone), params)
-    orders = list(routed(qs[: EXPORT_LIMIT + 1]))
-    if len(orders) > EXPORT_LIMIT:
+    if qs.values("pk")[EXPORT_LIMIT : EXPORT_LIMIT + 1].exists():  # дёшево, до загрузки строк
         raise ValidationError(
             f"Слишком много заказов для выгрузки (больше {EXPORT_LIMIT:,}): "
             "сузьте фильтр (период, клиент, статус) и повторите".replace(",", " ")
         )
+    orders = list(routed(qs[:EXPORT_LIMIT]))
     carriers = carrier_names([o.pk for o in orders])
     wb = Workbook(write_only=True)
     ws = wb.create_sheet(SHEET_NAME)

@@ -629,7 +629,7 @@ def test_export_exactly_at_limit_passes(admin_client, company, monkeypatch):
     assert len(sheet(admin_client.get(EXPORT))) == 4
 
 
-EXPORT_QUERY_BOUND = 9
+EXPORT_QUERY_BOUND = 10  # 9 + дешёвая проверка лимита до загрузки строк
 
 
 def test_export_query_count_is_flat(admin_client, company, django_assert_max_num_queries):
@@ -749,3 +749,49 @@ def make_client_in(company):
     from apps.forwarding.models import Client
 
     return Client.objects.create(name="Чужой клиент")
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("ТОО \x0bКлиент", "ТОО Клиент"),
+        ("\x0b=cmd", "'=cmd"),
+        ("\x01\x1f@x", "'@x"),
+        ("A\x08B\x0cC\x0eD", "ABCD"),
+    ],
+)
+def test_export_strips_xml_illegal_characters(admin_client, company, raw, expected):
+    cargo = _svc_cargo()
+    cargo["points"][0]["city"] = raw
+    make_order(company, make_client(company, raw), consignments=[cargo])
+    r = admin_client.get(EXPORT)
+    assert r.status_code == 200, r.content
+    row = sheet(r)[1]
+    assert row[1] == expected
+    assert row[2].startswith(expected)
+
+
+@pytest.mark.parametrize(
+    "accept", [XLSX, "application/json", "*/*", None, "text/html", "application/xml"]
+)
+def test_export_ignores_accept_header(admin_client, company, accept):
+    mk(company)
+    extra = {"HTTP_ACCEPT": accept} if accept else {}
+    r = admin_client.get(EXPORT, **extra)
+    assert r.status_code == 200 and r["Content-Type"] == XLSX
+    assert len(sheet(r)) == 2
+
+
+def test_export_limit_checked_before_loading_rows(
+    admin_client, company, monkeypatch, django_assert_max_num_queries
+):
+    from apps.forwarding.orders import export
+
+    monkeypatch.setattr(export, "EXPORT_LIMIT", 2)
+    for _ in range(3):
+        mk(company)
+    with django_assert_max_num_queries(
+        7
+    ):  # вход, подписка, savepoints, проверка лимита; без выборок
+        r = admin_client.get(EXPORT)
+    assert r.status_code == 400 and "фильтр" in str(r.data).lower()

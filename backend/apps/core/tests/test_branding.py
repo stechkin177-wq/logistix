@@ -179,10 +179,11 @@ def test_logo_upload_png_and_webp_and_jpeg(admin_client, company):
     r = upload(admin_client, "Логотип Компании.PNG", PNG)
     assert r.status_code == 200, r.content
     url = r.data["logo_url"]
-    assert url.startswith(f"http://testserver{settings.MEDIA_URL}branding/{company.id}/")
+    assert url.startswith(f"http://testserver{settings.MEDIA_URL}branding/")
     assert url.endswith(".png")
     name = stored(company).logo.name
-    assert name.startswith(f"branding/{company.id}/") and disk(name)
+    assert name.startswith("branding/") and disk(name)
+    assert f"/{company.id}/" not in name and name.count("/") == 2
     assert "Логотип" not in name  # имя файла клиента не используется
     for filename, content, ext in (("a.webp", WEBP, ".webp"), ("b.jpg", JPEG, ".jpg")):
         r = upload(admin_client, filename, content)
@@ -229,7 +230,7 @@ def test_logo_must_be_a_file(admin_client):
 def test_path_traversal_name_is_neutralised(admin_client, company):
     r = upload(admin_client, "../../etc/evil.png", PNG)
     assert r.status_code == 200
-    assert stored(company).logo.name.startswith(f"branding/{company.id}/")
+    assert stored(company).logo.name.startswith("branding/")
 
 
 def test_clear_logo_multipart_and_json_deletes_file(
@@ -269,8 +270,8 @@ def test_logo_isolation_between_companies(two):
     upload(api_a, "a.png", PNG)
     assert api_b.get(URL).data["logo_url"] is None
     assert upload(api_b, "b.png", PNG).status_code == 200
-    assert stored(a).logo.name.startswith(f"branding/{a.id}/")
-    assert stored(b).logo.name.startswith(f"branding/{b.id}/")
+    assert stored(a).logo.name.startswith("branding/")
+    assert stored(b).logo.name.startswith("branding/")
     assert stored(a).logo.name != stored(b).logo.name
 
 
@@ -362,7 +363,8 @@ def test_public_returns_branding_only_for_own_domain(two):
     assert set(r.data) == {"app_name", "logo_url", "primary_color", "theme"}
     assert r.data["app_name"] == "Альфа" and r.data["primary_color"] == "#112233"
     assert r.data["theme"] == "dark"
-    assert r.data["logo_url"].startswith(f"http://testserver/media/branding/{a.id}/")
+    assert r.data["logo_url"].startswith("http://testserver/media/branding/")
+    assert f"/{a.id}/" not in r.data["logo_url"]
     rb = anon.get(PUBLIC, {"host": "login.beta.kz"})
     assert rb.data["app_name"] == "Бета" and rb.data["logo_url"] is None
     assert rb.data["primary_color"] == "#2563EB"
@@ -467,3 +469,34 @@ def test_branding_works_under_app_role(db):
         set_domain(company, "rls.kz")
         # публичный эндпоинт читает таблицу без контекста компании
         assert APIClient().get(PUBLIC, {"host": "rls.kz"}).data["theme"] == "dark"
+
+
+@pytest.fixture
+def _throttle2(monkeypatch):
+    monkeypatch.setattr(BrandingThrottle, "THROTTLE_RATES", {"branding": "2/min"})
+
+
+def test_throttle_not_bypassed_by_spoofed_xff(_throttle2, settings):
+    settings.TRUST_PROXY_HEADERS = False
+    api = APIClient()
+    codes = [
+        api.get(PUBLIC, {"host": "x.kz"}, HTTP_X_FORWARDED_FOR=f"10.0.0.{i}").status_code
+        for i in range(5)
+    ]
+    assert codes == [200, 200, 429, 429, 429]
+    body = api.get(PUBLIC, HTTP_X_FORWARDED_FOR="9.9.9.9")
+    assert body.status_code == 429 and body.data["code"] == "throttled" and body.data["detail"]
+
+
+def test_throttle_uses_first_xff_hop_when_proxy_trusted(_throttle2, settings):
+    settings.TRUST_PROXY_HEADERS = True
+    api = APIClient()
+    one = [api.get(PUBLIC, HTTP_X_FORWARDED_FOR="1.1.1.1, 5.5.5.5").status_code for _ in range(3)]
+    assert one == [200, 200, 429]
+    # другой первый адрес - другой ключ, хвост цепочки не важен
+    assert api.get(PUBLIC, HTTP_X_FORWARDED_FOR="2.2.2.2, 5.5.5.5").status_code == 200
+    assert api.get(PUBLIC, HTTP_X_FORWARDED_FOR="1.1.1.1, 6.6.6.6").status_code == 429
+
+
+def test_cache_settings_default_to_locmem():
+    assert "locmem" in settings.CACHES["default"]["BACKEND"]

@@ -58,4 +58,6 @@ cd backend && ~/.venv-logistix/bin/pytest -q && ~/.venv-logistix/bin/ruff check 
 `DJANGO_DEBUG` (по умолчанию false), `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`,
 `REDIS_URL`, `CORS_ALLOWED_ORIGINS`, `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS`,
 `MEDIA_ROOT`/`MEDIA_URL` (логотипы компаний на локальном диске; S3/MinIO - этап 5),
+`REDIS_URL` в продакшене ОБЯЗАТЕЛЕН: без него кэш - LocMem на процесс, и счётчики throttle
+(публичный `/api/branding/`) не общие между воркерами; ключ throttle - IP по `TRUST_PROXY_HEADERS`,
 `BRANDING_THROTTLE_RATE` (лимит публичного `/api/branding/`, по умолчанию `60/min`).

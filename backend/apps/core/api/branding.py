@@ -100,6 +100,10 @@ class CompanyBrandingView(APIView):
 class BrandingThrottle(AnonRateThrottle):
     scope = "branding"
 
+    def get_ident(self, request):
+        """Ключ - IP по правилам проекта (TRUST_PROXY_HEADERS), а не сырой X-Forwarded-For."""
+        return audit.client_ip(request) or "unknown"
+
 
 class PublicBrandingView(APIView):
     """Оформление экрана входа по ?host=<домен>. Без входа и без контекста компании.
