@@ -41,6 +41,12 @@ function collect(path: string, value: unknown, out: Record<string, string[]>): v
 }
 
 export function buildApiError(status: number, body: unknown): ApiError {
+  // DRF: ValidationError("текст") приходит списком строк
+  if (Array.isArray(body)) {
+    const fields: Record<string, string[]> = {}
+    collect('non_field_errors', body, fields)
+    return new ApiError(status, 'validation_error', fields.non_field_errors?.[0] ?? '', fields)
+  }
   if (!isRecord(body)) return new ApiError(status, `http_${status}`, '')
   const { detail, code, ...rest } = body
   if (typeof detail === 'string') {

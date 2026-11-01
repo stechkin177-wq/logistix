@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockFetch } from '../../test/fetchMock'
 import { clearTokens, getAccess, getRefresh, setTokens } from '../auth/tokens'
 import { api } from './client'
-import { ApiError } from './errors'
+import { ApiError, buildApiError } from './errors'
 import { onApiEvent } from './events'
 
 beforeEach(() => {
@@ -255,5 +255,43 @@ describe('запоздавший refresh не перезаписывает но�
     expect(getRefresh()).toBe('B-refresh')
     expect(getAccess()).toBe('B-access')
     expect(onLogout).not.toHaveBeenCalled()
+  })
+})
+
+describe('ошибки валидации DRF', () => {
+  it('вложенные пути и ValidationError-список', () => {
+    const nested = buildApiError(400, { consignments: [{}, { points: [{}, { city: ['Укажите город'] }] }], client: ['Обязательное поле.'] })
+    expect(nested.fields).toEqual({ 'consignments.1.points.1.city': ['Укажите город'], client: ['Обязательное поле.'] })
+    const list = buildApiError(400, ['Слишком много заказов'])
+    expect(list.detail).toBe('Слишком много заказов')
+    expect(list.fields).toEqual({ non_field_errors: ['Слишком много заказов'] })
+  })
+})
+
+describe('отмена и скачивание', () => {
+  it('abort-сигнал отменяет запрос и не превращается в network_error', async () => {
+    setTokens({ access: 'a', refresh: 'r' })
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => { reject(new DOMException('aborted', 'AbortError')) })
+    })))
+    const controller = new AbortController()
+    const pending = api.get('/clients/', undefined, { signal: controller.signal })
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('download: blob, имя из Content-Disposition, Bearer и ошибка 400', async () => {
+    setTokens({ access: 'tok', refresh: 'r' })
+    const fn = vi.fn<typeof fetch>()
+    fn.mockResolvedValue(new Response('BYTES', { status: 200, headers: { 'Content-Disposition': 'attachment; filename="orders-2026-10-31.xlsx"' } }))
+    vi.stubGlobal('fetch', fn)
+    const result = await api.download('/orders/export/', { q: 'x' })
+    expect(result.filename).toBe('orders-2026-10-31.xlsx')
+    expect(await result.blob.text()).toBe('BYTES')
+    expect(fn.mock.calls[0]?.[0]).toBe('/api/orders/export/?q=x')
+    expect((fn.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization).toBe('Bearer tok')
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(['Слишком много заказов']), { status: 400 }))))
+    await expect(api.download('/orders/export/')).rejects.toMatchObject({ status: 400, detail: 'Слишком много заказов' })
   })
 })
