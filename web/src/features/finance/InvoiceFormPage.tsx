@@ -43,7 +43,9 @@ const searchOrders = async (q: string, signal: AbortSignal): Promise<ComboOption
 
 function initialPicks(invoice: Invoice | null): Record<number, Pick> {
   const picks: Record<number, Pick> = {}
-  for (const item of invoice?.items ?? []) picks[item.line] = { checked: true, title: item.title, amount: item.amount_net }
+  for (const item of invoice?.items ?? []) {
+    if (item.line !== null) picks[item.line] = { checked: true, title: item.title, amount: item.amount_net }
+  }
   return picks
 }
 

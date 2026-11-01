@@ -76,7 +76,7 @@ export interface InvoiceListFilters {
 export interface InvoiceItemPayload {
   title: string
   amount_net: string
-  line: number | null
+  line: number
 }
 
 export interface InvoicePayload {
