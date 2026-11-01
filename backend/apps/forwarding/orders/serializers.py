@@ -1,13 +1,14 @@
 from collections.abc import Mapping
 
 from django.db import transaction
+from django.db.models import Prefetch
 from rest_framework import serializers
 
 from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
 from apps.core.models import LegalEntity
 
-from ..consignments.models import ConsignmentPoint
+from ..consignments.models import Consignment, ConsignmentPoint
 from ..consignments.serializers import NestedConsignmentSerializer
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
@@ -19,6 +20,30 @@ FORBIDDEN_FIELDS = {
     "status": "Статус меняется действием POST /api/orders/{id}/status/",
     "completed_at": "Дата завершения ставится при переводе в статус «Завершён»",
 }
+
+
+def consignments_prefetch() -> Prefetch:
+    """Грузы заказа (без удалённых) по id, сразу с точками и справочниками: без N+1."""
+    points = Prefetch(
+        "points", queryset=ConsignmentPoint.objects.select_related("country", "method")
+    )
+    return Prefetch(
+        "consignments",
+        queryset=Consignment.objects.select_related("status", "packaging")
+        .prefetch_related(points)
+        .order_by("id"),
+    )
+
+
+def order_route(order) -> str:
+    """«Город погрузки → Город выгрузки» первого (по id) груза с обеими точками.
+
+    Грузы и точки должны быть предзагружены (prefetch_related), иначе по запросу на заказ."""
+    for consignment in order.consignments.all():
+        points = {p.kind: p for p in consignment.points.all()}
+        if len(points) == 2:
+            return f"{points[ConsignmentPoint.LOAD].city} → {points[ConsignmentPoint.UNLOAD].city}"
+    return ""
 
 
 class ClientField(CurrentTolerantField):
@@ -136,14 +161,7 @@ class OrderSerializer(serializers.ModelSerializer):
         return obj.manager.full_name or str(obj.manager)
 
     def get_route(self, obj):
-        """«Город погрузки → Город выгрузки» первого (по id) груза с обеими точками."""
-        for consignment in obj.consignments.all():
-            points = {p.kind: p for p in consignment.points.all()}
-            if len(points) == 2:
-                return (
-                    f"{points[ConsignmentPoint.LOAD].city} → {points[ConsignmentPoint.UNLOAD].city}"
-                )
-        return ""
+        return order_route(obj)
 
     def get_has_carrier(self, obj):
         """Аннотация списка/деталей; у только что созданного заказа - запрос."""

@@ -7,7 +7,7 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
 
 from ..models import OrderService
-from ..orders.api import int_param
+from ..orders.filters import int_param
 from .serializers import BASE_LINE_MESSAGE, OrderServiceSerializer
 
 

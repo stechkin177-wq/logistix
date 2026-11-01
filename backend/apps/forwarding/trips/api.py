@@ -14,7 +14,7 @@ from apps.core.audit.services import client_ip
 from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, Trip
-from ..orders.api import flag_param, int_param
+from ..orders.filters import flag_param, int_param
 from .serializers import (
     ReassignSerializer,
     TripCreateSerializer,

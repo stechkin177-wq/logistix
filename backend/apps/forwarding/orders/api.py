@@ -1,7 +1,6 @@
-from django.db.models import Exists, OuterRef, Prefetch, Q
+from django.db.models import Exists, Prefetch
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.billing.permissions import ModuleRequired
@@ -10,60 +9,14 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.audit.services import client_ip
 from apps.core.pagination import StandardPagination
 
+from ..finance_lines.models import zone_from_name
 from ..finance_lines.services import annotate_order_totals
-from ..models import Consignment, ConsignmentPoint, Order, OrderStatusHistory
-from .serializers import OrderSerializer, StatusChangeSerializer
+from ..models import Order, OrderStatusHistory
+from .board import build_board, limit_param
+from .export import export_orders
+from .filters import filter_orders
+from .serializers import OrderSerializer, StatusChangeSerializer, consignments_prefetch
 from .services import carried_with_carrier
-
-ORDERING_FIELDS = ("created_at", "number")
-DEFAULT_ORDERING = "-created_at"
-
-
-def int_param(params, name):
-    value = params.get(name)
-    if value in (None, ""):
-        return None
-    if not value.isascii() or not value.isdigit():
-        raise ValidationError({name: "Ожидается числовой id"})
-    return int(value)
-
-
-def flag_param(params, name) -> bool:
-    value = (params.get(name) or "").strip().lower()
-    if value in ("", "0", "false"):
-        return False
-    if value in ("1", "true"):
-        return True
-    raise ValidationError({name: "Допустимо: 1 или 0"})
-
-
-def consignments_prefetch() -> Prefetch:
-    """Грузы заказа (без удалённых) по id, сразу с точками и справочниками: без N+1."""
-    points = Prefetch(
-        "points", queryset=ConsignmentPoint.objects.select_related("country", "method")
-    )
-    return Prefetch(
-        "consignments",
-        queryset=Consignment.objects.select_related("status", "packaging")
-        .prefetch_related(points)
-        .order_by("id"),
-    )
-
-
-def filter_orders(qs, params):
-    """client (id), status (id), q (номер, клиент, название груза), ordering."""
-    if (client := int_param(params, "client")) is not None:
-        qs = qs.filter(client_id=client)
-    if (status := int_param(params, "status")) is not None:
-        qs = qs.filter(status_id=status)
-    if q := (params.get("q") or "").strip():
-        by_cargo = Exists(Consignment.objects.filter(order=OuterRef("pk"), name__icontains=q))
-        qs = qs.filter(Q(number__icontains=q) | Q(client__name__icontains=q) | by_cargo)
-    ordering = params.get("ordering") or DEFAULT_ORDERING
-    allowed = {*ORDERING_FIELDS, *(f"-{f}" for f in ORDERING_FIELDS)}
-    if ordering not in allowed:
-        raise ValidationError({"ordering": f"Допустимо: {', '.join(sorted(allowed))}"})
-    return qs.order_by(ordering, "-id" if ordering.startswith("-") else "id")
 
 
 class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
@@ -74,6 +27,8 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "change_status":
             return [ModuleRequired("forwarding")(), permission_required("orders.update")()]
+        if self.action in ("board", "export"):  # читают то же, что и список
+            return [ModuleRequired("forwarding")(), permission_required("orders.view")()]
         return [ModuleRequired("forwarding")(), *super().get_permissions()]
 
     def get_serializer_context(self):
@@ -96,8 +51,25 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
                 )
             )
         else:
-            qs = filter_orders(qs, self.request.query_params)
+            qs = filter_orders(qs, self.request.query_params, self.company_zone())
         return qs
+
+    def company_zone(self):
+        # компания уже загружена вместе с членством: без лишнего запроса
+        return zone_from_name(self.request.membership.company.timezone)
+
+    @action(detail=False, methods=["get"], url_path="board")
+    def board(self, request):
+        """Канбан: колонки по справочнику order_status с карточками; те же фильтры, что у списка."""
+        params = request.query_params
+        limit = limit_param(params)
+        return Response(build_board(params, self.company_zone(), limit))
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        """Выгрузка заказов (те же фильтры, что у списка) в .xlsx."""
+        with_finance = "finance.view" in request.membership.role.permissions
+        return export_orders(request.query_params, self.company_zone(), with_finance=with_finance)
 
     def perform_create(self, serializer):
         serializer.save()  # create_order сам пишет аудит заказа и его грузов

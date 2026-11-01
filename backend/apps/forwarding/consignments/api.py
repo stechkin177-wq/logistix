@@ -7,7 +7,7 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, ConsignmentPoint, TripConsignment
-from ..orders.api import flag_param, int_param
+from ..orders.filters import flag_param, int_param
 from .serializers import ConsignmentSerializer
 
 

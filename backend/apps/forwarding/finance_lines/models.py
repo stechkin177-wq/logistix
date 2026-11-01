@@ -12,6 +12,14 @@ from apps.core.tenancy import get_current_company_id
 DEFAULT_TIMEZONE = "Asia/Almaty"
 
 
+def zone_from_name(name) -> ZoneInfo:
+    """Часовой пояс по имени IANA (при сбое - Asia/Almaty)."""
+    try:
+        return ZoneInfo(name or DEFAULT_TIMEZONE)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo(DEFAULT_TIMEZONE)
+
+
 def company_zone(company_id) -> ZoneInfo:
     """Часовой пояс компании (при сбое поля - Asia/Almaty)."""
     from apps.core.models import Company
@@ -21,10 +29,7 @@ def company_zone(company_id) -> ZoneInfo:
         if company_id is not None
         else None
     )
-    try:
-        return ZoneInfo(name or DEFAULT_TIMEZONE)
-    except (ZoneInfoNotFoundError, ValueError):
-        return ZoneInfo(DEFAULT_TIMEZONE)
+    return zone_from_name(name)
 
 
 def company_today(company_id=None) -> date:
