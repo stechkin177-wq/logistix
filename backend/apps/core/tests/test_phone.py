@@ -11,7 +11,9 @@ def test_normalize_ok(raw):
     assert normalize_phone(raw) == "+77001112233"
 
 
-@pytest.mark.parametrize("raw", [
+@pytest.mark.parametrize(
+    "raw",
+    [
         "12345",
         "",
         "abc",
@@ -24,7 +26,8 @@ def test_normalize_ok(raw):
         "+7001112233",  # после + нужны 11 цифр
         "7001112２33",
         "+7 700 111 22 33 4",
-    ])
+    ],
+)
 def test_normalize_invalid(raw):
     with pytest.raises(ValueError):
         normalize_phone(raw)

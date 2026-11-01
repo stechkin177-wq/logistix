@@ -414,9 +414,7 @@ def test_attach_password_never_in_audit(admin_client, company_a, owner_b):
     assert PASSWORD not in dump and "fresh-long-pass-7" not in dump
 
 
-def test_foreign_profile_not_visible_before_membership(
-    admin_client, company_a, company_b, owner_b
-):
+def test_foreign_profile_not_visible_before_membership(admin_client, company_a, company_b, owner_b):
     assert _attach(admin_client, company_a, "owner-b@x.kz", "wrong-pass-123").status_code == 400
     foreign = Membership.objects.get(user=owner_b)
     assert "owner-b@x.kz" not in str(admin_client.get("/api/users/").data)
@@ -437,7 +435,9 @@ def test_attach_is_throttled(admin_client, company_a, owner_b, monkeypatch):
 
     cache.clear()
     monkeypatch.setattr(MemberAttachThrottle, "THROTTLE_RATES", {"member_attach": "3/min"})
-    codes = [_attach(admin_client, company_a, "owner-b@x.kz", f"g-{i}").status_code for i in range(5)]
+    codes = [
+        _attach(admin_client, company_a, "owner-b@x.kz", f"g-{i}").status_code for i in range(5)
+    ]
     cache.clear()
     assert codes[:3] == [400, 400, 400] and codes[3:] == [429, 429]
 
