@@ -3,26 +3,32 @@
 Шаблоны загружают пользователи компаний, а сервер исполняет содержащийся в них
 Jinja-код. Поэтому защита многослойная:
 
-1. Пакет (zip/OOXML) проверяется по каталогу zip ДО распаковки: размер файла,
-   число частей, размер каждой части и сумма распакованных размеров
-   (`ZipInfo.file_size`; zipfile не отдаёт больше заявленного размера и сверяет CRC),
-   имена частей (без `..`, абсолютных путей, `\\`), без шифрования, только
-   stored/deflate. Запрещены макросы (`*.bin`, `vbaProject`, ActiveX, macroEnabled
-   типы содержимого), внешние связи (`TargetMode="External"`), DTD и сущности в
-   XML (`<!DOCTYPE`/`<!ENTITY`: XXE, «billion laughs»), XML не в UTF-8.
+1. Пакет (zip/OOXML) проверяется в веб-процессе БЕЗ `zipfile.read`: сначала каталог
+   zip (размер файла, число частей, заявленный размер каждой части и их сумма, имена
+   без `..`/абсолютных путей/`\\`, без шифрования, только stored/deflate), затем
+   каждая часть распаковывается собственным потоковым inflate с пределом
+   «заявленный размер + 1»: лживый заголовок (zip-бомба) обрывается на первых
+   килобайтах, а итог сверяется с заявленным размером и CRC. Запрещены макросы
+   (`*.bin`, `vbaProject`, ActiveX, macroEnabled типы), встроенные пакеты и
+   OLE-объекты (`word/embeddings/`, связи package/oleObject/control/aFChunk,
+   вложенный zip/OLE по сигнатуре), внешние связи (`TargetMode="External"`).
+   XML-части - только UTF-8 (объявленная кодировка тоже), без DTD и сущностей
+   (поиск `<!DOCTYPE`/`<!ENTITY` и разбор защищённым парсером с проверкой docinfo).
 2. Jinja исполняется только в `ImmutableSandboxedEnvironment` без загрузчика:
    `include`/`import`/`extends` запрещены ещё при разборе; обращение к
    небезопасному атрибуту сразу даёт ошибку (а не пустую строку); у словарей
-   `.имя` - только ключи (не методы dict); `lipsum` убран.
-3. Бюджеты внутри рендера: шагов (итерации циклов + вызовы) - `MAX_RENDER_STEPS`,
-   выведенных символов - `MAX_OUTPUT_CHARS`, длина любой строки/списка -
-   `MAX_VALUE_LEN`, разрядность целых - `MAX_INT_BITS`; предпроверки там, где одна
-   операция умножает объём (`*`, `**`, `+`, `%`-формат, ширины в `str.format`,
-   `join`/`replace`/`indent`/`wordwrap`, целые аргументы методов строк/списков и
-   фильтров до `MAX_INT_ARG`), и срок `RENDER_TIMEOUT_SECONDS`.
-4. Предохранитель: весь разбор и рендер идут в дочернем процессе (fork) с лимитами
-   процессорного времени и памяти; по истечении срока процесс убивается. Это
-   закрывает то, что не ловят бюджеты (одна тяжёлая C-операция и т.п.).
+   `.имя` - только ключи (не методы dict); `lipsum`, `tojson`, `pprint` убраны.
+3. Бюджеты внутри рендера (дают понятные сообщения для типичных случаев): шагов
+   (итерации циклов + вызовы) - `MAX_RENDER_STEPS`, выведенных символов -
+   `MAX_OUTPUT_CHARS`, длина строки/списка - `MAX_VALUE_LEN`, разрядность целых -
+   `MAX_INT_BITS`; предпроверки операций-умножителей и срок `RENDER_TIMEOUT_SECONDS`.
+4. Граница по РЕСУРСАМ (главная гарантия от DoS): разбор и рендер идут в дочернем
+   процессе (fork) с `RLIMIT_CPU` = `CHILD_CPU_SECONDS` и `RLIMIT_AS` = занятое +
+   `RENDER_MEMORY_BYTES`; родитель убивает его через `RENDER_KILL_SECONDS`. Если
+   лимиты установить нельзя (нет fork/resource, не читается /proc/self/statm,
+   setrlimit отказал) - отказ `render_unavailable` (503), а не рендер без защиты;
+   рендер в процессе разрешает только настройка
+   `DOCUMENTS_ALLOW_UNISOLATED_RENDER = True` (по умолчанию False).
 
 Ошибки шаблона превращаются в `DocumentError("template_invalid", <русское сообщение>)`
 без путей сервера и внутренностей Python.
@@ -31,15 +37,24 @@ Jinja-код. Поэтому защита многослойная:
 import functools
 import io
 import json
+import logging
 import os
 import re
 import select
 import signal
+import struct
 import time
 import warnings
 import zipfile
+import zlib
 from collections.abc import Mapping
 
+try:
+    import resource
+except ImportError:  # pragma: no cover - не POSIX
+    resource = None
+
+from django.conf import settings
 from docxtpl import DocxTemplate
 from jinja2 import (
     ChainableUndefined,
@@ -58,49 +73,73 @@ from lxml import etree
 from .catalog import sample_context
 from .errors import DocumentError
 
+logger = logging.getLogger("apps.documents.engine")
+
 # --- лимиты пакета -----------------------------------------------------------------------
 MAX_TEMPLATE_BYTES = 2 * 1024 * 1024
 MAX_UNPACKED_BYTES = 20 * 1024 * 1024
 MAX_MEMBER_BYTES = 10 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2000
 
-# --- лимиты рендера ----------------------------------------------------------------------
+# --- лимиты рендера внутри песочницы ------------------------------------------------------
 MAX_RENDER_STEPS = 200_000  # итерации всех циклов + вызовы (макросы, методы)
 MAX_OUTPUT_CHARS = 20_000_000  # все выведенные символы (с запасом на вложенные блоки)
 MAX_VALUE_LEN = 1_000_000  # длина любой строки/списка, получаемой в шаблоне
 MAX_INT_BITS = 10_000  # разрядность целых при `*` и `**`
 MAX_INT_ARG = 100_000  # целые аргументы методов строк/списков и фильтров (ширины, счётчики)
 MAX_FORMAT_WIDTH = 10_000  # ширина/точность в `%`-формате и `str.format`
-RENDER_TIMEOUT_SECONDS = 15  # срок рендера (бюджет внутри и убийство процесса снаружи)
-RENDER_MEMORY_BYTES = 512 * 1024 * 1024  # сверх уже занятого процессом адресного пространства
+RENDER_TIMEOUT_SECONDS = 4  # срок внутри песочницы (проверяется на каждом шаге)
+
+# --- ресурсы дочернего процесса рендера ----------------------------------------------------
+# Рассчитаны на контейнер backend 768 МБ с 3 воркерами: даже 3 одновременных вредных
+# загрузки не выводят cgroup за предел памяти, а воркер занят не дольше ~8 с.
+# Ограничение частоты загрузок/рендеров на компанию - задача слоя API.
+CHILD_CPU_SECONDS = 5  # RLIMIT_CPU дочернего процесса (SIGXCPU по истечении)
+RENDER_KILL_SECONDS = 8  # родитель убивает дочерний процесс (SIGKILL) по стенным часам
+RENDER_MEMORY_BYTES = 192 * 1024 * 1024  # RLIMIT_AS: сверх уже занятого адресного пространства
 MAX_RESULT_BYTES = 64 * 1024 * 1024  # готовый .docx из дочернего процесса
-RENDER_IN_SUBPROCESS = True
 
 _INVALID = "template_invalid"
 _MSG_NOT_DOCX = "Файл не является документом Word (.docx)."
+_MSG_CORRUPT = "Файл .docx повреждён."
 _MSG_TOO_COMPLEX = "Шаблон слишком сложный: превышены лимиты времени, памяти или объёма документа."
 _MSG_FORBIDDEN = "Шаблон использует запрещённую операцию."
 _MSG_GENERIC = "Не удалось обработать шаблон: проверьте метки и команды."
+_MSG_MACROS = "Шаблон содержит макросы: загрузите файл .docx без макросов."
+_MSG_EMBEDDED = (
+    "Шаблон содержит встроенные объекты (вложенные документы, OLE, элементы ActiveX): "
+    "удалите их и загрузите снова."
+)
+_MSG_DTD = "Документ содержит запрещённые объявления DTD/сущностей XML."
+_MSG_ENCODING = "Части документа должны быть в кодировке UTF-8."
+_MSG_UNAVAILABLE = "Сервис обработки шаблонов временно недоступен"
 
 _ALLOWED_COMPRESSION = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
 _REQUIRED_PARTS = ("[content_types].xml", "word/document.xml")
 _FORBIDDEN_CONTENT_TYPES = ("macroenabled", "vbaproject", "vbadata", "activex")
+_EMBEDDING_REL_SUFFIXES = ("/package", "/oleobject", "/control", "/afchunk")
+_EMBEDDED_MAGIC = (b"PK\x03\x04", b"PK\x05\x06", b"\xd0\xcf\x11\xe0")
 _DTD_RE = re.compile(rb"<!\s*(doctype|entity)", re.IGNORECASE)
 _DTD_TEXT_RE = re.compile(r"<!\s*(doctype|entity)", re.IGNORECASE)
-_UTF16_32_HEADS = (b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff", b"<\x00", b"\x00<")
+_XML_DECL_RE = re.compile(rb"^<\?xml\b[^>]*?\bencoding\s*=\s*[\"']([^\"']*)[\"']")
+_UTF8_NAMES = frozenset({"utf-8", "utf8", "us-ascii", "ascii"})
 _XML_SUFFIXES = (".xml", ".rels", ".vml", ".svg", ".xsd")
+_INFLATE_CHUNK = 64 * 1024
 _SAFE_XML_PARSER = etree.XMLParser(
     resolve_entities=False,
     no_network=True,
     load_dtd=False,
+    dtd_validation=False,
     huge_tree=False,
-    remove_comments=True,
-    remove_pis=True,
 )
 
 
 def _invalid(detail: str) -> DocumentError:
     return DocumentError(_INVALID, detail)
+
+
+def _unavailable() -> DocumentError:
+    return DocumentError("render_unavailable", _MSG_UNAVAILABLE, status_code=503)
 
 
 # =========================================================================================
@@ -120,41 +159,129 @@ def _check_member_name(name: str) -> None:
         raise _invalid("Недопустимое имя части в файле .docx.")
 
 
+def _is_embedded_part(key: str) -> bool:
+    return key.startswith("word/embeddings/") or "/embeddings/" in key or "activex" in key
+
+
 def _is_macro_part(key: str) -> bool:
     base = key.rsplit("/", 1)[-1]
-    return (
-        base.endswith(".bin")
-        or base in ("vbaproject.bin", "vbadata.xml")
-        or "activex/" in key
-        or key.startswith("activex")
-    )
+    return base.endswith(".bin") or base in ("vbaproject.bin", "vbadata.xml")
+
+
+def _inflate_member(data: bytes, info: zipfile.ZipInfo) -> bytes:
+    """Распаковать часть, не доверяя заголовку: вывод не больше заявленного + 1 байт.
+
+    `zipfile.read` в CPython распаковывает весь поток deflate до обрезки по заявленному
+    размеру (zip-бомба с лживым заголовком съедает память веб-процесса), поэтому здесь -
+    свой потоковый inflate с `max_length`, сверка размера, конца потока и CRC.
+    """
+    off = info.header_offset
+    head = data[off : off + 30]
+    if len(head) < 30 or head[:4] != b"PK\x03\x04":
+        raise _invalid(_MSG_CORRUPT)
+    name_len, extra_len = struct.unpack("<HH", head[26:30])
+    encoding = "utf-8" if info.flag_bits & 0x800 else "cp437"
+    try:
+        expected_name = info.orig_filename.encode(encoding)
+    except UnicodeEncodeError as exc:
+        raise _invalid(_MSG_CORRUPT) from exc
+    if data[off + 30 : off + 30 + name_len] != expected_name:
+        raise _invalid(_MSG_CORRUPT)
+    start = off + 30 + name_len + extra_len
+    raw = memoryview(data)[start : start + info.compress_size]
+    if len(raw) != info.compress_size:
+        raise _invalid(_MSG_CORRUPT)
+    limit = info.file_size
+    if info.compress_type == zipfile.ZIP_STORED:
+        out = bytes(raw)
+    else:
+        inflater = zlib.decompressobj(-15)
+        buf = bytearray()
+        try:
+            for pos in range(0, len(raw), _INFLATE_CHUNK):
+                pending = bytes(raw[pos : pos + _INFLATE_CHUNK])
+                while pending and not inflater.eof:
+                    buf += inflater.decompress(pending, limit - len(buf) + 1)
+                    if len(buf) > limit:
+                        raise _invalid(
+                            "Файл .docx повреждён: размер части не совпадает с заголовком."
+                        )
+                    pending = inflater.unconsumed_tail
+                if inflater.eof:
+                    break
+        except zlib.error as exc:
+            raise _invalid(_MSG_CORRUPT) from exc
+        if not inflater.eof:
+            raise _invalid(_MSG_CORRUPT)
+        out = bytes(buf)
+    if len(out) != limit or zlib.crc32(out) != info.CRC:
+        raise _invalid(_MSG_CORRUPT)
+    return out
 
 
 def _parse_xml(content: bytes):
     try:
-        return etree.fromstring(content, parser=_SAFE_XML_PARSER)
+        root = etree.fromstring(content, parser=_SAFE_XML_PARSER)
     except (etree.XMLSyntaxError, ValueError) as exc:
         raise _invalid("Файл повреждён: часть документа не является корректным XML.") from exc
+    docinfo = root.getroottree().docinfo
+    if docinfo.doctype or docinfo.internalDTD is not None or docinfo.externalDTD is not None:
+        raise _invalid(_MSG_DTD)
+    if next(root.iter(etree.Entity), None) is not None:
+        raise _invalid(_MSG_DTD)
+    return root
 
 
-def _check_member_content(key: str, content: bytes) -> None:
-    if content.startswith(_UTF16_32_HEADS) or (key.endswith(_XML_SUFFIXES) and b"\x00" in content):
-        raise _invalid("Части документа должны быть в кодировке UTF-8.")
+def _content_types(content: bytes) -> tuple[dict, dict]:
+    defaults, overrides = {}, {}
+    for el in _parse_xml(content).iter():
+        ctype = (el.get("ContentType") or "").lower()
+        if any(bad in ctype for bad in _FORBIDDEN_CONTENT_TYPES):
+            raise _invalid(_MSG_MACROS)
+        if el.get("Extension") is not None:
+            defaults[el.get("Extension").lower()] = ctype
+        elif el.get("PartName") is not None:
+            overrides[el.get("PartName").lstrip("/").lower()] = ctype
+    return defaults, overrides
+
+
+def _check_xml_encoding(content: bytes) -> None:
+    body = content[3:] if content.startswith(b"\xef\xbb\xbf") else content
+    if not body.lstrip(b" \t\r\n").startswith(b"<") or b"\x00" in body:
+        raise _invalid(_MSG_ENCODING)
+    decl = _XML_DECL_RE.match(body.lstrip(b" \t\r\n"))
+    if decl and decl.group(1).decode("ascii", "replace").strip().lower() not in _UTF8_NAMES:
+        raise _invalid(_MSG_ENCODING)
+    try:
+        body.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise _invalid(_MSG_ENCODING) from exc
+
+
+def _check_member_content(key: str, content: bytes, ctype: str) -> None:
     if _DTD_RE.search(content):
-        raise _invalid("Документ содержит запрещённые объявления DTD/сущностей XML.")
+        raise _invalid(_MSG_DTD)
+    if content.startswith(_EMBEDDED_MAGIC):  # вложенный zip (docx/xlsx...) или OLE
+        raise _invalid(_MSG_EMBEDDED)
+    is_xml = key.endswith(_XML_SUFFIXES) or "xml" in ctype
+    if not is_xml and content.startswith((b"\xff\xfe", b"\xfe\xff", b"<\x00", b"\x00<")):
+        is_xml = True  # XML в UTF-16 под чужим расширением
+    if not is_xml and content.lstrip()[:1] == b"<":
+        is_xml = True
+    if not is_xml:
+        return
+    _check_xml_encoding(content)
+    root = _parse_xml(content)
     if key.endswith(".rels"):
-        for el in _parse_xml(content).iter():
+        for el in root.iter():
             if (el.get("TargetMode") or "").strip().lower() == "external":
                 raise _invalid("Шаблон содержит внешние ссылки (связанные файлы, шаблоны).")
-    elif key == "[content_types].xml":
-        for el in _parse_xml(content).iter():
-            ctype = (el.get("ContentType") or "").lower()
-            if any(bad in ctype for bad in _FORBIDDEN_CONTENT_TYPES):
-                raise _invalid("Шаблон содержит макросы: загрузите файл .docx без макросов.")
+            if (el.get("Type") or "").strip().lower().endswith(_EMBEDDING_REL_SUFFIXES):
+                raise _invalid(_MSG_EMBEDDED)
 
 
 def _check_package(data: bytes) -> None:
-    """Проверить zip/OOXML-пакет. Размеры - по каталогу zip до распаковки."""
+    """Проверить zip/OOXML-пакет; ни одна часть не распаковывается сверх заявленного."""
     if len(data) > MAX_TEMPLATE_BYTES:
         raise DocumentError("template_too_large", "Файл шаблона больше 2 МБ.")
     try:
@@ -163,37 +290,38 @@ def _check_package(data: bytes) -> None:
         raise _invalid(_MSG_NOT_DOCX) from exc
     with zf:
         infos = zf.infolist()
-        if len(infos) > MAX_ZIP_ENTRIES:
-            raise _invalid("В файле .docx слишком много частей.")
-        seen: set[str] = set()
-        total = 0
-        for info in infos:
-            _check_member_name(info.filename)
-            key = info.filename.lower()
-            if key in seen:
-                raise _invalid("Файл .docx содержит повторяющиеся части.")
-            seen.add(key)
-            if info.flag_bits & 0x1:
-                raise _invalid("Файл .docx зашифрован: снимите пароль и загрузите снова.")
-            if info.compress_type not in _ALLOWED_COMPRESSION:
-                raise _invalid("Файл .docx сжат неподдерживаемым методом.")
-            total += info.file_size
-            if info.file_size > MAX_MEMBER_BYTES or total > MAX_UNPACKED_BYTES:
-                raise _invalid("Файл .docx слишком велик в распакованном виде (больше 20 МБ).")
-            if _is_macro_part(key):
-                raise _invalid("Шаблон содержит макросы: загрузите файл .docx без макросов.")
-        if any(part not in seen for part in _REQUIRED_PARTS):
-            raise _invalid("Файл повреждён: нет обязательных частей документа Word.")
-        for info in infos:
-            if info.is_dir():
-                continue
-            try:
-                content = zf.read(info)
-            except (zipfile.BadZipFile, OSError, RuntimeError, ValueError, EOFError) as exc:
-                raise _invalid("Файл .docx повреждён.") from exc
-            except Exception as exc:  # zlib.error и прочие ошибки распаковки
-                raise _invalid("Файл .docx повреждён.") from exc
-            _check_member_content(info.filename.lower(), content)
+    if len(infos) > MAX_ZIP_ENTRIES:
+        raise _invalid("В файле .docx слишком много частей.")
+    seen: dict[str, zipfile.ZipInfo] = {}
+    total = 0
+    for info in infos:
+        _check_member_name(info.filename)
+        key = info.filename.lower()
+        if key in seen:
+            raise _invalid("Файл .docx содержит повторяющиеся части.")
+        seen[key] = info
+        if info.flag_bits & 0x1:
+            raise _invalid("Файл .docx зашифрован: снимите пароль и загрузите снова.")
+        if info.compress_type not in _ALLOWED_COMPRESSION:
+            raise _invalid("Файл .docx сжат неподдерживаемым методом.")
+        total += info.file_size
+        if info.file_size > MAX_MEMBER_BYTES or total > MAX_UNPACKED_BYTES:
+            raise _invalid("Файл .docx слишком велик в распакованном виде (больше 20 МБ).")
+        if _is_embedded_part(key):
+            raise _invalid(_MSG_EMBEDDED)
+        if _is_macro_part(key):
+            raise _invalid(_MSG_MACROS)
+    if any(part not in seen for part in _REQUIRED_PARTS):
+        raise _invalid("Файл повреждён: нет обязательных частей документа Word.")
+    ct_content = _inflate_member(data, seen["[content_types].xml"])
+    _check_member_content("[content_types].xml", ct_content, "xml")
+    defaults, overrides = _content_types(ct_content)
+    for key, info in seen.items():
+        if info.is_dir() or key == "[content_types].xml":
+            continue
+        ext = key.rsplit(".", 1)[-1] if "." in key.rsplit("/", 1)[-1] else ""
+        ctype = overrides.get(key) or defaults.get(ext, "")
+        _check_member_content(key, _inflate_member(data, info), ctype)
 
 
 # =========================================================================================
@@ -416,6 +544,8 @@ class _SandboxEnv(ImmutableSandboxedEnvironment):
             finalize=_finalize,
         )
         self.globals.pop("lipsum", None)
+        for name in ("tojson", "pprint"):  # шаблонам не нужны; тяжёлые на больших данных
+            self.filters.pop(name, None)
         self.filters = {name: _guard_filter(name, f) for name, f in self.filters.items()}
         self.lx_steps = 0
         self.lx_output = 0
@@ -554,20 +684,35 @@ def _render_in_process(data: bytes, context: dict, strict: bool) -> bytes:
 # =========================================================================================
 
 
-def _limit_child_resources() -> None:
-    try:
-        import resource
-    except ImportError:  # pragma: no cover - не POSIX
-        return
-    cpu = int(RENDER_TIMEOUT_SECONDS) + 2
-    _soft, hard = resource.getrlimit(resource.RLIMIT_CPU)
-    if hard == resource.RLIM_INFINITY or hard > cpu:
-        resource.setrlimit(resource.RLIMIT_CPU, (cpu, hard))
+class _IsolationError(Exception):
+    """Не удалось установить лимиты дочернего процесса: рендерить нельзя."""
+
+
+def _allow_unisolated() -> bool:
+    return bool(getattr(settings, "DOCUMENTS_ALLOW_UNISOLATED_RENDER", False))
+
+
+def _address_space_used() -> int | None:
+    """Занятое процессом адресное пространство (байт) или None, если узнать нельзя."""
     try:
         with open("/proc/self/statm") as fh:
-            used = int(fh.read().split()[0]) * os.sysconf("SC_PAGE_SIZE")
+            return int(fh.read().split()[0]) * os.sysconf("SC_PAGE_SIZE")
     except (OSError, ValueError, IndexError):
-        return
+        return None
+
+
+def _limit_child_resources() -> None:
+    """Лимиты CPU и памяти; если хоть один не установлен - `_IsolationError`."""
+    if resource is None:
+        raise _IsolationError("resource")
+    used = _address_space_used()
+    if used is None:
+        raise _IsolationError("statm")
+    # мягкий предел шлёт SIGXCPU (завершение), жёсткий на секунду позже - SIGKILL
+    _soft, hard = resource.getrlimit(resource.RLIMIT_CPU)
+    if hard == resource.RLIM_INFINITY or hard > CHILD_CPU_SECONDS + 1:
+        hard = CHILD_CPU_SECONDS + 1
+    resource.setrlimit(resource.RLIMIT_CPU, (min(CHILD_CPU_SECONDS, hard), hard))
     limit = used + RENDER_MEMORY_BYTES
     _soft, hard = resource.getrlimit(resource.RLIMIT_AS)
     if hard != resource.RLIM_INFINITY:
@@ -576,34 +721,58 @@ def _limit_child_resources() -> None:
 
 
 def _child_payload(func, args) -> bytes:
+    """Результат дочернего процесса: b"O"+байты, b"E"+json ошибки, b"U"+json отказа лимитов."""
+    try:
+        _limit_child_resources()
+    except BaseException as exc:
+        info = {"error": type(exc).__name__, "phase": "limits"}
+        return b"U" + json.dumps(info).encode()
     try:
         return b"O" + bytes(func(*args) or b"")
     except DocumentError as exc:
         info = {"code": exc.get_codes(), "detail": str(exc.detail)}
     except MemoryError:
         info = {"code": _INVALID, "detail": _MSG_TOO_COMPLEX}
-    except BaseException:
-        info = {"code": _INVALID, "detail": _MSG_GENERIC}
+    except BaseException as exc:
+        info = {
+            "code": _INVALID,
+            "detail": _MSG_GENERIC,
+            "error": type(exc).__name__,
+            "phase": "render",
+        }
     return b"E" + json.dumps(info, ensure_ascii=False).encode()
 
 
 def _isolated(func, *args):
-    """Выполнить `func(*args)` в дочернем процессе с лимитами времени и памяти.
+    """Выполнить `func(*args)` в дочернем процессе с лимитами процессора и памяти.
 
-    Результат - bytes (или b"" для None); `DocumentError` передаётся родителю.
-    Если процесс не уложился в срок или умер - `template_invalid`.
+    Результат - bytes (b"" для None); `DocumentError` передаётся родителю. Не уложился
+    в срок или умер - `template_invalid`; лимиты/fork недоступны - `render_unavailable`.
+    В журнал попадают только фаза и класс ошибки, но не текст шаблона.
     """
-    if not RENDER_IN_SUBPROCESS or not hasattr(os, "fork"):
-        return func(*args)
-    read_fd, write_fd = os.pipe()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)  # fork в многопоточном процессе
-        pid = os.fork()
+    if resource is None or not hasattr(os, "fork"):
+        if _allow_unisolated():
+            return func(*args)
+        logger.error("template render isolation unavailable: phase=platform")
+        raise _unavailable()
+    try:
+        read_fd, write_fd = os.pipe()
+    except OSError as exc:
+        logger.error("template render isolation failed: phase=pipe error=%s", type(exc).__name__)
+        raise _unavailable() from exc
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)  # fork в многопоточном процессе
+            pid = os.fork()
+    except OSError as exc:
+        os.close(read_fd)
+        os.close(write_fd)
+        logger.error("template render isolation failed: phase=fork error=%s", type(exc).__name__)
+        raise _unavailable() from exc
     if pid == 0:  # pragma: no cover - дочерний процесс
         status = 1
         try:
             os.close(read_fd)
-            _limit_child_resources()
             payload = _child_payload(func, args)
             with os.fdopen(write_fd, "wb") as fh:
                 fh.write(payload)
@@ -615,7 +784,7 @@ def _isolated(func, *args):
     chunks: list[bytes] = []
     size = 0
     finished = False
-    deadline = time.monotonic() + RENDER_TIMEOUT_SECONDS + 2
+    deadline = time.monotonic() + RENDER_KILL_SECONDS
     try:
         while True:
             remaining = deadline - time.monotonic()
@@ -641,16 +810,32 @@ def _isolated(func, *args):
                 pass
         _, status = os.waitpid(pid, 0)
     payload = b"".join(chunks)
-    if not finished or os.waitstatus_to_exitcode(status) != 0 or not payload:
+    exit_code = os.waitstatus_to_exitcode(status)
+    if not finished or exit_code != 0 or not payload:
+        phase = "timeout" if not finished else "exit"
+        logger.warning("template render child stopped: phase=%s exit=%s", phase, exit_code)
         raise _invalid(_MSG_TOO_COMPLEX)
-    if payload[:1] == b"O":
-        return payload[1:]
+    kind, body = payload[:1], payload[1:]
+    if kind == b"O":
+        return body
     try:
-        info = json.loads(payload[1:])
-        code, detail = str(info["code"]), str(info["detail"])
-    except (ValueError, KeyError, TypeError):
-        code, detail = _INVALID, _MSG_GENERIC
-    raise DocumentError(code, detail)
+        info = json.loads(body)
+    except ValueError:
+        info = {}
+    if kind == b"U":
+        logger.error(
+            "template render isolation failed: phase=%s error=%s",
+            info.get("phase", "limits"),
+            info.get("error", "?"),
+        )
+        raise _unavailable()
+    if info.get("error"):
+        logger.warning(
+            "template render failed in child: phase=%s error=%s",
+            info.get("phase", "render"),
+            info["error"],
+        )
+    raise DocumentError(str(info.get("code", _INVALID)), str(info.get("detail", _MSG_GENERIC)))
 
 
 # =========================================================================================
