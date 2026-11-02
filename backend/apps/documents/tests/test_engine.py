@@ -331,35 +331,38 @@ def test_zip_bomb_with_lying_header_rejected(crc_ok):
     assert_render_invalid(data, CORRUPT)
 
 
-def test_zip_bomb_with_lying_header_does_not_inflate_memory(tmp_path):
-    """300 МБ нулей под заголовком «10 байт»: отказ без роста памяти веб-процесса.
-
-    Меряем в отдельном процессе: пик RSS (ru_maxrss) до и после проверки.
+_MEASURE_SCRIPT = textwrap.dedent(
     """
-    path = tmp_path / "bomb.docx"
-    path.write_bytes(lying_bomb(300, True))
-    script = textwrap.dedent(
-        """
-        import os, resource, sys, time, django
-        os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_test"
-        os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret-key-0123456789-abcdefghijklmnop")
-        django.setup()
-        from apps.documents import engine
-        from apps.documents.errors import DocumentError
-        data = open(sys.argv[1], "rb").read()
-        before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        t = time.monotonic()
-        try:
-            engine.validate_upload(data, "order_request")
-            print("ACCEPTED")
-        except DocumentError as exc:
-            print("REJECTED", exc.detail)
-        grown = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - before
-        print("GROWN_MB", grown // 1024, "SECONDS", round(time.monotonic() - t, 2))
-        """
-    )
+    import os, resource, sys, time, django
+    os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_test"
+    os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret-key-0123456789-abcdefghijklmnop")
+    django.setup()
+    from apps.documents import engine
+    from apps.documents.errors import DocumentError
+    data = open(sys.argv[1], "rb").read()
+    before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    t = time.monotonic()
+    try:
+        engine.validate_upload(data, "order_request")
+        print("ACCEPTED")
+    except DocumentError as exc:
+        print("REJECTED", exc.detail)
+    grown = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - before
+    print("GROWN_MB", grown // 1024, "SECONDS", round(time.monotonic() - t, 2))
+    """
+)
+
+
+def validate_in_subprocess(tmp_path, data):
+    """validate_upload в отдельном процессе: (первая строка вывода, рост пика RSS в МБ, секунды).
+
+    ru_maxrss веб-процесса не включает дочерний процесс рендера - меряется именно
+    память того процесса, что вызвал validate_upload.
+    """
+    path = tmp_path / "upload.docx"
+    path.write_bytes(data)
     proc = subprocess.run(
-        [sys.executable, "-c", script, str(path)],
+        [sys.executable, "-c", _MEASURE_SCRIPT, str(path)],
         cwd=BACKEND_DIR,
         capture_output=True,
         text=True,
@@ -367,11 +370,75 @@ def test_zip_bomb_with_lying_header_does_not_inflate_memory(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     lines = proc.stdout.split("\n")
-    assert lines[0].startswith("REJECTED") and CORRUPT in lines[0], proc.stdout
-    grown_mb = int(lines[1].split()[1])
-    seconds = float(lines[1].split()[3])
-    assert grown_mb < 40, proc.stdout
-    assert seconds < 5, proc.stdout
+    stats = lines[1].split()
+    return lines[0], int(stats[1]), float(stats[3])
+
+
+def test_zip_bomb_with_lying_header_does_not_inflate_memory(tmp_path):
+    """300 МБ нулей под заголовком «10 байт»: отказ без роста памяти веб-процесса."""
+    outcome, grown_mb, seconds = validate_in_subprocess(tmp_path, lying_bomb(300, True))
+    assert outcome.startswith("REJECTED") and CORRUPT in outcome, outcome
+    assert grown_mb < 40, grown_mb
+    assert seconds < 5, seconds
+
+
+XML_COMPLEX = "элементов XML"
+XML_AMPLIFIERS = {
+    "elements": b"<a/>",
+    "attributes": b'<a b="" c="" d="" e="" f="" g="" h=""/>',
+    "text": b"<a>x</a>",
+    "pi": b"<?a?>",
+    "comments": b"<!---->",
+}
+
+
+def xml_amplifier_docx(body):
+    """Две XML-части почти по пределу части: мелкие узлы, честные заголовки zip."""
+    limit = engine.MAX_MEMBER_BYTES - 500_000
+    head = (
+        b'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.'
+        b'openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+    )
+    tail = b"</w:body></w:document>"
+    doc = head + body * ((limit - len(head) - len(tail)) // len(body)) + tail
+    junk = b"<x>" + body * ((limit - 10) // len(body)) + b"</x>"
+    return make_docx(extra_parts={"word/document.xml": doc, "word/media/junk.xml": junk})
+
+
+@pytest.mark.parametrize("shape", sorted(XML_AMPLIFIERS))
+def test_xml_amplifier_does_not_inflate_web_process(shape, tmp_path):
+    """Миллионы узлов XML: отказ с понятной причиной, память веб-процесса не растёт.
+
+    Разбор XML идёт в дочернем процессе с лимитами, потоково и со счётчиком узлов.
+    """
+    data = xml_amplifier_docx(XML_AMPLIFIERS[shape])
+    assert len(data) < engine.MAX_TEMPLATE_BYTES
+    outcome, grown_mb, seconds = validate_in_subprocess(tmp_path, data)
+    assert outcome.startswith("REJECTED") and XML_COMPLEX in outcome, outcome
+    assert grown_mb < 50, grown_mb
+    assert seconds < engine.RENDER_KILL_SECONDS + 2, seconds
+
+
+@pytest.mark.parametrize("shape", sorted(XML_AMPLIFIERS))
+def test_xml_amplifier_rejected_by_node_budget(shape, monkeypatch, settings):
+    # та же причина и без дочернего процесса: счётчик узлов, а не нехватка памяти
+    monkeypatch.setattr(engine, "resource", None)
+    settings.DOCUMENTS_ALLOW_UNISOLATED_RENDER = True
+    assert_invalid(xml_amplifier_docx(XML_AMPLIFIERS[shape]), XML_COMPLEX)
+
+
+def test_web_process_does_not_parse_xml(monkeypatch):
+    """В веб-процессе проверяется только каталог zip; lxml-разбор - только в дочернем."""
+    calls = []
+    real = engine._scan_xml
+
+    def spy(*args, **kwargs):
+        calls.append(os.getpid())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(engine, "_scan_xml", spy)
+    engine.validate_upload(make_docx(), KIND)
+    assert os.getpid() not in calls
 
 
 XXE = (
@@ -540,6 +607,44 @@ def test_ole_magic_outside_embeddings_rejected():
 def test_embedding_relationship_rejected(rel_type):
     data = add_relationship(make_docx(), rel_type, "media/whatever.dat")
     assert_invalid(data, EMBEDDED)
+
+
+# --- двоичные части OOXML с типом содержимого "openxml" не являются XML -------------------
+
+FONT_CT = (
+    '<Default Extension="odttf" '
+    'ContentType="application/vnd.openxmlformats-officedocument.obfuscatedFont"/></Types>'
+)
+SIGS_CT = (
+    '<Default Extension="sigs" '
+    'ContentType="application/vnd.openxmlformats-package.digital-signature-origin"/></Types>'
+)
+
+
+def test_embedded_font_passes_and_renders():
+    font = bytes(range(256)) * 40  # двоичные байты, не UTF-8, есть NUL
+    data = make_docx(extra_parts={"word/fonts/font1.odttf": font})
+    data = patch_part(data, "[Content_Types].xml", "</Types>", FONT_CT)
+    engine.validate_upload(data, KIND)
+    out = engine.render_docx(data, sample_context(KIND))
+    assert sample_context(KIND)["order"]["number"] in docx_text(out)
+
+
+def test_empty_signature_origin_passes():
+    data = make_docx(extra_parts={"_xmlsignatures/origin.sigs": b""})
+    data = patch_part(data, "[Content_Types].xml", "</Types>", SIGS_CT)
+    engine.validate_upload(data, KIND)
+
+
+def test_utf7_xml_part_still_rejected_next_to_font():
+    data = make_docx(
+        extra_parts={
+            "word/fonts/font1.odttf": bytes(range(256)),
+            "word/document.xml": _dtd_document("UTF-7"),
+        }
+    )
+    data = patch_part(data, "[Content_Types].xml", "</Types>", FONT_CT)
+    assert_invalid(data, ENCODING)
 
 
 # --- песочница Jinja: дополнительные угрозы -----------------------------------------------

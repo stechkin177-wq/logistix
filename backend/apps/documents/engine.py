@@ -3,17 +3,20 @@
 Шаблоны загружают пользователи компаний, а сервер исполняет содержащийся в них
 Jinja-код. Поэтому защита многослойная:
 
-1. Пакет (zip/OOXML) проверяется в веб-процессе БЕЗ `zipfile.read`: сначала каталог
-   zip (размер файла, число частей, заявленный размер каждой части и их сумма, имена
-   без `..`/абсолютных путей/`\\`, без шифрования, только stored/deflate), затем
-   каждая часть распаковывается собственным потоковым inflate с пределом
-   «заявленный размер + 1»: лживый заголовок (zip-бомба) обрывается на первых
-   килобайтах, а итог сверяется с заявленным размером и CRC. Запрещены макросы
-   (`*.bin`, `vbaProject`, ActiveX, macroEnabled типы), встроенные пакеты и
-   OLE-объекты (`word/embeddings/`, связи package/oleObject/control/aFChunk,
+1. Пакет (zip/OOXML). В веб-процессе - только каталог zip (`_check_directory`, без
+   распаковки): размер файла, число частей, заявленный размер каждой части и их сумма,
+   имена (без `..`/абсолютных путей/`\\`), без шифрования, только stored/deflate, нет
+   частей макросов/встроенных объектов. Всё, что тратит память по содержимому
+   (распаковка, разбор XML), идёт в дочернем процессе с лимитами (`_check_package`):
+   собственный потоковый inflate с пределом «заявленный размер + 1» (лживый заголовок
+   обрывается на первых килобайтах; итог сверяется с размером и CRC); XML - только
+   UTF-8 (и объявленная кодировка), без DTD/сущностей, потоковый разбор `iterparse`
+   с удалением разобранных узлов и общим бюджетом `MAX_XML_NODES`. XML-часть
+   определяется по типу содержимого (`+xml`, application/xml, text/xml), а без типа -
+   по расширению/содержимому; двоичные части OOXML (шрифты, подписи) не проверяются
+   как XML. Запрещены макросы (`*.bin`, `vbaProject`, macroEnabled типы), встроенные
+   пакеты и OLE (`embeddings/`, ActiveX, связи package/oleObject/control/aFChunk,
    вложенный zip/OLE по сигнатуре), внешние связи (`TargetMode="External"`).
-   XML-части - только UTF-8 (объявленная кодировка тоже), без DTD и сущностей
-   (поиск `<!DOCTYPE`/`<!ENTITY` и разбор защищённым парсером с проверкой docinfo).
 2. Jinja исполняется только в `ImmutableSandboxedEnvironment` без загрузчика:
    `include`/`import`/`extends` запрещены ещё при разборе; обращение к
    небезопасному атрибуту сразу даёт ошибку (а не пустую строку); у словарей
@@ -80,6 +83,7 @@ MAX_TEMPLATE_BYTES = 2 * 1024 * 1024
 MAX_UNPACKED_BYTES = 20 * 1024 * 1024
 MAX_MEMBER_BYTES = 10 * 1024 * 1024
 MAX_ZIP_ENTRIES = 2000
+MAX_XML_NODES = 1_000_000  # узлы XML (элементы+атрибуты+комментарии+PI) во всём пакете
 
 # --- лимиты рендера внутри песочницы ------------------------------------------------------
 MAX_RENDER_STEPS = 200_000  # итерации всех циклов + вызовы (макросы, методы)
@@ -111,6 +115,7 @@ _MSG_EMBEDDED = (
     "удалите их и загрузите снова."
 )
 _MSG_DTD = "Документ содержит запрещённые объявления DTD/сущностей XML."
+_MSG_XML_COMPLEX = "Часть документа слишком сложная: слишком много элементов XML."
 _MSG_ENCODING = "Части документа должны быть в кодировке UTF-8."
 _MSG_UNAVAILABLE = "Сервис обработки шаблонов временно недоступен"
 
@@ -125,13 +130,6 @@ _XML_DECL_RE = re.compile(rb"^<\?xml\b[^>]*?\bencoding\s*=\s*[\"']([^\"']*)[\"']
 _UTF8_NAMES = frozenset({"utf-8", "utf8", "us-ascii", "ascii"})
 _XML_SUFFIXES = (".xml", ".rels", ".vml", ".svg", ".xsd")
 _INFLATE_CHUNK = 64 * 1024
-_SAFE_XML_PARSER = etree.XMLParser(
-    resolve_entities=False,
-    no_network=True,
-    load_dtd=False,
-    dtd_validation=False,
-    huge_tree=False,
-)
 
 
 def _invalid(detail: str) -> DocumentError:
@@ -219,30 +217,67 @@ def _inflate_member(data: bytes, info: zipfile.ZipInfo) -> bytes:
     return out
 
 
-def _parse_xml(content: bytes):
+class _XmlBudget:
+    """Общий на весь пакет счётчик узлов XML (элементы, атрибуты, комментарии, PI)."""
+
+    def __init__(self):
+        self.nodes = 0
+
+    def add(self, count: int) -> None:
+        self.nodes += count
+        if self.nodes > MAX_XML_NODES:
+            raise _invalid(_MSG_XML_COMPLEX)
+
+
+def _scan_xml(content: bytes, budget: _XmlBudget, on_start=None) -> None:
+    """Потоково разобрать XML защищённым парсером, не держа дерево в памяти.
+
+    Каждый узел (элемент, атрибут, комментарий, PI) тратит бюджет `MAX_XML_NODES`;
+    обработанные элементы сразу удаляются. DTD (docinfo) и неизвестные сущности -
+    отказ. `on_start(element)` вызывается для каждого открытого элемента.
+    """
+    events = etree.iterparse(
+        io.BytesIO(content),
+        events=("start", "end", "comment", "pi"),
+        resolve_entities=False,
+        no_network=True,
+        load_dtd=False,
+        dtd_validation=False,
+        huge_tree=False,
+    )
+    root = None
     try:
-        root = etree.fromstring(content, parser=_SAFE_XML_PARSER)
-    except (etree.XMLSyntaxError, ValueError) as exc:
+        for event, el in events:
+            if event == "end":
+                el.clear()
+                parent = el.getparent()
+                if parent is not None:
+                    while el.getprevious() is not None:
+                        del parent[0]
+                continue
+            if event == "start":
+                budget.add(1 + len(el.attrib))
+                if root is None:
+                    root = el
+                if on_start is not None:
+                    on_start(el)
+            else:  # comment / pi
+                budget.add(1)
+                parent = el.getparent()
+                if parent is not None and el.getprevious() is not None:
+                    while el.getprevious() is not None:
+                        del parent[0]
+    except etree.XMLSyntaxError as exc:
         raise _invalid("Файл повреждён: часть документа не является корректным XML.") from exc
+    if root is None:
+        raise _invalid("Файл повреждён: часть документа не является корректным XML.")
     docinfo = root.getroottree().docinfo
     if docinfo.doctype or docinfo.internalDTD is not None or docinfo.externalDTD is not None:
         raise _invalid(_MSG_DTD)
-    if next(root.iter(etree.Entity), None) is not None:
-        raise _invalid(_MSG_DTD)
-    return root
 
 
-def _content_types(content: bytes) -> tuple[dict, dict]:
-    defaults, overrides = {}, {}
-    for el in _parse_xml(content).iter():
-        ctype = (el.get("ContentType") or "").lower()
-        if any(bad in ctype for bad in _FORBIDDEN_CONTENT_TYPES):
-            raise _invalid(_MSG_MACROS)
-        if el.get("Extension") is not None:
-            defaults[el.get("Extension").lower()] = ctype
-        elif el.get("PartName") is not None:
-            overrides[el.get("PartName").lstrip("/").lower()] = ctype
-    return defaults, overrides
+def _is_xml_type(ctype: str) -> bool:
+    return ctype.endswith("+xml") or ctype in ("application/xml", "text/xml")
 
 
 def _check_xml_encoding(content: bytes) -> None:
@@ -258,30 +293,56 @@ def _check_xml_encoding(content: bytes) -> None:
         raise _invalid(_MSG_ENCODING) from exc
 
 
-def _check_member_content(key: str, content: bytes, ctype: str) -> None:
+def _check_rel(el) -> None:
+    if (el.get("TargetMode") or "").strip().lower() == "external":
+        raise _invalid("Шаблон содержит внешние ссылки (связанные файлы, шаблоны).")
+    if (el.get("Type") or "").strip().lower().endswith(_EMBEDDING_REL_SUFFIXES):
+        raise _invalid(_MSG_EMBEDDED)
+
+
+def _check_member_content(key: str, content: bytes, ctype: str, budget: _XmlBudget) -> None:
     if _DTD_RE.search(content):
         raise _invalid(_MSG_DTD)
     if content.startswith(_EMBEDDED_MAGIC):  # вложенный zip (docx/xlsx...) или OLE
         raise _invalid(_MSG_EMBEDDED)
-    is_xml = key.endswith(_XML_SUFFIXES) or "xml" in ctype
-    if not is_xml and content.startswith((b"\xff\xfe", b"\xfe\xff", b"<\x00", b"\x00<")):
-        is_xml = True  # XML в UTF-16 под чужим расширением
-    if not is_xml and content.lstrip()[:1] == b"<":
-        is_xml = True
+    if ctype:
+        # XML - только по типу содержимого (`+xml`, application/xml, text/xml); подстрока
+        # "xml" встречается и у двоичных частей (obfuscatedFont, digital-signature-origin)
+        is_xml = _is_xml_type(ctype)
+    else:
+        # тип не объявлен: по расширению или по началу содержимого (в т.ч. UTF-16)
+        is_xml = (
+            key.endswith(_XML_SUFFIXES)
+            or content.lstrip()[:1] == b"<"
+            or content.startswith((b"\xff\xfe", b"\xfe\xff", b"<\x00", b"\x00<"))
+        )
     if not is_xml:
         return
     _check_xml_encoding(content)
-    root = _parse_xml(content)
-    if key.endswith(".rels"):
-        for el in root.iter():
-            if (el.get("TargetMode") or "").strip().lower() == "external":
-                raise _invalid("Шаблон содержит внешние ссылки (связанные файлы, шаблоны).")
-            if (el.get("Type") or "").strip().lower().endswith(_EMBEDDING_REL_SUFFIXES):
-                raise _invalid(_MSG_EMBEDDED)
+    _scan_xml(content, budget, _check_rel if key.endswith(".rels") else None)
 
 
-def _check_package(data: bytes) -> None:
-    """Проверить zip/OOXML-пакет; ни одна часть не распаковывается сверх заявленного."""
+def _content_types(content: bytes, budget: _XmlBudget) -> tuple[dict, dict]:
+    defaults, overrides = {}, {}
+
+    def collect(el) -> None:
+        ctype = (el.get("ContentType") or "").strip().lower()
+        if any(bad in ctype for bad in _FORBIDDEN_CONTENT_TYPES):
+            raise _invalid(_MSG_MACROS)
+        if el.get("Extension") is not None:
+            defaults[el.get("Extension").lower()] = ctype
+        elif el.get("PartName") is not None:
+            overrides[el.get("PartName").lstrip("/").lower()] = ctype
+
+    if _DTD_RE.search(content):
+        raise _invalid(_MSG_DTD)
+    _check_xml_encoding(content)
+    _scan_xml(content, budget, collect)
+    return defaults, overrides
+
+
+def _check_directory(data: bytes) -> dict[str, zipfile.ZipInfo]:
+    """Проверить каталог zip, ничего не распаковывая (дёшево; выполняется в веб-процессе)."""
     if len(data) > MAX_TEMPLATE_BYTES:
         raise DocumentError("template_too_large", "Файл шаблона больше 2 МБ.")
     try:
@@ -313,15 +374,26 @@ def _check_package(data: bytes) -> None:
             raise _invalid(_MSG_MACROS)
     if any(part not in seen for part in _REQUIRED_PARTS):
         raise _invalid("Файл повреждён: нет обязательных частей документа Word.")
-    ct_content = _inflate_member(data, seen["[content_types].xml"])
-    _check_member_content("[content_types].xml", ct_content, "xml")
-    defaults, overrides = _content_types(ct_content)
+    return seen
+
+
+def _check_package(data: bytes) -> None:
+    """Полная проверка пакета: каталог, затем распаковка и разбор каждой части.
+
+    Распаковка и разбор XML тратят память пропорционально содержимому, поэтому
+    `validate_upload`/`render_docx` вызывают это только в изолированном дочернем
+    процессе; веб-процесс выполняет лишь `_check_directory`.
+    """
+    seen = _check_directory(data)
+    budget = _XmlBudget()
+    defaults, overrides = _content_types(_inflate_member(data, seen["[content_types].xml"]), budget)
     for key, info in seen.items():
         if info.is_dir() or key == "[content_types].xml":
             continue
-        ext = key.rsplit(".", 1)[-1] if "." in key.rsplit("/", 1)[-1] else ""
+        base = key.rsplit("/", 1)[-1]
+        ext = base.rsplit(".", 1)[-1] if "." in base else ""
         ctype = overrides.get(key) or defaults.get(ext, "")
-        _check_member_content(key, _inflate_member(data, info), ctype)
+        _check_member_content(key, _inflate_member(data, info), ctype, budget)
 
 
 # =========================================================================================
@@ -843,20 +915,28 @@ def _isolated(func, *args):
 # =========================================================================================
 
 
-def _trial_render(data: bytes, context: dict) -> None:
+def _validate_in_child(data: bytes, context: dict) -> None:
+    _check_package(data)
     _render_in_process(data, context, strict=True)
+
+
+def _render_in_child(data: bytes, context: dict) -> bytes:
+    _check_package(data)
+    return _render_in_process(data, context, strict=False)
 
 
 def validate_upload(data: bytes, kind: str) -> None:
     """Проверить загружаемый шаблон: пакет, затем пробный рендер тестового контекста.
 
-    Неизвестная метка -> сообщение с её именем; синтаксическая ошибка -> со строкой.
+    В веб-процессе - только каталог zip; распаковка, разбор XML и рендер - в дочернем
+    процессе с лимитами. Неизвестная метка -> сообщение с её именем; синтаксическая
+    ошибка -> со строкой.
     """
-    _check_package(data)
-    _isolated(_trial_render, data, sample_context(kind))
+    _check_directory(data)
+    _isolated(_validate_in_child, data, sample_context(kind))
 
 
 def render_docx(data: bytes, context: dict) -> bytes:
     """Отрендерить шаблон в песочнице. Отсутствующие значения дают пустую строку."""
-    _check_package(data)
-    return _isolated(_render_in_process, data, context, False)
+    _check_directory(data)
+    return _isolated(_render_in_child, data, context)
