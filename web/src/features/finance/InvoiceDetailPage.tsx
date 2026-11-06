@@ -16,6 +16,7 @@ import { FormBanner } from '../../shared/ui/FormBanner'
 import { Money } from '../../shared/ui/Money'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
+import { IssueDocumentButton } from '../documents/IssueDocumentButton'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import {
   useCancelInvoice, useDeleteInvoice, useDeletePayment, useInvoice, useInvoicePayments, useIssueInvoice, useSaveInvoice,
@@ -179,6 +180,12 @@ export function InvoiceDetailPage() {
           ) : null}
           {isIssued ? (
             <>
+              {invoice.direction === 'out' ? (
+                <>
+                  <IssueDocumentButton kind="invoice_print" source={{ invoice: invoice.id }} label={t('documents.kind.invoice_print')} />
+                  <IssueDocumentButton kind="act" source={{ invoice: invoice.id }} label={t('documents.kind.act')} />
+                </>
+              ) : null}
               <WriteButton permission="finance.update" onClick={() => { setDialog('edit') }}>{t('finance.invoices.dueEdit')}</WriteButton>
               {Number(invoice.balance) > 0 && hasPermission('finance.create') ? (
                 <WriteButton variant="primary" permission="finance.create" onClick={() => { setDialog('payment') }}>{t('finance.invoices.addPayment')}</WriteButton>

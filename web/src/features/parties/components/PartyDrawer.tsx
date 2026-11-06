@@ -10,6 +10,7 @@ import { Select } from '../../../shared/ui/Select'
 import { TextArea, TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
+import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { useSaveParty } from '../hooks'
 import type { Carrier, Client, Party, PartyKind, PartyPayload, PartyStatus } from '../types'
 import { ContactsEditor, newContactRow, type ContactRow } from './ContactsEditor'
@@ -162,6 +163,12 @@ export function PartyDrawer({ kind, party, open, onClose }: Props) {
         </div>
         <TextArea label={t('parties.notes')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
         <ContactsEditor disabled={!canSave} rows={form.contacts} errors={f} onChange={(rows) => { set('contacts', rows) }} />
+        {kind === 'clients' && party ? (
+          <section aria-labelledby="party-documents" className="space-y-1">
+            <h3 id="party-documents" className="text-xs font-medium">{t('documents.title')}</h3>
+            <IssueDocumentButton kind="contract" source={{ client: party.id }} label={t('documents.kind.contract')} />
+          </section>
+        ) : null}
       </form>
     </Drawer>
   )

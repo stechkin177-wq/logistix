@@ -14,6 +14,7 @@ import { Drawer } from '../../../shared/ui/Drawer'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { useDeleteTrip, usePatchTrip, useTrip } from '../hooks'
 import type { Trip } from '../types'
 import { ReassignDrawer } from './ReassignDrawer'
@@ -103,6 +104,15 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
             </li>
           ))}
         </ul>
+      </section>
+      <section aria-labelledby="trip-documents" className="mt-4 space-y-1">
+        <h3 id="trip-documents" className="text-xs font-medium">{t('documents.title')}</h3>
+        <div className="flex flex-wrap gap-2">
+          {trip.carrier !== null ? (
+            <IssueDocumentButton kind="carrier_order" source={{ trip: trip.id }} label={t('documents.kind.carrier_order')} />
+          ) : null}
+          <IssueDocumentButton kind="cmr" source={{ trip: trip.id }} label={t('documents.kind.cmr')} />
+        </div>
       </section>
       {hasPermission('trips.delete') ? (
         <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700">

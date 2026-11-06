@@ -11,6 +11,7 @@ import { EmptyState } from '../../../shared/ui/EmptyState'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { CargoTab } from '../components/CargoTab'
 import { FinanceTab } from '../components/FinanceTab'
 import { HistoryTab } from '../components/HistoryTab'
@@ -70,8 +71,11 @@ export function OrderDetailPage() {
         <Link to={`/clients?q=${encodeURIComponent(order.client_name)}`} className="text-sm text-brand-700 hover:underline dark:text-brand-300">
           {order.client_name}
         </Link>
+        <span className="ml-auto flex flex-wrap gap-2">
+          <IssueDocumentButton kind="order_request" source={{ order: order.id }} label={t('documents.kind.order_request')} />
+        </span>
         {hasPermission('orders.delete') ? (
-          <WriteButton className="ml-auto" variant="danger" permission="orders.delete" onClick={() => { setConfirmDelete(true) }}>
+          <WriteButton variant="danger" permission="orders.delete" onClick={() => { setConfirmDelete(true) }}>
             {t('orders.delete')}
           </WriteButton>
         ) : null}
