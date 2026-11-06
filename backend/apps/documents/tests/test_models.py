@@ -18,6 +18,16 @@ from apps.documents.models import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture
+def company(company):
+    """Компания без стартовых шаблонов (их создаёт сигнал создания компании)."""
+    with tenant_context(company.id):
+        DocumentTemplate.objects.update(current_version=None)
+        DocumentTemplateVersion.objects.all().delete()
+        DocumentTemplate.objects.all().delete()
+    return company
+
+
 def make_template(company, **extra):
     base = {"company": company, "kind": "act", "name": "Акт", "language": "ru"}
     base.update(extra)
