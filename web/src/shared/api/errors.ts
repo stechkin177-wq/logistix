@@ -96,7 +96,11 @@ export function errorMessage(error: unknown, t: Translate): string {
       return t('errors.numberConflict')
   }
   const known = KNOWN_CODES.get(error.code)
-  if (known) return t(known)
+  if (known) {
+    // сервер называет метку, строку и причину: для этих кодов его текст точнее общего перевода
+    if ((error.code === 'template_invalid' || error.code === 'source_not_ready') && error.detail) return error.detail
+    return t(known)
+  }
   if (error.status === 409) return error.detail || t('errors.conflict')
   if ((error.status === 400 || error.status === 422) && error.detail) return error.detail
   // 403 с текстом сервера (нельзя менять свою роль, нельзя выдать чужие права) показываем как есть

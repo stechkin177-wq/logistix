@@ -85,12 +85,12 @@ describe('Выдача документов: заказ', () => {
     expect(await screen.findByRole('button', { name: 'Заявка клиента' })).toBeInTheDocument()
   })
 
-  it('source_not_ready показывает перевод в диалоге', async () => {
-    loggedIn([...orderRoutes, caps(true), ['POST', '/api/documents/issued/', { status: 400, body: { detail: 'raw', code: 'source_not_ready' } }]])
+  it('source_not_ready показывает причину сервера в диалоге', async () => {
+    loggedIn([...orderRoutes, caps(true), ['POST', '/api/documents/issued/', { status: 400, body: { detail: 'У рейса не указан перевозчик.', code: 'source_not_ready' } }]])
     renderApp('/orders/5')
     await userEvent.click(await screen.findByRole('button', { name: 'Заявка клиента' }))
     const dialog = await screen.findByRole('dialog')
-    expect(await within(dialog).findByText(/источник не готов/)).toBeInTheDocument()
+    expect(await within(dialog).findByText('У рейса не указан перевозчик.')).toBeInTheDocument()
   })
 
   it('повторное нажатие не создаёт второй документ, пока идёт запрос', async () => {

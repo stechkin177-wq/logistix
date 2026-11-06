@@ -38,13 +38,12 @@ describe('Шаблоны документов', () => {
     expect(await screen.findByText(/Новая версия шаблона «Договор» загружена/)).toBeInTheDocument()
   })
 
-  it('ошибка template_invalid показывается переводом, а не текстом сервера', async () => {
-    loggedIn([list(), ['POST', '/api/documents/templates/1/versions/', { status: 400, body: { detail: 'raw server text', code: 'template_invalid' } }]])
+  it('ошибка template_invalid без detail показывается переводом', async () => {
+    loggedIn([list(), ['POST', '/api/documents/templates/1/versions/', { status: 400, body: { detail: '', code: 'template_invalid' } }]])
     renderApp(URL_)
     const input = await screen.findByLabelText('Файл новой версии: Договор')
     await userEvent.upload(input, new File(['x'], 'bad.docx'))
     expect(await screen.findByText(/Файл шаблона не подходит/)).toBeInTheDocument()
-    expect(screen.queryByText('raw server text')).not.toBeInTheDocument()
   })
 
   it('без documents.update кнопки загрузки и возврата отключены', async () => {
