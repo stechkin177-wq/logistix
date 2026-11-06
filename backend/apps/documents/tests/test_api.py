@@ -414,3 +414,25 @@ def test_pdf_download_throttled_per_company(admin_client, company, monkeypatch):
     assert admin_client.get(url + "?format=pdf").status_code == 200
     assert admin_client.get(url + "?format=pdf").status_code == 429
     assert admin_client.get(url).status_code == 200  # docx не ограничивается
+
+
+@pytest.mark.parametrize("value", ["off", "no", "f", "FALSE", "0", False, "n", "False"])
+def test_disable_requires_delete_for_any_falsy_spelling(company, admin_client, value):
+    from apps.core.models import Role
+
+    _, api = client_with_role(company, "Менеджер")
+    with tenant_context(company.id):
+        role = Role.objects.get(name="Менеджер")
+        role.permissions = [*role.permissions, "documents.update"]
+        role.save()
+    pk = tid(company)
+    assert api.patch(f"{T}{pk}/", {"is_active": value}, format="json").status_code == 403
+    assert api.patch(f"{T}{pk}/", {"name": "ок"}, format="json").status_code == 200
+    assert api.patch(f"{T}{pk}/", {"is_active": "maybe"}, format="json").status_code == 400
+    assert admin_client.patch(f"{T}{pk}/", {"is_active": value}, format="json").status_code == 200
+
+
+@pytest.mark.parametrize("kind", [{"a": 1}, [1], 5, "zzz", None])
+def test_issue_invalid_kind_is_400_not_500(admin_client, kind):
+    r = admin_client.post(I, {"kind": kind}, format="json")
+    assert r.status_code == 400 and r.data["code"] == "kind_invalid"

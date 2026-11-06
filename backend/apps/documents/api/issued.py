@@ -13,6 +13,7 @@ from apps.core.pagination import StandardPagination
 from apps.forwarding.orders.filters import date_param, int_param
 
 from .. import services
+from ..errors import DocumentError
 from ..models import KINDS, IssuedDocument
 from .http import PdfDownloadThrottle, file_response
 from .serializers import IssueSerializer, issued_data
@@ -84,8 +85,11 @@ class IssuedViewSet(viewsets.GenericViewSet):
 
     def create(self, request):
         data = request.data if hasattr(request.data, "get") else {}
-        needed = SOURCE_PERMISSION.get(data.get("kind"))
-        if data.get("kind") == "letter" and data.get("order") not in (None, ""):
+        kind = data.get("kind")
+        if not isinstance(kind, str) or kind not in KINDS:
+            raise DocumentError("kind_invalid", "Неизвестный вид документа.")
+        needed = SOURCE_PERMISSION.get(kind)
+        if kind == "letter" and data.get("order") not in (None, ""):
             needed = "orders.view"
         # доступ к источнику проверяется раньше разбора id, чтобы не раскрывать чужие записи
         if needed and needed not in request.membership.role.permissions:

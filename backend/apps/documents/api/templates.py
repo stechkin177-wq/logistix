@@ -1,7 +1,7 @@
 from django.db.models import Count
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
@@ -34,13 +34,7 @@ class TemplateViewSet(AuditedMixin, viewsets.GenericViewSet):
 
     def get_permissions(self):
         code = PERMISSIONS.get(self.action, "documents.delete")
-        if self.action == "partial_update" and self._disables():
-            code = "documents.delete"
         return [ModuleRequired("forwarding")(), permission_required(code)()]
-
-    def _disables(self) -> bool:
-        data = self.request.data
-        return hasattr(data, "get") and data.get("is_active") in (False, "false", "False", "0", 0)
 
     def get_throttles(self):
         if self.action == "versions":
@@ -67,6 +61,10 @@ class TemplateViewSet(AuditedMixin, viewsets.GenericViewSet):
         ser = TemplatePatchSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
+        if data.get("is_active") is False and "documents.delete" not in (
+            request.membership.role.permissions
+        ):
+            raise PermissionDenied("Недостаточно прав для отключения шаблона")
         before = audit.snapshot(template)
         if data.get("is_active") and not template.is_active:
             clash = DocumentTemplate.objects.filter(
@@ -88,6 +86,8 @@ class TemplateViewSet(AuditedMixin, viewsets.GenericViewSet):
         upload = request.FILES.get("file")
         if upload is None:
             raise ValidationError({"file": "Приложите файл шаблона (.docx)."})
+        if upload.size > engine.MAX_TEMPLATE_BYTES:
+            raise DocumentError("template_too_large", "Файл шаблона больше 2 МБ.")
         data = upload.read(engine.MAX_TEMPLATE_BYTES + 1)
         if len(data) > engine.MAX_TEMPLATE_BYTES:
             raise DocumentError("template_too_large", "Файл шаблона больше 2 МБ.")
