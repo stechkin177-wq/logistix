@@ -1,7 +1,7 @@
-/** Каталог прав: как backend/apps/core/permissions_catalog.py (12 разделов x 4 действия). */
+/** Каталог прав: как backend/apps/core/permissions_catalog.py (13 разделов x 4 действия). */
 export const SECTIONS = [
   'clients', 'carriers', 'orders', 'consignments', 'trips', 'finance', 'trash',
-  'users', 'roles', 'company', 'handbooks', 'numbering',
+  'users', 'roles', 'company', 'handbooks', 'numbering', 'documents',
 ] as const
 export const ACTIONS = ['view', 'create', 'update', 'delete'] as const
 

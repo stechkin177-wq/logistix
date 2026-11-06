@@ -10,6 +10,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
 import { ConsignmentsPage } from '../features/consignments/pages/ConsignmentsPage'
+import { TemplatesPage } from '../features/documents/TemplatesPage'
 import { FinancePage } from '../features/finance/FinancePage'
 import { InvoiceDetailPage } from '../features/finance/InvoiceDetailPage'
 import { InvoiceFormPage } from '../features/finance/InvoiceFormPage'
@@ -42,6 +43,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/roles': RolesPage,
   '/settings/handbooks': HandbooksPage,
   '/settings/numbering': NumberingPage,
+  '/settings/document-templates': TemplatesPage,
 }
 
 function pageFor(item: NavItem) {

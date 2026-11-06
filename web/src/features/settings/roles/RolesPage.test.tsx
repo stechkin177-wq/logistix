@@ -62,13 +62,13 @@ describe('Роли и права', () => {
     await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ name: 'Новая', permissions: ['clients.view', 'trips.view'] }) })
   })
 
-  it('матрица содержит 12 разделов x 4 действия', async () => {
+  it('матрица содержит 13 разделов x 4 действия', async () => {
     loggedIn(base)
     renderApp('/settings/roles')
     await userEvent.click(await screen.findByRole('button', { name: 'Новая роль' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(within(dialog).getByRole('table')).getAllByRole('checkbox')).toHaveLength(48)
-    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(50) // + особые права финансов
+    expect(within(within(dialog).getByRole('table')).getAllByRole('checkbox')).toHaveLength(52)
+    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(54) // + особые права финансов
   })
 
   it('403 сервера при выдаче чужих прав показывается как есть', async () => {

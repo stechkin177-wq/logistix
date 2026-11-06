@@ -52,4 +52,13 @@ describe('visibleNav', () => {
   it('пустой набор прав - пустое меню', () => {
     expect(visibleNav({ permissions: [], modules: ['forwarding'] })).toEqual([])
   })
+
+  it('«Документы» и «Шаблоны документов» видны только с documents.view и модулем forwarding', () => {
+    const shown = keys(visibleNav({ permissions: ['documents.view'], modules: ['forwarding'] }))
+    expect(shown).toEqual(['documents', 'settings', 'doctemplates'])
+    const without = keys(visibleNav({ permissions: ALL_PERMISSIONS.filter((p) => p !== 'documents.view'), modules: ['forwarding'] }))
+    expect(without).not.toContain('documents')
+    expect(without).not.toContain('doctemplates')
+    expect(keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['fleet'] }))).not.toContain('documents')
+  })
 })

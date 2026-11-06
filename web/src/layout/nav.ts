@@ -29,6 +29,7 @@ export const NAV: NavItem[] = [
     ],
   },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view' },
+  { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'forwarding' },
   { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
   {
     key: 'settings',
@@ -40,6 +41,7 @@ export const NAV: NavItem[] = [
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
       { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view' },
+      { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'forwarding' },
     ],
   },
 ]

@@ -1,6 +1,6 @@
 const SECTIONS = [
   'clients', 'carriers', 'orders', 'consignments', 'trips', 'finance', 'trash',
-  'users', 'roles', 'company', 'handbooks', 'numbering',
+  'users', 'roles', 'company', 'handbooks', 'numbering', 'documents',
 ]
 const ACTIONS = ['view', 'create', 'update', 'delete']
 
