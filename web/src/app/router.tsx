@@ -10,6 +10,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
 import { ConsignmentsPage } from '../features/consignments/pages/ConsignmentsPage'
+import { DocumentsPage } from '../features/documents/DocumentsPage'
 import { TemplatesPage } from '../features/documents/TemplatesPage'
 import { FinancePage } from '../features/finance/FinancePage'
 import { InvoiceDetailPage } from '../features/finance/InvoiceDetailPage'
@@ -36,6 +37,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/consignments': ConsignmentsPage,
   '/trips': TripsPage,
   '/finance': FinancePage,
+  '/documents': DocumentsPage,
   '/trash': TrashPage,
   '/settings/company': CompanyPage,
   '/settings/users': UsersPage,
