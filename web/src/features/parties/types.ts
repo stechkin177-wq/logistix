@@ -17,6 +17,9 @@ export interface PartyBase {
   type_name: string | null
   status: PartyStatus
   notes: string
+  address: string
+  bank: string
+  iban: string
   contacts: Contact[]
   created_at: string
 }
@@ -56,6 +59,9 @@ export interface PartyPayload {
   type: number | null
   status: PartyStatus
   notes: string
+  address: string
+  bank: string
+  iban: string
   contacts: ContactPayload[]
   credit_limit?: string
   rating?: string | null

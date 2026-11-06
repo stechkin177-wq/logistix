@@ -21,6 +21,9 @@ interface FormState {
   type: string
   status: PartyStatus
   notes: string
+  address: string
+  bank: string
+  iban: string
   credit_limit: string
   rating: string
   contacts: ContactRow[]
@@ -33,6 +36,9 @@ function initialState(kind: PartyKind, party: Party | null): FormState {
     type: party?.type != null ? String(party.type) : '',
     status: party?.status ?? 'active',
     notes: party?.notes ?? '',
+    address: party?.address ?? '',
+    bank: party?.bank ?? '',
+    iban: party?.iban ?? '',
     credit_limit: kind === 'clients' && party ? (party as Client).credit_limit : '0',
     rating: kind === 'carriers' && party ? ((party as Carrier).rating ?? '') : '',
     contacts: (party?.contacts ?? []).map((c) => newContactRow({ ...c })),
@@ -41,7 +47,7 @@ function initialState(kind: PartyKind, party: Party | null): FormState {
 
 const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
 const RATING_RE = /^[0-5](\.\d)?$/
-const KNOWN = /^(name|bin_iin|type|status|notes|credit_limit|rating|contacts(\.\d+\.(name|position|phone|email))?)$/
+const KNOWN = /^(name|bin_iin|type|status|notes|address|bank|iban|credit_limit|rating|contacts(\.\d+\.(name|position|phone|email))?)$/
 
 function validate(kind: PartyKind, form: FormState, t: (key: string) => string): Record<string, string> {
   const errors: Record<string, string> = {}
@@ -91,6 +97,9 @@ export function PartyDrawer({ kind, party, open, onClose }: Props) {
       type: form.type ? Number(form.type) : null,
       status: form.status,
       notes: form.notes,
+      address: form.address.trim(),
+      bank: form.bank.trim(),
+      iban: form.iban.trim(),
       contacts: form.contacts.map((c) => ({
         ...(c.id !== undefined ? { id: c.id } : {}),
         name: c.name.trim(),
@@ -160,6 +169,11 @@ export function PartyDrawer({ kind, party, open, onClose }: Props) {
           ) : (
             <TextField label={t('parties.rating')} inputMode="decimal" value={form.rating} error={f.rating} hint={t('parties.ratingHint')} onChange={(e) => { set('rating', e.target.value) }} />
           )}
+        </div>
+        <TextField label={t('parties.address')} value={form.address} error={f.address} onChange={(e) => { set('address', e.target.value) }} />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <TextField label={t('parties.bank')} value={form.bank} error={f.bank} onChange={(e) => { set('bank', e.target.value) }} />
+          <TextField label={t('parties.iban')} value={form.iban} error={f.iban} hint={t('parties.ibanHint')} onChange={(e) => { set('iban', e.target.value) }} />
         </div>
         <TextArea label={t('parties.notes')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
         <ContactsEditor disabled={!canSave} rows={form.contacts} errors={f} onChange={(rows) => { set('contacts', rows) }} />
