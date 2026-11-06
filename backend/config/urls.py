@@ -22,6 +22,9 @@ from apps.core.audit.api import AuditLogViewSet
 from apps.core.handbooks.api import HandbookValueViewSet, HandbookViewSet
 from apps.core.numbering.api import NumberingRuleViewSet
 from apps.core.views import health
+from apps.documents.api.capabilities import CapabilitiesView
+from apps.documents.api.issued import IssuedViewSet
+from apps.documents.api.templates import TemplateViewSet
 from apps.finance.api.invoices import InvoiceViewSet
 from apps.finance.api.operations import OperationsExportView, OperationsView
 from apps.finance.api.payments import PaymentViewSet
@@ -52,9 +55,12 @@ router.register("trips", TripViewSet, basename="trip")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")
+router.register("documents/templates", TemplateViewSet, basename="document-template")
+router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/documents/capabilities/", CapabilitiesView.as_view()),
     path("api/finance/debts/clients/", ClientDebtsView.as_view()),
     path("api/finance/debts/carriers/", CarrierDebtsView.as_view()),
     path("api/finance/summary/", SummaryView.as_view()),

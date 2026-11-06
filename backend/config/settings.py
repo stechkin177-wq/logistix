@@ -147,6 +147,9 @@ REST_FRAMEWORK = {
         "branding": env("BRANDING_THROTTLE_RATE", "60/min"),
         "member_attach": env("MEMBER_ATTACH_THROTTLE_RATE", "20/min"),
         "password_change": env("PASSWORD_CHANGE_THROTTLE_RATE", "5/min"),
+        # документы: на компанию (загрузка шаблонов и тяжёлая конвертация в PDF)
+        "document_upload": env("DOCUMENT_UPLOAD_THROTTLE_RATE", "30/hour"),
+        "document_pdf": env("DOCUMENT_PDF_THROTTLE_RATE", "30/min"),
         # вход: по нормализованному логину, а не по IP (за внешним прокси IP общий)
         "login": env("THROTTLE_LOGIN", "10/minute"),
     },
