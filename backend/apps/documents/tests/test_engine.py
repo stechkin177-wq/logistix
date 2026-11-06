@@ -647,6 +647,56 @@ def test_utf7_xml_part_still_rejected_next_to_font():
     assert_invalid(data, ENCODING)
 
 
+# Объявленный тип содержимого не может «выключить» проверку XML-части с XML-расширением.
+OCTET = "application/octet-stream"
+RELS_DEFAULT = (
+    'Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"'
+)
+
+
+def _external_rel_docx():
+    return add_relationship(
+        make_docx(), "attachedTemplate", "http://evil.example/t.dotm", ' TargetMode="External"'
+    )
+
+
+def test_rels_declared_octet_stream_by_default_still_checked():
+    data = patch_part(
+        _external_rel_docx(),
+        "[Content_Types].xml",
+        RELS_DEFAULT,
+        f'Extension="rels" ContentType="{OCTET}"',
+    )
+    assert_invalid(data, EXTERNAL)
+    assert_render_invalid(data, EXTERNAL)
+
+
+def test_rels_declared_octet_stream_by_override_still_checked():
+    data = patch_part(
+        _external_rel_docx(),
+        "[Content_Types].xml",
+        "</Types>",
+        f'<Override PartName="/word/_rels/document.xml.rels" ContentType="{OCTET}"/></Types>',
+    )
+    assert_invalid(data, EXTERNAL)
+
+
+@pytest.mark.parametrize(
+    ("payload", "reason"),
+    [(_dtd_document("UTF-7"), ENCODING), (b'<?xml version="1.0"?><!DOCTYPE x><x/>', DTD)],
+    ids=["utf7", "dtd"],
+)
+def test_xml_part_with_wrong_declared_type_still_rejected(payload, reason):
+    data = make_docx(extra_parts={"word/custom.xml": payload})
+    data = patch_part(
+        data,
+        "[Content_Types].xml",
+        "</Types>",
+        f'<Override PartName="/word/custom.xml" ContentType="{OCTET}"/></Types>',
+    )
+    assert_invalid(data, reason)
+
+
 # --- песочница Jinja: дополнительные угрозы -----------------------------------------------
 
 

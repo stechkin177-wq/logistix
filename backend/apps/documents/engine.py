@@ -305,17 +305,19 @@ def _check_member_content(key: str, content: bytes, ctype: str, budget: _XmlBudg
         raise _invalid(_MSG_DTD)
     if content.startswith(_EMBEDDED_MAGIC):  # вложенный zip (docx/xlsx...) или OLE
         raise _invalid(_MSG_EMBEDDED)
-    if ctype:
-        # XML - только по типу содержимого (`+xml`, application/xml, text/xml); подстрока
-        # "xml" встречается и у двоичных частей (obfuscatedFont, digital-signature-origin)
-        is_xml = _is_xml_type(ctype)
-    else:
-        # тип не объявлен: по расширению или по началу содержимого (в т.ч. UTF-16)
-        is_xml = (
-            key.endswith(_XML_SUFFIXES)
-            or content.lstrip()[:1] == b"<"
+    # XML-расширение (.rels, .xml, ...) - всегда XML, какой бы тип ни объявил пакет:
+    # иначе тип application/octet-stream у .rels выключил бы проверку внешних связей.
+    # Иначе - по типу содержимого (`+xml`, application/xml, text/xml), не по подстроке:
+    # "xml" есть и у двоичных частей (obfuscatedFont, digital-signature-origin).
+    # Тип не объявлен - по началу содержимого (в т.ч. UTF-16).
+    is_xml = key.endswith(_XML_SUFFIXES) or (
+        _is_xml_type(ctype)
+        if ctype
+        else (
+            content.lstrip()[:1] == b"<"
             or content.startswith((b"\xff\xfe", b"\xfe\xff", b"<\x00", b"\x00<"))
         )
+    )
     if not is_xml:
         return
     _check_xml_encoding(content)
