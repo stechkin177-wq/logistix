@@ -1,0 +1,10 @@
+import os
+
+from django.core.wsgi import get_wsgi_application
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+from config.observability import init_sentry  # noqa: E402
+
+init_sentry()
+application = get_wsgi_application()

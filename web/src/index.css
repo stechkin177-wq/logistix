@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Оттенки бренда задаются applyBranding() через CSS-переменные --brand-50..950 */
+@theme {
+  --color-brand-50: var(--brand-50, #eff6ff);
+  --color-brand-100: var(--brand-100, #dbeafe);
+  --color-brand-200: var(--brand-200, #bfdbfe);
+  --color-brand-300: var(--brand-300, #93c5fd);
+  --color-brand-400: var(--brand-400, #60a5fa);
+  --color-brand-500: var(--brand-500, #3b82f6);
+  --color-brand-600: var(--brand-600, #2563eb);
+  --color-brand-700: var(--brand-700, #1d4ed8);
+  --color-brand-800: var(--brand-800, #1e40af);
+  --color-brand-900: var(--brand-900, #1e3a8a);
+  --color-brand-950: var(--brand-950, #172554);
+  /* текст на сплошном фоне бренда (bg-brand-600) и цвет фона при наведении */
+  --color-brand-fg: var(--brand-fg, #ffffff);
+  --color-brand-solid-hover: var(--brand-solid-hover, #1d4ed8);
+}
+
+:root {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+/* Видимое кольцо фокуса для клавиатуры у ссылок, кнопок и полей без своего оформления */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand-500, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* Страница не должна уходить в горизонтальный скролл: длинные слова переносятся, таблицы прокручиваются внутри своего контейнера */
+main {
+  overflow-wrap: anywhere;
+}

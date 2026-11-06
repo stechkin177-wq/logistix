@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: logistix
+      POSTGRES_PASSWORD: logistix
+      POSTGRES_DB: logistix
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/db-init.sql:/docker-entrypoint-initdb.d/10-db-init.sql:ro
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

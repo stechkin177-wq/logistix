@@ -1,0 +1,48 @@
+# Образ backend (gunicorn / celery worker / celery beat / migrate). Контекст сборки - КОРЕНЬ репозитория:
+#   docker build -f deploy/Dockerfile.backend -t logistix-backend .
+# syntax-проверка и сборка в этом окружении не выполнялись (нет Docker daemon);
+# в частности, не проверена сборка слоя с LibreOffice.
+
+# ---- сборка зависимостей: колёса psycopg[binary] готовые, компилятор не нужен, но слой
+# с venv всё равно отделён, чтобы в финальный образ ничего лишнего не попало ----
+FROM python:3.12-slim AS builder
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+WORKDIR /build
+COPY backend/pyproject.toml .
+# pyproject без пакетов (packages = []): ставятся только зависимости
+RUN pip install .
+
+# ---- финальный образ ----
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/opt/venv/bin:$PATH \
+    DJANGO_SETTINGS_MODULE=config.settings \
+    MEDIA_ROOT=/var/lib/logistix/media \
+    WEB_CONCURRENCY=3 \
+    HEALTHCHECK_HOST=localhost
+# LibreOffice (только writer) для PDF документов и шрифты с кириллицей/казахскими буквами
+# (DejaVu, Liberation, Noto). Образ тяжелее примерно на 0,4 ГБ. Только в финальном образе.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice-writer fonts-dejavu-core fonts-liberation2 fonts-noto-core \
+    && rm -rf /var/lib/apt/lists/*
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
+    && mkdir -p /app /var/lib/logistix/media \
+    && chown -R app:app /app /var/lib/logistix
+COPY --from=builder /opt/venv /opt/venv
+WORKDIR /app
+COPY --chown=app:app backend/ /app/
+USER app
+# collectstatic при сборке: проверяет, что статика собирается; в compose сервис migrate
+# повторно собирает её в общий том, откуда её раздаёт nginx. Ключ - только на время сборки.
+RUN DJANGO_DEBUG=false DJANGO_SECRET_KEY=build-time-only-not-a-secret python manage.py collectstatic --noinput
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import os,sys,urllib.request as u; r=u.Request('http://127.0.0.1:8000/api/health/', headers={'Host': os.environ['HEALTHCHECK_HOST']}); sys.exit(0 if u.urlopen(r, timeout=4).status == 200 else 1)"
+# Число воркеров - WEB_CONCURRENCY (gunicorn читает сам); Celery и migrate переопределяют command
+CMD ["gunicorn", "config.wsgi:application", "--bind=0.0.0.0:8000", "--timeout=60", \
+     "--graceful-timeout=30", "--max-requests=2000", "--max-requests-jitter=200", \
+     "--worker-tmp-dir=/dev/shm", "--access-logfile=-", "--error-logfile=-"]
