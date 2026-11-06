@@ -1,6 +1,7 @@
 # Образ backend (gunicorn / celery worker / celery beat / migrate). Контекст сборки - КОРЕНЬ репозитория:
 #   docker build -f deploy/Dockerfile.backend -t logistix-backend .
-# syntax-проверка и сборка в этом окружении не выполнялись (нет Docker daemon).
+# syntax-проверка и сборка в этом окружении не выполнялись (нет Docker daemon);
+# в частности, не проверена сборка слоя с LibreOffice.
 
 # ---- сборка зависимостей: колёса psycopg[binary] готовые, компилятор не нужен, но слой
 # с venv всё равно отделён, чтобы в финальный образ ничего лишнего не попало ----
@@ -22,6 +23,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     MEDIA_ROOT=/var/lib/logistix/media \
     WEB_CONCURRENCY=3 \
     HEALTHCHECK_HOST=localhost
+# LibreOffice (только writer) для PDF документов и шрифты с кириллицей/казахскими буквами
+# (DejaVu, Liberation, Noto). Образ тяжелее примерно на 0,4 ГБ. Только в финальном образе.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice-writer fonts-dejavu-core fonts-liberation2 fonts-noto-core \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
     && mkdir -p /app /var/lib/logistix/media \
