@@ -8,9 +8,9 @@ from io import StringIO
 
 import pytest
 import time_machine
-from django.apps import apps as django_apps
 from django.core.management import CommandError, call_command
 from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
@@ -235,13 +235,18 @@ def test_revert_permission_belongs_to_admin_only(company):
 
 def test_permissions_migration_is_idempotent_and_adds_only_to_admin(company):
     mod = importlib.import_module("apps.core.migrations.0012_trips_revert_completed_permission")
+    hist = (
+        MigrationExecutor(connection)
+        .loader.project_state(("core", "0012_trips_revert_completed_permission"))
+        .apps
+    )
     with tenant_context(company.id):
         admin = Role.objects.get(name="Администратор")
         admin.permissions = [p for p in admin.permissions if p != "trips.revert_completed"]
         admin.save()
         custom = Role.objects.create(name="Свои", permissions=["trips.update"], is_system=False)
-    mod.run_backfill(django_apps)
-    mod.run_backfill(django_apps)
+    mod.run_backfill(hist)
+    mod.run_backfill(hist)
     with tenant_context(company.id):
         admin.refresh_from_db()
         custom.refresh_from_db()

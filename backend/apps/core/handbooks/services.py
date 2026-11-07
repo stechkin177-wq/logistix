@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 from apps.core.models import Company
 from apps.core.tenancy import tenant_context
 
+from . import system_codes
 from .defaults import DEFAULTS
 from .models import STATUS_HANDBOOK_CODES, Handbook, HandbookValue
 from .system_codes import MSG_MAKE_INITIAL, SystemValueProtected, system_code_assignment
@@ -80,3 +81,21 @@ def make_initial(value: HandbookValue) -> HandbookValue:
         value.is_initial = True
         value.save(update_fields=["is_initial"])
     return value
+
+
+def unmapped_system_codes(company: Company, handbook_code: str = "trip_status") -> list[str]:
+    """Системные коды справочника, которых нет ни у одного значения компании (по реестру).
+
+    Компания считается «не сопоставленной», если список не пуст: справочника нет либо хотя бы
+    один код реестра не назначен значению (статус переименован, дубликаты, иные признаки при
+    миграции - см. check_system_status_codes). Нужна переключению на engine=new: пока список
+    не пуст, переключать компанию нельзя (само переключение здесь не реализовано).
+    """
+    reserved = system_codes.reserved_codes(handbook_code)
+    with tenant_context(company.id):
+        present = set(
+            HandbookValue.objects.filter(
+                handbook__code=handbook_code, code__in=reserved
+            ).values_list("code", flat=True)
+        )
+    return sorted(reserved - present)
