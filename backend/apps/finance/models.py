@@ -741,6 +741,13 @@ class FinanceMigrationIssue(TenantModel):
     resolved_by = _user_fk()
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolution_note = models.TextField(blank=True)
+    resolution = models.CharField(
+        max_length=24,
+        blank=True,
+        db_default="",
+        help_text="Выбранное решение: carrier_expense, manual_expense, justified_exclusion",
+    )
+    resolution_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -751,5 +758,12 @@ class FinanceMigrationIssue(TenantModel):
             ),
             models.Index(
                 fields=["company", "source_model", "source_id"], name="finissue_source_idx"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "issue_type", "source_model", "source_id"],
+                condition=Q(issue_type="ambiguous_trip_expense"),
+                name="finissue_ambiguous_source_uniq",
             ),
         ]

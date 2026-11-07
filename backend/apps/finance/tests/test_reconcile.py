@@ -175,26 +175,48 @@ def test_unmigrated_line_without_issue_is_caught_and_open_issue_explains_listing
     assert "unmigrated_line" in codes(run, 3) and run.status == "needs_review"
 
 
-def test_disputed_lines_block_success_until_manually_resolved(company):
+def test_justified_exclusion_is_not_hidden_from_reconcile(company):
+    """Обоснованное исключение НЕ исключает сумму из сверки: needs_review и список «не отражено»."""
     s = build(company)
     run_cmd(company)
     run = recon(company)
     assert run.status == "needs_review"
     open_errors = [f for f in run.summary["findings"] if f["check"] == 4]
     assert {f["details"]["source_id"] for f in open_errors} == disputed_lines(s)
-    # ручное разрешение объясняет спорные строки
+    assert {r["line"] for r in run.summary["not_reflected"]} == disputed_lines(s)
     with tenant_context(company.id):
         for issue in FinanceMigrationIssue.objects.filter(issue_type="ambiguous_trip_expense"):
-            migration.resolve_issue(issue, None, "Проверено вручную")
+            migration.resolve_issue(
+                issue, None, "Проверено вручную, списано", "justified_exclusion"
+            )
+    run2 = recon(company)
+    assert run2.status == "needs_review"
+    rows = run2.summary["not_reflected"]
+    assert {r["line"] for r in rows} == disputed_lines(s)
+    assert all(
+        r["field"] == "expense" and r["currency"] and r["month"] and "обоснованное" in r["reason"]
+        for r in rows
+    )
+    assert "not_reflected" in codes(run2, 3) and "expense_sum" in codes(run2, 2)
+    assert "manually_resolved_lines" not in run2.summary
+
+
+def test_resolved_into_new_model_makes_reconcile_succeed(company):
+    s = build(company)
+    run_cmd(company)
+    with tenant_context(company.id):
+        for issue in FinanceMigrationIssue.objects.filter(issue_type="ambiguous_trip_expense"):
+            migration.resolve_issue(issue, None, "Отнесено на прочие", "manual_expense")
     run2 = recon(company)
     assert run2.status == "success", [
         f["message"] for f in run2.summary["findings"] if f["severity"] == "error"
     ]
-    assert sorted(run2.summary["manually_resolved_lines"]) == sorted(disputed_lines(s))
+    assert run2.summary["not_reflected"] == []
     with tenant_context(company.id):  # производные Issues прошлой сверки закрыты автоматически
         assert not FinanceMigrationIssue.objects.filter(
             issue_type="reconcile_diff", status="open"
         ).exists()
+    assert s
 
 
 def test_repeated_reconcile_does_not_duplicate_issues_and_closes_fixed_ones(company):

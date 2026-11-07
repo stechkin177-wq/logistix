@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Перенос строк OrderService в Income / Expense / ExpenseAllocation (идемпотентно).
 
 OrderService НЕ меняется и не удаляется. Ключи идемпотентности: Income.legacy_line,
@@ -101,15 +102,32 @@ class _Ctx:
         self.result.counters[key] += n
 
     def issue(self, line, message, details=None, issue_type=ISSUE_TRIP):
-        """Спорная строка: Issue (если ещё нет открытого по этой строке) и запись в отчёт."""
+        """Спорная строка: Issue (один на строку) и запись в отчёт.
+
+        Разрешённая проблема НЕ открывается заново: сохранённое решение применяется идемпотентно
+        (carrier_expense / manual_expense) либо строка пропускается (justified_exclusion)."""
         self.result.issues.append(
             {"line": line.pk, "order": line.order_id, "title": line.title, "message": message}
         )
-        existing = FinanceMigrationIssue.objects.filter(
-            issue_type=issue_type, source_model=SOURCE_MODEL, source_id=line.pk, status="open"
-        ).exists()
-        if existing:
+        qs = FinanceMigrationIssue.objects.filter(
+            issue_type=issue_type, source_model=SOURCE_MODEL, source_id=line.pk
+        )
+        existing = qs.filter(status="open").first() or qs.first()
+        if existing is not None and existing.status == "open":
             self.count("issues_existing")
+            return
+        if existing is not None and issue_type == ISSUE_TRIP:
+            if existing.resolution == "justified_exclusion":
+                self.result.issues.pop()  # решено человеком: не спорная
+                self.count("issues_justified_skipped")
+            elif existing.resolution in ("carrier_expense", "manual_expense"):
+                self.result.issues.pop()
+                apply_resolution(self, line, existing)
+            else:  # разрешена без решения: возвращаем в работу, а не теряем сумму
+                self.count("issues_reopened")
+                if not self.dry:
+                    existing.status, existing.resolved_at, existing.resolved_by = "open", None, None
+                    existing.save()
             return
         self.count("issues_new")
         if self.dry:
@@ -543,19 +561,223 @@ def migrate_invoice_links(invoice: Invoice, *, dry_run: bool = False) -> Counter
 # --- ручное разрешение спорных строк ---------------------------------------------------
 
 
+RESOLUTIONS = ("carrier_expense", "manual_expense", "justified_exclusion")
+MIN_JUSTIFICATION = 10
+
+
+def _find_trip(value):
+    if isinstance(value, Trip):
+        return value
+    if isinstance(value, bool) or value in (None, ""):
+        raise FinanceError("trip_required", "Укажите рейс (id или номер)")
+    trip = (
+        Trip.objects.filter(pk=value).first()
+        if isinstance(value, int)
+        else Trip.objects.filter(number=str(value).strip()).first()
+    )
+    if trip is None:
+        raise FinanceError("trip_not_found", f"Рейс {value} не найден в компании", status_code=404)
+    return trip
+
+
+def _find_category(value):
+    qs = HandbookValue.objects.filter(handbook__code="expense_category", is_active=True)
+    if value in (None, ""):
+        value = "OTHER"
+    if isinstance(value, HandbookValue):
+        value = value.pk
+    found = qs.filter(pk=value).first() if isinstance(value, int) else None
+    found = found or qs.filter(code=str(value)).first() or qs.filter(name=str(value)).first()
+    if found is None:
+        raise FinanceError("category_not_found", f"Категория расходов {value} не найдена")
+    return found
+
+
+def _line_for(issue) -> OrderService:
+    line = OrderService.objects.filter(pk=issue.source_id).select_related("order").first()
+    if issue.source_model != SOURCE_MODEL or line is None:
+        raise FinanceError("line_not_found", "Строка заказа проблемы не найдена")
+    return line
+
+
+def _apply_carrier(ctx: _Ctx, line, trip_id: int) -> None:
+    """Доля строки в ОДНОМ расходе перевозчика рейса (создать или дополнить своим же расходом)."""
+    trip = Trip.objects.select_for_update().filter(pk=trip_id).first()
+    if trip is None:
+        raise FinanceError("trip_not_found", "Рейс не найден", status_code=404)
+    if trip.carrier_id is None:
+        raise FinanceError(
+            "resolution_impossible",
+            "У рейса нет перевозчика: выберите другой вариант (ручной расход или исключение)",
+        )
+    order = Order.all_objects.get(pk=line.order_id)
+    if order.currency_id != trip.currency_id:
+        raise FinanceError(
+            "resolution_impossible",
+            "Валюта заказа отличается от валюты рейса: выберите другой вариант",
+        )
+    alloc = ExpenseAllocation.objects.filter(legacy_line=line).select_related("expense").first()
+    amount = quantize_money(line.expense)
+    key = f"resolved-trip:{trip.pk}"
+    if alloc is not None:
+        if alloc.expense.trip_id != trip.pk or alloc.expense.kind != "carrier_transport":
+            raise FinanceError(
+                "resolution_impossible", "Строка уже перенесена в другой расход", status_code=409
+            )
+        if ctx.overwrite and alloc.amount != amount and not ctx.dry:
+            diff = amount - alloc.amount
+            alloc.amount = amount
+            alloc.save(update_fields=["amount"])
+            _resum(ctx, alloc.expense, alloc.expense.amount + diff, trip)
+        ctx.count("resolved_carrier_existing")
+        return
+    expense = (
+        Expense.objects.select_for_update()
+        .filter(trip=trip, kind="carrier_transport", status="active")
+        .first()
+    )
+    if expense is not None and expense.legacy_group_key != key:
+        raise FinanceError(
+            "resolution_impossible",
+            "На рейс уже есть другой расход перевозчика: выберите другой вариант "
+            "(ручной расход или обоснованное исключение)",
+            status_code=409,
+        )
+    ctx.count("resolved_carrier_applied")
+    if ctx.dry:
+        return
+    if expense is None:
+        snap = _snapshot(ctx.company, amount, trip.currency, line.date, ctx.settings)
+        mismatch = amount != quantize_money(trip.carrier_price)
+        expense = Expense(
+            company_id=ctx.cid, kind="carrier_transport", title=f"Перевозка {trip.number}"[:255],
+            category=ctx.category, amount=amount, currency_id=trip.currency_id,
+            expense_date=line.date, status="active", source="migrated", trip=trip,
+            carrier_id=trip.carrier_id, legacy_group_key=key,
+            carrier_price_snapshot=quantize_money(trip.carrier_price),
+            requires_full_allocation=True, needs_review=mismatch,
+            review_reason="migrated_mismatch" if mismatch else "", **snap,
+        )  # fmt: skip
+        expense.save()
+        audit.log("create", expense, None, {**audit.diff({}, audit.snapshot(expense)),
+                  "legacy_lines": [line.pk], "source": "resolve_issue"})  # fmt: skip
+        total = None
+    else:
+        total = expense.amount + amount
+    ExpenseAllocation.objects.create(
+        company_id=ctx.cid, expense=expense, order_id=line.order_id, trip=trip,
+        amount=amount, legacy_line=line,
+    )  # fmt: skip
+    if total is not None:
+        _resum(ctx, expense, total, trip, day=min(expense.expense_date, line.date))
+
+
+def _resum(ctx: _Ctx, expense, total, trip, day=None) -> None:
+    before = audit.snapshot(expense)
+    total = quantize_money(total)
+    day = day or expense.expense_date
+    snap = _snapshot(ctx.company, total, trip.currency, day, ctx.settings)
+    expense.amount, expense.expense_date = total, day
+    for k, v in snap.items():
+        setattr(expense, k, v)
+    if total != quantize_money(trip.carrier_price):
+        expense.needs_review, expense.review_reason = True, "migrated_mismatch"
+    expense.save()
+    audit.log("update", expense, None, audit.diff(before, audit.snapshot(expense)))
+
+
+def _apply_manual(ctx: _Ctx, line, category_id: int) -> None:
+    order = Order.all_objects.get(pk=line.order_id)
+    key = f"line:{line.pk}"
+    if (
+        Expense.objects.filter(legacy_group_key=key).exists()
+        or ExpenseAllocation.objects.filter(legacy_line=line).exists()
+    ):
+        ctx.count("resolved_manual_existing")
+        return
+    ctx.count("resolved_manual_applied")
+    if ctx.dry:
+        return
+    category = HandbookValue.objects.get(pk=category_id)
+    snap = _snapshot(ctx.company, line.expense, order.currency, line.date, ctx.settings)
+    expense = Expense(
+        company_id=ctx.cid, kind="other", title=line.title[:255], category=category,
+        amount=quantize_money(line.expense), currency_id=order.currency_id,
+        expense_date=line.date, status="active", source="migrated", legacy_group_key=key,
+        requires_full_allocation=False, **snap,
+    )  # fmt: skip
+    expense.save()
+    ExpenseAllocation.objects.create(
+        company_id=ctx.cid, expense=expense, order=order,
+        amount=quantize_money(line.expense), legacy_line=line,
+    )  # fmt: skip
+    audit.log("create", expense, None, {**audit.diff({}, audit.snapshot(expense)),
+              "legacy_line": line.pk, "source": "resolve_issue"})  # fmt: skip
+
+
+def apply_resolution(ctx: _Ctx, line, issue) -> None:
+    """Применяет СОХРАНЁННОЕ решение к строке (идемпотентно: есть объекты - no-op)."""
+    data = issue.resolution_data or {}
+    if issue.resolution == "carrier_expense":
+        _apply_carrier(ctx, line, data["trip"])
+    elif issue.resolution == "manual_expense":
+        _apply_manual(ctx, line, data["category"])
+
+
 @transaction.atomic
-def resolve_issue(issue: FinanceMigrationIssue, user, note: str) -> FinanceMigrationIssue:
+def resolve_issue(
+    issue: FinanceMigrationIssue, user, note: str, resolution: str | None = None, **params
+) -> FinanceMigrationIssue:
+    """Ручное разрешение. Спорная строка (ambiguous_trip_expense) требует РЕШЕНИЯ человека:
+    carrier_expense (trip=id|номер), manual_expense (category=код|id, по умолчанию OTHER) или
+    justified_exclusion (содержательный комментарий; сумма остаётся не отражённой в сверке).
+    Для остальных типов проблем достаточно комментария."""
     note = (note or "").strip()
     if not note:
         raise FinanceError("note_required", "Укажите комментарий к ручному разрешению")
-    with tenant_context(current_cid(issue.company_id)):
+    cid = current_cid(issue.company_id)
+    with tenant_context(cid):
         locked = FinanceMigrationIssue.objects.select_for_update().get(pk=issue.pk)
         if locked.status == "resolved":
             return locked
+        data: dict = {}
+        if locked.issue_type == ISSUE_TRIP:
+            if resolution not in RESOLUTIONS:
+                raise FinanceError(
+                    "resolution_required",
+                    "Выберите решение: carrier_expense, manual_expense или justified_exclusion",
+                )
+            line = _line_for(locked)
+            ctx = _Ctx(cid, None, False, False)
+            if resolution == "justified_exclusion":
+                if len(note) < MIN_JUSTIFICATION:
+                    raise FinanceError(
+                        "justification_required",
+                        f"Для исключения опишите причину подробнее (не менее {MIN_JUSTIFICATION} символов)",
+                    )
+            elif resolution == "carrier_expense":
+                trip = _find_trip(params.get("trip"))
+                data = {"trip": trip.pk}
+                _apply_carrier(ctx, line, trip.pk)
+            else:
+                category = _find_category(params.get("category"))
+                data = {"category": category.pk}
+                _apply_manual(ctx, line, category.pk)
+        elif resolution is not None:
+            raise FinanceError(
+                "resolution_unsupported", "Для этого типа проблем решение не требуется"
+            )
         locked.status = "resolved"
         locked.resolved_by = user if getattr(user, "pk", None) else None
         locked.resolved_at = timezone.now()
         locked.resolution_note = note
+        locked.resolution = resolution or ""
+        locked.resolution_data = data
         locked.save()
-        audit.log("update", locked, user, {"status": ["open", "resolved"], "note": note})
+        audit.log(
+            "update",
+            locked,
+            user,
+            {"status": ["open", "resolved"], "note": note, "resolution": resolution, "data": data},
+        )
         return locked

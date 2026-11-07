@@ -360,26 +360,35 @@ def test_resolve_issue_command_and_service(company):
         issue = FinanceMigrationIssue.objects.filter(source_id=s["no_trip"].pk).get()
     with pytest.raises(CommandError):
         call_command("resolve_finance_issue", "--issue", str(issue.pk), "--note", "  ")
+    with pytest.raises(CommandError):  # для спорной строки нужно решение
+        call_command("resolve_finance_issue", "--issue", str(issue.pk), "--note", "Проверено")
+    with pytest.raises(CommandError):  # слишком короткое обоснование
+        call_command(
+            "resolve_finance_issue", "--issue", str(issue.pk), "--note", "ок",
+            "--resolution", "justified_exclusion",
+        )  # fmt: skip
     call_command(
         "resolve_finance_issue",
         "--issue",
         str(issue.pk),
         "--note",
         "Рейс удалён, расход списан",
+        "--resolution",
+        "justified_exclusion",
         stdout=StringIO(),
     )
     issue = FinanceMigrationIssue.all_objects.get(pk=issue.pk)
     assert issue.status == "resolved" and issue.resolution_note == "Рейс удалён, расход списан"
-    assert issue.resolved_at is not None
+    assert issue.resolution == "justified_exclusion" and issue.resolved_at is not None
     with pytest.raises(CommandError):
         call_command("resolve_finance_issue", "--issue", "999999", "--note", "x")
-    # спор остался: повторный перенос снова открывает проблему по этой строке
+    # решение сохранено: повторный перенос НЕ открывает проблему заново и не создаёт дубль
     run_cmd(company)
     with tenant_context(company.id):
-        assert (
-            FinanceMigrationIssue.objects.filter(source_id=s["no_trip"].pk, status="open").count()
-            == 1
-        )
+        assert FinanceMigrationIssue.objects.filter(source_id=s["no_trip"].pk).count() == 1
+        assert not FinanceMigrationIssue.objects.filter(
+            source_id=s["no_trip"].pk, status="open"
+        ).exists()
 
 
 def test_isolation_between_companies(company, make_company):

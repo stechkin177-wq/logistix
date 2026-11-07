@@ -39,7 +39,11 @@ class Command(BaseCommand):
                 out(f"    [{f['severity']}] {f['message']}")
         if s["legacy_missing"]:
             out(f"  legacy_missing (без курса, суммы НЕ исключены): {len(s['legacy_missing'])}")
-        if s["manually_resolved_lines"]:
+        if s["not_reflected"]:
             out(
-                f"  Строки с ручным разрешением (исключены из сравнения): {s['manually_resolved_lines']}"
+                f"  НЕ ОТРАЖЕНО в новой модели (суммы НЕ исключены из сверки): {len(s['not_reflected'])}"
             )
+            for r in s["not_reflected"][:30]:
+                out(
+                    f"    строка #{r['line']} ({r['field']}) {r['amount']} {r['currency']} за {r['month']}: {r['reason']}"
+                )

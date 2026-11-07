@@ -95,11 +95,15 @@ def reconcile(company_id: int, *, month: str | None = None) -> FinanceMigrationR
 def _collect(company, month, F: _Findings) -> dict:
     lines = list(OrderService.objects.select_related("order__currency").order_by("pk"))
     issues = list(FinanceMigrationIssue.objects.filter(source_model=SOURCE_MODEL))
-    resolved = {
-        i.source_id for i in issues if i.status == "resolved" and i.issue_type == ISSUE_TRIP
+    open_issue = {i.source_id: i for i in issues if i.status == "open"}
+    justified = {
+        i.source_id: i
+        for i in issues
+        if i.status == "resolved"
+        and i.issue_type == ISSUE_TRIP
+        and i.resolution == "justified_exclusion"
     }
-    open_lines = {i.source_id for i in issues if i.status == "open"}
-    excluded = [ln for ln in lines if ln.pk in resolved]
+    open_lines = set(open_issue)
     income_by_line = {
         i.legacy_line_id: i
         for i in Income.objects.filter(legacy_line__isnull=False)
@@ -125,12 +129,12 @@ def _collect(company, month, F: _Findings) -> dict:
         new: dict = defaultdict(Decimal)
         for ln in lines:
             value = getattr(ln, field)
-            if ln.pk not in resolved and value > 0 and wanted(ln.date):
+            if value > 0 and wanted(ln.date):
                 old[(ln.order.currency.code, _month(ln.date))] += value
         for line_id, obj in new_map.items():
             ln = obj.legacy_line
             code = obj.currency.code if field == "income" else obj.expense.currency.code
-            if ln.pk not in resolved and wanted(ln.date):
+            if wanted(ln.date):
                 new[(code, _month(ln.date))] += obj.amount
         for key in sorted(set(old) | set(new)):
             if old[key] != new[key]:
@@ -138,7 +142,7 @@ def _collect(company, month, F: _Findings) -> dict:
                       f"Сумма {label} {key[0]} за {key[1]}: старая {_s(old[key])}, новая {_s(new[key])}",
                       old=_s(old[key]), new=_s(new[key]))  # fmt: skip
         for ln in lines:
-            if ln.pk in resolved or not wanted(ln.date):
+            if not wanted(ln.date):
                 continue
             obj = new_map.get(ln.pk)
             value = getattr(ln, field)
@@ -148,14 +152,37 @@ def _collect(company, month, F: _Findings) -> dict:
                       line=ln.pk)  # fmt: skip
 
     # 3. неперенесённые строки
+    not_reflected = []
     for ln in lines:
-        if ln.pk in resolved:
-            continue
         for field, new_map, label in (
             ("income", income_by_line, "доход"),
             ("expense", alloc_by_line, "расход"),
         ):
-            if getattr(ln, field) > 0 and ln.pk not in new_map and ln.pk not in open_lines:
+            if getattr(ln, field) <= 0 or ln.pk in new_map:
+                continue
+            if ln.pk in open_lines or ln.pk in justified:
+                issue = open_issue.get(ln.pk) or justified[ln.pk]
+                reason = (
+                    f"открыта проблема #{issue.pk}"
+                    if ln.pk in open_lines
+                    else f"обоснованное исключение: {issue.resolution_note}"
+                )
+                not_reflected.append(
+                    {
+                        "line": ln.pk,
+                        "field": field,
+                        "amount": _s(getattr(ln, field)),
+                        "currency": ln.order.currency.code,
+                        "month": _month(ln.date),
+                        "reason": reason,
+                        "issue": issue.pk,
+                    }
+                )
+                if ln.pk in justified and wanted(ln.date):
+                    F.add(3, "not_reflected", f"line:{ln.pk}:{field}",
+                          f"Строка #{ln.pk} ({label} {_s(getattr(ln, field))}) не отражена в новой модели: {reason}",
+                          line=ln.pk, issue=issue.pk)  # fmt: skip
+            else:
                 F.add(3, "unmigrated_line", f"line:{ln.pk}:{field}",
                       f"Строка #{ln.pk} ({label} {_s(getattr(ln, field))}) не перенесена и не имеет проблемы",
                       line=ln.pk)  # fmt: skip
@@ -166,10 +193,6 @@ def _collect(company, month, F: _Findings) -> dict:
               issue=issue.pk, type=issue.issue_type, source_id=issue.source_id)  # fmt: skip
 
     # 5. прибыль и маржа каждого заказа
-    resolved_by_order: dict = defaultdict(lambda: {"income": ZERO, "expense": ZERO})
-    for ln in excluded:
-        resolved_by_order[ln.order_id]["income"] += ln.income
-        resolved_by_order[ln.order_id]["expense"] += ln.expense
     order_ids = (
         {ln.order_id for ln in lines}
         | set(Income.objects.values_list("order_id", flat=True))
@@ -177,10 +200,7 @@ def _collect(company, month, F: _Findings) -> dict:
     )
     for order in Order.all_objects.filter(pk__in=order_ids).order_by("pk"):
         old = order_totals(order)
-        adj = resolved_by_order.get(order.pk)
         revenue, cost = old["revenue"], old["cost"]
-        if adj:
-            revenue, cost = revenue - adj["income"], cost - adj["expense"]
         profit = revenue - cost
         new = reports_new.order_totals_new(order)
         old_t = (revenue, cost, profit, margin_pct(revenue, profit))
@@ -197,14 +217,10 @@ def _collect(company, month, F: _Findings) -> dict:
     for m in months:
         first = date(int(m[:4]), int(m[5:]), 1)
         first, nxt = month_bounds(first)
-        start = max(first, company.accounting_start) if company.accounting_start else first
         old = _month_finance(company, first)
-        # старая сторона: прибыль считалась по ВСЕМ строкам - исключаем вручную разрешённые
-        sub_rev = sum((ln.income for ln in excluded if _in_dashboard(ln, start, nxt)), ZERO)
-        sub_cost = sum((ln.expense for ln in excluded if _in_dashboard(ln, start, nxt)), ZERO)
         new = reports_new.month_totals_new(company, first, nxt)
-        revenue_old = _old_revenue(company, first, nxt) - sub_rev
-        profit_old = old["month_profit"] - (sub_rev - sub_cost)  # прибыль - из самого дашборда
+        revenue_old = _old_revenue(company, first, nxt)
+        profit_old = old["month_profit"]  # прибыль - из самого дашборда
         if (profit_old, margin_pct(revenue_old, profit_old)) != (
             new["month_profit"],
             new["month_margin_pct"],
@@ -216,12 +232,6 @@ def _collect(company, month, F: _Findings) -> dict:
     old_ops = operations.summary(
         operations.operations_queryset(accounting_start=company.accounting_start)
     )["by_currency"]
-    for ln in excluded:
-        if _in_ops(ln, company.accounting_start):
-            code = ln.order.currency.code
-            if code in old_ops:
-                old_ops[code]["income"] -= ln.income
-                old_ops[code]["expense"] -= ln.expense
     new_ops = reports_new.operations_by_currency_new(company.accounting_start)
     for code in sorted(set(old_ops) | set(new_ops)):
         o = old_ops.get(code, {"income": ZERO, "expense": ZERO})
@@ -378,7 +388,7 @@ def _collect(company, month, F: _Findings) -> dict:
     return {
         "month": month,
         "lines_total": len(lines),
-        "manually_resolved_lines": sorted(resolved),
+        "not_reflected": not_reflected,
         "legacy_missing": missing,
         "orphans": orphans,
         "needs_review_expenses": review,

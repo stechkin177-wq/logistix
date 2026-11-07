@@ -6,6 +6,7 @@ from django.utils import timezone
 from apps.core.models import Company
 from apps.core.tenancy import tenant_context
 from apps.finance import migration
+from apps.finance.engine import local_date
 from apps.finance.income import get_settings_for
 from apps.finance.models import (
     ExpenseAllocation,
@@ -17,16 +18,26 @@ from apps.finance.models import (
 from apps.forwarding.models import Order
 
 
+def income_month_date(inc, company_id: int):
+    """Дата группировки исторических сумм дохода: дата строки-источника; иначе дата признания;
+    иначе дата создания записи в часовом поясе компании (плановый доход без признания)."""
+    if inc.legacy_line_id is not None and inc.legacy_line is not None:
+        return inc.legacy_line.date
+    if inc.recognized_on is not None:
+        return inc.recognized_on
+    return local_date(inc.created_at, company_id)
+
+
 def created_sums(company_id: int) -> dict:
     """Суммы перенесённых объектов по (валюта, месяц) - для сравнения с суммами источников."""
     out: dict = {}
     for inc in (
         Income.objects.filter(legacy_line__isnull=False)
         .exclude(status="void")
-        .select_related("currency")
+        .select_related("currency", "legacy_line")
     ):
         bucket = out.setdefault(inc.currency.code, {}).setdefault(
-            f"{inc.recognized_on:%Y-%m}", {"income": 0, "expense": 0}
+            f"{income_month_date(inc, company_id):%Y-%m}", {"income": 0, "expense": 0}
         )
         bucket["income"] += inc.amount
     for al in ExpenseAllocation.objects.filter(legacy_line__isnull=False).select_related(
