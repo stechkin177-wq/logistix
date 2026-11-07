@@ -399,6 +399,10 @@ def test_unmapped_system_codes_without_handbook(company):
     from apps.core.handbooks.services import unmapped_system_codes
 
     sql(
+        "UPDATE finance_companyfinancialsettings SET completed_status_id=NULL WHERE company_id=%s",
+        [company.id],
+    )
+    sql(
         "DELETE FROM core_handbookvalue WHERE handbook_id IN "
         "(SELECT id FROM core_handbook WHERE company_id=%s AND code='trip_status')",
         [company.id],

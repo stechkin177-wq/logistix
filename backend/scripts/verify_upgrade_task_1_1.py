@@ -48,6 +48,11 @@ SEED = """
 import json
 from apps.core.models import User
 from apps.core.services import create_company_with_defaults
+from apps.core.handbooks import defaults
+from apps.core.signals import company_created
+# состояние ДО подзадачи 1.4.1: нет справочника категорий и обработчика финансовых настроек
+defaults.DEFAULTS.pop("expense_category", None)
+company_created.receivers = []
 out = {}
 for key, email in (("standard", "std@upgrade.kz"), ("renamed", "ren@upgrade.kz")):
     user = User.objects.create_user(email=email, password="s3cret-pass-1")
@@ -191,7 +196,7 @@ def main() -> int:
         manage(url, "migrate", "core", "0010", "--noinput")
         manage(url, "migrate", "billing", "--noinput")
         manage(url, "migrate", "forwarding", "0005", "--noinput")
-        manage(url, "migrate", "finance", "--noinput")
+        manage(url, "migrate", "finance", "0003", "--noinput")
         manage(url, "migrate", "documents", "--noinput")
         out = manage(url, "shell", stdin=SEED)
         ids = json.loads(out.split("IDS=")[1].splitlines()[0])
