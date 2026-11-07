@@ -17,7 +17,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.models import Carrier, Client, Trip
 from apps.forwarding.orders.models import Order
 
-from . import periods
+from . import invoice_links, periods
 from .errors import FinanceError
 from .models import Invoice, InvoiceItem, Payment
 from .money import ZERO, compute_totals, to_kzt, vat_percent
@@ -231,8 +231,8 @@ def delete_draft(invoice: Invoice) -> None:
 
 
 def _order_income(order: Order) -> Decimal:
-    total = OrderService.objects.filter(order=order).aggregate(t=Sum("income"))["t"]
-    return total or ZERO
+    # engine='new': Σ Income заказа; иначе прежний расчёт по строкам (invoice_links)
+    return invoice_links.order_income_total(order)
 
 
 def _active_out_net(order: Order, exclude: Invoice) -> Decimal:
@@ -346,6 +346,7 @@ def issue(
 
 @transaction.atomic
 def cancel(invoice: Invoice, *, user, perms=(), adjust_reason: str | None = None) -> Invoice:
+    invoice_links.lock_for_cancel(invoice.pk)  # Income/Expense блокируются до счёта
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     if invoice.status != "issued":
         raise _not_editable()
@@ -361,6 +362,7 @@ def cancel(invoice: Invoice, *, user, perms=(), adjust_reason: str | None = None
     # строки освобождаются (можно удалить или выставить заново); название и сумма остаются
     InvoiceItem.objects.filter(invoice=invoice).update(line=None)
     changes = {"status": ["issued", "cancelled"]}
+    changes.update(invoice_links.release_on_cancel(invoice, user))
     if adjusted:
         changes.update(
             periods.adjustment_changes(adjust_reason, {"status": "issued"}, {"status": "cancelled"})
