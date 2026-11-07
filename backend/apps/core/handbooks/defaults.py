@@ -41,12 +41,13 @@ DEFAULTS: dict[str, dict] = {
         "name": "Статусы рейсов",
         "group": "Статусы",
         "values": [
-            {"name": "Планируется", "is_initial": True},
-            {"name": "Ожидает выезда"},
-            {"name": "В пути"},
-            {"name": "Выгрузка"},
-            {"name": "Завершён", "is_final": True},
-            {"name": "Отменён", "is_final": True},
+            # системные коды (system_codes.SYSTEM_CODES): их читает бизнес-логика рейсов
+            {"name": "Планируется", "code": "PLANNED", "is_initial": True},
+            {"name": "Ожидает выезда", "code": "ASSIGNED"},
+            {"name": "В пути", "code": "IN_PROGRESS"},
+            {"name": "Выгрузка", "code": "UNLOADING"},
+            {"name": "Завершён", "code": "COMPLETED", "is_final": True},
+            {"name": "Отменён", "code": "CANCELLED", "is_final": True},
         ],
     },
     "vat_rate": {

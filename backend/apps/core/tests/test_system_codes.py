@@ -54,10 +54,10 @@ def test_registry_shape_is_extensible_mapping_of_frozensets():
 
 
 def test_defaults_codes_match_registry():
-    """Коды, назначенные значениям по умолчанию, не выходят за реестр своего справочника."""
+    """Набор кодов значений по умолчанию совпадает с реестром системных кодов справочника."""
     for handbook, codes in SYSTEM_CODES.items():
         seeded = {v["code"] for v in DEFAULTS[handbook]["values"] if v.get("code")}
-        assert seeded <= set(codes), handbook
+        assert seeded == set(codes), handbook
 
 
 def test_is_system_exposed_read_only_in_api(admin_client, company, done):
