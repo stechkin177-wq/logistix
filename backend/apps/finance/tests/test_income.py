@@ -277,7 +277,9 @@ def test_legacy_and_shadow_engines_do_not_recognize(company):
         set_engine(company, engine)
         order, ids = order_with_cargos(company, 1, client_rate=D("10"))
         move(company, new_trip(company, ids), "COMPLETED", T1)
-        assert freight(order) == []
+        # завершение рейса доход не признаёт; в shadow есть только зеркало строки заказа
+        assert [i for i in freight(order) if i.recognition_basis == "trip_completed"] == []
+        assert all(i.legacy_line_id for i in freight(order))
 
 
 def test_engine_new_without_completed_status_aborts_operation(company):

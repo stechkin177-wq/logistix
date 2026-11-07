@@ -463,6 +463,7 @@ def detach_expense_side(line, *, reason: str) -> None:
         audit.log("update", expense, None, audit.diff(before, audit.snapshot(expense)))
 
 
+@transaction.atomic
 def detach_line(line, *, reason: str = "legacy_line_deleted") -> None:
     """Перед удалением строки: зеркало отвязывается, история сохраняется (без ProtectedError)."""
     with tenant_context(current_cid(line.company_id)):
