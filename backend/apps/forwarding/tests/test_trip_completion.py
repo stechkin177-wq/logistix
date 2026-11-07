@@ -348,3 +348,107 @@ def test_backfill_ignores_not_completed_and_filters_by_company(make_company):
 def test_backfill_unknown_company():
     with pytest.raises(CommandError):
         run_backfill_cmd("--company", "999999")
+
+
+# --- право trips.revert_completed назначается штатно и не привязано к названию роли ---
+
+
+def test_custom_role_with_revert_permission_can_leave_completed(
+    admin_client, admin_user, company, trip
+):
+    complete(admin_user, company, trip)
+    r = admin_client.post(
+        "/api/roles/",
+        {
+            "name": "Старший диспетчер",
+            "permissions": ["trips.view", "trips.update", "trips.revert_completed"],
+        },
+        format="json",
+    )
+    assert r.status_code == 201, r.content
+    _, senior = client_with_role(company, "Старший диспетчер")
+    assert move(senior, trip["id"], st(company, "В пути")).status_code == 400  # причина обязательна
+    ok = move(senior, trip["id"], st(company, "В пути"), reason="правка данных")
+    assert ok.status_code == 200 and ok.data["completed_at"] is None
+
+    # такая же роль без права: 403, статус и completed_at не меняются
+    complete(admin_user, company, trip, when=T2)
+    admin_client.post(
+        "/api/roles/",
+        {"name": "Диспетчер-2", "permissions": ["trips.view", "trips.update"]},
+        format="json",
+    )
+    _, plain = client_with_role(company, "Диспетчер-2")
+    assert move(plain, trip["id"], st(company, "В пути"), reason="x").status_code == 403
+    after = db_trip(company, trip["id"])
+    assert after.status.code == "COMPLETED" and after.completed_at == T2
+
+
+def test_permission_can_be_added_to_role_later_and_takes_effect(
+    admin_client, admin_user, company, trip
+):
+    complete(admin_user, company, trip)
+    created = admin_client.post(
+        "/api/roles/",
+        {"name": "Учётчик", "permissions": ["trips.view", "trips.update"]},
+        format="json",
+    )
+    role_id = created.data["id"]
+    _, api = client_with_role(company, "Учётчик")
+    assert move(api, trip["id"], st(company, "Отменён"), reason="x").status_code == 403
+    patched = admin_client.patch(
+        f"/api/roles/{role_id}/",
+        {"permissions": ["trips.view", "trips.update", "trips.revert_completed"]},
+        format="json",
+    )
+    assert patched.status_code == 200, patched.content
+    _, api2 = client_with_role(company, "Учётчик")  # новый токен с обновлённой ролью
+    assert move(api2, trip["id"], st(company, "Отменён"), reason="x").status_code == 200
+
+
+def test_cannot_grant_revert_permission_higher_than_own(company):
+    """Правило «нельзя выдать право выше своих» действует и для нового права."""
+    with tenant_context(company.id):
+        Role.objects.create(
+            name="Кадровик", permissions=["roles.view", "roles.create", "roles.update"]
+        )
+    _, hr = client_with_role(company, "Кадровик")
+    r = hr.post(
+        "/api/roles/", {"name": "Тайная", "permissions": ["trips.revert_completed"]}, format="json"
+    )
+    assert r.status_code in (400, 403)
+    with tenant_context(company.id):
+        assert not Role.objects.filter(name="Тайная").exists()
+
+
+# --- backfill не использует Order.completed_at ---
+
+
+def test_backfill_never_uses_order_completed_at_for_multi_trip_order(
+    admin_client, admin_user, company
+):
+    order, ids = make_cargos(company, 2)
+    trips = [new_trip(admin_client, [ids[0]]), new_trip(admin_client, [ids[1]])]
+    for t in trips:
+        complete(admin_user, company, t, when=T1)
+        wipe_completed_at(company, t["id"])
+        with connection.cursor() as cur:
+            cur.execute(
+                "DELETE FROM core_auditlog WHERE object_type='forwarding.trip' "
+                "AND object_id=%s AND action='update'",
+                [str(t["id"])],
+            )
+    with connection.cursor() as cur:
+        cur.execute("UPDATE forwarding_order SET completed_at=%s WHERE id=%s", [T2, order.pk])
+    out = run_backfill_cmd("--company", str(company.id))
+    assert "заполнено 0, требует проверки 2" in out
+    for t in trips:
+        assert f"рейс #{t['id']}" in out and "требует проверки" in out
+        assert db_trip(company, t["id"]).completed_at is None
+
+
+def test_backfill_help_states_order_completed_at_is_not_used():
+    from apps.forwarding.management.commands import backfill_trip_completed_at as mod
+
+    assert "Order.completed_at" in mod.Command.help
+    assert "Order.completed_at" in mod.__doc__

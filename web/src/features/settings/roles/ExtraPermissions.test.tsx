@@ -29,6 +29,31 @@ describe('Роли: особые права финансов', () => {
     })
   })
 
+  it('право выхода рейса из «Завершён» выставляется в пользовательской роли и уходит на сервер', async () => {
+    const m = loggedIn([['POST', '/api/roles/', { status: 201, body: { id: 11, name: 'Старший диспетчер', is_system: false, permissions: [] } }], ...base])
+    const user = userEvent.setup()
+    renderApp('/settings/roles')
+    await user.click(await screen.findByRole('button', { name: 'Новая роль' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/^Название/), 'Старший диспетчер')
+    const box = within(dialog).getByLabelText('Рейсы: выводить рейс из статуса «Завершён»')
+    expect(box).toBeEnabled()
+    await user.click(box)
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ name: 'Старший диспетчер', permissions: ['trips.revert_completed'] })
+    })
+  })
+
+  it('если у самого пользователя нет trips.revert_completed, выдать его нельзя', async () => {
+    loggedIn(base, { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'trips.revert_completed') } })
+    const user = userEvent.setup()
+    renderApp('/settings/roles')
+    await user.click(await screen.findByRole('button', { name: 'Новая роль' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Рейсы: выводить рейс из статуса «Завершён»')).toBeDisabled()
+  })
+
   it('если права нет у самого пользователя, его нельзя выдать', async () => {
     loggedIn(base, { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.override_limit') } })
     const user = userEvent.setup()
