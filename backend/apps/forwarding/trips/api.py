@@ -88,6 +88,21 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
             qs = filter_trips(qs, self.request.query_params)
         return qs
 
+    def perform_update(self, serializer):
+        old_price = serializer.instance.carrier_price
+        super().perform_update(serializer)
+        from apps.finance import hooks  # корректировка расхода перевозчика (только engine=new)
+
+        data = request_data = self.request.data
+        reason = data.get("adjust_reason") if hasattr(request_data, "get") else None
+        hooks.after_trip_price_changed(
+            serializer.instance,
+            old_price,
+            self.request.user,
+            perms=self.request.membership.role.permissions,
+            reason=reason,
+        )
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

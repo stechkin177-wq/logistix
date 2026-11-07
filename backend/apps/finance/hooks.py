@@ -42,6 +42,21 @@ def after_trip_changed(trip, user=None, *, perms=(), reason=None, extra_order_id
             )
 
 
+def after_trip_price_changed(trip, old_price, user=None, *, perms=(), reason=None) -> None:
+    """Цена рейса изменилась: корректировка существующего расхода (второй не создаётся)."""
+    from . import expenses
+
+    if old_price == trip.carrier_price:
+        return
+    cid = current_cid(trip.company_id)
+    row = settings_row(cid)
+    if row is None or row.engine != "new" or not row.sync_carrier_price:
+        return
+    expenses.sync_trip_expense(
+        trip, user=user, can_adjust="finance.adjust_closed" in perms, reason=reason
+    )
+
+
 def settings_row(company_id: int) -> CompanyFinancialSettings | None:
     with tenant_context(company_id):
         return CompanyFinancialSettings.objects.filter(company_id=company_id).first()
