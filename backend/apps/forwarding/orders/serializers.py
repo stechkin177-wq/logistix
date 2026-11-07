@@ -227,6 +227,9 @@ class OrderSerializer(serializers.ModelSerializer):
             if "client_rate" in validated_data:
                 sync_base_line(instance)
                 forget_totals(instance)
+                from apps.finance import hooks  # только engine=new
+
+                hooks.after_order_saved(instance, self.context["request"].user)
         if extra is not None:
             old = sorted(instance.extra_managers.values_list("pk", flat=True))
             new = sorted(u.pk for u in extra)

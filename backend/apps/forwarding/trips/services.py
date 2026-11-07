@@ -234,6 +234,7 @@ def reassign(trip: Trip, consignment_ids: list[int], user, *, ip: str | None = N
     locked = _locked_trip(trip)
     consignments = _load_consignments(consignment_ids)
     new_ids = [c.pk for c in consignments]
+    old_order_ids = set(locked.consignments.values_list("order_id", flat=True))
     old_ids = sorted(
         TripConsignment.objects.filter(trip=locked).values_list("consignment_id", flat=True)
     )
@@ -252,6 +253,9 @@ def reassign(trip: Trip, consignment_ids: list[int], user, *, ip: str | None = N
     if consolidated != locked.is_consolidated:
         locked.is_consolidated = consolidated
         locked.save(update_fields=["is_consolidated", "updated_at"])
+    from apps.finance import hooks  # пересчёт признания по прежним и новым заказам
+
+    hooks.after_trip_changed(locked, user, extra_order_ids=old_order_ids)
     return locked
 
 
@@ -264,6 +268,8 @@ def change_trip_status(
     ip: str | None = None,
     reason: str | None = None,
     can_revert: bool = False,
+    perms=(),
+    adjust_reason: str | None = None,
 ) -> Trip:
     """Переводит рейс в активный статус trip_status компании (любой -> любой, кроме того же).
 
@@ -305,4 +311,7 @@ def change_trip_status(
         changes["completed_at"] = [before["completed_at"], None]
         changes["reason"] = reason
     audit.log("update", locked, user, changes, ip=ip)
+    from apps.finance import hooks  # признание дохода (только engine=new; ошибка откатывает)
+
+    hooks.after_trip_changed(locked, user, perms=perms, reason=adjust_reason or reason)
     return locked

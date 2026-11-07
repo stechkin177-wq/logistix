@@ -173,7 +173,7 @@ class TripStatusSerializer(serializers.Serializer):
     # обязательна только при выходе из статуса «Завершён» (проверяет сервис)
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000, default="")
 
-    def save(self, trip, user, ip=None, can_revert=False):
+    def save(self, trip, user, ip=None, can_revert=False, perms=(), adjust_reason=None):
         return change_trip_status(
             trip,
             self.validated_data["status"],
@@ -181,4 +181,6 @@ class TripStatusSerializer(serializers.Serializer):
             ip=ip,
             reason=self.validated_data.get("reason", ""),
             can_revert=can_revert,
+            perms=perms,
+            adjust_reason=adjust_reason,
         )

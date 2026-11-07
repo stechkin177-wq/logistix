@@ -120,5 +120,14 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         can_revert = REVERT_PERMISSION in request.membership.role.permissions
         with concurrency_guard():
-            serializer.save(trip, request.user, ip=client_ip(request), can_revert=can_revert)
+            serializer.save(
+                trip,
+                request.user,
+                ip=client_ip(request),
+                can_revert=can_revert,
+                perms=request.membership.role.permissions,
+                adjust_reason=(request.data.get("adjust_reason") or None)
+                if hasattr(request.data, "get")
+                else None,
+            )
         return Response(self._output(trip))

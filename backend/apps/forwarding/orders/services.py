@@ -90,6 +90,9 @@ def create_order(data: dict, user, *, ip: str | None = None) -> Order:
         order.extra_managers.set(extra_managers)
     OrderStatusHistory(order=order, from_status=None, to_status=status, user=user).save()
     sync_base_line(order)  # «Начальная ставка» = client_rate; аудит заказа её уже покрывает
+    from apps.finance import hooks  # хук новой финансовой архитектуры (только engine=new)
+
+    hooks.after_order_saved(order, user)
     changes = audit.diff({}, audit.snapshot(order))
     if extra_managers:  # как при PATCH: [было, стало] списками id
         changes["extra_managers"] = [[], sorted(u.pk for u in extra_managers)]
