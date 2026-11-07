@@ -53,10 +53,13 @@ from apps.core.models import Membership, User
 from apps.core.services import create_company_with_defaults
 from apps.core.signals import company_created
 from apps.core.tenancy import tenant_context
-from apps.finance.models import Invoice
 from apps.forwarding.models import Carrier, Client, Trip
 from apps.forwarding.orders.services import create_order
+from apps.finance import engine as finance_engine
 
+# состояние ДО подзадачи: таблицы finance.CompanyFinancialSettings ещё нет (создаётся в finance.0004),
+# поэтому определение режима учёта (хуки 1.4.4+) на этом шаге подменяется на прежний режим
+finance_engine.company_engine = lambda company_id: "legacy"
 # состояние ДО подзадачи: нет справочника категорий, нет обработчика настроек
 defaults.DEFAULTS.pop("expense_category", None)
 company_created.receivers = []
@@ -73,15 +76,21 @@ for key in ("A", "B"):
             number=f"T-{key}", carrier=carrier, currency=get("currency", "KZT"),
             status=get("trip_status", "PLANNED"),
         )
-        invoice = Invoice.objects.create(
-            direction="in", carrier=carrier, currency=get("currency", "KZT"),
-            vat_rate=get("vat_rate", "none"), order=order,
-        )
+        # Invoice - сырым SQL: модель описывает последнюю схему (колонки finance.0010), а БД на finance.0003
+        with connection.cursor() as cur:
+            cur.execute(
+                "INSERT INTO finance_invoice (company_id, direction, number, external_number, comment, "
+                "carrier_id, currency_id, vat_rate_id, order_id, status, total_net, total_vat, "
+                "total_gross, created_at, updated_at) "
+                "VALUES (%s, 'in', '', '', '', %s, %s, %s, %s, 'draft', 0, 0, 0, now(), now()) RETURNING id",
+                [company.id, carrier.id, get("currency", "KZT").id, get("vat_rate", "none").id, order.id],
+            )
+            invoice_id = cur.fetchone()[0]
         with connection.cursor() as cur:
             cur.execute(
                 "INSERT INTO finance_invoiceitem (company_id, invoice_id, title, amount_net) "
                 "VALUES (%s, %s, 'Позиция', 100) RETURNING id",
-                [company.id, invoice.id],
+                [company.id, invoice_id],
             )
             item = cur.fetchone()[0]
         out[key] = {
@@ -192,7 +201,9 @@ def main() -> int:
                 f"таблиц с данными скрыто без контекста {report['tables_with_data_hidden_without_context']}, "
                 f"новых таблиц с записью {len(report['new_tables_with_rows'])}"
             )
-        # финальный контроль покрытия средствами приложения
+        # финальный контроль покрытия средствами приложения: модели описывают последнюю схему
+        # (в т.ч. finance.0010 из 1.4.14), поэтому БД доводится до неё перед сверкой
+        manage(owner_url, "migrate", "--noinput")
         out = manage(
             owner_url,
             "shell",

@@ -88,7 +88,12 @@ ok(
 tables_info = [t for t in all_info if t[0] in expected]
 tables = [t[0] for t in tables_info]
 if STEP == "M6":
-    ok(expected <= present, f"таблицы TenantModel отсутствуют в БД: {expected - present}")
+    # таблицы finance.0010 (1.4.14) появляются позже шагов этого скрипта: до M6 их в БД нет
+    LATER_TABLES = {"finance_fxrevaluation", "finance_fxrevaluationline"}
+    ok(
+        expected - LATER_TABLES <= present,
+        f"таблицы TenantModel отсутствуют в БД: {expected - LATER_TABLES - present}",
+    )
 ok(len(tables) >= 20, f"найдено таблиц компаний: {len(tables)}")
 for name, enabled, forced in tables_info:
     ok(enabled and forced, f"{name}: ENABLE+FORCE RLS ({enabled}, {forced})")
@@ -133,6 +138,34 @@ finally:
 # --- 2. (б)/(в) на ORM под ролью приложения: создание цепочек своих строк ---------------------
 
 from apps.finance import models as F  # noqa: E402
+
+
+def trim_models_to_db_schema():
+    """Батарея идёт по промежуточным шагам миграций, а модели описывают последнюю схему: столбцы,
+    которых на этом шаге ещё нет (finance.0008..0010), убираются из _meta модели приложения finance,
+    чтобы ORM не обращался к ним (процесс одноразовый, на данные и проверки RLS это не влияет)."""
+    from django.apps import apps as django_apps
+
+    with owner.cursor() as cur:
+        cur.execute(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name LIKE 'finance\\_%'"
+        )
+        present = {}
+        for table_name, column_name in cur.fetchall():
+            present.setdefault(table_name, set()).add(column_name)
+    owner.rollback()
+    for model in django_apps.get_app_config("finance").get_models():
+        cols = present.get(model._meta.db_table)
+        if cols is None:
+            continue
+        for field in list(model._meta.local_fields):
+            if field.column not in cols:
+                model._meta.local_fields.remove(field)
+        model._meta._expire_cache()
+
+
+trim_models_to_db_schema()
 
 
 def exists(table):

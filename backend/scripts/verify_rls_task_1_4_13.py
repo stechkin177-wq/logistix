@@ -319,6 +319,9 @@ def main() -> int:
         battery_step("0009-повторно", owner_url, app_url, battery, ids, probe_module, reports)
 
         # --- итоговый контроль покрытия средствами приложения и согласованность моделей ---
+        # модели описывают последнюю схему (в т.ч. таблицы finance.0010 из 1.4.14): доводим БД до неё,
+        # иначе их таблицы закономерно отсутствуют и покрытие RLS нельзя сверить с моделями
+        manage(owner_url, "migrate", "--noinput")
         out = manage(
             owner_url,
             "shell",
