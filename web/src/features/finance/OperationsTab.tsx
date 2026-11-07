@@ -12,6 +12,7 @@ import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
 import { DateTime } from '../../shared/ui/DateTime'
 import { EmptyState } from '../../shared/ui/EmptyState'
+import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Money } from '../../shared/ui/Money'
 import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { TextField } from '../../shared/ui/TextField'
@@ -55,7 +56,14 @@ export function OperationsTab() {
     { key: 'date', header: t('finance.operations.date'), cell: (o) => <DateTime value={o.date} dateOnly /> },
     { key: 'order', header: t('finance.operations.order'), cell: (o) => <Link className="text-brand-700 underline dark:text-brand-300" to={`/orders/${String(o.order.id)}`}>{o.order.number}</Link> },
     { key: 'client', header: t('finance.operations.client'), cell: (o) => o.client.name },
-    { key: 'title', header: t('finance.operations.name'), cell: (o) => o.title },
+    { key: 'title', header: t('finance.operations.name'), cell: (o) => (
+      <>
+        {o.title}
+        {o.base_status === 'prior_base' || o.base_status === 'no_rate' ? (
+          <span className="ml-1 text-xs text-amber-700 dark:text-amber-300">({t(o.base_status === 'prior_base' ? 'finance.excluded.rowPriorBase' : 'finance.excluded.rowNoRate')})</span>
+        ) : null}
+      </>
+    ) },
     { key: 'category', header: t('finance.operations.category'), cell: (o) => o.category || '—' },
     { key: 'income', header: t('finance.operations.income'), align: 'right', cell: (o) => <Money value={o.income} currency={o.currency} /> },
     { key: 'expense', header: t('finance.operations.expense'), align: 'right', cell: (o) => <Money value={o.expense} currency={o.currency} /> },
@@ -83,7 +91,7 @@ export function OperationsTab() {
             ['diffKzt', summary.diff_kzt],
           ] as const).map(([key, value]) => (
             <div key={key} className="rounded border border-slate-200 p-2 dark:border-slate-700">
-              <p className="text-xs text-slate-500">{t(`finance.operations.${key}`)}</p>
+              <p className="text-xs text-slate-500">{t(`finance.operations.${key}`, { currency: summary.currency ?? 'KZT' })}</p>
               <p className="text-lg font-semibold tabular-nums">{money(value)}</p>
             </div>
           ))}
@@ -92,6 +100,7 @@ export function OperationsTab() {
               <li key={code}>{code}: {money(v.income)} / {money(v.expense)} → {money(v.diff)}</li>
             ))}
           </ul>
+          <ExcludedHint excluded={summary.excluded} className="text-xs text-amber-700 sm:col-span-3 dark:text-amber-300" />
           {summary.unconverted > 0 ? <p className="text-xs text-amber-700 sm:col-span-3 dark:text-amber-300">{t('finance.operations.unconverted', { count: summary.unconverted })}</p> : null}
         </div>
       ) : null}

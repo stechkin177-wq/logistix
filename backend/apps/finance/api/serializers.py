@@ -100,6 +100,23 @@ def money(value):
     return format(value, "f")
 
 
+def excluded_data(excluded: dict | None) -> dict | None:
+    """Исключённое из итогов базовой валюты (число и суммы в исходной валюте); None, если пусто."""
+    if not excluded or not excluded.get("count"):
+        return None
+    out = {"is_partial": True, "count": excluded["count"], "orders": excluded["orders"]}
+    for kind in ("prior_base", "no_rate"):
+        part = excluded[kind]
+        out[kind] = {
+            "count": part["count"],
+            "by_currency": {
+                code: {k: money(v) for k, v in row.items()}
+                for code, row in sorted(part["by_currency"].items())
+            },
+        }
+    return out
+
+
 def invoice_data(invoice: Invoice, today) -> dict:
     """Представление счёта; invoice должен быть выбран через view.get_queryset (paid, связи)."""
     paid = invoice.paid

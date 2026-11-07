@@ -32,6 +32,23 @@ export interface Branding {
   theme: Theme
 }
 
+/** Записи, не вошедшие в итог в базовой валюте: суммы в исходной валюте, без пересчёта задним числом. */
+export interface ExcludedPart {
+  count: number
+  by_currency: Record<string, { income: string; expense: string }>
+}
+
+export interface ExcludedBase {
+  /** Общий итог неполный: часть записей в него не включена. */
+  is_partial: boolean
+  count: number
+  orders: number
+  /** Снимок курса сделан в прежней базовой валюте. */
+  prior_base: ExcludedPart
+  /** Курса нет (legacy_missing или плановый доход без снимка). */
+  no_rate: ExcludedPart
+}
+
 export interface DashboardSummary {
   month: string
   active_orders: number
@@ -46,6 +63,9 @@ export interface DashboardSummary {
   currency: string | null
   /** Заказов месяца в другой валюте: в прибыль не входят (null без finance.view). */
   excluded_orders: number | null
+  /** Новая финансовая модель: что исключено из прибыли месяца (null - нечего исключать / прежний учёт). */
+  excluded?: ExcludedBase | null
+  is_partial?: boolean
 }
 
 export interface HandbookValue {

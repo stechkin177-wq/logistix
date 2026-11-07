@@ -23,6 +23,23 @@ describe('Дашборд', () => {
     expect(screen.getByText('В прибыль не вошли заказы в другой валюте (не KZT): 3')).toBeInTheDocument()
   })
 
+  it('новая модель: валюта из ответа (USD), пометка об исключённых записях с суммами в исходной валюте', async () => {
+    const excluded = {
+      is_partial: true, count: 3, orders: 2,
+      prior_base: { count: 2, by_currency: { KZT: { income: '1000.00', expense: '300.00' } } },
+      no_rate: { count: 1, by_currency: { EUR: { income: '5.00', expense: '0.00' } } },
+    }
+    loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: '60.00', currency: 'USD', excluded_orders: 2, excluded } }]])
+    renderApp('/')
+    expect(await screen.findByText(/^60,00\sUSD$/)).toBeInTheDocument()
+    expect(screen.queryByText(/KZT\b.*тенге/)).not.toBeInTheDocument()
+    const hint = screen.getByText(/В итог не вошло записей: 3 \(заказов: 2\)/)
+    expect(hint).toHaveAttribute('title', expect.stringContaining('В прежней базовой валюте: 2'))
+    expect(hint).toHaveAttribute('title', expect.stringContaining('Без курса: 1'))
+    expect(hint.getAttribute('title')).toMatch(/KZT доход .*1\s000,00/)
+    expect(screen.queryByText(/в другой валюте/)).not.toBeInTheDocument()
+  })
+
   it('без finance.view пометки о валюте нет', async () => {
     loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: null, month_margin_pct: null, currency: null, excluded_orders: null } }]])
     renderApp('/')
@@ -85,6 +102,17 @@ describe('Дашборд: финансовые плитки', () => {
     expect(screen.getByText(/500\s000,00/)).toBeInTheDocument()
     expect(screen.getByText('Просрочено').closest('a')).toHaveAttribute('href', '/finance?tab=invoices&status=overdue&direction=out')
     expect(screen.getByText('К оплате перевозчикам')).toBeInTheDocument()
+  })
+
+  it('база USD: прибыль в USD, долги по-прежнему в валюте долгов (debts_currency)', async () => {
+    loggedIn([
+      ['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: '60.00', currency: 'USD' } }],
+      ['GET', '/api/finance/summary/', { body: { ...finance, currency: 'USD', debts_currency: 'KZT' } }],
+    ])
+    renderApp('/')
+    const debt = await screen.findByText('Долг клиентов')
+    expect(within(debt.closest('a')!).getByText(/500\s000,00\sKZT/)).toBeInTheDocument()
+    expect(screen.getByText(/^60,00\sUSD$/)).toBeInTheDocument()
   })
 
   it('без finance.view плиток нет и запрос не отправляется', async () => {

@@ -19,11 +19,18 @@ from apps.forwarding.orders.export import (
     safe_text,
 )
 from apps.forwarding.orders.filters import date_param, int_param
+from apps.forwarding.orders.services import BASE_CURRENCY_CODE
 
 from .. import operations as ops
-from .serializers import money
+from ..reports_new import base_currency_code
+from .serializers import excluded_data, money
 
 HEADERS = ["Дата", "Заказ", "Клиент", "Название", "Категория", "Доход", "Расход", "Валюта"]
+BASE_STATUS_TEXT = {
+    "current": "",
+    "prior_base": "в прежней базовой валюте",
+    "no_rate": "без курса",
+}
 
 
 class OperationsMixin:
@@ -43,7 +50,11 @@ class OperationsMixin:
 
 
 def summary_data(s: dict) -> dict:
+    # *_kzt - прежние имена полей (совместимость); суммы в базовой валюте, её код - в currency
     return {
+        "currency": s.get("currency") or BASE_CURRENCY_CODE,
+        "excluded": excluded_data(s.get("excluded")),
+        "is_partial": bool(s.get("excluded") and s["excluded"]["count"]),
         "income_kzt": money(s["income_kzt"]),
         "expense_kzt": money(s["expense_kzt"]),
         "diff_kzt": money(s["diff_kzt"]),
@@ -72,6 +83,7 @@ class OperationsView(OperationsMixin, APIView):
                 "expense": money(ln.expense),
                 "currency": ln.order.currency.code,
                 "is_base": ln.is_base,
+                "base_status": getattr(ln, "bucket", None),
             }
             for ln in page
         ]
@@ -94,10 +106,16 @@ class OperationsExportView(OperationsMixin, APIView):
             raise ValidationError(
                 f"Слишком много операций для выгрузки (больше {EXPORT_LIMIT}): сузьте фильтр"
             )
+        # новая модель: добавляются суммы в базовой валюте и пометка записей вне итога базы
+        in_base = isinstance(qs, list)
+        headers = list(HEADERS)
+        if in_base:
+            code = base_currency_code(request.membership.company_id)
+            headers += [f"Доход, {code}", f"Расход, {code}", "Учёт в базовой валюте"]
         wb = Workbook(write_only=True)
         ws = wb.create_sheet("Операции")
         head = []
-        for title in HEADERS:
+        for title in headers:
             cell = WriteOnlyCell(ws, value=title)
             cell.font = Font(bold=True)
             head.append(cell)
@@ -108,18 +126,22 @@ class OperationsExportView(OperationsMixin, APIView):
                 WriteOnlyCell(ws, value=ln.expense),
             )
             income.number_format = expense.number_format = MONEY_FORMAT
-            ws.append(
-                [
-                    ln.date,
-                    safe_text(ln.order.number),
-                    safe_text(ln.order.client.name),
-                    safe_text(ln.title),
-                    safe_text(ln.category),
-                    income,
-                    expense,
-                    safe_text(ln.order.currency.code),
-                ]
-            )
+            cells = [
+                ln.date,
+                safe_text(ln.order.number),
+                safe_text(ln.order.client.name),
+                safe_text(ln.title),
+                safe_text(ln.category),
+                income,
+                expense,
+                safe_text(ln.order.currency.code),
+            ]
+            if in_base:
+                base_income = WriteOnlyCell(ws, value=ln.base_income)
+                base_expense = WriteOnlyCell(ws, value=ln.base_expense)
+                base_income.number_format = base_expense.number_format = MONEY_FORMAT
+                cells += [base_income, base_expense, BASE_STATUS_TEXT.get(ln.bucket, ln.bucket)]
+            ws.append(cells)
         buffer = io.BytesIO()
         wb.save(buffer)
         today = company_today(request.membership.company_id)

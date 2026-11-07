@@ -33,6 +33,26 @@ describe('Операции', () => {
     expect(screen.getByText(/Строк без курса: 2/)).toBeInTheDocument()
   })
 
+  it('новая модель: подписи итогов берутся из ответа (USD), исключённые записи помечены', async () => {
+    const body: OperationsResponse = {
+      ...OPS,
+      results: [{ ...OPS.results[0]!, base_status: 'prior_base' as const }],
+      summary: {
+        ...OPS.summary, currency: 'USD', unconverted: 0,
+        excluded: { is_partial: true, count: 2, orders: 1, prior_base: { count: 2, by_currency: { KZT: { income: '1000.00', expense: '300.00' } } }, no_rate: { count: 0, by_currency: {} } },
+      },
+    }
+    loggedIn([opsRoute(body)])
+    renderApp('/finance?tab=operations')
+    await screen.findByText('Перевозка')
+    expect(screen.getByText('Доход, USD')).toBeInTheDocument()
+    expect(screen.getByText('Расход, USD')).toBeInTheDocument()
+    expect(screen.getByText('Разница, USD')).toBeInTheDocument()
+    expect(screen.queryByText('Доход, KZT')).not.toBeInTheDocument()
+    expect(screen.getByText(/В итог не вошло записей: 2/)).toBeInTheDocument()
+    expect(screen.getByText(/вне итога: прежняя база/)).toBeInTheDocument()
+  })
+
   it('фильтры уходят на сервер; выгрузка скачивает файл с теми же фильтрами', async () => {
     const m = loggedIn([
       opsRoute(),

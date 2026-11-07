@@ -5,8 +5,10 @@
 заказов с датой в текущем месяце и не раньше Company.accounting_start; строки отменённых
 (код статуса cancelled) и мягко удалённых заказов исключены. Суммируются только заказы в
 базовой валюте (BASE_CURRENCY_CODE, currency в ответе); число заказов с данными в других
-валютах - excluded_orders (null без finance.view). Запросов к БД фиксированное число
-(не зависит от числа заказов).
+валютах - excluded_orders (null без finance.view). При engine == 'new' итог считается в базовой
+валюте компании (settings.base_currency) по сохранённым снимкам курса; записи прежней базовой
+валюты и без курса не конвертируются задним числом, а перечисляются в excluded. Запросов к БД
+фиксированное число (не зависит от числа заказов).
 """
 
 from datetime import datetime, time
@@ -52,7 +54,8 @@ def _month_finance(company, today) -> dict:
         first, nxt = month_bounds(today)
         new = reports_new.month_totals_new(company, first, nxt)
         return {
-            k: new[k] for k in ("month_profit", "month_margin_pct", "currency", "excluded_orders")
+            k: new[k]
+            for k in ("month_profit", "month_margin_pct", "currency", "excluded_orders", "excluded")
         }
     return _month_finance_legacy(company, today)
 
@@ -112,6 +115,8 @@ def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
         "month_margin_pct": None,
         "currency": None,
         "excluded_orders": None,
+        "excluded": None,
+        "is_partial": False,
     }
     if with_finance:
         result.update(_month_finance(company, today))
@@ -129,4 +134,9 @@ class DashboardSummaryView(APIView):
         for key in ("month_profit", "month_margin_pct"):
             if data[key] is not None:
                 data[key] = _money(data[key])
+        if data["excluded"] is not None:
+            from apps.finance.api.serializers import excluded_data
+
+            data["excluded"] = excluded_data(data["excluded"])
+        data["is_partial"] = data["excluded"] is not None
         return Response(data)

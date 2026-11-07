@@ -123,5 +123,5 @@ def journal_summary(company_id, **filters) -> dict:
     from .engine import use_new_engine
 
     if use_new_engine(company_id):
-        return reports_new.summary_new(RateTable, **filters)
+        return reports_new.summary_new(**filters)
     return summary(operations_queryset(**filters))

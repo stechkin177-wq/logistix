@@ -218,7 +218,7 @@ def _collect(company, month, F: _Findings) -> dict:
         first = date(int(m[:4]), int(m[5:]), 1)
         first, nxt = month_bounds(first)
         old = _month_finance_legacy(company, first)
-        new = reports_new.month_totals_new(company, first, nxt)
+        new = reports_new.month_totals_order_currency(company, first, nxt)
         revenue_old = _old_revenue(company, first, nxt)
         profit_old = old["month_profit"]  # прибыль - из самого дашборда
         if (profit_old, margin_pct(revenue_old, profit_old)) != (

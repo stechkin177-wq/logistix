@@ -1,4 +1,5 @@
 /** Типы ответов /api/finance/* (суммы - строки Decimal, как их отдаёт бэкенд). */
+import type { ExcludedBase } from '../../shared/api/types'
 
 export interface CurrencyRef {
   id: number
@@ -126,9 +127,15 @@ export interface OperationRow {
   expense: string
   currency: string
   is_base: boolean
+  /** Новая модель: current / prior_base (прежняя база) / no_rate; null в прежнем учёте. */
+  base_status?: 'current' | 'prior_base' | 'no_rate' | null
 }
 
 export interface OperationsSummary {
+  /** Валюта итогов (базовая валюта компании в новой модели, иначе KZT). Поля *_kzt - прежние имена. */
+  currency?: string
+  excluded?: ExcludedBase | null
+  is_partial?: boolean
   income_kzt: string
   expense_kzt: string
   diff_kzt: string
@@ -167,7 +174,11 @@ export interface DebtRow {
 }
 
 export interface FinanceSummary {
+  /** Валюта итога месяца; долги и курсовая разница - в debts_currency (KZT). */
   currency: string
+  debts_currency?: string
+  excluded?: ExcludedBase | null
+  is_partial?: boolean
   client_debt_kzt: string
   overdue_kzt: string
   payable_kzt: string

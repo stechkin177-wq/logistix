@@ -7,6 +7,7 @@ import { useFormat } from '../../shared/format/useFormat'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { EmptyState } from '../../shared/ui/EmptyState'
+import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Spinner } from '../../shared/ui/Spinner'
 import { useSession } from '../../shared/auth/useSession'
 import { useFinanceSummary } from '../finance/hooks'
@@ -104,12 +105,13 @@ export function DashboardPage() {
           ) : null}
           {canFinance && finance ? (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.currency)} to="/finance?tab=debts" />
-              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
-              <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.currency)} to="/finance?tab=debts&kind=carriers" />
+              <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts" />
+              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
+              <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts&kind=carriers" />
             </div>
           ) : null}
-          {data.month_profit !== null && (data.excluded_orders ?? 0) > 0 ? (
+          {data.month_profit !== null && data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
+          {data.month_profit !== null && !data.excluded && (data.excluded_orders ?? 0) > 0 ? (
             <p className="text-xs text-slate-500">
               {t('dashboard.excludedOrders', { count: data.excluded_orders ?? 0, currency: data.currency ?? '' })}
             </p>

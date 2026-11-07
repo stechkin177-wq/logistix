@@ -6,7 +6,7 @@ from apps.core.api_permissions import permission_required
 from apps.forwarding.finance_lines.models import company_today
 
 from .. import debts, summary
-from .serializers import money
+from .serializers import excluded_data, money
 
 
 class ReportView(APIView):
@@ -48,11 +48,13 @@ class CarrierDebtsView(ReportView):
 class SummaryView(ReportView):
     def get(self, request):
         data = summary.finance_summary(self.today(request))
-        return Response(
-            {
-                k: (money(v) if k.endswith("_kzt") else (None if v is None else v))
-                if k not in ("month_margin_pct",)
-                else (None if v is None else money(v))
-                for k, v in data.items()
-            }
-        )
+        excluded = excluded_data(data.pop("excluded", None))
+        out = {
+            k: (money(v) if k.endswith("_kzt") else (None if v is None else v))
+            if k not in ("month_margin_pct",)
+            else (None if v is None else money(v))
+            for k, v in data.items()
+        }
+        out["excluded"] = excluded
+        out["is_partial"] = excluded is not None
+        return Response(out)

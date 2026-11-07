@@ -30,7 +30,11 @@ def finance_summary(today) -> dict:
     ).select_related("invoice"):
         fx += payment_fx_difference(payment)
     return {
-        "currency": BASE_CURRENCY_CODE,
+        # currency - валюта итога месяца (базовая валюта компании при engine=new, иначе KZT);
+        # долги и курсовая разница считаются в тенге (debts_currency), их перевод - отдельная задача
+        "currency": month.get("currency") or BASE_CURRENCY_CODE,
+        "debts_currency": BASE_CURRENCY_CODE,
+        "excluded": month.get("excluded"),
         "client_debt_kzt": debts.total(clients, "balance_kzt"),
         "overdue_kzt": debts.total(clients, "overdue_kzt"),
         "payable_kzt": debts.total(carriers, "balance_kzt"),

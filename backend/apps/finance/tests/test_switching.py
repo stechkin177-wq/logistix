@@ -475,7 +475,12 @@ def snapshot_reads(client):
     dash = client.get("/api/dashboard/summary/").json()
     ops = client.get("/api/finance/operations/?page_size=200").json()
     fin = client.get("/api/finance/summary/").json()
-    summ = {k: v for k, v in ops["summary"].items() if k != "unconverted"}
+    # unconverted / excluded - разный способ учёта «без курса» (строки прежнего учёта и записи нового)
+    summ = {
+        k: v
+        for k, v in ops["summary"].items()
+        if k not in ("unconverted", "excluded", "is_partial")
+    }
     return {
         "orders": totals,
         "dash": {k: dash[k] for k in ("month_profit", "month_margin_pct", "excluded_orders")},
@@ -504,6 +509,11 @@ def test_reads_equivalent_between_old_and_new_paths(company, admin_client, admin
         assert use_new_engine(company)
         new = snapshot_reads(admin_client)
         xlsx = admin_client.get("/api/finance/operations/export/")
+    # Дашборд: прежний учёт суммирует только заказы в валюте KZT, новый (1.4.13) - все записи с
+    # курсовым снимком в базовой валюте. Отличие - ровно USD-заказ (20 USD по курсу 480 = 9600).
+    old_dash, new_dash = old.pop("dash"), new.pop("dash")
+    assert old_dash["excluded_orders"] == 1 and new_dash["excluded_orders"] == 0
+    assert D(new_dash["month_profit"]) == D(old_dash["month_profit"]) + D("9600.00")
     assert new == old
     assert xlsx.status_code == 200 and xlsx.content[:2] == b"PK"
 
