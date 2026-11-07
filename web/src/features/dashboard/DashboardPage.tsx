@@ -10,6 +10,7 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Spinner } from '../../shared/ui/Spinner'
 import { useSession } from '../../shared/auth/useSession'
+import { DebtsExcludedHint } from '../finance/DebtsExcludedHint'
 import { useFinanceSummary } from '../finance/hooks'
 import { useDashboardSummary } from './hooks'
 
@@ -105,11 +106,25 @@ export function DashboardPage() {
           ) : null}
           {canFinance && finance ? (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts" />
-              <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
-              <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts&kind=carriers" />
+              {finance.base_currency ? (
+                <>
+                  <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_base, finance.base_currency)} to="/finance?tab=debts" />
+                  <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_base, finance.base_currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
+                  <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_base, finance.base_currency)} to="/finance?tab=debts&kind=carriers" />
+                  <Stat label={t('finance.fx.dashboardRealized')} value={money(finance.fx_realized_base, finance.base_currency)} to="/finance?tab=payments" />
+                  <Stat label={t('finance.fx.dashboardUnrealized')} value={money(finance.fx_unrealized_base, finance.base_currency)} to="/finance?tab=debts" />
+                </>
+              ) : (
+                <>
+                  <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts" />
+                  <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
+                  <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts&kind=carriers" />
+                </>
+              )}
             </div>
           ) : null}
+          {canFinance && finance?.base_currency ? <DebtsExcludedHint excluded={finance.debts_excluded} /> : null}
+          {canFinance && finance?.fx_realized_partial ? <p className="text-xs text-amber-700 dark:text-amber-300">{t('finance.fx.realizedPartial')}</p> : null}
           {data.month_profit !== null && data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
           {data.month_profit !== null && !data.excluded && (data.excluded_orders ?? 0) > 0 ? (
             <p className="text-xs text-slate-500">

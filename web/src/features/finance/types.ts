@@ -1,5 +1,6 @@
 /** Типы ответов /api/finance/* (суммы - строки Decimal, как их отдаёт бэкенд). */
 import type { ExcludedBase } from '../../shared/api/types'
+import type { Paginated } from '../../shared/ui/Pagination'
 
 export interface CurrencyRef {
   id: number
@@ -95,6 +96,9 @@ export interface InvoicePayload {
 
 export type PaymentMethod = 'bank' | 'cash' | 'other'
 
+/** Статус записи в курсовых разницах (1.4.14): ok / нет базового курса записи / снимок в прежней базе. */
+export type FxStatus = 'ok' | 'no_base_rate' | 'prior_base'
+
 export interface Payment {
   id: number
   invoice: { id: number; number: string; direction: InvoiceDirection }
@@ -106,7 +110,28 @@ export interface Payment {
   comment: string
   fx_difference_kzt: string
   created_at: string
+  /** Новая модель (engine=new): снимок курса к базе и реализованная разница в базовой валюте. */
+  base_currency?: string
+  rate_to_base?: string | null
+  invoice_rate_to_base?: string | null
+  fx_realized_base?: string | null
+  fx_status?: FxStatus
 }
+
+/** Итог реализованной курсовой разницы по оплатам фильтра; только в новой модели. */
+export interface RealizedSummary {
+  base_currency: string
+  fx_realized_base: string
+  by_direction: { out: string; in: string }
+  is_partial: boolean
+  excluded: {
+    count: number
+    prior_base: { count: number; by_currency: Record<string, string> }
+    no_base_rate: { count: number; by_currency: Record<string, string> }
+  }
+}
+
+export type PaymentsResponse = Paginated<Payment> & { summary?: RealizedSummary }
 
 export interface PaymentPayload {
   date: string
@@ -161,6 +186,30 @@ export interface OperationsFilters {
   pageSize: number
 }
 
+/** Применённый курс на дату отчёта (подсказка к эквиваленту). */
+export interface AppliedRate {
+  rate: string
+  rate_date: string
+  source: 'same' | 'direct' | 'via_kzt'
+}
+
+/** Исключённое из итогов базы по причине; суммы - в исходной валюте. */
+export interface DebtsExcludedPart {
+  count: number
+  by_currency: Record<string, { open: string; overdue: string; equivalent_base: string }>
+}
+
+export interface DebtsExcluded {
+  is_partial: boolean
+  count: number
+  /** Нет курса на дату отчёта. */
+  no_rate: DebtsExcludedPart
+  /** Счёт с курсом в прежней базовой валюте: в итог не входит, эквивалент справочно. */
+  prior_base: DebtsExcludedPart
+  /** У счёта нет базового курса: эквивалент есть, нереализованную разницу не считаем. */
+  no_base_rate: DebtsExcludedPart
+}
+
 export interface DebtRow {
   id: number
   name: string
@@ -171,6 +220,24 @@ export interface DebtRow {
   by_currency: Record<string, { issued: string; paid: string; balance: string }>
   credit_limit?: string
   limit_usage_pct?: string | null
+  /** Новая модель (engine=new): остатки в исходных валютах и эквиваленты в базовой валюте. */
+  balance?: Record<string, string>
+  overdue?: Record<string, string>
+  applied_rate?: Record<string, AppliedRate>
+  balance_base?: string
+  overdue_base?: string
+  carrying_base?: string
+  unrealized_diff?: string
+  excluded?: DebtsExcluded
+  is_partial?: boolean
+}
+
+export interface DebtsResponse {
+  results: DebtRow[]
+  base_currency?: string
+  as_of?: string
+  is_partial?: boolean
+  excluded?: DebtsExcluded
 }
 
 export interface FinanceSummary {
@@ -186,6 +253,18 @@ export interface FinanceSummary {
   month_margin_pct: string | null
   fx_difference_kzt: string
   unconverted: number
+  /** Новая модель: долги, просрочка и курсовые разницы в базовой валюте (реализованная и нереализованная раздельно). */
+  base_currency?: string
+  client_debt_base?: string
+  overdue_base?: string
+  payable_base?: string
+  fx_realized_base?: string
+  fx_realized_partial?: boolean
+  fx_unrealized_base?: string
+  fx_unrealized_clients_base?: string
+  fx_unrealized_payables_base?: string
+  debts_partial?: boolean
+  debts_excluded?: DebtsExcluded
 }
 
 export interface TripExpenseData {

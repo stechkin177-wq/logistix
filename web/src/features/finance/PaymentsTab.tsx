@@ -12,6 +12,7 @@ import { Money } from '../../shared/ui/Money'
 import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { WriteButton } from '../../shared/ui/WriteButton'
+import { RealizedExcludedHint } from './DebtsExcludedHint'
 import { useDeletePayment, usePayments } from './hooks'
 import type { Payment } from './types'
 
@@ -28,6 +29,8 @@ export function PaymentsTab() {
   const list = usePayments(state.page, state.pageSize, state.direction)
   const remove = useDeletePayment()
   const [toDelete, setToDelete] = useState<Payment | null>(null)
+  const summary = list.data?.summary // только в новой модели учёта
+  const base = summary?.base_currency
 
   const columns: Column<Payment>[] = [
     { key: 'date', header: t('finance.payments.date'), cell: (p) => <DateTime value={p.date} dateOnly /> },
@@ -44,7 +47,21 @@ export function PaymentsTab() {
     { key: 'amount', header: t('finance.payments.amount'), align: 'right', cell: (p) => <Money value={p.amount} /> },
     { key: 'method', header: t('finance.payments.method'), cell: (p) => t(`finance.payments.methods.${p.method}`) },
     { key: 'ref', header: t('finance.payments.ref'), cell: (p) => p.payment_ref || '—' },
-    { key: 'fx', header: t('finance.payments.fx'), align: 'right', cell: (p) => <Money value={p.fx_difference_kzt} /> },
+    base
+      ? {
+          key: 'fx',
+          header: t('finance.fx.realized', { currency: base }),
+          align: 'right',
+          cell: (p) =>
+            p.fx_realized_base == null ? (
+              <span title={t(`finance.fx.status.${p.fx_status ?? 'no_base_rate'}`)}>—</span>
+            ) : (
+              <span title={t('finance.fx.paymentRateTip', { invoice: p.invoice_rate_to_base ?? '', payment: p.rate_to_base ?? '' })}>
+                <Money value={p.fx_realized_base} currency={base} />
+              </span>
+            ),
+        }
+      : { key: 'fx', header: t('finance.payments.fx'), align: 'right', cell: (p) => <Money value={p.fx_difference_kzt} /> },
     {
       key: 'actions',
       header: <span className="sr-only">{t('common.actions')}</span>,
@@ -67,6 +84,13 @@ export function PaymentsTab() {
         options={[{ value: 'out', label: t('finance.direction.out') }, { value: 'in', label: t('finance.direction.in') }]}
         onChange={(value) => { setState({ direction: value as typeof state.direction }) }}
       />
+      {summary ? (
+        <div role="group" aria-label={t('finance.fx.realizedTitle')} className="rounded border border-slate-200 p-2 dark:border-slate-700">
+          <p className="text-xs text-slate-500">{t('finance.fx.realizedTotal', { currency: summary.base_currency })}</p>
+          <p className="text-lg font-semibold tabular-nums"><Money value={summary.fx_realized_base} currency={summary.base_currency} /></p>
+          <RealizedExcludedHint summary={summary} />
+        </div>
+      ) : null}
       <DataTable
         caption={t('finance.tabs.payments')}
         columns={columns}

@@ -1,8 +1,8 @@
 import { api, type Query } from '../../shared/api/client'
 import type { Paginated } from '../../shared/ui/Pagination'
 import type {
-  DebtRow, FinanceSummary, Invoice, InvoiceListFilters, InvoicePayload, OperationsFilters, OperationsResponse,
-  Payment, PaymentPayload, Rate, RateFilters, RatePayload, TripExpenseData,
+  DebtsResponse, FinanceSummary, Invoice, InvoiceListFilters, InvoicePayload, OperationsFilters, OperationsResponse,
+  Payment, PaymentPayload, PaymentsResponse, Rate, RateFilters, RatePayload, TripExpenseData,
 } from './types'
 
 const id = (value: number) => String(value)
@@ -45,7 +45,7 @@ export const listInvoicePayments = (invoiceId: number, signal?: AbortSignal) =>
 export const addPayment = (invoiceId: number, body: PaymentPayload) =>
   api.post<Payment>(`/finance/invoices/${id(invoiceId)}/payments/`, body)
 export const listPayments = (page: number, pageSize: number, direction: string, signal?: AbortSignal) =>
-  api.get<Paginated<Payment>>('/finance/payments/', { page, page_size: pageSize, direction: direction || undefined }, { signal })
+  api.get<PaymentsResponse>('/finance/payments/', { page, page_size: pageSize, direction: direction || undefined }, { signal })
 export const deletePayment = (paymentId: number) => api.delete(`/finance/payments/${id(paymentId)}/`)
 
 export function operationsQuery(f: OperationsFilters): Query {
@@ -64,7 +64,8 @@ export const listOperations = (f: OperationsFilters, signal?: AbortSignal) =>
 export const exportOperations = (f: OperationsFilters) => api.download('/finance/operations/export/', operationsQuery(f))
 
 export const listDebts = (kind: 'clients' | 'carriers', signal?: AbortSignal) =>
-  api.get<{ results: DebtRow[] }>(`/finance/debts/${kind}/`, undefined, { signal })
+  api.get<DebtsResponse>(`/finance/debts/${kind}/`, undefined, { signal })
+export const exportDebts = (kind: 'clients' | 'carriers') => api.download(`/finance/debts/${kind}/export/`)
 export const getFinanceSummary = (signal?: AbortSignal) => api.get<FinanceSummary>('/finance/summary/', undefined, { signal })
 
 export const getTripExpense = (tripId: number, signal?: AbortSignal) =>

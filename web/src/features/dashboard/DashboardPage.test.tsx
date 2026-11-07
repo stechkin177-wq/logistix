@@ -115,6 +115,24 @@ describe('Дашборд: финансовые плитки', () => {
     expect(screen.getByText(/^60,00\sUSD$/)).toBeInTheDocument()
   })
 
+  it('новая модель: долги и разницы в базовой валюте, реализованная и нереализованная - отдельными плитками', async () => {
+    const body = {
+      ...finance, currency: 'EUR', base_currency: 'EUR', client_debt_base: '4800.00', overdue_base: '1200.00', payable_base: '900.00',
+      fx_realized_base: '120.00', fx_realized_partial: true, fx_unrealized_base: '-30.00', debts_partial: false,
+    }
+    loggedIn([summaryRoute, ['GET', '/api/finance/summary/', { body }]])
+    renderApp('/')
+    const debt = await screen.findByText('Долг клиентов')
+    expect(within(debt.closest('a')!).getByText(/4\s800,00\sEUR/)).toBeInTheDocument()
+    expect(screen.queryByText(/500\s000,00/)).not.toBeInTheDocument()
+    const realized = screen.getByText('Курсовая разница реализованная (месяц)').closest('a')!
+    const unrealized = screen.getByText('Курсовая разница нереализованная').closest('a')!
+    expect(within(realized).getByText(/120,00\sEUR/)).toBeInTheDocument()
+    expect(within(unrealized).getByText(/-30,00\sEUR/)).toBeInTheDocument()
+    expect(screen.getByText(/Реализованная разница посчитана не по всем оплатам/)).toBeInTheDocument()
+    expect(screen.queryByText(/Итого курсовая/i)).not.toBeInTheDocument()
+  })
+
   it('без finance.view плиток нет и запрос не отправляется', async () => {
     const m = loggedIn([summaryRoute], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.view') } })
     renderApp('/')
