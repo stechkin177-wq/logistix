@@ -2,7 +2,7 @@ import type { HandbookValue } from '../shared/api/types'
 import type { BoardColumn, Order, OrderConsignment, OrderLine } from '../features/orders/types'
 
 export function hv(handbook: string, id: number, name: string, extra: Partial<HandbookValue> = {}): HandbookValue {
-  return { id, handbook, name, code: '', order: id, is_initial: false, is_final: false, is_active: true, ...extra }
+  return { id, handbook, name, code: '', order: id, is_initial: false, is_final: false, is_active: true, is_system: false, ...extra }
 }
 
 export const ORDER_STATUSES = [

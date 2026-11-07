@@ -13,6 +13,7 @@ from apps.core.audit import snapshot
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.tenancy import get_current_company_id
 
+from . import system_codes
 from .models import Handbook, HandbookValue
 from .services import is_status_handbook, make_initial, validate_value_change
 
@@ -24,11 +25,23 @@ class HandbookValueSerializer(serializers.ModelSerializer):
     # справочник адресуется кодом; queryset - менеджер компании, вычисляется на запросе
     handbook = serializers.SlugRelatedField(slug_field="code", queryset=Handbook.objects)
     order = serializers.IntegerField(required=False, min_value=0)
+    # системное значение: код входит в реестр системных кодов справочника (только чтение)
+    is_system = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = HandbookValue
-        fields = ["id", "handbook", "name", "code", "order", "is_initial", "is_final", "is_active"]
-        read_only_fields = ["id"]
+        fields = [
+            "id",
+            "handbook",
+            "name",
+            "code",
+            "order",
+            "is_initial",
+            "is_final",
+            "is_active",
+            "is_system",
+        ]
+        read_only_fields = ["id", "is_system"]
         extra_kwargs = {"code": {"trim_whitespace": False}}
 
     def validate_name(self, value):
@@ -56,8 +69,30 @@ class HandbookValueSerializer(serializers.ModelSerializer):
                 dup = dup.exclude(pk=instance.pk)
             if dup.exists():
                 raise serializers.ValidationError({"code": "Значение с таким кодом уже есть"})
+        self._check_system(handbook, instance, attrs, code)
         validate_value_change(handbook, instance, attrs)
         return attrs
+
+    @staticmethod
+    def _check_system(handbook, instance, attrs, code):
+        """Защита системных кодов: ошибки привязаны к полю (code, is_active, is_final)."""
+        old = None
+        if instance is not None:
+            old = {
+                "code": instance.code,
+                "is_active": instance.is_active,
+                "is_final": instance.is_final,
+                "handbook_code": instance.handbook.code,
+            }
+        new = {
+            "code": code,
+            "is_active": attrs.get("is_active", instance.is_active if instance else True),
+            "is_final": attrs.get("is_final", instance.is_final if instance else False),
+        }
+        try:
+            system_codes.check_change(handbook.code, old=old, new=new)
+        except system_codes.SystemValueProtected as exc:
+            raise serializers.ValidationError(exc.detail) from None
 
 
 class HandbookValueFilterMixin:
@@ -145,6 +180,8 @@ class HandbookValueViewSet(
         try:
             with transaction.atomic():
                 value = self.get_object()
+                if value.is_system:
+                    raise system_codes.SystemValueProtected(system_codes.MSG_DELETE)
                 if value.is_initial and is_status_handbook(value.handbook):
                     raise ValidationError({"detail": "Начальный статус нельзя удалить"})
                 removed = copy(value)
@@ -170,7 +207,11 @@ class HandbookDetailSerializer(HandbookSerializer):
         fields = [*HandbookSerializer.Meta.fields, "values"]
 
     def get_values(self, obj):
-        values = HandbookValue.objects.filter(handbook=obj).order_by("order", "id")
+        values = (
+            HandbookValue.objects.filter(handbook=obj)
+            .select_related("handbook")
+            .order_by("order", "id")
+        )
         return HandbookValueSerializer(values, many=True).data
 
 

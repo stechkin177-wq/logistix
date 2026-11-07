@@ -46,10 +46,12 @@ class SoftDeleteQuerySet(models.QuerySet):
 class BaseManager(models.Manager):
     """Без фильтров; выбирает SoftDeleteQuerySet, если у модели есть deleted_at."""
 
+    queryset_class = None  # свой QuerySet модели без мягкого удаления (например, HandbookValue)
+
     def get_queryset(self):
         if _has_concrete_field(self.model, "deleted_at"):
             return SoftDeleteQuerySet(self.model, using=self._db)
-        return models.QuerySet(self.model, using=self._db)
+        return (self.queryset_class or models.QuerySet)(self.model, using=self._db)
 
 
 class AllObjectsManager(BaseManager):

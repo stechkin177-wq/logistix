@@ -67,6 +67,37 @@ describe('Справочники', () => {
     await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ handbook: 'order_status', name: 'Отменён', code: '', is_initial: false, is_final: true, is_active: true }) })
   })
 
+  it('системное значение: код и «конечное» заблокированы, удаление и отключение недоступны, переименование работает', async () => {
+    const system = [
+      hv('order_status', 1, 'Новый', { is_initial: true }),
+      hv('order_status', 6, 'Завершён', { code: 'completed', is_final: true, is_system: true }),
+    ]
+    const m = loggedIn([
+      ['PATCH', '/api/handbook-values/6/', { body: system[1] }],
+      ['GET', '/api/handbooks/?code=order_status', { body: handbookBody('order_status', system) }],
+      ...base,
+    ])
+    renderApp('/settings/handbooks')
+    expect(await screen.findByText('системное')).toBeInTheDocument()
+    // кнопки удаления и отключения системного значения: удаления нет, отключение недоступно с подсказкой
+    expect(screen.queryByRole('button', { name: 'Удалить значение Завершён' })).not.toBeInTheDocument()
+    const off = screen.getByRole('button', { name: 'Отключить Завершён' })
+    expect(off).toBeDisabled()
+    expect(off).toHaveAttribute('title', expect.stringContaining('Системное значение'))
+    // у обычного значения всё по-прежнему доступно
+    expect(screen.getByRole('button', { name: 'Удалить значение Новый' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Завершён' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Код')).toBeDisabled()
+    expect(within(dialog).getByRole('checkbox', { name: 'Конечное значение' })).toBeDisabled()
+    expect(within(dialog).getByRole('checkbox', { name: 'Активно' })).toBeDisabled()
+    const name = within(dialog).getByLabelText(/^Название/)
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Выполнен')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Выполнен', order: 6, is_initial: false }) })
+  })
+
   it('«Начальное значение» только у справочников статусов', async () => {
     loggedIn(base)
     renderApp('/settings/handbooks?code=currency')

@@ -42,6 +42,7 @@ function ValueDrawer({ handbook, value, onClose }: { handbook: HandbookDetail; v
   const permission = editing ? 'handbooks.update' : 'handbooks.create'
   const canSave = useCanWrite(permission)
   const isStatus = STATUS_HANDBOOKS.includes(handbook.code)
+  const isSystem = value?.is_system ?? false
   const [form, setForm] = useState<FormState>({
     name: value?.name ?? '',
     code: value?.code ?? '',
@@ -68,13 +69,12 @@ function ValueDrawer({ handbook, value, onClose }: { handbook: HandbookDetail; v
       return
     }
     setErrors(NO_ERRORS)
+    // у системного значения код, «конечное» и «активно» не отправляются: сервер их защищает
     save.mutate({
       name: form.name.trim(),
-      code: form.code.trim(),
+      ...(isSystem ? {} : { code: form.code.trim(), is_final: form.is_final, is_active: form.is_active }),
       ...(form.order.trim() ? { order: Number(form.order) } : {}),
       ...(isStatus ? { is_initial: form.is_initial } : {}),
-      is_final: form.is_final,
-      is_active: form.is_active,
     })
   }
   const f = errors.fields
@@ -95,14 +95,15 @@ function ValueDrawer({ handbook, value, onClose }: { handbook: HandbookDetail; v
         <FormBanner message={errors.banner} />
         <TextField label={t('handbooks.name')} required value={form.name} error={f.name} onChange={(e) => { setForm((s) => ({ ...s, name: e.target.value })) }} />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <TextField label={t('handbooks.code')} value={form.code} error={f.code} hint={t('handbooks.codeHint')} onChange={(e) => { setForm((s) => ({ ...s, code: e.target.value })) }} />
+          <TextField label={t('handbooks.code')} value={form.code} error={f.code} disabled={isSystem} hint={isSystem ? t('handbooks.systemHint') : t('handbooks.codeHint')} onChange={(e) => { setForm((s) => ({ ...s, code: e.target.value })) }} />
           <TextField label={t('handbooks.order')} inputMode="numeric" value={form.order} error={f.order} hint={editing ? undefined : t('handbooks.orderHint')} onChange={(e) => { setForm((s) => ({ ...s, order: e.target.value })) }} />
         </div>
         <div className="flex flex-wrap gap-x-4">
           {isStatus ? <Checkbox label={t('handbooks.isInitial')} checked={form.is_initial} onChange={(e) => { setForm((s) => ({ ...s, is_initial: e.target.checked })) }} /> : null}
-          <Checkbox label={t('handbooks.isFinal')} checked={form.is_final} onChange={(e) => { setForm((s) => ({ ...s, is_final: e.target.checked })) }} />
-          <Checkbox label={t('handbooks.isActive')} checked={form.is_active} onChange={(e) => { setForm((s) => ({ ...s, is_active: e.target.checked })) }} />
+          <Checkbox label={t('handbooks.isFinal')} checked={form.is_final} disabled={isSystem} onChange={(e) => { setForm((s) => ({ ...s, is_final: e.target.checked })) }} />
+          <Checkbox label={t('handbooks.isActive')} checked={form.is_active} disabled={isSystem} onChange={(e) => { setForm((s) => ({ ...s, is_active: e.target.checked })) }} />
         </div>
+        {f.is_final ? <p role="alert" className="text-xs text-red-600">{f.is_final}</p> : null}
         {f.is_initial ? <p role="alert" className="text-xs text-red-600">{f.is_initial}</p> : null}
         {f.is_active ? <p role="alert" className="text-xs text-red-600">{f.is_active}</p> : null}
         {f.handbook ? <p role="alert" className="text-xs text-red-600">{f.handbook}</p> : null}
@@ -152,6 +153,7 @@ function ValuesPanel({ code }: { code: string }) {
       header: t('handbooks.flags'),
       cell: (v) => (
         <span className="flex flex-wrap gap-1">
+          {v.is_system ? <Badge tone="neutral" title={t('handbooks.systemHint')}>{t('handbooks.system')}</Badge> : null}
           {v.is_initial ? <Badge tone="info">{t('handbooks.initial')}</Badge> : null}
           {v.is_final ? <Badge tone="success">{t('handbooks.final')}</Badge> : null}
           <Badge tone={v.is_active ? 'neutral' : 'warning'}>{t(v.is_active ? 'common.active' : 'common.inactive')}</Badge>
@@ -169,10 +171,10 @@ function ValuesPanel({ code }: { code: string }) {
               {t('handbooks.makeInitial')}
             </WriteButton>
           ) : null}
-          <WriteButton permission="handbooks.update" variant="ghost" aria-label={t(v.is_active ? 'handbooks.deactivateNamed' : 'handbooks.activateNamed', { name: v.name })} disabled={toggleActive.isPending} onClick={() => { toggleActive.mutate(v) }}>
+          <WriteButton permission="handbooks.update" variant="ghost" aria-label={t(v.is_active ? 'handbooks.deactivateNamed' : 'handbooks.activateNamed', { name: v.name })} disabled={toggleActive.isPending || (v.is_system && v.is_active)} title={v.is_system && v.is_active ? t('handbooks.systemHint') : undefined} onClick={() => { toggleActive.mutate(v) }}>
             {t(v.is_active ? 'handbooks.deactivate' : 'handbooks.activate')}
           </WriteButton>
-          {hasPermission('handbooks.delete') ? (
+          {hasPermission('handbooks.delete') && !v.is_system ? (
             <WriteButton permission="handbooks.delete" variant="ghost" aria-label={t('handbooks.deleteNamed', { name: v.name })} onClick={() => { setToDelete(v) }}>
               {t('common.delete')}
             </WriteButton>

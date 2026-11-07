@@ -57,6 +57,8 @@ export interface HandbookValue {
   is_initial: boolean
   is_final: boolean
   is_active: boolean
+  /** Системное значение: код защищён сервером (нельзя менять код, удалять, деактивировать, менять «конечное»). */
+  is_system: boolean
 }
 
 export interface HandbookDetail {
