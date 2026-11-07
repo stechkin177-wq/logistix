@@ -23,6 +23,22 @@ SYSTEM_CODES: dict[str, frozenset[str]] = {
     "trip_status": frozenset(
         {"PLANNED", "ASSIGNED", "IN_PROGRESS", "UNLOADING", "COMPLETED", "CANCELLED"}
     ),
+    # категории расходов финансовой архитектуры: код читает учёт расходов и отчёты
+    "expense_category": frozenset(
+        {
+            "FUEL",
+            "MAINTENANCE",
+            "REPAIR",
+            "TIRES",
+            "ROAD",
+            "DRIVER",
+            "INSURANCE",
+            "TAX",
+            "DEPRECIATION",
+            "ADMINISTRATION",
+            "OTHER",
+        }
+    ),
 }
 
 # Поля, изменение которых у системного значения запрещено

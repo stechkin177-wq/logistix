@@ -22,6 +22,7 @@ CODES = [
     "trip_status",
     "currency",
     "vat_rate",
+    "expense_category",
     "client_type",
     "carrier_type",
     "packaging",
@@ -112,6 +113,28 @@ def test_other_seeded_contents(company):
         ]
 
 
+def test_expense_category_defaults(company):
+    values = values_of(company, "expense_category")
+    assert [(v.name, v.code) for v in values] == [
+        ("Топливо", "FUEL"),
+        ("Техобслуживание", "MAINTENANCE"),
+        ("Ремонт", "REPAIR"),
+        ("Шины", "TIRES"),
+        ("Дороги и сборы", "ROAD"),
+        ("Водитель", "DRIVER"),
+        ("Страхование", "INSURANCE"),
+        ("Налоги", "TAX"),
+        ("Амортизация", "DEPRECIATION"),
+        ("Административные", "ADMINISTRATION"),
+        ("Прочее", "OTHER"),
+    ]
+    assert [v.order for v in values] == list(range(1, 12))
+    assert all(v.is_active and not v.is_initial and not v.is_final for v in values)
+    with tenant_context(company.id):
+        hb = Handbook.objects.get(code="expense_category")
+    assert (hb.name, hb.group) == ("Категории расходов", "Финансы")
+
+
 def test_seed_is_idempotent(company):
     with tenant_context(company.id):
         before = (Handbook.objects.count(), HandbookValue.objects.count())
@@ -119,7 +142,7 @@ def test_seed_is_idempotent(company):
     seed_handbooks(company)
     with tenant_context(company.id):
         assert (Handbook.objects.count(), HandbookValue.objects.count()) == before
-    assert before[0] == 12
+    assert before[0] == 13
 
 
 def test_seed_leaves_no_tenant_context(company):
@@ -438,11 +461,11 @@ def test_handbooks_endpoints_isolated(make_company):
     a, _, client_a = make_company("A")
     b, _, client_b = make_company("B")
     Handbook.all_objects.create(company=a, code="only_a", name="Только A")
-    assert len(client_a.get("/api/handbooks/").json()) == 13
-    assert len(client_b.get("/api/handbooks/").json()) == 12
+    assert len(client_a.get("/api/handbooks/").json()) == 14
+    assert len(client_b.get("/api/handbooks/").json()) == 13
     ids_a = set(Handbook.all_objects.filter(company=a).values_list("id", flat=True))
     ids_b = set(Handbook.all_objects.filter(company=b).values_list("id", flat=True))
-    assert len(ids_b) == 12 and not ids_a & ids_b
+    assert len(ids_b) == 13 and not ids_a & ids_b
     assert client_a.get("/api/handbooks/?code=only_a").status_code == 200
     assert client_b.get("/api/handbooks/?code=only_a").status_code == 404
     assert client_b.get("/api/handbooks/only_a/").status_code == 404

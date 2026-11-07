@@ -5,7 +5,13 @@ export const SECTIONS = [
 ] as const
 export const ACTIONS = ['view', 'create', 'update', 'delete'] as const
 
-/** Особые права сверх сетки (как EXTRA_PERMISSIONS на бэкенде): финансы и выход рейса из «Завершён». */
-export const EXTRA_CODES = ['finance.override_limit', 'finance.cancel_invoice', 'trips.revert_completed'] as const
+/**
+ * Особые права сверх сетки (как EXTRA_PERMISSIONS на бэкенде): финансы, выход рейса из «Завершён»
+ * и права финансовой архитектуры (периоды, обратное датирование, настройки).
+ */
+export const EXTRA_CODES = [
+  'finance.override_limit', 'finance.cancel_invoice', 'trips.revert_completed',
+  'finance.close_period', 'finance.reopen_period', 'finance.adjust_closed', 'finance.backdate', 'finance.manage_settings',
+] as const
 
 export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES]

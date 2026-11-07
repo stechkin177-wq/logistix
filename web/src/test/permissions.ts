@@ -10,4 +10,9 @@ export const ALL_PERMISSIONS: string[] = [
   'finance.override_limit',
   'finance.cancel_invoice',
   'trips.revert_completed',
+  'finance.close_period',
+  'finance.reopen_period',
+  'finance.adjust_closed',
+  'finance.backdate',
+  'finance.manage_settings',
 ]

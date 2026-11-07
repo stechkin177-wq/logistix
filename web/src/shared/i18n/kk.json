@@ -715,7 +715,12 @@
       "title": "Ерекше құқықтар",
       "finance.override_limit": "Қаржы: несие лимитінен тыс шот шығару",
       "finance.cancel_invoice": "Қаржы: шығарылған шоттардан бас тарту",
-      "trips.revert_completed": "Рейстер: рейсті «Аяқталды» күйінен шығару"
+      "trips.revert_completed": "Рейстер: рейсті «Аяқталды» күйінен шығару",
+      "finance.close_period": "Қаржы: қаржылық кезеңді жабу",
+      "finance.reopen_period": "Қаржы: жабылған кезеңді қайта ашу",
+      "finance.adjust_closed": "Қаржы: жабылған кезеңге түзету енгізу",
+      "finance.backdate": "Қаржы: операцияларды өткен күнмен енгізу",
+      "finance.manage_settings": "Қаржы: компанияның қаржылық баптауларын өзгерту"
     }
   },
   "departments": {

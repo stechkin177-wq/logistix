@@ -71,6 +71,24 @@ DEFAULTS: dict[str, dict] = {
             ("Евро", "EUR"),
         ),
     },
+    "expense_category": {
+        "name": "Категории расходов",
+        "group": "Финансы",
+        # все коды системные (system_codes.SYSTEM_CODES): их читает учёт расходов
+        "values": _coded(
+            ("Топливо", "FUEL"),
+            ("Техобслуживание", "MAINTENANCE"),
+            ("Ремонт", "REPAIR"),
+            ("Шины", "TIRES"),
+            ("Дороги и сборы", "ROAD"),
+            ("Водитель", "DRIVER"),
+            ("Страхование", "INSURANCE"),
+            ("Налоги", "TAX"),
+            ("Амортизация", "DEPRECIATION"),
+            ("Административные", "ADMINISTRATION"),
+            ("Прочее", "OTHER"),
+        ),
+    },
     "payment_delay_condition": {
         "name": "Условия отсрочки платежа",
         "group": "Финансы",

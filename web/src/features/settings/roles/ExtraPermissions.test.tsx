@@ -73,4 +73,51 @@ describe('Роли: особые права финансов', () => {
     expect(box).toBeChecked()
     expect(box).toBeDisabled()
   })
+
+  const ARCH = [
+    ['finance.close_period', 'Финансы: закрывать финансовый период'],
+    ['finance.reopen_period', 'Финансы: повторно открывать закрытый период'],
+    ['finance.adjust_closed', 'Финансы: вносить корректировки в закрытый период'],
+    ['finance.backdate', 'Финансы: вводить операции задним числом'],
+    ['finance.manage_settings', 'Финансы: изменять финансовые настройки компании'],
+  ] as const
+
+  it.each(ARCH)('право %s показано в матрице ролей и сохраняется в пользовательской роли', async (code, label) => {
+    const m = loggedIn([['POST', '/api/roles/', { status: 201, body: { id: 12, name: 'Контролёр', is_system: false, permissions: [] } }], ...base])
+    const user = userEvent.setup()
+    renderApp('/settings/roles')
+    await user.click(await screen.findByRole('button', { name: 'Новая роль' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/^Название/), 'Контролёр')
+    const box = within(dialog).getByLabelText(label)
+    expect(box).toBeEnabled()
+    expect(box).not.toBeChecked()
+    await user.click(box)
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ name: 'Контролёр', permissions: [code] })
+    })
+  })
+
+  it('права финансовой архитектуры без права у самого пользователя выдать нельзя', async () => {
+    loggedIn(base, { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.reopen_period') } })
+    const user = userEvent.setup()
+    renderApp('/settings/roles')
+    await user.click(await screen.findByRole('button', { name: 'Новая роль' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Финансы: повторно открывать закрытый период')).toBeDisabled()
+    expect(within(dialog).getByLabelText('Финансы: закрывать финансовый период')).toBeEnabled()
+  })
+
+  it('системная роль показывает пять новых прав только для чтения', async () => {
+    loggedIn(base)
+    renderApp('/settings/roles')
+    await userEvent.click(await screen.findByRole('button', { name: 'Администратор' }))
+    const dialog = await screen.findByRole('dialog')
+    for (const [, label] of ARCH) {
+      const box = within(dialog).getByLabelText(label)
+      expect(box).toBeChecked()
+      expect(box).toBeDisabled()
+    }
+  })
 })
