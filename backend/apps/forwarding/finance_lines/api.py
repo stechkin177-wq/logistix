@@ -4,11 +4,13 @@ from rest_framework.exceptions import APIException, ValidationError
 
 from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.audit import services
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
 
 from ..models import OrderService
 from ..orders.filters import int_param
+from .models import company_today
 from .serializers import BASE_LINE_MESSAGE, OrderServiceSerializer
 
 
@@ -36,9 +38,89 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
                 qs = qs.filter(order_id=order)
         return qs.order_by("date", "id")
 
+    # --- защита закрытого периода и обратного датирования (apps.finance.periods) ---
+    # Импорт внутри методов: finance зависит от forwarding, обратная зависимость - только здесь.
+
+    _adjustment: dict | None = None
+
+    def audit_extra_changes(self, instance) -> dict:
+        return self._adjustment or {}
+
+    def audit_deleted(self, copy_before_delete):
+        if not self._adjustment:
+            return super().audit_deleted(copy_before_delete)
+        services.log(
+            "delete",
+            copy_before_delete,
+            self.request.user,
+            {
+                **services.diff(services.snapshot(copy_before_delete), {}),
+                **self._adjustment,
+            },
+            ip=services.client_ip(self.request),
+        )
+
+    @staticmethod
+    def _line_state(line) -> dict:
+        return {
+            "date": line.date.isoformat(),
+            "income": str(line.income),
+            "expense": str(line.expense),
+            "title": line.title,
+        }
+
+    def _guard(self, old_date, new_date):
+        """Проверки дат строки. Возвращает (корректировка?, причина, права)."""
+        from apps.finance import periods
+
+        request = self.request
+        cid = request.membership.company_id
+        perms = periods.request_perms(request)
+        reason = periods.request_adjust_reason(request)
+        adjusted = False
+        if old_date is not None:
+            adjusted |= periods.check_system_date(cid, old_date, perms, reason)
+        if new_date is not None and new_date != old_date:
+            adjusted |= periods.check_user_date(cid, new_date, perms, reason)
+        return adjusted, reason
+
+    def perform_create(self, serializer):
+        new_date = serializer.validated_data.get("date")
+        # дата не указана - строка получит «сегодня»; закрытый месяц всё равно проверяется
+        adjusted, reason = self._guard(
+            None, new_date or company_today(self.request.membership.company_id)
+        )
+        serializer.save(**self.get_create_kwargs(serializer))
+        if adjusted:
+            from apps.finance import periods
+
+            self._adjustment = periods.adjustment_changes(
+                reason, None, self._line_state(serializer.instance)
+            )
+        self.audit_created(serializer.instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        old_state = self._line_state(instance)
+        adjusted, reason = self._guard(instance.date, serializer.validated_data.get("date"))
+        before = services.snapshot(instance)
+        serializer.save()
+        if adjusted:
+            from apps.finance import periods
+
+            self._adjustment = periods.adjustment_changes(
+                reason, old_state, self._line_state(serializer.instance)
+            )
+        self.audit_updated(before, serializer.instance)
+
     def perform_destroy(self, instance):
         if instance.is_base:
             raise ValidationError(BASE_LINE_MESSAGE)
+        adjusted, reason = self._guard(instance.date, None)
+        if adjusted:
+            from apps.finance import periods
+
+            self._adjustment = periods.adjustment_changes(reason, self._line_state(instance), None)
         try:
             super().perform_destroy(instance)
         except ProtectedError:  # строка входит в счёт (finance.InvoiceItem, PROTECT)

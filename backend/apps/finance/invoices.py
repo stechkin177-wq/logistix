@@ -17,6 +17,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.models import Carrier, Client, Trip
 from apps.forwarding.orders.models import Order
 
+from . import periods
 from .errors import FinanceError
 from .models import Invoice, InvoiceItem, Payment
 from .money import ZERO, compute_totals, to_kzt, vat_percent
@@ -275,6 +276,8 @@ def issue(
     issue_date: date | None = None,
     can_override: bool = False,
     override_reason: str | None = None,
+    perms=(),
+    adjust_reason: str | None = None,
 ) -> Invoice:
     invoice = (
         Invoice.objects.select_for_update(of=("self",))
@@ -299,6 +302,7 @@ def issue(
         invoice.currency,
     )
     issue_date = issue_date or company_today(invoice.company_id)
+    adjusted = periods.check_system_date(invoice.company_id, issue_date, perms, adjust_reason)
     rate = rate_on(invoice.currency, issue_date)
     net, vat, gross = _totals([{"amount_net": i.amount_net} for i in items], invoice.vat_rate)
     override_used = None
@@ -328,22 +332,40 @@ def issue(
     changes = {"status": ["draft", "issued"], "number": ["", invoice.number]}
     if override_used:
         changes["credit_limit_override"] = override_used
+    if adjusted:
+        changes.update(
+            periods.adjustment_changes(
+                adjust_reason,
+                None,
+                {"issue_date": issue_date.isoformat(), "number": invoice.number},
+            )
+        )
     audit.log("update", invoice, user, changes)
     return invoice
 
 
 @transaction.atomic
-def cancel(invoice: Invoice, *, user) -> Invoice:
+def cancel(invoice: Invoice, *, user, perms=(), adjust_reason: str | None = None) -> Invoice:
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     if invoice.status != "issued":
         raise _not_editable()
+    adjusted = False
+    if invoice.issue_date is not None:  # отмена выставленного счёта - по дате выставления
+        adjusted = periods.check_system_date(
+            invoice.company_id, invoice.issue_date, perms, adjust_reason
+        )
     if Payment.objects.filter(invoice=invoice).exists():
         raise FinanceError("invoice_has_payments", "По счёту есть оплаты: сначала удалите их")
     invoice.status = "cancelled"
     invoice.save(update_fields=["status", "updated_at"])
     # строки освобождаются (можно удалить или выставить заново); название и сумма остаются
     InvoiceItem.objects.filter(invoice=invoice).update(line=None)
-    audit.log("update", invoice, user, {"status": ["issued", "cancelled"]})
+    changes = {"status": ["issued", "cancelled"]}
+    if adjusted:
+        changes.update(
+            periods.adjustment_changes(adjust_reason, {"status": "issued"}, {"status": "cancelled"})
+        )
+    audit.log("update", invoice, user, changes)
     return invoice
 
 

@@ -7,6 +7,7 @@ from django.db import transaction
 
 from apps.core.audit import services as audit
 
+from . import periods
 from .errors import FinanceError
 from .invoices import balance
 from .models import Invoice, Payment
@@ -24,6 +25,8 @@ def add_payment(
     payment_ref: str = "",
     comment: str = "",
     user,
+    perms=(),
+    adjust_reason: str | None = None,
 ) -> Payment:
     """Оплата в валюте счёта. Счёт блокируется: параллельные оплаты не превысят остаток."""
     locked = Invoice.objects.select_for_update().select_related("currency").get(pk=invoice.pk)
@@ -33,6 +36,8 @@ def add_payment(
         )
     if amount > balance(locked):
         raise FinanceError("payment_exceeds_balance", "Сумма оплаты больше остатка по счёту")
+    # дата оплаты вводится пользователем: закрытый период и обратное датирование - обе проверки
+    adjusted = periods.check_user_date(locked.company_id, date, perms, adjust_reason)
     payment = Payment.objects.create(
         invoice=locked,
         date=date,
@@ -43,17 +48,32 @@ def add_payment(
         comment=comment,
         created_by=user,
     )
-    audit.log("create", payment, user, {"invoice": locked.pk, "amount": str(amount)})
+    changes = {"invoice": locked.pk, "amount": str(amount)}
+    if adjusted:
+        changes.update(
+            periods.adjustment_changes(
+                adjust_reason, None, {"date": date.isoformat(), "amount": str(amount)}
+            )
+        )
+    audit.log("create", payment, user, changes)
     return payment
 
 
 @transaction.atomic
-def delete_payment(payment: Payment, *, user) -> None:
+def delete_payment(payment: Payment, *, user, perms=(), adjust_reason: str | None = None) -> None:
     Invoice.objects.select_for_update().get(pk=payment.invoice_id)  # сериализует с оплатами
+    adjusted = periods.check_system_date(payment.company_id, payment.date, perms, adjust_reason)
     payment.delete()
-    audit.log(
-        "delete", payment, user, {"invoice": payment.invoice_id, "amount": str(payment.amount)}
-    )
+    changes = {"invoice": payment.invoice_id, "amount": str(payment.amount)}
+    if adjusted:
+        changes.update(
+            periods.adjustment_changes(
+                adjust_reason,
+                {"date": payment.date.isoformat(), "amount": str(payment.amount)},
+                None,
+            )
+        )
+    audit.log("delete", payment, user, changes)
 
 
 def payment_fx_difference(payment: Payment) -> Decimal:

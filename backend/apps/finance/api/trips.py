@@ -9,6 +9,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import permission_required
 from apps.forwarding.trips.models import Trip
 
+from .. import periods
 from .. import trip_expense as te
 from .serializers import money
 
@@ -59,7 +60,13 @@ class TripExpenseLinesView(APIView):
         trip = self.get_trip(pk)
         ser = TripExpenseSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        lines = te.create_trip_expense(trip, ser.validated_data["allocations"], user=request.user)
+        lines = te.create_trip_expense(
+            trip,
+            ser.validated_data["allocations"],
+            user=request.user,
+            perms=periods.request_perms(request),
+            adjust_reason=periods.request_adjust_reason(request),
+        )
         return Response(
             {
                 "lines": [

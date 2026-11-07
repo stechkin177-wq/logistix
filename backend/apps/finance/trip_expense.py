@@ -5,10 +5,11 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.core.audit import services as audit
-from apps.forwarding.finance_lines.models import OrderService
+from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.orders.models import Order
 from apps.forwarding.trips.models import Trip
 
+from . import periods
 from .errors import FinanceError
 from .money import CENT, quantize_money
 
@@ -70,11 +71,17 @@ def trip_expense_lines(trip: Trip) -> dict:
 
 
 @transaction.atomic
-def create_trip_expense(trip: Trip, allocations: list[dict], *, user) -> list[OrderService]:
+def create_trip_expense(
+    trip: Trip, allocations: list[dict], *, user, perms=(), adjust_reason: str | None = None
+) -> list[OrderService]:
     """Создаёт строки расхода «Перевозка» по заказам рейса; сумма = цене рейса."""
     # рейс блокируется: двойная отправка не создаст расход дважды (блокировка по строкам расхода
     # ничего не держит, пока их нет)
     trip = Trip.objects.select_for_update().get(pk=trip.pk)
+    # строки получают дату «сегодня» по часовому поясу компании: закрытый месяц защищён
+    adjusted = periods.check_system_date(
+        trip.company_id, company_today(trip.company_id), perms, adjust_reason
+    )
     orders = {o.pk: o for o in _orders_of(trip)}
     seen = set()
     for item in allocations:
@@ -104,6 +111,15 @@ def create_trip_expense(trip: Trip, allocations: list[dict], *, user) -> list[Or
             income=Decimal("0"),
             expense=quantize_money(item["amount"]),
         )
-        audit.log("create", line, user, {"trip": trip.pk, "expense": str(line.expense)})
+        changes = {"trip": trip.pk, "expense": str(line.expense)}
+        if adjusted:
+            changes.update(
+                periods.adjustment_changes(
+                    adjust_reason,
+                    None,
+                    {"expense": str(line.expense), "date": line.date.isoformat()},
+                )
+            )
+        audit.log("create", line, user, changes)
         lines.append(line)
     return lines

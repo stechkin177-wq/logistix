@@ -13,6 +13,7 @@ from apps.forwarding.finance_lines.models import company_today
 
 from .. import invoices as svc
 from .. import payments as pay
+from .. import periods
 from ..errors import FinanceError
 from ..models import Invoice
 from .filters import filter_invoices
@@ -125,12 +126,24 @@ class InvoiceViewSet(AuditedMixin, viewsets.GenericViewSet):
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("Недостаточно прав для обхода кредитного лимита")
-        svc.issue(invoice, user=request.user, can_override=can_override, override_reason=reason)
+        svc.issue(
+            invoice,
+            user=request.user,
+            can_override=can_override,
+            override_reason=reason,
+            perms=periods.request_perms(request),
+            adjust_reason=periods.request_adjust_reason(request),
+        )
         return self.respond(invoice)
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
-        svc.cancel(self.get_object(), user=request.user)
+        svc.cancel(
+            self.get_object(),
+            user=request.user,
+            perms=periods.request_perms(request),
+            adjust_reason=periods.request_adjust_reason(request),
+        )
         return self.respond(self.get_object())
 
     @action(detail=True, methods=["get", "post"], url_path="payments")
@@ -139,7 +152,13 @@ class InvoiceViewSet(AuditedMixin, viewsets.GenericViewSet):
         if request.method == "POST":
             ser = PaymentWriteSerializer(data=request.data)
             ser.is_valid(raise_exception=True)
-            payment = pay.add_payment(invoice, user=request.user, **ser.validated_data)
+            payment = pay.add_payment(
+                invoice,
+                user=request.user,
+                perms=periods.request_perms(request),
+                adjust_reason=periods.request_adjust_reason(request),
+                **ser.validated_data,
+            )
             payment.invoice = invoice
             return Response(payment_data(payment), status=status.HTTP_201_CREATED)
         qs = invoice.payments.select_related("invoice")

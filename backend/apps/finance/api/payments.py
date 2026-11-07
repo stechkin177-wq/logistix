@@ -6,6 +6,7 @@ from apps.core.api_permissions import permission_required
 from apps.core.pagination import StandardPagination
 
 from .. import payments as pay
+from .. import periods
 from ..models import Payment
 from .filters import filter_payments
 from .serializers import payment_data
@@ -34,5 +35,10 @@ class PaymentViewSet(viewsets.GenericViewSet):
         return Response(payment_data(self.get_object()))
 
     def destroy(self, request, pk=None):
-        pay.delete_payment(self.get_object(), user=request.user)
+        pay.delete_payment(
+            self.get_object(),
+            user=request.user,
+            perms=periods.request_perms(request),
+            adjust_reason=periods.request_adjust_reason(request),
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
