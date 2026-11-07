@@ -90,7 +90,8 @@ _EXPECTED_BLOCKS = {
     ),
     "trip": _expand(
         "trip",
-        ["number", "price", "price_words", "currency", "vehicle_plate", "driver_name"]
+        ["number", "price", "price_words", "carrier_price", "carrier_price_words"]
+        + ["currency", "vehicle_plate", "driver_name"]
         + [f"loading.{x}" for x in _POINT]
         + [f"delivery.{x}" for x in _POINT]
         + ["orders[].number", "orders[].client"]

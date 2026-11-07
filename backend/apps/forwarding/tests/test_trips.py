@@ -319,7 +319,7 @@ def test_db_checks_on_trip(company):
     _, ids = make_cargos(company)
     trip = svc_create(company, ids)
     with tenant_context(company.id), pytest.raises(IntegrityError), transaction.atomic():
-        Trip.objects.filter(pk=trip.pk).update(price=-1)
+        Trip.objects.filter(pk=trip.pk).update(carrier_price=-1)
     with tenant_context(company.id), pytest.raises(IntegrityError), transaction.atomic():
         Trip(company=company, number=trip.number, currency=trip.currency, status=trip.status).save()
 
@@ -627,7 +627,10 @@ def test_patch_updates_allowed_fields_and_audits(admin_client, company):
     row = audit_rows(company, action="update", object_type="forwarding.trip")[-1]
     assert row.changes["driver_name"] == "***"
     assert row.changes["vehicle_plate"] == ["", "777AAA02"]
-    assert row.changes["price"] == ["0.00", "999.90"] or row.changes["price"][1] in (
+    assert "price" not in row.changes  # новые записи аудита пишут carrier_price
+    assert row.changes["carrier_price"] == ["0.00", "999.90"] or row.changes["carrier_price"][
+        1
+    ] in (
         "999.90",
         "999.9",
     )
@@ -1359,3 +1362,129 @@ def test_consignment_list_query_count_with_client(
     assert all(row["client_name"].startswith("Клиент") for row in r.data["results"])
     with django_assert_max_num_queries(CONSIGNMENT_LIST_QUERY_BOUND):
         assert admin_client.get(CONSIGNMENTS, {"without_trip": "1", "client": 1}).status_code == 200
+
+
+# --- carrier_price и устаревший алиас price (задача 1.1) ---
+
+
+def test_response_has_carrier_price_and_price_alias_equal(admin_client, company):
+    _, ids = make_cargos(company)
+    d = new_trip(admin_client, ids, carrier_price="1200.50")
+    assert d["carrier_price"] == "1200.50" and d["price"] == "1200.50"
+    got = admin_client.get(trip_url(d["id"])).data
+    assert got["carrier_price"] == got["price"] == "1200.50"
+    listed = admin_client.get(TRIPS).data["results"][0]
+    assert listed["carrier_price"] == listed["price"] == "1200.50"
+
+
+def test_old_client_sending_only_price_still_works(admin_client, company):
+    _, ids = make_cargos(company)
+    d = new_trip(admin_client, ids, price="777.00")  # создание только с price
+    assert d["carrier_price"] == "777.00" and d["price"] == "777.00"
+    r = admin_client.patch(trip_url(d["id"]), {"price": "888.10"}, format="json")  # PATCH тоже
+    assert r.status_code == 200, r.content
+    assert r.data["carrier_price"] == r.data["price"] == "888.10"
+    with tenant_context(company.id):
+        assert str(Trip.objects.get(pk=d["id"]).carrier_price) == "888.10"
+
+
+def test_new_client_sending_only_carrier_price(admin_client, company):
+    _, ids = make_cargos(company)
+    d = new_trip(admin_client, ids)
+    r = admin_client.patch(trip_url(d["id"]), {"carrier_price": "5.00"}, format="json")
+    assert r.status_code == 200 and r.data["price"] == "5.00"
+
+
+def test_both_equal_values_accepted_even_with_different_notation(admin_client, company):
+    _, ids = make_cargos(company)
+    d = new_trip(admin_client, ids, price="10", carrier_price="10.00")  # Decimal равны
+    assert d["carrier_price"] == d["price"] == "10.00"
+    r = admin_client.patch(
+        trip_url(d["id"]), {"price": "11.5", "carrier_price": "11.50"}, format="json"
+    )
+    assert r.status_code == 200 and r.data["price"] == "11.50"
+
+
+def test_conflicting_price_and_carrier_price_is_400_on_price(admin_client, company):
+    _, ids = make_cargos(company)
+    r = admin_client.post(
+        TRIPS, {"consignments": ids, "price": "1", "carrier_price": "2"}, format="json"
+    )
+    assert r.status_code == 400 and "price" in r.data and trip_count(company) == 0
+    d = new_trip(admin_client, ids, carrier_price="3.00")
+    r = admin_client.patch(
+        trip_url(d["id"]), {"price": "4.00", "carrier_price": "5.00"}, format="json"
+    )
+    assert r.status_code == 400 and "price" in r.data
+    assert admin_client.get(trip_url(d["id"])).data["carrier_price"] == "3.00"
+
+
+@pytest.mark.parametrize("field", ["price", "carrier_price"])
+def test_negative_and_garbage_rejected_for_both_fields(admin_client, company, field):
+    _, ids = make_cargos(company)
+    for bad in ("-1", "abc", "1e400"):
+        r = admin_client.post(TRIPS, {"consignments": ids, field: bad}, format="json")
+        assert r.status_code == 400 and field in r.data, (field, bad)
+    d = new_trip(admin_client, ids)
+    r = admin_client.patch(trip_url(d["id"]), {field: "-0.01"}, format="json")
+    assert r.status_code == 400 and field in r.data
+    assert trip_count(company) == 1
+
+
+def test_service_accepts_both_keys_and_rejects_conflict(company):
+    _, ids = make_cargos(company, 3)
+    a = svc_create(company, [ids[0]], data={"carrier_price": 10})
+    b = svc_create(company, [ids[1]], data={"price": 20})
+    c = svc_create(company, [ids[2]], data={"price": "30.00", "carrier_price": 30})
+    assert (a.carrier_price, b.carrier_price, c.carrier_price) == (10, 20, 30)
+    with pytest.raises(ValidationError) as ei:
+        svc_create(company, ids, data={"price": 1, "carrier_price": 2})
+    assert "price" in ei.value.detail
+    with pytest.raises(ValidationError):
+        svc_create(company, ids, data={"carrier_price": -1})
+    assert trip_count(company) == 3
+
+
+def test_db_column_stays_price_and_constraint_kept(company):
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='forwarding_trip'"
+        )
+        cols = {r[0] for r in cur.fetchall()}
+        cur.execute(
+            "SELECT conname FROM pg_constraint WHERE conrelid='forwarding_trip'::regclass "
+            "AND contype='c'"
+        )
+        checks = {r[0] for r in cur.fetchall()}
+    assert "price" in cols and "carrier_price" not in cols
+    assert "trip_price_gte_0" in checks
+    assert Trip._meta.get_field("carrier_price").column == "price"
+
+
+def test_new_audit_writes_carrier_price_old_key_is_labelled_too(admin_client, company):
+    from apps.core.audit.labels import changes_labels
+    from apps.core.audit.services import log
+
+    _, ids = make_cargos(company)
+    d = new_trip(admin_client, ids, price="9.00")
+    created = audit_rows(company, action="create", object_type="forwarding.trip")[0]
+    assert created.changes["carrier_price"] == [None, "9.00"] and "price" not in created.changes
+    # старая запись (ключ price) остаётся как есть и получает ту же подпись
+    with tenant_context(company.id):
+        trip = Trip.objects.get(pk=d["id"])
+        old = log("update", trip, None, {"price": ["1.00", "2.00"]})
+    assert old.changes == {"price": ["1.00", "2.00"]}
+    assert changes_labels("forwarding.trip", old.changes) == {"price": "Стоимость перевозчика"}
+    assert changes_labels("forwarding.trip", created.changes)["carrier_price"] == (
+        "Стоимость перевозчика"
+    )
+    assert changes_labels("forwarding.client", {"price": 1}) == {}
+
+
+def test_audit_api_exposes_labels(admin_client, company):
+    _, ids = make_cargos(company)
+    new_trip(admin_client, ids, carrier_price="9.00")
+    r = admin_client.get("/api/audit/", {"object_type": "forwarding.trip", "action": "create"})
+    assert r.status_code == 200
+    row = r.data["results"][0]
+    assert row["changes_labels"]["carrier_price"] == "Стоимость перевозчика"

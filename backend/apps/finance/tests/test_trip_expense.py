@@ -27,7 +27,7 @@ def consolidated_trip(company, n=3, price="1000.00"):
         order, cids = make_cargos(company, 1)
         orders.append(order)
         ids += cids
-    trip = svc_create(company, ids, carrier=carrier, data={"price": D(price)})
+    trip = svc_create(company, ids, carrier=carrier, data={"carrier_price": D(price)})
     return trip, orders
 
 
@@ -109,6 +109,8 @@ def test_api_permissions_and_flow(company, admin_client):
     url = f"/api/finance/trips/{trip.pk}/expense-lines/"
     r = admin_client.get(url)
     assert r.status_code == 200 and len(r.data["suggestion"]) == 2
+    # price - устаревший алиас, carrier_price - основное поле; значения совпадают
+    assert r.data["trip"]["price"] == r.data["trip"]["carrier_price"] == "1000.00"
     _, manager = client_with_role(company, "Менеджер")
     assert manager.get(url).status_code == 200
     assert (

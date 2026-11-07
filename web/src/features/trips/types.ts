@@ -12,7 +12,9 @@ export interface Trip {
   carrier_name: string | null
   vehicle_plate: string
   driver_name: string
-  /** Денежная строка API. */
+  /** Стоимость перевозчика: денежная строка API. */
+  carrier_price: string
+  /** Устаревший алиас carrier_price (удаляется отдельным решением); в коде не использовать. */
   price: string
   currency: number
   status: number
@@ -40,7 +42,7 @@ export interface TripCreatePayload {
   carrier: number | null
   vehicle_plate: string
   driver_name: string
-  price: string
+  carrier_price: string
   currency?: number
 }
 
@@ -49,6 +51,6 @@ export interface TripPatchPayload {
   carrier: number | null
   vehicle_plate: string
   driver_name: string
-  price: string
+  carrier_price: string
   currency?: number
 }

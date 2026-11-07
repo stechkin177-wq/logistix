@@ -415,6 +415,7 @@
     "vehiclePlate": "Мемлекеттік нөмір",
     "driverName": "Жүргізуші",
     "price": "Бағасы",
+    "carrierPrice": "Тасымалдаушы құны",
     "currency": "Валюта",
     "created": "{{number}} рейсі құрылды",
     "openTrip": "Ашу",

@@ -9,7 +9,7 @@ export interface TripFormState {
   carrier: ComboOption | null
   vehicle_plate: string
   driver_name: string
-  price: string
+  carrier_price: string
   currency: string
 }
 
@@ -17,7 +17,7 @@ const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
 
 export function validateTrip(form: TripFormState, t: (key: string) => string): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (!MONEY_RE.test(form.price.trim())) errors.price = t('errors.invalidNumber')
+  if (!MONEY_RE.test(form.carrier_price.trim())) errors.carrier_price = t('errors.invalidNumber')
   return errors
 }
 
@@ -44,7 +44,7 @@ export function TripFields({ form, errors, currencies, disabled, onChange }: {
       />
       <TextField label={t('trips.vehiclePlate')} value={form.vehicle_plate} disabled={disabled} error={errors.vehicle_plate} maxLength={32} onChange={(e) => { onChange('vehicle_plate', e.target.value) }} />
       <TextField label={t('trips.driverName')} value={form.driver_name} disabled={disabled} error={errors.driver_name} maxLength={255} onChange={(e) => { onChange('driver_name', e.target.value) }} />
-      <TextField label={t('trips.price')} inputMode="decimal" value={form.price} disabled={disabled} error={errors.price} onChange={(e) => { onChange('price', e.target.value) }} />
+      <TextField label={t('trips.carrierPrice')} inputMode="decimal" value={form.carrier_price} disabled={disabled} error={errors.carrier_price} onChange={(e) => { onChange('carrier_price', e.target.value) }} />
       <Select
         label={t('trips.currency')}
         value={form.currency}

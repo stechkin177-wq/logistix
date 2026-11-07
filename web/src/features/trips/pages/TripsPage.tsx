@@ -72,7 +72,7 @@ export function TripsPage() {
       ),
     },
     { key: 'cargo', header: t('trips.cargo'), cell: (trip) => trip.consignments.map((c) => c.name).join(', ') || '—' },
-    { key: 'price', header: t('trips.price'), align: 'right', cell: (trip) => <Money value={trip.price} currency={codeOf(trip.currency) || undefined} /> },
+    { key: 'carrier_price', header: t('trips.carrierPrice'), align: 'right', cell: (trip) => <Money value={trip.carrier_price} currency={codeOf(trip.currency) || undefined} /> },
   ]
 
   return (

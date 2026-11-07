@@ -209,8 +209,11 @@ def _trip(trip, language: str) -> dict:
     delivery = max(unloads, key=lambda p: p.window_from, default=None)
     return {
         "number": trip.number,
-        "price": _money(trip.price),
-        "price_words": _words(trip.price, currency, language),
+        # price/price_words устарели (используйте carrier_price); оставлены для старых шаблонов
+        "price": _money(trip.carrier_price),
+        "price_words": _words(trip.carrier_price, currency, language),
+        "carrier_price": _money(trip.carrier_price),
+        "carrier_price_words": _words(trip.carrier_price, currency, language),
         "currency": currency,
         "vehicle_plate": trip.vehicle_plate,
         "driver_name": trip.driver_name,
@@ -281,7 +284,17 @@ def build_context(
             _trip(trip, language)
             if trip is not None
             else {
-                **{k: "" for k in ("number", "price", "price_words", "currency")},
+                **{
+                    k: ""
+                    for k in (
+                        "number",
+                        "price",
+                        "price_words",
+                        "carrier_price",
+                        "carrier_price_words",
+                        "currency",
+                    )
+                },
                 **{k: "" for k in ("vehicle_plate", "driver_name")},
                 "loading": _point(None),
                 "delivery": _point(None),

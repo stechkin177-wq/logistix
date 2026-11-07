@@ -61,7 +61,7 @@ describe('Грузы', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Создать' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/trips/')).toBe(true) })
     const body = m.calls.find((c) => c.method === 'POST' && c.path === '/api/trips/')!.body as Record<string, unknown>
-    expect(body).toMatchObject({ consignments: [31, 32], vehicle_plate: '777AAA02', price: '0', currency: 11, carrier: null })
+    expect(body).toMatchObject({ consignments: [31, 32], vehicle_plate: '777AAA02', carrier_price: '0', currency: 11, carrier: null })
     // успех: номер нового рейса и ссылка в уведомлении
     expect(await screen.findByText(/Рейс C1 создан/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Открыть' })).toHaveAttribute('href', '/trips?q=C1')
@@ -78,7 +78,7 @@ describe('Грузы', () => {
   })
 
   it('ошибка поля сервера ложится на поле, номер занят и чужие id показываются', async () => {
-    let reply: { status: number; body: unknown } = { status: 400, body: { price: ['Цена не может быть отрицательной'] } }
+    let reply: { status: number; body: unknown } = { status: 400, body: { carrier_price: ['Цена не может быть отрицательной'] } }
     loggedIn([...base([makeCargo()]), ['POST', '/api/trips/', () => reply]])
     renderApp('/consignments')
     await screen.findByText('Станки')
@@ -87,7 +87,7 @@ describe('Грузы', () => {
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Создать' }))
     expect(await within(dialog).findByText('Цена не может быть отрицательной')).toBeInTheDocument()
-    expect(within(dialog).getByLabelText('Цена')).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dialog).getByLabelText('Стоимость перевозчика')).toHaveAttribute('aria-invalid', 'true')
 
     reply = { status: 409, body: { detail: 'Номер рейса уже занят', code: 'number_conflict' } }
     await userEvent.click(within(dialog).getByRole('button', { name: 'Создать' }))

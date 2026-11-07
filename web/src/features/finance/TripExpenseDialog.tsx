@@ -21,7 +21,7 @@ function Body({ data, currency, onClose }: { data: TripExpenseData; currency: st
   const [error, setError] = useState<string | undefined>()
   const create = useCreateTripExpense()
   const sum = data.orders.reduce((acc, o) => acc + (toCents(amounts[o.order_id] ?? '') ?? 0n), 0n)
-  const price = toCents(data.trip.price) ?? 0n
+  const price = toCents(data.trip.carrier_price) ?? 0n
   const invalid = data.orders.some((o) => toCents(amounts[o.order_id] ?? '') === null)
   const mismatch = invalid || sum !== price
 
@@ -49,7 +49,7 @@ function Body({ data, currency, onClose }: { data: TripExpenseData; currency: st
     >
       <div className="space-y-3">
         {error ? <Banner kind="error">{error}</Banner> : null}
-        <p className="text-sm">{t('finance.tripExpense.hint', { price: money(data.trip.price, currency) })}</p>
+        <p className="text-sm">{t('finance.tripExpense.hint', { price: money(data.trip.carrier_price, currency) })}</p>
         {data.orders.map((o) => (
           <TextField
             key={o.order_id}

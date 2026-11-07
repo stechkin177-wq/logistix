@@ -74,9 +74,21 @@ describe('Рейс: карточка', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'PATCH')).toBe(true) })
     const body = m.calls.find((c) => c.method === 'PATCH')!.body as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['carrier', 'currency', 'driver_name', 'price', 'vehicle_plate'])
+    expect(Object.keys(body).sort()).toEqual(['carrier', 'carrier_price', 'currency', 'driver_name', 'vehicle_plate'])
     for (const forbidden of ['consignments', 'status', 'number', 'is_consolidated']) expect(body).not.toHaveProperty(forbidden)
-    expect(body).toMatchObject({ driver_name: 'Пётр', carrier: 6, price: '100000.00' })
+    expect(body).toMatchObject({ driver_name: 'Пётр', carrier: 6, carrier_price: '100000.00' })
+    expect(body).not.toHaveProperty('price') // устаревший алиас не отправляем
+  })
+
+  it('поле «Стоимость перевозчика» берёт carrier_price, а не устаревший price', async () => {
+    const priced = makeTrip({ carrier_price: '250000.00', price: '1.00' })
+    loggedIn([['GET', '/api/trips/90/', { body: priced }], ...base([priced])])
+    renderApp('/trips')
+    const row = (await screen.findByRole('button', { name: 'ORD-2026-00005-1' })).closest('tr')!
+    expect(within(row).getByText(/^250\s000,00\sKZT$/)).toBeInTheDocument()
+    await userEvent.click(within(row).getByRole('button', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByLabelText('Стоимость перевозчика')).toHaveValue('250000.00')
   })
 
   it('«Изменить грузы»: пустой набор не отправляется, иначе POST consignment_ids', async () => {

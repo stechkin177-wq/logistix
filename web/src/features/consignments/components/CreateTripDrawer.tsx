@@ -14,7 +14,7 @@ import { TripFields, defaultCurrency, validateTrip, type TripFormState } from '.
 import { useCreateTrip } from '../../trips/hooks'
 import type { Consignment } from '../types'
 
-const KNOWN = /^(carrier|vehicle_plate|driver_name|price|currency|consignments)$/
+const KNOWN = /^(carrier|vehicle_plate|driver_name|carrier_price|currency|consignments)$/
 
 interface Props {
   selected: Consignment[]
@@ -28,7 +28,7 @@ export function CreateTripDrawer({ selected, onClose, onCreated }: Props) {
   const currencies = useHandbookValues('currency', { activeOnly: true })
   const create = useCreateTrip()
   const formRef = useRef<HTMLFormElement>(null)
-  const [form, setForm] = useState<TripFormState>({ carrier: null, vehicle_plate: '', driver_name: '', price: '0', currency: '' })
+  const [form, setForm] = useState<TripFormState>({ carrier: null, vehicle_plate: '', driver_name: '', carrier_price: '0', currency: '' })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   useFocusInvalid(formRef, errors)
 
@@ -48,7 +48,7 @@ export function CreateTripDrawer({ selected, onClose, onCreated }: Props) {
         carrier: form.carrier?.id ?? null,
         vehicle_plate: form.vehicle_plate.trim(),
         driver_name: form.driver_name.trim(),
-        price: form.price.trim(),
+        carrier_price: form.carrier_price.trim(),
         ...(currency ? { currency: Number(currency) } : {}),
       },
       {

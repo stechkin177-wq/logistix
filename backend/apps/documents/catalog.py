@@ -136,8 +136,22 @@ def _build_blocks() -> dict[str, list[tuple]]:
         ],
         "trip": [
             ("trip.number", "Номер рейса", _const("Р-2026-0017")),
-            ("trip.price", "Стоимость рейса", _const("900000.00")),
-            ("trip.price_words", "Стоимость рейса прописью", _words(Decimal("900000.00"))),
+            (
+                "trip.price",
+                "Стоимость рейса (устарело, используйте carrier_price)",
+                _const("900000.00"),
+            ),
+            (
+                "trip.price_words",
+                "Стоимость рейса прописью (устарело, используйте carrier_price_words)",
+                _words(Decimal("900000.00")),
+            ),
+            ("trip.carrier_price", "Стоимость перевозчика", _const("900000.00")),
+            (
+                "trip.carrier_price_words",
+                "Стоимость перевозчика прописью",
+                _words(Decimal("900000.00")),
+            ),
             ("trip.currency", "Валюта рейса", _const("KZT")),
             ("trip.vehicle_plate", "Госномер транспорта", _const("123ABC02")),
             ("trip.driver_name", "ФИО водителя", _s("Сидоров Сидор", "Сидоров Сидор")),

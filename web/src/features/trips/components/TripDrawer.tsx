@@ -21,7 +21,7 @@ import { ReassignDrawer } from './ReassignDrawer'
 import { TripFields, validateTrip, type TripFormState } from './TripFields'
 import { TripStatusControl } from './TripStatusControl'
 
-const KNOWN = /^(carrier|vehicle_plate|driver_name|price|currency)$/
+const KNOWN = /^(carrier|vehicle_plate|driver_name|carrier_price|currency)$/
 
 function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   const { t } = useTranslation()
@@ -35,7 +35,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
     carrier: trip.carrier !== null ? { id: trip.carrier, label: trip.carrier_name ?? `#${String(trip.carrier)}` } : null,
     vehicle_plate: trip.vehicle_plate,
     driver_name: trip.driver_name,
-    price: trip.price,
+    carrier_price: trip.carrier_price,
     currency: String(trip.currency),
   })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
@@ -58,7 +58,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
           carrier: form.carrier?.id ?? null,
           vehicle_plate: form.vehicle_plate.trim(),
           driver_name: form.driver_name.trim(),
-          price: form.price.trim(),
+          carrier_price: form.carrier_price.trim(),
           ...(form.currency ? { currency: Number(form.currency) } : {}),
         },
       },

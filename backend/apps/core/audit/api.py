@@ -8,10 +8,17 @@ from rest_framework.exceptions import ValidationError
 from apps.core.api_permissions import permission_required
 from apps.core.pagination import StandardPagination
 
+from .labels import changes_labels
 from .models import AuditLog
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
+    # человекочитаемые подписи ключей changes (для известных полей); старые записи не меняются
+    changes_labels = serializers.SerializerMethodField()
+
+    def get_changes_labels(self, obj):
+        return changes_labels(obj.object_type, obj.changes)
+
     class Meta:
         model = AuditLog
         fields = [
@@ -22,6 +29,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "object_id",
             "object_repr",
             "changes",
+            "changes_labels",
             "ip",
             "created_at",
         ]

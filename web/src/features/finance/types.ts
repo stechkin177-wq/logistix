@@ -178,7 +178,7 @@ export interface FinanceSummary {
 }
 
 export interface TripExpenseData {
-  trip: { id: number; number: string; price: string }
+  trip: { id: number; number: string; carrier_price: string; /** Устаревший алиас carrier_price. */ price: string }
   orders: { order_id: number; order_number: string; lines: { id: number; title: string; expense: string }[] }[]
   suggestion: { order_id: number; amount: string }[]
 }

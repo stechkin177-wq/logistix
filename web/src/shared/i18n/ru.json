@@ -415,6 +415,7 @@
     "vehiclePlate": "Госномер",
     "driverName": "Водитель",
     "price": "Цена",
+    "carrierPrice": "Стоимость перевозчика",
     "currency": "Валюта",
     "created": "Рейс {{number}} создан",
     "openTrip": "Открыть",

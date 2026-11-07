@@ -15,6 +15,7 @@ SERVER_FIELDS = {
     "is_consolidated": "Признак сборного рейса вычисляется по грузам",
 }
 MAX_CONSIGNMENTS = 500
+PRICE_CONFLICT = "Поля price и carrier_price различаются: передайте одно значение"
 
 
 class CarrierField(CurrentTolerantField):
@@ -31,6 +32,10 @@ class TripSerializer(serializers.ModelSerializer):
 
     carrier = CarrierField(allow_null=True, required=False)
     currency = ActiveHandbookField("currency", required=False)
+    # price - временный алиас carrier_price (чтение и запись); удаляется отдельным решением
+    price = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=0, required=False, source="carrier_price"
+    )
     carrier_name = serializers.SerializerMethodField()
     status_name = serializers.CharField(source="status.name", read_only=True)
     orders = serializers.SerializerMethodField()
@@ -45,6 +50,7 @@ class TripSerializer(serializers.ModelSerializer):
             "carrier_name",
             "vehicle_plate",
             "driver_name",
+            "carrier_price",
             "price",
             "currency",
             "status",
@@ -65,7 +71,7 @@ class TripSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        extra_kwargs = {"price": {"min_value": 0}}
+        extra_kwargs = {"carrier_price": {"min_value": 0}}
 
     forbidden = {
         **SERVER_FIELDS,
@@ -95,7 +101,23 @@ class TripSerializer(serializers.ModelSerializer):
             errors = {name: [text] for name, text in self.forbidden.items() if name in data}
             if errors:
                 raise serializers.ValidationError(errors)
+            self._check_price_alias(data)
         return super().to_internal_value(data)
+
+    def _check_price_alias(self, data):
+        """Оба поля в запросе с разными значениями (сравнение Decimal) -> 400 на `price`.
+
+        Некорректные значения здесь пропускаются: их сообщит обычная валидация полей.
+        """
+        if "price" not in data or "carrier_price" not in data:
+            return
+        try:
+            alias = self.fields["price"].run_validation(data["price"])
+            main = self.fields["carrier_price"].run_validation(data["carrier_price"])
+        except serializers.ValidationError:
+            return
+        if alias != main:
+            raise serializers.ValidationError({"price": [PRICE_CONFLICT]})
 
     def validate_driver_name(self, value):
         return value.strip()

@@ -45,10 +45,15 @@ def trip_expense_lines(trip: Trip) -> dict:
         existing.setdefault(line.order_id, []).append(line)
     suggestion = [
         {"order_id": o.pk, "amount": a}
-        for o, a in zip(orders, split_evenly(trip.price, len(orders)) if orders else [])
+        for o, a in zip(orders, split_evenly(trip.carrier_price, len(orders)) if orders else [])
     ]
     return {
-        "trip": {"id": trip.pk, "number": trip.number, "price": trip.price},
+        "trip": {
+            "id": trip.pk,
+            "number": trip.number,
+            "price": trip.carrier_price,  # устаревший алиас carrier_price
+            "carrier_price": trip.carrier_price,
+        },
         "orders": [
             {
                 "order_id": o.pk,
@@ -82,7 +87,7 @@ def create_trip_expense(trip: Trip, allocations: list[dict], *, user) -> list[Or
         if order.currency_id != trip.currency_id:
             raise FinanceError("currency_mismatch", "Валюта рейса отличается от валюты заказа")
     total = sum((quantize_money(i["amount"]) for i in allocations), Decimal("0"))
-    if total != quantize_money(trip.price):
+    if total != quantize_money(trip.carrier_price):
         raise FinanceError("allocation_mismatch", "Сумма по заказам должна равняться цене рейса")
     if (
         OrderService.objects.select_for_update()

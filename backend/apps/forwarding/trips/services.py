@@ -8,6 +8,8 @@
 Сборный путь заказы не блокирует (счётчик сборных рейсов даёт уникальность).
 """
 
+from decimal import Decimal
+
 from django.db import IntegrityError, OperationalError, transaction
 from rest_framework import status as http_status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
@@ -99,7 +101,25 @@ def _carrier(carrier_id) -> Carrier | None:
 
 def _check_price(price) -> None:
     if price is not None and price < 0:
-        raise ValidationError({"price": "Цена не может быть отрицательной"})
+        raise ValidationError({"carrier_price": "Цена не может быть отрицательной"})
+
+
+def _carrier_price(data: dict):
+    """Стоимость перевозчика из data: ключи carrier_price и price (устаревший алиас).
+
+    Оба ключа допустимы; если заданы оба и значения различаются (Decimal) - ValidationError
+    на поле price. None, если ни одного нет.
+    """
+    has_main, has_alias = "carrier_price" in data, "price" in data
+    if (
+        has_main
+        and has_alias
+        and Decimal(str(data["carrier_price"])) != Decimal(str(data["price"]))
+    ):
+        raise ValidationError({"price": "Поля price и carrier_price различаются"})
+    if has_main:
+        return data["carrier_price"]
+    return data["price"] if has_alias else None
 
 
 def _single_order_number(order: Order) -> str:
@@ -141,14 +161,16 @@ def create_trip(
     ValidationError с id. Грузы одного заказа: номер {order}-{n} и is_consolidated=False;
     грузы нескольких заказов: сборный номер (C{index}) и is_consolidated=True. Статус -
     начальный trip_status, валюта по умолчанию KZT. data - проверенные поля
-    vehicle_plate, driver_name, price, currency (остальные игнорируются). Пишет аудит create.
+    vehicle_plate, driver_name, carrier_price (или устаревший алиас price), currency (остальные
+    игнорируются). Пишет аудит create.
     """
     consignments = _load_consignments(consignment_ids, lock_single_order=True)
     carrier = _carrier(carrier_id)
-    fields = {
-        k: data[k] for k in ("vehicle_plate", "driver_name", "price", "currency") if k in data
-    }
-    _check_price(fields.get("price"))
+    fields = {k: data[k] for k in ("vehicle_plate", "driver_name", "currency") if k in data}
+    carrier_price = _carrier_price(data)
+    if carrier_price is not None:
+        fields["carrier_price"] = carrier_price
+    _check_price(fields.get("carrier_price"))
     if fields.get("currency") is None:
         fields["currency"] = _default_currency()
     orders = {c.order_id: c.order for c in consignments}

@@ -24,7 +24,11 @@ class TripExpenseSerializer(serializers.Serializer):
 
 def _present(data: dict) -> dict:
     return {
-        "trip": {**data["trip"], "price": money(data["trip"]["price"])},
+        "trip": {
+            **data["trip"],
+            "price": money(data["trip"]["price"]),
+            "carrier_price": money(data["trip"]["carrier_price"]),
+        },
         "orders": [
             {**o, "lines": [{**ln, "expense": money(ln["expense"])} for ln in o["lines"]]}
             for o in data["orders"]

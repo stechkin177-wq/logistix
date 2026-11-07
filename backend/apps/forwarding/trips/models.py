@@ -40,8 +40,14 @@ class Trip(TenantModel, SoftDeleteModel):
     )
     vehicle_plate = models.CharField(max_length=32, blank=True)
     driver_name = models.CharField(max_length=255, blank=True)
-    price = models.DecimalField(
-        max_digits=14, decimal_places=2, default=0, validators=[MinValueValidator(0)]
+    # Стоимость перевозчика. Столбец БД остаётся `price` (переименование только в коде);
+    # в API `price` - временный алиас этого поля.
+    carrier_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        db_column="price",
     )
     currency = _handbook_fk("currency")
     status = _handbook_fk("trip_status")
@@ -63,7 +69,7 @@ class Trip(TenantModel, SoftDeleteModel):
         ]
         constraints = [
             models.UniqueConstraint(fields=["company", "number"], name="trip_company_number_uniq"),
-            models.CheckConstraint(condition=Q(price__gte=0), name="trip_price_gte_0"),
+            models.CheckConstraint(condition=Q(carrier_price__gte=0), name="trip_price_gte_0"),
         ]
 
     def __str__(self):

@@ -19,7 +19,7 @@ export function makeCargo(over: Partial<Consignment> = {}): Consignment {
 export function makeTrip(over: Partial<Trip> = {}): Trip {
   return {
     id: 90, number: 'ORD-2026-00005-1', carrier: 6, carrier_name: 'ИП Быстров', vehicle_plate: '123ABC02', driver_name: 'Иван',
-    price: '100000.00', currency: 11, status: 21, status_name: 'Планируется', is_consolidated: false,
+    carrier_price: '100000.00', price: '100000.00', currency: 11, status: 21, status_name: 'Планируется', is_consolidated: false,
     orders: [{ id: 5, number: 'ORD-2026-00005' }],
     consignments: [{ id: 31, name: 'Станки', order: 5, order_number: 'ORD-2026-00005' }],
     created_at: '2026-10-30T05:00:00Z', updated_at: '2026-10-30T05:00:00Z',

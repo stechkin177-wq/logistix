@@ -1,0 +1,23 @@
+"""Подписи полей в журнале аудита для пользователя: object_type -> {ключ changes: подпись}.
+
+Старые записи не переписываются: в них остаётся прежний ключ (price), новые пишут новый
+(carrier_price); подпись у обоих одинаковая.
+"""
+
+FIELD_LABELS: dict[str, dict[str, str]] = {
+    "forwarding.trip": {
+        "price": "Стоимость перевозчика",
+        "carrier_price": "Стоимость перевозчика",
+        "completed_at": "Дата завершения",
+        "status": "Статус",
+        "reason": "Причина",
+    },
+}
+
+
+def changes_labels(object_type: str, changes) -> dict[str, str]:
+    """Подписи только для ключей changes, которые есть в справочнике подписей."""
+    labels = FIELD_LABELS.get(object_type, {})
+    if not isinstance(changes, dict):
+        return {}
+    return {key: labels[key] for key in changes if key in labels}
