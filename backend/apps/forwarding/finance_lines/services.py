@@ -41,7 +41,25 @@ def totals_from(revenue: Decimal, cost: Decimal) -> dict:
 
 
 def order_totals(order) -> dict:
-    """{'revenue','cost','profit','margin_pct'} заказа (Decimal; margin_pct None при revenue 0)."""
+    """{'revenue','cost','profit','margin_pct'} заказа (Decimal; margin_pct None при revenue 0).
+
+    engine == 'new': из Income / долей расходов (finance.reports_new); иначе - по строкам заказа."""
+    if _new_engine(order.company_id):
+        from apps.finance import reports_new
+
+        return reports_new.order_totals_new(order)
+    return order_totals_legacy(order)
+
+
+def _new_engine(company_id=None) -> bool:
+    # finance зависит от forwarding, обратная зависимость - только здесь и лениво
+    from apps.finance.engine import use_new_engine
+
+    return use_new_engine(company_id)
+
+
+def order_totals_legacy(order) -> dict:
+    """Итоги заказа по строкам OrderService (для legacy/shadow и для сверки)."""
     sums = OrderService.objects.filter(order=order).aggregate(
         revenue=Coalesce(Sum("income"), Value(ZERO), output_field=_MONEY),
         cost=Coalesce(Sum("expense"), Value(ZERO), output_field=_MONEY),
@@ -50,7 +68,18 @@ def order_totals(order) -> dict:
 
 
 def annotate_order_totals(queryset):
-    """Добавляет заказам revenue и cost подзапросами (без join: строки заказа не множатся)."""
+    """Добавляет заказам revenue и cost подзапросами (без join: строки заказа не множатся).
+
+    engine == 'new' (компания контекста запроса): подзапросы по Income и долям расходов."""
+    if _new_engine():
+        from apps.finance import reports_new
+
+        return reports_new.annotate_order_totals_new(queryset)
+    return annotate_order_totals_legacy(queryset)
+
+
+def annotate_order_totals_legacy(queryset):
+    """Аннотация итогов по строкам OrderService."""
 
     def total(field):
         per_order = (
@@ -83,7 +112,11 @@ def sync_base_line(order) -> OrderService:
     """Создаёт или обновляет базовую строку заказа: income = client_rate, expense = 0.
 
     Дата строки - дата создания заказа в часовом поясе компании; при обновлении сохраняется.
+    engine == 'new': прежний учёт не пишется (строки заказа только для чтения), возвращает
+    существующую базовую строку либо None.
     """
+    if _new_engine(order.company_id):
+        return OrderService.objects.filter(order=order, is_base=True).first()
     line = OrderService.objects.filter(order=order, is_base=True).first()
     if line is None:
         created = order.created_at.astimezone(company_zone(order.company_id)).date()

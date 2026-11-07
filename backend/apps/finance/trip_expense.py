@@ -9,7 +9,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.orders.models import Order
 from apps.forwarding.trips.models import Trip
 
-from . import periods, shadow
+from . import engine, periods, shadow
 from .errors import FinanceError
 from .money import CENT, quantize_money
 
@@ -77,6 +77,8 @@ def create_trip_expense(
     """Создаёт строки расхода «Перевозка» по заказам рейса; сумма = цене рейса."""
     # рейс блокируется: двойная отправка не создаст расход дважды (блокировка по строкам расхода
     # ничего не держит, пока их нет)
+    engine.assert_legacy_lines_writable(trip.company_id)  # engine=new: расход создаётся Expense
+    periods.assert_finance_writable(trip.company_id)
     trip = Trip.objects.select_for_update().get(pk=trip.pk)
     # строки получают дату «сегодня» по часовому поясу компании: закрытый месяц защищён
     adjusted = periods.check_system_date(

@@ -221,6 +221,7 @@ def create_expense(
     cid = company.pk
     amount = _money(amount)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         category = _handbook(category, "expense_category", "category")
         currency = _handbook(currency, "currency", "currency")
         adjusted = periods.check_user_date(cid, expense_date, perms, adjust_reason)
@@ -265,6 +266,7 @@ def create_carrier_expense(
     """Ручное действие «Создать расход из цены рейса» (автоматически не вызывается)."""
     cid = current_cid(trip.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         # Order -> Trip: заказы рейса блокируются по возрастанию pk, затем сам рейс
         probe = Trip.objects.get(pk=trip.pk)
         order_ids = trip_order_ids(probe)
@@ -366,6 +368,7 @@ def sync_trip_expense(
     """Приводит активный расход перевозчика к цене рейса (одним расходом, без второго)."""
     cid = current_cid(trip.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         trip = Trip.objects.select_for_update().get(pk=trip.pk)
         expense = (
             Expense.objects.select_for_update()
@@ -433,6 +436,7 @@ def set_allocations(
     """Заменяет доли расхода (под блокировкой расхода)."""
     cid = current_cid(expense.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         locked = Expense.objects.select_for_update().get(pk=expense.pk)
         if locked.status != "active":
             raise FinanceError("expense_void", "Расход аннулирован", status_code=409)
@@ -460,6 +464,7 @@ def void_expense(expense: Expense, *, user, reason: str, can_adjust: bool = Fals
         raise FinanceError("reason_required", "Укажите причину аннулирования расхода")
     cid = current_cid(expense.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         locked = Expense.objects.select_for_update().get(pk=expense.pk)
         if locked.status == "void":
             return locked

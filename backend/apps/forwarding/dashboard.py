@@ -44,6 +44,20 @@ def month_bounds(today):
 
 
 def _month_finance(company, today) -> dict:
+    """Прибыль месяца; engine == 'new' читает из Income / долей расходов (finance.reports_new)."""
+    from apps.finance import reports_new
+    from apps.finance.engine import use_new_engine
+
+    if use_new_engine(company):
+        first, nxt = month_bounds(today)
+        new = reports_new.month_totals_new(company, first, nxt)
+        return {
+            k: new[k] for k in ("month_profit", "month_margin_pct", "currency", "excluded_orders")
+        }
+    return _month_finance_legacy(company, today)
+
+
+def _month_finance_legacy(company, today) -> dict:
     """Прибыль месяца только по заказам в базовой валюте; заказы в других валютах не
     суммируются (разные валюты нельзя складывать) и считаются в excluded_orders."""
     first, nxt = month_bounds(today)

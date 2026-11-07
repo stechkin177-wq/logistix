@@ -19,9 +19,9 @@ from django.utils import timezone
 
 from apps.core.models import Company
 from apps.core.tenancy import tenant_context
-from apps.forwarding.dashboard import _month_finance, month_bounds
+from apps.forwarding.dashboard import _month_finance_legacy, month_bounds
 from apps.forwarding.finance_lines.models import OrderService
-from apps.forwarding.finance_lines.services import margin_pct, order_totals
+from apps.forwarding.finance_lines.services import margin_pct, order_totals_legacy
 from apps.forwarding.models import Order
 from apps.forwarding.orders.services import BASE_CURRENCY_CODE
 
@@ -199,7 +199,7 @@ def _collect(company, month, F: _Findings) -> dict:
         | set(ExpenseAllocation.objects.exclude(order=None).values_list("order_id", flat=True))
     )
     for order in Order.all_objects.filter(pk__in=order_ids).order_by("pk"):
-        old = order_totals(order)
+        old = order_totals_legacy(order)
         revenue, cost = old["revenue"], old["cost"]
         profit = revenue - cost
         new = reports_new.order_totals_new(order)
@@ -217,7 +217,7 @@ def _collect(company, month, F: _Findings) -> dict:
     for m in months:
         first = date(int(m[:4]), int(m[5:]), 1)
         first, nxt = month_bounds(first)
-        old = _month_finance(company, first)
+        old = _month_finance_legacy(company, first)
         new = reports_new.month_totals_new(company, first, nxt)
         revenue_old = _old_revenue(company, first, nxt)
         profit_old = old["month_profit"]  # прибыль - из самого дашборда

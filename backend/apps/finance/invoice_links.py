@@ -24,6 +24,7 @@ from apps.core.audit import services as audit
 from apps.core.tenancy import tenant_context
 from apps.forwarding.finance_lines.models import OrderService
 
+from . import periods
 from .engine import current_cid, engine_is_new
 from .errors import FinanceError
 from .expenses import refresh_invoice_variance
@@ -52,6 +53,7 @@ def order_income_total(order) -> Decimal:
 def link_item_to_income(item: InvoiceItem, income: Income, *, user=None) -> InvoiceItem:
     cid = current_cid(item.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         income = Income.objects.select_for_update().get(pk=income.pk)  # Income -> Invoice
         invoice = Invoice.objects.select_for_update().get(pk=item.invoice_id)
         item = InvoiceItem.objects.select_for_update().get(pk=item.pk)
@@ -111,6 +113,7 @@ def link_expense_to_item(
     if amount <= 0:
         raise FinanceError("amount_invalid", "Сумма связи должна быть положительной")
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         expense = Expense.objects.select_for_update().get(pk=expense.pk)  # Expense -> Invoice
         invoice = Invoice.objects.select_for_update().get(pk=item.invoice_id)
         item = InvoiceItem.objects.get(pk=item.pk)
@@ -168,6 +171,7 @@ def unlink_expense_from_item(
     """Снимает связь (запись остаётся историей: released_at/release_reason)."""
     cid = current_cid(link.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         expense = Expense.objects.select_for_update().get(pk=link.expense_id)
         link = ExpenseInvoiceAllocation.objects.select_for_update().get(pk=link.pk)
         if link.released_at is None:

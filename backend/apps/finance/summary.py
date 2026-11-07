@@ -18,12 +18,11 @@ def finance_summary(today) -> dict:
     clients, carriers = debts.client_debts(today), debts.carrier_debts(today)
     first, nxt = month_bounds(today)
     company = Company.objects.get(pk=get_current_company_id())
-    month = operations.summary(
-        operations.operations_queryset(
-            date_from=first,
-            date_to=nxt - timedelta(days=1),
-            accounting_start=company.accounting_start,
-        )
+    month = operations.journal_summary(
+        company.pk,
+        date_from=first,
+        date_to=nxt - timedelta(days=1),
+        accounting_start=company.accounting_start,
     )
     fx = ZERO
     for payment in Payment.objects.filter(

@@ -109,6 +109,27 @@ def reopen_period(period: FinancialPeriod, user, reason: str) -> FinancialPeriod
         return locked
 
 
+def assert_finance_writable(company) -> None:
+    """«Безопасная остановка»: при settings.financial_writes_frozen любая финансовая запись -> 423.
+
+    Вызывается в начале каждого записывающего финансового сервиса (там же, где проверяются
+    периоды). Чтение не затрагивается. Без строки настроек запись разрешена.
+    """
+    cid = _cid(company)
+    with tenant_context(cid):
+        frozen = (
+            CompanyFinancialSettings.objects.filter(company_id=cid)
+            .values_list("financial_writes_frozen", flat=True)
+            .first()
+        )
+    if frozen:
+        raise FinanceError(
+            "finance_frozen",
+            "Финансовые изменения временно остановлены администратором",
+            status_code=423,
+        )
+
+
 def is_period_closed(company, on_date: date) -> bool:
     cid = _cid(company)
     with tenant_context(cid):

@@ -30,9 +30,9 @@ class OperationsMixin:
     def get_permissions(self):
         return [ModuleRequired("forwarding")(), permission_required("finance.view")()]
 
-    def queryset(self, request):
+    def filters(self, request) -> dict:
         p = request.query_params
-        return ops.operations_queryset(
+        return dict(
             date_from=date_param(p, "date_from"),
             date_to=date_param(p, "date_to"),
             category=(p.get("category") or "").strip() or None,
@@ -56,9 +56,10 @@ def summary_data(s: dict) -> dict:
 
 class OperationsView(OperationsMixin, APIView):
     def get(self, request):
-        qs = self.queryset(request)
+        filters = self.filters(request)
+        cid = request.membership.company_id
         paginator = StandardPagination()
-        page = paginator.paginate_queryset(ops.listing(qs), request, view=self)
+        page = paginator.paginate_queryset(ops.journal_rows(cid, **filters), request, view=self)
         rows = [
             {
                 "id": ln.pk,
@@ -75,7 +76,7 @@ class OperationsView(OperationsMixin, APIView):
             for ln in page
         ]
         response = paginator.get_paginated_response(rows)
-        response.data["summary"] = summary_data(ops.summary(qs))
+        response.data["summary"] = summary_data(ops.journal_summary(cid, **filters))
         return response
 
 
@@ -83,8 +84,13 @@ class OperationsExportView(OperationsMixin, APIView):
     content_negotiation_class = AnyAcceptNegotiation
 
     def get(self, request):
-        qs = ops.listing(self.queryset(request))
-        if qs.values("pk")[EXPORT_LIMIT : EXPORT_LIMIT + 1].exists():
+        qs = ops.journal_rows(request.membership.company_id, **self.filters(request))
+        too_many = (
+            len(qs) > EXPORT_LIMIT
+            if isinstance(qs, list)
+            else qs.values("pk")[EXPORT_LIMIT : EXPORT_LIMIT + 1].exists()
+        )
+        if too_many:
             raise ValidationError(
                 f"Слишком много операций для выгрузки (больше {EXPORT_LIMIT}): сузьте фильтр"
             )

@@ -199,6 +199,13 @@ def test_invoice_issue_and_cancel_mirror_links(admin_client, company):
 def test_no_mirror_for_legacy_and_new(admin_client, company, engine):
     set_engine(company, engine, **({"cutover_date": date(2026, 1, 1)} if engine == "new" else {}))
     order = new_order(company)
+    if engine == "new":  # в new строки заказа только для чтения (1.4.11): 409, зеркала нет
+        r = admin_client.post(
+            LINES, {"order": order.pk, "title": "Услуга", "income": "100"}, format="json"
+        )
+        assert r.status_code == 409 and r.json()["code"] == "legacy_lines_readonly"
+        assert issues(company) == []
+        return
     pk = post_line(admin_client, order, income="100", expense="10")
     assert incomes(company, legacy_line_id=pk) == []
     assert expenses(company, source="migrated") == []

@@ -103,6 +103,7 @@ def sync_planned_freight(order: Order, *, user=None) -> Income:
     Пока доход planned - следует за client_rate; признанный (recognized) не меняется."""
     cid = current_cid(order.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         order = _lock_order(order)
         income = _freight(order)
         if income is None:
@@ -150,6 +151,7 @@ def recognize_order_income(order: Order, *, user=None, now=None) -> Income | Non
     """Признаёт доход перевозки, если все действующие рейсы заказа завершены; иначе no-op."""
     cid = current_cid(order.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         order = _lock_order(order)
         settings = get_settings_for(cid)
         done, trips = completion_state(order, settings, lock=True)
@@ -196,6 +198,7 @@ def unrecognize_order_income(
     """Возвращает признанный доход в planned, если условие признания больше не выполняется."""
     cid = current_cid(order.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         order = _lock_order(order)
         settings = get_settings_for(cid)
         done, trips = completion_state(order, settings, lock=True)
@@ -251,6 +254,7 @@ def plan_service(order: Order, title: str, category: str, amount, user) -> Incom
         raise FinanceError("title_required", "Укажите название услуги")
     cid = current_cid(order.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         order = _lock_order(order)
         income = Income(
             company_id=cid,
@@ -282,6 +286,7 @@ def mark_service_delivered(
     """Фактическое оказание услуги; дата вводится пользователем (правила 1.4.3)."""
     cid = current_cid(income.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         Order.all_objects.select_for_update().get(pk=income.order_id)
         locked = _locked_service(income)
         if locked.status != "planned":
@@ -311,6 +316,7 @@ def confirm_service(income: Income, user, perms=(), adjust_reason: str | None = 
     """Подтверждение оказанной услуги: признание на дату оказания (принцип начисления)."""
     cid = current_cid(income.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         Order.all_objects.select_for_update().get(pk=income.order_id)
         locked = _locked_service(income)
         if locked.status == "recognized":
@@ -357,6 +363,7 @@ def adjust_recognized_income(
     amount = _money(new_amount, "new_amount")
     cid = current_cid(income.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         Order.all_objects.select_for_update().get(pk=income.order_id)
         locked = Income.objects.select_for_update().get(pk=income.pk)
         if locked.status != "recognized":
@@ -386,6 +393,7 @@ def void_income(income: Income, reason: str, user) -> Income:
         raise FinanceError("reason_required", "Укажите причину аннулирования дохода")
     cid = current_cid(income.company_id)
     with tenant_context(cid):
+        periods.assert_finance_writable(cid)
         Order.all_objects.select_for_update().get(pk=income.order_id)
         locked = Income.objects.select_for_update().get(pk=income.pk)
         if locked.status != "planned":

@@ -630,7 +630,7 @@ def test_export_exactly_at_limit_passes(admin_client, company, monkeypatch):
     assert len(sheet(admin_client.get(EXPORT))) == 4
 
 
-EXPORT_QUERY_BOUND = 10  # 9 + дешёвая проверка лимита до загрузки строк
+EXPORT_QUERY_BOUND = 11  # 9 + дешёвая проверка лимита + режим учёта
 
 
 def test_export_query_count_is_flat(admin_client, company, django_assert_max_num_queries):
@@ -792,7 +792,7 @@ def test_export_limit_checked_before_loading_rows(
     for _ in range(3):
         mk(company)
     with django_assert_max_num_queries(
-        7
-    ):  # вход, подписка, savepoints, проверка лимита; без выборок
+        8
+    ):  # вход, подписка, savepoints, режим учёта, проверка лимита; без выборок
         r = admin_client.get(EXPORT)
     assert r.status_code == 400 and "фильтр" in str(r.data).lower()

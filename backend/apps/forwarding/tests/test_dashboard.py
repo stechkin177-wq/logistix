@@ -375,7 +375,7 @@ def test_dashboard_summary_function_scopes_by_company(two):
 
 # --- запросы ---
 
-DASHBOARD_QUERY_BOUND = 13  # измерено: 13 на любой размер данных (auth+подписка+9 запросов сводки)
+DASHBOARD_QUERY_BOUND = 14  # измерено: 14 на любой размер данных (+1 запрос режима учёта)
 
 
 def test_dashboard_query_count_is_flat(admin_client, company, django_assert_max_num_queries):

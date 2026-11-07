@@ -31,6 +31,14 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
     def get_permissions(self):
         return [ModuleRequired("forwarding")(), *super().get_permissions()]
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            # engine=new: строки только для чтения (409 до валидации тела)
+            from apps.finance.engine import assert_legacy_lines_writable
+
+            assert_legacy_lines_writable(request.membership.company_id)
+
     def get_queryset(self):
         qs = OrderService.objects.filter(order__deleted_at__isnull=True).select_related("order")
         if self.action == "list":
@@ -72,9 +80,12 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
     def _guard(self, old_date, new_date):
         """Проверки дат строки. Возвращает (корректировка?, причина, права)."""
         from apps.finance import periods
+        from apps.finance.engine import assert_legacy_lines_writable
 
         request = self.request
         cid = request.membership.company_id
+        assert_legacy_lines_writable(cid)  # engine=new: строки только для чтения (409)
+        periods.assert_finance_writable(cid)  # безопасная остановка (423)
         perms = periods.request_perms(request)
         reason = periods.request_adjust_reason(request)
         adjusted = False
@@ -120,6 +131,9 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
         self.audit_updated(before, serializer.instance)
 
     def perform_destroy(self, instance):
+        from apps.finance.engine import assert_legacy_lines_writable
+
+        assert_legacy_lines_writable(self.request.membership.company_id)
         if instance.is_base:
             raise ValidationError(BASE_LINE_MESSAGE)
         adjusted, reason = self._guard(instance.date, None)

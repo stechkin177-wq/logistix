@@ -14,7 +14,7 @@ from django.db import transaction
 from apps.core.tenancy import tenant_context
 from apps.forwarding.models import Order
 
-from . import migration
+from . import migration, periods
 from .engine import company_engine, current_cid
 from .models import FinanceMigrationIssue
 
@@ -49,6 +49,7 @@ def run_mirror(company_id: int, operation: str, label: str, fn) -> bool:
     cid = current_cid(company_id)
     if company_engine(cid) != "shadow":
         return True
+    periods.assert_finance_writable(cid)  # безопасная остановка: 423 прерывает основную операцию
     try:
         with transaction.atomic(), tenant_context(cid):
             fn()

@@ -25,6 +25,7 @@ from apps.core.tenancy import tenant_context
 from apps.forwarding.finance_lines.models import OrderService
 from apps.forwarding.models import Order, Trip, TripConsignment
 
+from . import periods
 from .engine import current_cid
 from .errors import FinanceError
 from .fx import fx_snapshot, legacy_missing_snapshot
@@ -406,6 +407,8 @@ def _migrate_group(ctx: _Ctx, title: str, mine: list) -> None:
 def migrate_order(order, *, run=None, overwrite=False, dry_run=False) -> Result:
     """Идемпотентный перенос всех строк заказа. При dry_run ничего не пишется."""
     cid = current_cid(order.company_id)
+    if not dry_run:
+        periods.assert_finance_writable(cid)  # безопасная остановка
     with transaction.atomic(), tenant_context(cid):
         if not dry_run:
             order = Order.all_objects.select_for_update().get(pk=order.pk)

@@ -286,6 +286,7 @@ def issue(
     )
     if invoice.status != "draft":
         raise _not_editable()
+    periods.assert_finance_writable(invoice.company_id)
     items = list(invoice.items.select_related("line"))
     if not items:
         raise FinanceError("invoice_empty", "В счёте нет позиций")
@@ -351,6 +352,7 @@ def cancel(invoice: Invoice, *, user, perms=(), adjust_reason: str | None = None
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     if invoice.status != "issued":
         raise _not_editable()
+    periods.assert_finance_writable(invoice.company_id)
     adjusted = False
     if invoice.issue_date is not None:  # отмена выставленного счёта - по дате выставления
         adjusted = periods.check_system_date(

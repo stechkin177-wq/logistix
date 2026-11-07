@@ -102,3 +102,26 @@ def summary(qs) -> dict:
         },
         "unconverted": unconverted,
     }
+
+
+# --- единая точка выбора источника: engine == 'new' читает из Income / долей расходов ---------
+
+
+def journal_rows(company_id, **filters):
+    """Строки журнала (QuerySet строк заказа либо список строк новой модели)."""
+    from . import reports_new
+    from .engine import use_new_engine
+
+    if use_new_engine(company_id):
+        return reports_new.journal_rows_new(**filters)
+    return listing(operations_queryset(**filters))
+
+
+def journal_summary(company_id, **filters) -> dict:
+    """Итоги журнала; формат ответа одинаков для старого и нового источника."""
+    from . import reports_new
+    from .engine import use_new_engine
+
+    if use_new_engine(company_id):
+        return reports_new.summary_new(RateTable, **filters)
+    return summary(operations_queryset(**filters))

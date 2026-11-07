@@ -29,6 +29,7 @@ def add_payment(
     adjust_reason: str | None = None,
 ) -> Payment:
     """Оплата в валюте счёта. Счёт блокируется: параллельные оплаты не превысят остаток."""
+    periods.assert_finance_writable(invoice.company_id)
     locked = Invoice.objects.select_for_update().select_related("currency").get(pk=invoice.pk)
     if locked.status != "issued":
         raise FinanceError(
@@ -61,6 +62,7 @@ def add_payment(
 
 @transaction.atomic
 def delete_payment(payment: Payment, *, user, perms=(), adjust_reason: str | None = None) -> None:
+    periods.assert_finance_writable(payment.company_id)
     Invoice.objects.select_for_update().get(pk=payment.invoice_id)  # сериализует с оплатами
     adjusted = periods.check_system_date(payment.company_id, payment.date, perms, adjust_reason)
     payment.delete()

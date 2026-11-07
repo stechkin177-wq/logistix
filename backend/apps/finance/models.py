@@ -277,6 +277,14 @@ class CompanyFinancialSettings(TenantModel):
         max_length=16, choices=EXPENSE_CREATION_MODES, default="manual"
     )
     sync_carrier_price = models.BooleanField(default=True)
+    engine_switched_at = models.DateTimeField(
+        null=True, blank=True, help_text="Когда компания переключена на engine=new"
+    )
+    financial_writes_frozen = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Безопасная остановка: финансовые записи отвечают 423",
+    )
     updated_by = _user_fk()
     updated_at = models.DateTimeField(auto_now=True)
 
