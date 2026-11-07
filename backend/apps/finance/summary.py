@@ -8,7 +8,8 @@ from apps.forwarding.dashboard import month_bounds
 from apps.forwarding.finance_lines.services import margin_pct
 from apps.forwarding.orders.services import BASE_CURRENCY_CODE
 
-from . import debts, operations
+from . import debts, debts_base, operations
+from .engine import use_new_engine
 from .models import Payment
 from .money import ZERO
 from .payments import payment_fx_difference
@@ -29,7 +30,7 @@ def finance_summary(today) -> dict:
         invoice__status="issued", date__gte=first, date__lt=nxt
     ).select_related("invoice"):
         fx += payment_fx_difference(payment)
-    return {
+    out = {
         # currency - валюта итога месяца (базовая валюта компании при engine=new, иначе KZT);
         # долги и курсовая разница считаются в тенге (debts_currency), их перевод - отдельная задача
         "currency": month.get("currency") or BASE_CURRENCY_CODE,
@@ -43,3 +44,7 @@ def finance_summary(today) -> dict:
         "fx_difference_kzt": fx,
         "unconverted": month["unconverted"],
     }
+    if use_new_engine(company.pk):
+        # 1.4.14: долги/просрочка в базе, реализованная и нереализованная разницы - РАЗДЕЛЬНО
+        out.update(debts_base.summary_extras(today, first, nxt - timedelta(days=1)))
+    return out

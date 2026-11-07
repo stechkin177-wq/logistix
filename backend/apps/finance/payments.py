@@ -7,7 +7,7 @@ from django.db import transaction
 
 from apps.core.audit import services as audit
 
-from . import periods
+from . import fx, periods
 from .errors import FinanceError
 from .invoices import balance
 from .models import Invoice, Payment
@@ -44,6 +44,7 @@ def add_payment(
         date=date,
         amount=amount,
         rate_to_kzt=rate_on(locked.currency, date),
+        **fx.base_rate_snapshot(locked.company, locked.currency, date),
         method=method,
         payment_ref=payment_ref,
         comment=comment,

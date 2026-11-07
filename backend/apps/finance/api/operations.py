@@ -21,8 +21,10 @@ from apps.forwarding.orders.export import (
 from apps.forwarding.orders.filters import date_param, int_param
 from apps.forwarding.orders.services import BASE_CURRENCY_CODE
 
+from .. import debts_base
 from .. import operations as ops
 from ..reports_new import base_currency_code
+from .fx import realized_queryset, write_realized_sheet
 from .serializers import excluded_data, money
 
 HEADERS = ["Дата", "Заказ", "Клиент", "Название", "Категория", "Доход", "Расход", "Валюта"]
@@ -142,6 +144,17 @@ class OperationsExportView(OperationsMixin, APIView):
                 base_income.number_format = base_expense.number_format = MONEY_FORMAT
                 cells += [base_income, base_expense, BASE_STATUS_TEXT.get(ln.bucket, ln.bucket)]
             ws.append(cells)
+        if in_base:
+            # курсовые разницы - отдельным листом и колонками, в доходы/расходы не входят
+            filters = self.filters(request)
+            base = debts_base.base_info(request.membership.company_id)
+            flt = {
+                "date_from": filters["date_from"],
+                "date_to": filters["date_to"],
+                "direction": None,
+            }
+            rows = debts_base.realized_rows(realized_queryset(flt), base["id"])
+            write_realized_sheet(wb, base["code"], rows[:EXPORT_LIMIT])
         buffer = io.BytesIO()
         wb.save(buffer)
         today = company_today(request.membership.company_id)

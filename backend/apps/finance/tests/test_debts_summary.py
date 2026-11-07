@@ -176,5 +176,5 @@ def test_query_count_stable(company, admin_client, django_assert_max_num_queries
         )
     with django_assert_max_num_queries(12):
         assert admin_client.get("/api/finance/debts/clients/").status_code == 200
-    with django_assert_max_num_queries(16):
+    with django_assert_max_num_queries(17):  # +1: определение режима учёта (1.4.14)
         assert admin_client.get("/api/finance/summary/").status_code == 200

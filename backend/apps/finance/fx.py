@@ -86,6 +86,40 @@ def resolve_rate(company, from_currency, to_currency, on_date: date) -> tuple[De
     return rate, "via_kzt", min(leg_from[1], leg_to[1])
 
 
+def base_rate_snapshot(company, currency, on_date: date) -> dict:
+    """Снимок курса счёта/оплаты к базовой валюте компании (1.4.14): поля base_currency,
+    rate_to_base, rate_to_base_date. Только чтение настроек (строка не создаётся).
+
+    Нет настроек, базовой валюты или курса - все три поля None, операция НЕ блокируется.
+    Курс никогда не придумывается; задаётся один раз при создании записи."""
+    empty = {"base_currency": None, "rate_to_base": None, "rate_to_base_date": None}
+    cid = getattr(company, "pk", company)
+    with tenant_context(cid):
+        base = (
+            CompanyFinancialSettings.objects.filter(company_id=cid)
+            .select_related("base_currency")
+            .first()
+        )
+    base = base.base_currency if base is not None else None
+    if base is None:
+        return empty
+    try:
+        rate, _source, _rate_date = resolve_rate(
+            company if hasattr(company, "id") else _company(cid), currency, base, on_date
+        )
+    except FinanceError as exc:
+        if getattr(exc.detail, "code", None) != "rate_missing":
+            raise
+        return empty
+    return {"base_currency": base, "rate_to_base": rate, "rate_to_base_date": on_date}
+
+
+def _company(company_id):
+    from apps.core.models import Company
+
+    return Company.objects.get(pk=company_id)
+
+
 def get_settings(company) -> CompanyFinancialSettings:
     from .initial_settings import ensure_company_financial_settings
 

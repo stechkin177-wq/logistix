@@ -98,6 +98,18 @@ class Invoice(TenantModel, SoftDeleteModel):
     issue_date = models.DateField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     rate_to_kzt = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    # снимок курса к БАЗОВОЙ валюте компании на дату выставления (1.4.14); пусто, если курса не
+    # нашлось или счёт выпущен до введения снимков; задаётся один раз и не пересчитывается
+    base_currency = models.ForeignKey(
+        "core.HandbookValue",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Базовая валюта компании на дату выставления (значение справочника currency)",
+    )
+    rate_to_base = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    rate_to_base_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUSES, default="draft")
     total_net = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_vat = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -179,6 +191,17 @@ class Payment(TenantModel, SoftDeleteModel):
     date = models.DateField()
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     rate_to_kzt = models.DecimalField(max_digits=18, decimal_places=6)
+    # снимок курса к базовой валюте компании на дату оплаты (1.4.14), как у счёта
+    base_currency = models.ForeignKey(
+        "core.HandbookValue",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Базовая валюта компании на дату оплаты (значение справочника currency)",
+    )
+    rate_to_base = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    rate_to_base_date = models.DateField(null=True, blank=True)
     method = models.CharField(max_length=10, choices=METHODS, default="bank")
     payment_ref = models.CharField(max_length=128, blank=True)
     comment = models.TextField(blank=True)
@@ -775,3 +798,87 @@ class FinanceMigrationIssue(TenantModel):
                 name="finissue_ambiguous_source_uniq",
             ),
         ]
+
+
+# --- Курсовая переоценка задолженности (подзадача 1.4.14) -----------------------------------------
+
+
+class FxRevaluation(TenantModel):
+    """Снимок переоценки открытых остатков счетов на дату отчёта (неизменяемый).
+
+    kind: report - по требованию, period_close - при закрытии периода (дата - последний день
+    месяца). Хранит применённые курсы и итоги; отчёт по закрытому периоду читает этот снимок и
+    не пересчитывается при последующем изменении курсов. Изменение и удаление запрещены.
+    """
+
+    KINDS = [("report", "По требованию"), ("period_close", "Закрытие периода")]
+
+    as_of = models.DateField()
+    kind = models.CharField(max_length=12, choices=KINDS)
+    base_currency = models.ForeignKey(
+        "core.HandbookValue", on_delete=models.PROTECT, related_name="+"
+    )
+    period = models.ForeignKey(
+        FinancialPeriod, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_by = _user_fk()
+    created_at = models.DateTimeField(auto_now_add=True)
+    summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["company", "kind", "as_of"], name="fxreval_cmp_kind_asof_idx")
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(kind__in=["report", "period_close"]), name="fxreval_kind_valid"
+            ),
+        ]
+
+    def __str__(self):
+        return f"Переоценка {self.as_of} ({self.kind})"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise FinanceError(
+                "fx_snapshot_immutable", "Снимок переоценки изменять нельзя", status_code=405
+            )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise FinanceError(
+            "fx_snapshot_immutable", "Снимок переоценки удалять нельзя", status_code=405
+        )
+
+
+class FxRevaluationLine(TenantModel):
+    """Строка снимка: открытый остаток одного счёта и его переоценка на дату отчёта."""
+
+    revaluation = models.ForeignKey(FxRevaluation, on_delete=models.PROTECT, related_name="lines")
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="+")
+    direction = models.CharField(max_length=3, choices=Invoice.DIRECTIONS)
+    currency = models.ForeignKey("core.HandbookValue", on_delete=models.PROTECT, related_name="+")
+    open_balance = models.DecimalField(max_digits=14, decimal_places=2)
+    invoice_rate_base = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    carrying_base = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    applied_rate = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    applied_rate_date = models.DateField(null=True, blank=True)
+    applied_rate_source = models.CharField(max_length=8, blank=True)
+    current_base = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    unrealized_diff = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    flags = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [models.Index(fields=["revaluation"], name="fxrevalline_reval_idx")]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise FinanceError(
+                "fx_snapshot_immutable", "Строку снимка изменять нельзя", status_code=405
+            )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise FinanceError("fx_snapshot_immutable", "Строку снимка удалять нельзя", status_code=405)

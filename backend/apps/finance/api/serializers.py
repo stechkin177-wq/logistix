@@ -100,6 +100,19 @@ def money(value):
     return format(value, "f")
 
 
+def jsonable(value):
+    """Decimal -> строка, date -> ISO, вложенные словари и списки (ответы 1.4.14)."""
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, dict):
+        return {k: jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [jsonable(v) for v in value]
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
 def excluded_data(excluded: dict | None) -> dict | None:
     """Исключённое из итогов базовой валюты (число и суммы в исходной валюте); None, если пусто."""
     if not excluded or not excluded.get("count"):
@@ -152,9 +165,10 @@ def invoice_data(invoice: Invoice, today) -> dict:
     }
 
 
-def payment_data(payment: Payment) -> dict:
+def payment_data(payment: Payment, base: dict | None = None) -> dict:
+    """base={'id','code'} базовой валюты (engine=new): добавляет снимок и реализованную разницу."""
     invoice = payment.invoice
-    return {
+    out = {
         "id": payment.pk,
         "invoice": {"id": invoice.pk, "number": invoice.number, "direction": invoice.direction},
         "date": payment.date,
@@ -166,3 +180,32 @@ def payment_data(payment: Payment) -> dict:
         "fx_difference_kzt": money(payment_fx_difference(payment)),
         "created_at": payment.created_at,
     }
+    if base is not None:
+        from ..debts_base import payment_realized
+
+        diff, status = payment_realized(
+            {
+                "amount": payment.amount,
+                "rate_to_base": payment.rate_to_base,
+                "base_currency_id": payment.base_currency_id,
+                "invoice__currency_id": invoice.currency_id,
+                "invoice__rate_to_base": invoice.rate_to_base,
+                "invoice__base_currency_id": invoice.base_currency_id,
+                "invoice__direction": invoice.direction,
+            },
+            base["id"],
+        )
+        out.update(
+            {
+                "base_currency": base["code"],
+                "rate_to_base": None
+                if payment.rate_to_base is None
+                else money(payment.rate_to_base),
+                "invoice_rate_to_base": (
+                    None if invoice.rate_to_base is None else money(invoice.rate_to_base)
+                ),
+                "fx_realized_base": None if diff is None else money(diff),
+                "fx_status": status,
+            }
+        )
+    return out

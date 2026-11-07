@@ -37,6 +37,14 @@ from apps.finance.api.admin import (
     StatusMappingView,
     TripFinanceView,
 )
+from apps.finance.api.fx import (
+    CarrierDebtsExportView,
+    ClientDebtsExportView,
+    FxDifferencesView,
+    FxRevaluationLinesView,
+    FxRevaluationsView,
+    FxRevaluationView,
+)
 from apps.finance.api.invoices import InvoiceViewSet
 from apps.finance.api.ledger import ExpenseViewSet, IncomeViewSet
 from apps.finance.api.operations import OperationsExportView, OperationsView
@@ -76,11 +84,17 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 urlpatterns = [
     path("api/health/", health),
     path("api/documents/capabilities/", CapabilitiesView.as_view()),
+    path("api/finance/debts/clients/export/", ClientDebtsExportView.as_view()),
+    path("api/finance/debts/carriers/export/", CarrierDebtsExportView.as_view()),
     path("api/finance/debts/clients/", ClientDebtsView.as_view()),
     path("api/finance/debts/carriers/", CarrierDebtsView.as_view()),
     path("api/finance/summary/", SummaryView.as_view()),
     path("api/finance/operations/", OperationsView.as_view()),
     path("api/finance/operations/export/", OperationsExportView.as_view()),
+    path("api/finance/operations/fx-differences/", FxDifferencesView.as_view()),
+    path("api/finance/fx-revaluations/<int:pk>/lines/", FxRevaluationLinesView.as_view()),
+    path("api/finance/fx-revaluations/<int:pk>/", FxRevaluationView.as_view()),
+    path("api/finance/fx-revaluations/", FxRevaluationsView.as_view()),
     path("api/finance/trips/<int:pk>/expense-lines/", TripExpenseLinesView.as_view()),
     path("api/finance/trips/<int:pk>/carrier-expense/", CarrierExpenseView.as_view()),
     path("api/finance/engine/", EngineView.as_view()),

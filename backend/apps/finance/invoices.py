@@ -17,7 +17,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.models import Carrier, Client, Trip
 from apps.forwarding.orders.models import Order
 
-from . import invoice_links, periods, shadow
+from . import fx, invoice_links, periods, shadow
 from .errors import FinanceError
 from .models import Invoice, InvoiceItem, Payment
 from .money import ZERO, compute_totals, to_kzt, vat_percent
@@ -327,6 +327,10 @@ def issue(
         days = invoice.order.payment_delay_days if invoice.order_id else None
         invoice.due_date = issue_date + timedelta(days=days or 0)
     invoice.issue_date, invoice.rate_to_kzt = issue_date, rate
+    for key, value in fx.base_rate_snapshot(
+        invoice.company, invoice.currency, issue_date
+    ).items():  # снимок к базовой валюте (1.4.14): один раз, при выставлении
+        setattr(invoice, key, value)
     invoice.total_net, invoice.total_vat, invoice.total_gross = net, vat, gross
     invoice.status = "issued"
     invoice.save()

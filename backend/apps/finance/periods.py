@@ -80,7 +80,21 @@ def close_period(company, year: int, month: int, user, comment: str = "") -> Fin
             reason=comment or "",
         )
         audit.log("update", period, user, {"status": ["open", "closed"], "comment": comment or ""})
+        _revalue_on_close(cid, period, year, month, user)
         return period
+
+
+def _revalue_on_close(cid: int, period, year: int, month: int, user) -> None:
+    """engine=new: снимок курсовой переоценки задолженности на последний день месяца (1.4.14).
+
+    Нехватка курса закрытие НЕ блокирует: строки снимка получают статус no_rate."""
+    from .engine import engine_is_new
+
+    if not engine_is_new(cid):
+        return
+    from .fx_revaluation import create_revaluation
+
+    create_revaluation(cid, _month_end(year, month), "period_close", user, period=period)
 
 
 @transaction.atomic
