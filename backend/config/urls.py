@@ -25,7 +25,20 @@ from apps.core.views import health
 from apps.documents.api.capabilities import CapabilitiesView
 from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
+from apps.finance.api.admin import (
+    CarrierExpenseView,
+    EngineView,
+    FinanceSettingsView,
+    MigrationIssueResolveView,
+    MigrationView,
+    OrderFinanceView,
+    PeriodReopenView,
+    PeriodsView,
+    StatusMappingView,
+    TripFinanceView,
+)
 from apps.finance.api.invoices import InvoiceViewSet
+from apps.finance.api.ledger import ExpenseViewSet, IncomeViewSet
 from apps.finance.api.operations import OperationsExportView, OperationsView
 from apps.finance.api.payments import PaymentViewSet
 from apps.finance.api.rates import RateViewSet
@@ -55,6 +68,8 @@ router.register("trips", TripViewSet, basename="trip")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")
+router.register("finance/incomes", IncomeViewSet, basename="finance-income")
+router.register("finance/expenses", ExpenseViewSet, basename="finance-expense")
 router.register("documents/templates", TemplateViewSet, basename="document-template")
 router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
@@ -67,6 +82,16 @@ urlpatterns = [
     path("api/finance/operations/", OperationsView.as_view()),
     path("api/finance/operations/export/", OperationsExportView.as_view()),
     path("api/finance/trips/<int:pk>/expense-lines/", TripExpenseLinesView.as_view()),
+    path("api/finance/trips/<int:pk>/carrier-expense/", CarrierExpenseView.as_view()),
+    path("api/finance/engine/", EngineView.as_view()),
+    path("api/finance/settings/status-mapping/", StatusMappingView.as_view()),
+    path("api/finance/settings/", FinanceSettingsView.as_view()),
+    path("api/finance/periods/<int:pk>/reopen/", PeriodReopenView.as_view()),
+    path("api/finance/periods/", PeriodsView.as_view()),
+    path("api/finance/migration/issues/<int:pk>/resolve/", MigrationIssueResolveView.as_view()),
+    path("api/finance/migration/", MigrationView.as_view()),
+    path("api/orders/<int:pk>/finance/", OrderFinanceView.as_view()),
+    path("api/trips/<int:pk>/finance/", TripFinanceView.as_view()),
     path("api/auth/login/", LoginView.as_view()),
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/switch-company/", SwitchCompanyView.as_view()),
