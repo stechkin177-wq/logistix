@@ -452,3 +452,29 @@ def test_backfill_help_states_order_completed_at_is_not_used():
 
     assert "Order.completed_at" in mod.Command.help
     assert "Order.completed_at" in mod.__doc__
+
+
+def test_end_to_end_trip_scenario_via_api(admin_client, admin_user, company):
+    """Создание (старый и новый клиент), завершение, повтор, отмена завершения с аудитом."""
+    _, ids = make_cargos(company, 3)
+    old = new_trip(admin_client, [ids[0]], price="1500.00")  # старый клиент: только price
+    assert old["carrier_price"] == old["price"] == "1500.00"
+    new = new_trip(admin_client, [ids[1]], carrier_price="2500.00")
+    assert new["price"] == "2500.00"
+    bad = admin_client.post(
+        TRIPS, {"consignments": [ids[2]], "price": "1", "carrier_price": "2"}, format="json"
+    )
+    assert bad.status_code == 400 and "price" in bad.data
+
+    done = complete(admin_user, company, new)
+    first = db_trip(company, new["id"]).completed_at
+    assert first == T1 and done.data["carrier_price"] == "2500.00"
+    again = move(admin_client, new["id"], st(company, "Завершён"))
+    assert again.status_code == 400 and db_trip(company, new["id"]).completed_at == first
+
+    assert move(admin_client, new["id"], st(company, "Отменён")).status_code == 400  # без причины
+    ok = move(admin_client, new["id"], st(company, "Отменён"), reason="Ошибка оформления")
+    assert ok.status_code == 200 and db_trip(company, new["id"]).completed_at is None
+    row = audit_rows(company, action="update", object_type="forwarding.trip")[-1]
+    assert row.changes["reason"] == "Ошибка оформления"
+    assert row.changes["completed_at"][1] is None and row.changes["completed_at"][0] is not None
