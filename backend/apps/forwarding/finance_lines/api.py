@@ -91,6 +91,9 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
             None, new_date or company_today(self.request.membership.company_id)
         )
         serializer.save(**self.get_create_kwargs(serializer))
+        from apps.finance import hooks  # Shadow-зеркало (только engine=shadow)
+
+        hooks.after_line_saved(serializer.instance)
         if adjusted:
             from apps.finance import periods
 
@@ -105,6 +108,9 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
         adjusted, reason = self._guard(instance.date, serializer.validated_data.get("date"))
         before = services.snapshot(instance)
         serializer.save()
+        from apps.finance import hooks  # Shadow-зеркало (только engine=shadow)
+
+        hooks.after_line_saved(serializer.instance)
         if adjusted:
             from apps.finance import periods
 
@@ -121,7 +127,12 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
             from apps.finance import periods
 
             self._adjustment = periods.adjustment_changes(reason, self._line_state(instance), None)
+        from apps.finance import hooks  # Shadow: зеркало отвязывается ДО удаления строки
+
+        order = instance.order
+        hooks.before_line_delete(instance)
         try:
             super().perform_destroy(instance)
         except ProtectedError:  # строка входит в счёт (finance.InvoiceItem, PROTECT)
             raise LineInvoiced() from None
+        hooks.after_line_deleted(order)

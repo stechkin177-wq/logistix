@@ -17,7 +17,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.models import Carrier, Client, Trip
 from apps.forwarding.orders.models import Order
 
-from . import invoice_links, periods
+from . import invoice_links, periods, shadow
 from .errors import FinanceError
 from .models import Invoice, InvoiceItem, Payment
 from .money import ZERO, compute_totals, to_kzt, vat_percent
@@ -341,6 +341,7 @@ def issue(
             )
         )
     audit.log("update", invoice, user, changes)
+    shadow.mirror_invoice(invoice, "invoice_issue")  # связи с перенесёнными строками (shadow)
     return invoice
 
 

@@ -9,7 +9,7 @@ from apps.forwarding.finance_lines.models import OrderService, company_today
 from apps.forwarding.orders.models import Order
 from apps.forwarding.trips.models import Trip
 
-from . import periods
+from . import periods, shadow
 from .errors import FinanceError
 from .money import CENT, quantize_money
 
@@ -122,4 +122,7 @@ def create_trip_expense(
             )
         audit.log("create", line, user, changes)
         lines.append(line)
+    for order in orders.values():
+        if order.pk in seen:
+            shadow.mirror_order(order, "trip_expense")  # только engine=shadow
     return lines

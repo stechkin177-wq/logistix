@@ -149,19 +149,31 @@ def _normalize(expense: Expense, items) -> list[tuple[int | None, int | None, De
 
 
 def _write_allocations(expense: Expense, rows) -> None:
-    ExpenseAllocation.objects.filter(expense=expense).delete()
-    ExpenseAllocation.objects.bulk_create(
-        [
-            ExpenseAllocation(
-                company_id=expense.company_id,
-                expense=expense,
-                order_id=order_id,
-                trip_id=trip_id,
-                amount=amount,
+    """Приводит доли к rows по разности: неизменные доли сохраняются (с legacy_line)."""
+    pool: dict[tuple, list[ExpenseAllocation]] = {}
+    for alloc in ExpenseAllocation.objects.filter(expense=expense).order_by("id"):
+        pool.setdefault((alloc.order_id, alloc.trip_id), []).append(alloc)
+    keep, new = set(), []
+    for order_id, trip_id, amount in rows:
+        candidates = pool.get((order_id, trip_id))
+        if candidates:
+            alloc = candidates.pop(0)
+            keep.add(alloc.pk)
+            if alloc.amount != amount:
+                alloc.amount = amount
+                alloc.save(update_fields=["amount"])
+        else:
+            new.append(
+                ExpenseAllocation(
+                    company_id=expense.company_id,
+                    expense=expense,
+                    order_id=order_id,
+                    trip_id=trip_id,
+                    amount=amount,
+                )
             )
-            for order_id, trip_id, amount in rows
-        ]
-    )
+    ExpenseAllocation.objects.filter(expense=expense).exclude(pk__in=keep).delete()
+    ExpenseAllocation.objects.bulk_create(new)
 
 
 def _handbook(value, code: str, field: str, *, active=True) -> HandbookValue:

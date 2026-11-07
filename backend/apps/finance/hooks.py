@@ -8,8 +8,8 @@
 from apps.core.tenancy import tenant_context
 from apps.forwarding.models import Order
 
-from . import income
-from .engine import current_cid, engine_is_new
+from . import income, shadow
+from .engine import company_engine, current_cid, engine_is_new
 from .models import CompanyFinancialSettings
 
 
@@ -22,8 +22,25 @@ def _order_ids_of_trip(trip) -> set[int]:
 def after_order_saved(order, user=None) -> None:
     """Создание заказа или смена client_rate: плановый доход перевозки."""
     cid = current_cid(order.company_id)
-    if engine_is_new(cid):
+    engine = company_engine(cid)
+    if engine == "new":
         income.sync_planned_freight(order, user=user)
+    elif engine == "shadow":
+        shadow.mirror_order(order, "order_saved")
+
+
+def after_line_saved(line) -> None:
+    """Строка заказа создана или изменена (API): Shadow-зеркало заказа."""
+    shadow.mirror_order(line.order, "order_line_saved")
+
+
+def before_line_delete(line) -> None:
+    shadow.before_line_delete(line)
+
+
+def after_line_deleted(order) -> None:
+    """После удаления строки: обновить остальные строки группы расходов рейса."""
+    shadow.mirror_order(order, "order_line_deleted")
 
 
 def after_trip_changed(trip, user=None, *, perms=(), reason=None, extra_order_ids=()) -> None:
