@@ -12,3 +12,11 @@ class FinanceConfig(AppConfig):
         from .models import Payment
 
         trash.register(Payment, "payments", "finance.view")
+
+        from apps.core.signals import company_created
+
+        from .initial_settings import on_company_created
+
+        company_created.connect(
+            on_company_created, dispatch_uid="finance_company_financial_settings"
+        )

@@ -17,7 +17,7 @@ def rate_on(currency, on: date) -> Decimal:
     if currency.code == BASE_CURRENCY_CODE:
         return ONE
     rate = (
-        ExchangeRate.objects.filter(currency=currency, date__lte=on)
+        ExchangeRate.objects.filter(currency=currency, quote_currency__isnull=True, date__lte=on)
         .order_by("-date")
         .values_list("rate", flat=True)
         .first()

@@ -53,7 +53,7 @@ class RateTable:
     def __init__(self, currency_ids):
         rows = defaultdict(list)
         for cid, day, rate in (
-            ExchangeRate.objects.filter(currency_id__in=currency_ids)
+            ExchangeRate.objects.filter(currency_id__in=currency_ids, quote_currency__isnull=True)
             .order_by("currency_id", "date")
             .values_list("currency_id", "date", "rate")
         ):

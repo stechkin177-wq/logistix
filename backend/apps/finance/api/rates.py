@@ -30,7 +30,9 @@ class RateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         currency = attrs.get("currency") or (self.instance.currency if self.instance else None)
         day = attrs.get("date") or (self.instance.date if self.instance else None)
-        clash = ExchangeRate.objects.filter(currency=currency, date=day)
+        clash = ExchangeRate.objects.filter(
+            currency=currency, quote_currency__isnull=True, date=day
+        )
         if self.instance is not None:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
@@ -62,7 +64,7 @@ class RateViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         return [ModuleRequired("forwarding")(), *super().get_permissions()]
 
     def get_queryset(self):
-        qs = ExchangeRate.objects.select_related("currency")
+        qs = ExchangeRate.objects.select_related("currency").filter(quote_currency__isnull=True)
         if self.action == "list":
             p = self.request.query_params
             if (cid := int_param(p, "currency")) is not None:
