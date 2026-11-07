@@ -11,8 +11,15 @@
 from decimal import Decimal
 
 from django.db import IntegrityError, OperationalError, transaction
+from django.utils import timezone
 from rest_framework import status as http_status
-from rest_framework.exceptions import APIException, NotFound, ValidationError
+from rest_framework.exceptions import (
+    APIException,
+    ErrorDetail,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 
 from apps.core.audit import services as audit
 from apps.core.handbooks.models import HandbookValue
@@ -25,6 +32,8 @@ from ..orders.services import _default_currency
 from .models import Trip, TripConsignment
 
 NUMBER_CONSTRAINT = "trip_company_number_uniq"
+COMPLETED_CODE = "COMPLETED"  # системный код статуса рейса «Завершён»
+REVERT_PERMISSION = "trips.revert_completed"
 
 
 class TripNumberConflict(APIException):
@@ -247,8 +256,22 @@ def reassign(trip: Trip, consignment_ids: list[int], user, *, ip: str | None = N
 
 
 @transaction.atomic
-def change_trip_status(trip: Trip, status: HandbookValue, user, *, ip: str | None = None) -> Trip:
-    """Переводит рейс в активный статус trip_status компании (любой -> любой, кроме того же)."""
+def change_trip_status(
+    trip: Trip,
+    status: HandbookValue,
+    user,
+    *,
+    ip: str | None = None,
+    reason: str | None = None,
+    can_revert: bool = False,
+) -> Trip:
+    """Переводит рейс в активный статус trip_status компании (любой -> любой, кроме того же).
+
+    Переход В статус с системным кодом COMPLETED ставит completed_at = now() (если ещё пусто).
+    Выход ИЗ COMPLETED требует права trips.revert_completed (can_revert; иначе 403) и
+    обязательной причины reason (иначе 400); completed_at обнуляется, а в аудит пишутся статус
+    (было, стало), completed_at (было, стало) и reason. Остальные переходы - без новых требований.
+    """
     locked = _locked_trip(trip)
     if (
         status.handbook.code != "trip_status"
@@ -258,8 +281,28 @@ def change_trip_status(trip: Trip, status: HandbookValue, user, *, ip: str | Non
         raise ValidationError({"status": "Нужен активный статус рейса этой компании"})
     if status.pk == locked.status_id:
         raise ValidationError({"status": "Рейс уже в этом статусе"})
+    leaving = locked.status.code == COMPLETED_CODE
+    reason = (reason or "").strip()
+    if leaving:
+        if not can_revert:
+            raise PermissionDenied("Недостаточно прав для выхода рейса из статуса «Завершён»")
+        if not reason:
+            raise ValidationError(
+                {"reason": ErrorDetail("Укажите причину выхода из статуса «Завершён»", "required")}
+            )
     before = audit.snapshot(locked)
     locked.status = status
-    locked.save(update_fields=["status", "updated_at"])
-    audit.log("update", locked, user, audit.diff(before, audit.snapshot(locked)), ip=ip)
+    update_fields = ["status", "updated_at"]
+    if leaving:
+        locked.completed_at = None
+        update_fields.append("completed_at")
+    elif status.code == COMPLETED_CODE and locked.completed_at is None:
+        locked.completed_at = timezone.now()  # один раз; повторное завершение не перезаписывает
+        update_fields.append("completed_at")
+    locked.save(update_fields=update_fields)
+    changes = audit.diff(before, audit.snapshot(locked))
+    if leaving:
+        changes["completed_at"] = [before["completed_at"], None]
+        changes["reason"] = reason
+    audit.log("update", locked, user, changes, ip=ip)
     return locked

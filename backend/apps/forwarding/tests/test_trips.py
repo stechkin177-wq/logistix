@@ -577,9 +577,12 @@ def test_status_value_validation(two):
     trip = new_trip(api_a, ids)
     foreign = trip_status_id(comp_b, "В пути")
     wrong_handbook = hv(comp_a, "order_status", "В работе").pk
-    inactive = hv(comp_a, "trip_status", "Выгрузка")
+    # системные статусы деактивировать нельзя, поэтому неактивный - пользовательский
     with tenant_context(comp_a.id):
-        HandbookValue.objects.filter(pk=inactive.pk).update(is_active=False)
+        base = hv(comp_a, "trip_status", "Выгрузка")
+        inactive = HandbookValue.objects.create(
+            handbook_id=base.handbook_id, name="Особый", order=90, is_active=False
+        )
     for bad in (foreign, wrong_handbook, inactive.pk, 999999, "x", None):
         r = api_a.post(status_url(trip["id"]), {"status": bad}, format="json")
         assert r.status_code == 400, bad

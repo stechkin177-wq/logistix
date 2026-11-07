@@ -26,7 +26,9 @@ export const createTrip = (body: TripCreatePayload) => api.post<Trip>('/trips/',
 
 export const patchTrip = (id: number, body: TripPatchPayload) => api.patch<Trip>(`/trips/${String(id)}/`, body)
 
-export const changeTripStatus = (id: number, status: number) => api.post<Trip>(`/trips/${String(id)}/status/`, { status })
+/** reason - причина выхода из «Завершён» (нужна только для такого перехода). */
+export const changeTripStatus = (id: number, status: number, reason?: string) =>
+  api.post<Trip>(`/trips/${String(id)}/status/`, reason === undefined ? { status } : { status, reason })
 
 export const reassignTrip = (id: number, consignmentIds: number[]) =>
   api.post<Trip>(`/trips/${String(id)}/reassign/`, { consignment_ids: consignmentIds })

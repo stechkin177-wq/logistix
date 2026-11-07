@@ -416,6 +416,13 @@
     "driverName": "Жүргізуші",
     "price": "Бағасы",
     "carrierPrice": "Тасымалдаушы құны",
+    "completedAt": "Аяқталды",
+    "revertTitle": "«Аяқталды» күйінен шығу",
+    "revertMessage": "{{number}} рейсі «{{status}}» күйіне ауыстырылады, аяқталу уақыты тасталады. Әрекет аудит журналына жазылады.",
+    "revertReason": "Себебі",
+    "revertReasonRequired": "Себебін көрсетіңіз",
+    "revertConfirm": "Ауыстыру",
+    "revertNoPermission": "«Аяқталды» күйінен тек «Рейстер: рейсті «Аяқталды» күйінен шығару» құқығы бар қызметкер шыға алады",
     "currency": "Валюта",
     "created": "{{number}} рейсі құрылды",
     "openTrip": "Ашу",
@@ -707,7 +714,8 @@
     "extra": {
       "title": "Ерекше құқықтар",
       "finance.override_limit": "Қаржы: несие лимитінен тыс шот шығару",
-      "finance.cancel_invoice": "Қаржы: шығарылған шоттардан бас тарту"
+      "finance.cancel_invoice": "Қаржы: шығарылған шоттардан бас тарту",
+      "trips.revert_completed": "Рейстер: рейсті «Аяқталды» күйінен шығару"
     }
   },
   "departments": {

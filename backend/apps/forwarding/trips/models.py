@@ -52,6 +52,9 @@ class Trip(TenantModel, SoftDeleteModel):
     currency = _handbook_fk("currency")
     status = _handbook_fk("trip_status")
     is_consolidated = models.BooleanField(default=False)
+    # Время перехода в статус с системным кодом COMPLETED; ставит и обнуляет только сервис
+    # change_trip_status (в API только чтение).
+    completed_at = models.DateTimeField(null=True, blank=True, editable=False)
     consignments = models.ManyToManyField(
         "forwarding.Consignment", through="forwarding.TripConsignment", related_name="trips"
     )
@@ -66,6 +69,7 @@ class Trip(TenantModel, SoftDeleteModel):
             models.Index(fields=["company", "-created_at"], name="trip_company_created_idx"),
             models.Index(fields=["company", "status"], name="trip_company_status_idx"),
             models.Index(fields=["company", "carrier"], name="trip_company_carrier_idx"),
+            models.Index(fields=["company", "completed_at"], name="trip_company_completed_idx"),
         ]
         constraints = [
             models.UniqueConstraint(fields=["company", "number"], name="trip_company_number_uniq"),

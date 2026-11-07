@@ -17,8 +17,10 @@ SECTIONS = [
 ]
 ACTIONS = ["view", "create", "update", "delete"]
 
-# Особые права сверх сетки «раздел + действие»: обход лимита кредита и отмена счёта.
-EXTRA_PERMISSIONS = ["finance.override_limit", "finance.cancel_invoice"]
+# Особые права сверх сетки «раздел + действие»: обход лимита кредита, отмена счёта и выход
+# рейса из статуса «Завершён» (только Администратору).
+FINANCE_EXTRA_PERMISSIONS = ["finance.override_limit", "finance.cancel_invoice"]
+EXTRA_PERMISSIONS = [*FINANCE_EXTRA_PERMISSIONS, "trips.revert_completed"]
 
 ALL_PERMISSIONS: list[str] = [f"{s}.{a}" for s in SECTIONS for a in ACTIONS] + EXTRA_PERMISSIONS
 
@@ -36,7 +38,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes(["finance", "trash", "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Бухгалтер": _codes(["finance"], ACTIONS)
-    + EXTRA_PERMISSIONS
+    + FINANCE_EXTRA_PERMISSIONS
     + _codes([*_OPERATIONS, "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)

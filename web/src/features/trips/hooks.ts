@@ -42,7 +42,7 @@ export function usePatchTrip() {
 
 export function useChangeTripStatus() {
   const invalidate = useInvalidateTrips()
-  return useMutation({ mutationFn: ({ id, status }: { id: number; status: number }) => changeTripStatus(id, status), onSuccess: invalidate })
+  return useMutation({ mutationFn: ({ id, status, reason }: { id: number; status: number; reason?: string }) => changeTripStatus(id, status, reason), onSuccess: invalidate })
 }
 
 export function useReassignTrip() {

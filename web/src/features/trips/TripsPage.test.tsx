@@ -49,6 +49,49 @@ describe('Рейсы: список', () => {
     })
   })
 
+  it('выход из «Завершён»: диалог причины, без причины не отправляется, с причиной POST status+reason', async () => {
+    const done = makeTrip({ status: 23, status_name: 'Завершён', completed_at: '2026-11-05T10:00:00Z' })
+    const m = loggedIn([
+      ['POST', '/api/trips/90/status/', { body: makeTrip({ status: 22, status_name: 'В пути' }) }],
+      ...base([done]),
+    ])
+    renderApp('/trips')
+    const select = await screen.findByRole('combobox', { name: 'Статус рейса ORD-2026-00005-1' })
+    await within(select).findByRole('option', { name: 'В пути' })
+    await userEvent.selectOptions(select, '22')
+    const dialog = await screen.findByRole('dialog', { name: 'Выход из статуса «Завершён»' })
+    expect(m.count('POST', '/api/trips/90/status/')).toBe(0) // до ввода причины ничего не уходит
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Перевести' }))
+    expect(await within(dialog).findByText('Укажите причину')).toBeInTheDocument()
+    expect(m.count('POST', '/api/trips/90/status/')).toBe(0)
+    await userEvent.type(within(dialog).getByLabelText(/^Причина/), 'Закрыт по ошибке')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Перевести' }))
+    await waitFor(() => {
+      expect(m.calls.find((c) => c.path === '/api/trips/90/status/')?.body).toEqual({ status: 22, reason: 'Закрыт по ошибке' })
+    })
+  })
+
+  it('без trips.revert_completed опции выхода из «Завершён» отключены', async () => {
+    const done = makeTrip({ status: 23, status_name: 'Завершён' })
+    loggedIn(base([done]), { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'trips.revert_completed') } })
+    renderApp('/trips')
+    const select = await screen.findByRole('combobox', { name: 'Статус рейса ORD-2026-00005-1' })
+    expect(await within(select).findByRole('option', { name: 'В пути' })).toBeDisabled()
+    expect(within(select).getByRole('option', { name: 'Планируется' })).toBeDisabled()
+    expect(within(select).getByRole('option', { name: 'Завершён' })).toBeEnabled()
+    expect(select).toHaveAttribute('title', expect.stringContaining('Рейсы: выводить рейс'))
+  })
+
+  it('обычный переход из незавершённого статуса не запрашивает причину', async () => {
+    const m = loggedIn([['POST', '/api/trips/90/status/', { body: makeTrip({ status: 23, status_name: 'Завершён' }) }], ...base()])
+    renderApp('/trips')
+    const select = await screen.findByRole('combobox', { name: 'Статус рейса ORD-2026-00005-1' })
+    await within(select).findByRole('option', { name: 'Завершён' })
+    await userEvent.selectOptions(select, '23')
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/90/status/')?.body).toEqual({ status: 23 }) })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('без trips.update статус - значок, не список', async () => {
     loggedIn(base(), { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'trips.update') } })
     renderApp('/trips')
@@ -89,6 +132,15 @@ describe('Рейс: карточка', () => {
     await userEvent.click(within(row).getByRole('button', { name: 'ORD-2026-00005-1' }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByLabelText('Стоимость перевозчика')).toHaveValue('250000.00')
+  })
+
+  it('в карточке показано время завершения', async () => {
+    const done = makeTrip({ status: 23, status_name: 'Завершён', completed_at: '2026-11-05T10:00:00Z' })
+    loggedIn([['GET', '/api/trips/90/', { body: done }], ...base([done])])
+    renderApp('/trips')
+    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/Завершён: .*2026/)).toBeInTheDocument()
   })
 
   it('«Изменить грузы»: пустой набор не отправляется, иначе POST consignment_ids', async () => {

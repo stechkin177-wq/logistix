@@ -20,6 +20,8 @@ export interface Trip {
   status: number
   status_name: string
   is_consolidated: boolean
+  /** Время перехода в статус COMPLETED (ISO) или null; только чтение. */
+  completed_at: string | null
   orders: { id: number; number: string }[]
   consignments: TripCargo[]
   created_at: string

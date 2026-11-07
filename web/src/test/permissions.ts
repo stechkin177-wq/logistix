@@ -9,4 +9,5 @@ export const ALL_PERMISSIONS: string[] = [
   ...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)),
   'finance.override_limit',
   'finance.cancel_invoice',
+  'trips.revert_completed',
 ]

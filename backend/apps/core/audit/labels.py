@@ -9,7 +9,7 @@ FIELD_LABELS: dict[str, dict[str, str]] = {
         "price": "Стоимость перевозчика",
         "carrier_price": "Стоимость перевозчика",
         "completed_at": "Дата завершения",
-        "status": "Статус",
+        "status_id": "Статус",
         "reason": "Причина",
     },
 }

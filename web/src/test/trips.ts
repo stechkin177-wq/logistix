@@ -2,7 +2,11 @@ import type { Consignment } from '../features/consignments/types'
 import type { Trip } from '../features/trips/types'
 import { hv } from './orders'
 
-export const TRIP_STATUSES = [hv('trip_status', 21, 'Планируется', { is_initial: true }), hv('trip_status', 22, 'В пути'), hv('trip_status', 23, 'Завершён', { is_final: true })]
+export const TRIP_STATUSES = [
+  hv('trip_status', 21, 'Планируется', { code: 'PLANNED', is_initial: true, is_system: true }),
+  hv('trip_status', 22, 'В пути', { code: 'IN_PROGRESS', is_system: true }),
+  hv('trip_status', 23, 'Завершён', { code: 'COMPLETED', is_final: true, is_system: true }),
+]
 
 export function makeCargo(over: Partial<Consignment> = {}): Consignment {
   return {
@@ -19,7 +23,7 @@ export function makeCargo(over: Partial<Consignment> = {}): Consignment {
 export function makeTrip(over: Partial<Trip> = {}): Trip {
   return {
     id: 90, number: 'ORD-2026-00005-1', carrier: 6, carrier_name: 'ИП Быстров', vehicle_plate: '123ABC02', driver_name: 'Иван',
-    carrier_price: '100000.00', price: '100000.00', currency: 11, status: 21, status_name: 'Планируется', is_consolidated: false,
+    carrier_price: '100000.00', price: '100000.00', currency: 11, status: 21, status_name: 'Планируется', is_consolidated: false, completed_at: null,
     orders: [{ id: 5, number: 'ORD-2026-00005' }],
     consignments: [{ id: 31, name: 'Станки', order: 5, order_number: 'ORD-2026-00005' }],
     created_at: '2026-10-30T05:00:00Z', updated_at: '2026-10-30T05:00:00Z',

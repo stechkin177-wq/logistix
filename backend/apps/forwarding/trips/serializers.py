@@ -13,6 +13,7 @@ SERVER_FIELDS = {
     "number": "Номер выдаётся автоматически",
     "status": "Статус меняется действием POST /api/trips/{id}/status/",
     "is_consolidated": "Признак сборного рейса вычисляется по грузам",
+    "completed_at": "Время завершения выставляется автоматически при смене статуса",
 }
 MAX_CONSIGNMENTS = 500
 PRICE_CONFLICT = "Поля price и carrier_price различаются: передайте одно значение"
@@ -56,6 +57,7 @@ class TripSerializer(serializers.ModelSerializer):
             "status",
             "status_name",
             "is_consolidated",
+            "completed_at",
             "orders",
             "consignments",
             "created_by",
@@ -67,6 +69,7 @@ class TripSerializer(serializers.ModelSerializer):
             "number",
             "status",
             "is_consolidated",
+            "completed_at",
             "created_by",
             "created_at",
             "updated_at",
@@ -167,6 +170,15 @@ class TripStatusField(serializers.PrimaryKeyRelatedField):
 
 class TripStatusSerializer(serializers.Serializer):
     status = TripStatusField()
+    # обязательна только при выходе из статуса «Завершён» (проверяет сервис)
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=1000, default="")
 
-    def save(self, trip, user, ip=None):
-        return change_trip_status(trip, self.validated_data["status"], user, ip=ip)
+    def save(self, trip, user, ip=None, can_revert=False):
+        return change_trip_status(
+            trip,
+            self.validated_data["status"],
+            user,
+            ip=ip,
+            reason=self.validated_data.get("reason", ""),
+            can_revert=can_revert,
+        )

@@ -6,6 +6,7 @@ import { useCanWrite } from '../../../shared/auth/useCanWrite'
 import { useSession } from '../../../shared/auth/useSession'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
+import { useFormat } from '../../../shared/format/useFormat'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
@@ -26,6 +27,7 @@ const KNOWN = /^(carrier|vehicle_plate|driver_name|carrier_price|currency)$/
 function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
+  const { dateTime } = useFormat()
   const currencies = useHandbookValues('currency')
   const canUpdate = useCanWrite('trips.update')
   const patch = usePatchTrip()
@@ -76,6 +78,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold">{trip.number}</span>
           <TripStatusControl trip={trip} />
+          {trip.completed_at ? <span className="text-xs text-slate-600 dark:text-slate-300">{t('trips.completedAt')}: {dateTime(trip.completed_at)}</span> : null}
           {trip.is_consolidated ? <span className="text-xs text-slate-500">{t('trips.consolidated')}</span> : null}
         </div>
         <TripFields

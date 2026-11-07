@@ -70,8 +70,10 @@ def admin_client(api_client, owner_a, company_a):
 
 
 def test_catalog_has_48_unique_codes():
-    assert len(ALL_PERMISSIONS) == 54 == len(set(ALL_PERMISSIONS))
+    # 13 разделов x 4 действия + 3 особых права (override_limit, cancel_invoice, revert_completed)
+    assert len(ALL_PERMISSIONS) == 55 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
+    assert "trips.revert_completed" in ALL_PERMISSIONS
 
 
 def test_system_roles_content():
@@ -98,6 +100,9 @@ def test_system_roles_content():
     disp = set(SYSTEM_ROLES["Диспетчер"])
     assert "trips.update" in disp and "clients.view" in disp and "clients.create" not in disp
     assert set(SYSTEM_ROLES["Менеджер"]) | acc | disp <= set(ALL_PERMISSIONS)
+    # выход рейса из «Завершён» - только у Администратора
+    holders = [n for n, perms in SYSTEM_ROLES.items() if "trips.revert_completed" in perms]
+    assert holders == [ADMIN]
 
 
 # --- create_company_with_defaults ---

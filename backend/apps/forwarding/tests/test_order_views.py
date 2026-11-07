@@ -363,10 +363,11 @@ def test_board_inactive_status_only_with_orders(admin_client, company):
     to_status(company, order, "В работе")
     with tenant_context(company.id):
         HandbookValue.objects.filter(
-            handbook__code="order_status", name__in=["В работе", "Отменён"]
+            handbook__code="order_status", name__in=["В работе", "На погрузке"]
         ).update(is_active=False)
     names = [c["status"]["name"] for c in admin_client.get(BOARD).data]
-    assert "В работе" in names and "Отменён" not in names
+    # «Отменён» - системный статус, его деактивировать нельзя, поэтому берём «На погрузке»
+    assert "В работе" in names and "На погрузке" not in names
 
 
 def test_board_card_fields(admin_client, company):

@@ -21,7 +21,7 @@ from .serializers import (
     TripSerializer,
     TripStatusSerializer,
 )
-from .services import ConcurrentChange, is_concurrency_failure
+from .services import REVERT_PERMISSION, ConcurrentChange, is_concurrency_failure
 
 
 @contextmanager
@@ -111,10 +111,14 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="status")
     def change_status(self, request, pk=None):
-        """Смена статуса: тело {"status": id значения trip_status}."""
+        """Смена статуса: тело {"status": id значения trip_status, "reason": "..."}.
+
+        reason обязательна при выходе из «Завершён»; для этого нужно право trips.revert_completed.
+        """
         trip = self.get_object()
         serializer = TripStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        can_revert = REVERT_PERMISSION in request.membership.role.permissions
         with concurrency_guard():
-            serializer.save(trip, request.user, ip=client_ip(request))
+            serializer.save(trip, request.user, ip=client_ip(request), can_revert=can_revert)
         return Response(self._output(trip))
