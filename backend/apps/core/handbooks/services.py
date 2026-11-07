@@ -6,13 +6,14 @@ from apps.core.tenancy import tenant_context
 
 from .defaults import DEFAULTS
 from .models import STATUS_HANDBOOK_CODES, Handbook, HandbookValue
+from .system_codes import MSG_MAKE_INITIAL, SystemValueProtected, system_code_assignment
 
 
 @transaction.atomic
 def seed_handbooks(company: Company) -> None:
     """Создаёт справочники по умолчанию. Идемпотентно: значения заполняются только у
     вновь созданного справочника, поэтому правки и удаления пользователя не затираются."""
-    with tenant_context(company.id):  # RLS: WITH CHECK по app.company_id
+    with tenant_context(company.id), system_code_assignment():  # RLS: WITH CHECK по app.company_id
         for code, spec in DEFAULTS.items():
             handbook, created = Handbook.all_objects.get_or_create(
                 company=company, code=code, defaults={"name": spec["name"], "group": spec["group"]}
@@ -68,6 +69,10 @@ def make_initial(value: HandbookValue) -> HandbookValue:
     """Атомарно переносит признак начального значения на value."""
     if not value.is_active:
         raise ValidationError({"detail": "Неактивное значение нельзя сделать начальным"})
+    current = HandbookValue.objects.filter(handbook=value.handbook, is_initial=True).first()
+    if current is not None and current.pk != value.pk and current.is_system:
+        # начальный системный статус (PLANNED) неизменен: другое значение начальным не сделать
+        raise SystemValueProtected(MSG_MAKE_INITIAL.format(name=current.name))
     HandbookValue.objects.filter(handbook=value.handbook, is_initial=True).exclude(
         pk=value.pk
     ).update(is_initial=False)

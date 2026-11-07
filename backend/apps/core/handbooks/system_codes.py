@@ -26,12 +26,17 @@ SYSTEM_CODES: dict[str, frozenset[str]] = {
 }
 
 # Поля, изменение которых у системного значения запрещено
-PROTECTED_FIELDS = ("code", "is_active", "is_final")
+PROTECTED_FIELDS = ("code", "is_active", "is_final", "is_initial")
+# поля, при записи которых проверяется защита (включая перенос в другой справочник)
+GUARDED_FIELDS = frozenset({*PROTECTED_FIELDS, "handbook", "handbook_id"})
 
 MSG_CODE = "Системный код нельзя изменять"
 MSG_DELETE = "Системное значение справочника нельзя удалить"
 MSG_DEACTIVATE = "Системное значение справочника нельзя деактивировать"
 MSG_FINAL = "Признак «финальный» у системного значения нельзя изменять"
+MSG_INITIAL = "Признак «начальный» у системного значения нельзя изменять"
+MSG_MAKE_INITIAL = "Начальный статус «{name}» системный: назначить начальным другое значение нельзя"
+MSG_UPSERT = "Массовое создание с обновлением (upsert) справочников запрещено"
 MSG_MOVE = "Нельзя перенести значение в другой справочник"
 MSG_RESERVED = "Код зарезервирован системой и не может быть присвоен другому значению"
 
@@ -56,6 +61,25 @@ def system_code_assignment() -> Iterator[None]:
         _assignment_allowed.reset(token)
 
 
+_maintenance_allowed: ContextVar[bool] = ContextVar("system_values_maintenance", default=False)
+
+
+@contextmanager
+def system_values_maintenance() -> Iterator[None]:
+    """Полный внутренний обход защиты (служебное удаление компании, очистка данных).
+
+    Только для кода сопровождения; из API недостижим. Покрыт тестом."""
+    token = _maintenance_allowed.set(True)
+    try:
+        yield
+    finally:
+        _maintenance_allowed.reset(token)
+
+
+def maintenance_allowed() -> bool:
+    return _maintenance_allowed.get()
+
+
 def assignment_allowed() -> bool:
     return _assignment_allowed.get()
 
@@ -68,38 +92,28 @@ def is_system_code(handbook_code: str, code: str) -> bool:
     return bool(code) and code in reserved_codes(handbook_code)
 
 
-def check_change(
-    handbook_code: str,
-    *,
-    old: dict | None,
-    new: dict,
-    fields: set[str] | None = None,
-) -> None:
+def check_change(old: dict | None, new: dict) -> None:
     """Проверка одного изменения значения; бросает SystemValueProtected.
 
-    old - прежние code/is_active/is_final/handbook_code (None при создании); new - итоговые
-    значения тех же ключей; fields - какие поля реально пишутся (None = все).
+    old - СТРОКА ИЗ БД до изменения (None при создании), а не атрибуты объекта в памяти;
+    new - итоговые значения. Ключи обоих: handbook_id, handbook_code, code, is_active,
+    is_final, is_initial.
     """
-
-    def touched(name):
-        return fields is None or name in fields
-
-    reserved = reserved_codes(handbook_code)
-    new_code = new.get("code", "")
-    if old is None:
-        if new_code in reserved and new_code and not assignment_allowed():
-            raise SystemValueProtected(MSG_RESERVED, "code")
+    if maintenance_allowed():
         return
-    old_system = is_system_code(old["handbook_code"], old["code"])
-    if old_system:
-        if touched("handbook") and old["handbook_code"] != handbook_code:
+    new_reserved = reserved_codes(new["handbook_code"])
+    if old is not None and is_system_code(old["handbook_code"], old["code"]):
+        if new["handbook_id"] != old["handbook_id"] or new["handbook_code"] != old["handbook_code"]:
             raise SystemValueProtected(MSG_MOVE, "handbook")
-        if touched("code") and new_code != old["code"]:
+        if new["code"] != old["code"]:
             raise SystemValueProtected(MSG_CODE, "code")
-        if touched("is_active") and old["is_active"] and not new.get("is_active", True):
+        if old["is_active"] and not new["is_active"]:
             raise SystemValueProtected(MSG_DEACTIVATE, "is_active")
-        if touched("is_final") and new.get("is_final", False) != old["is_final"]:
+        if bool(new["is_final"]) != bool(old["is_final"]):
             raise SystemValueProtected(MSG_FINAL, "is_final")
+        if bool(new["is_initial"]) != bool(old["is_initial"]):
+            raise SystemValueProtected(MSG_INITIAL, "is_initial")
         return
-    if touched("code") and new_code and new_code in reserved and not assignment_allowed():
+    # создание или несистемное значение: код из реестра присвоить нельзя
+    if new["code"] and new["code"] in new_reserved and not assignment_allowed():
         raise SystemValueProtected(MSG_RESERVED, "code")

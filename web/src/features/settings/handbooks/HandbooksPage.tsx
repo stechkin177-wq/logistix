@@ -74,7 +74,7 @@ function ValueDrawer({ handbook, value, onClose }: { handbook: HandbookDetail; v
       name: form.name.trim(),
       ...(isSystem ? {} : { code: form.code.trim(), is_final: form.is_final, is_active: form.is_active }),
       ...(form.order.trim() ? { order: Number(form.order) } : {}),
-      ...(isStatus ? { is_initial: form.is_initial } : {}),
+      ...(isStatus && !isSystem ? { is_initial: form.is_initial } : {}),
     })
   }
   const f = errors.fields
@@ -99,7 +99,7 @@ function ValueDrawer({ handbook, value, onClose }: { handbook: HandbookDetail; v
           <TextField label={t('handbooks.order')} inputMode="numeric" value={form.order} error={f.order} hint={editing ? undefined : t('handbooks.orderHint')} onChange={(e) => { setForm((s) => ({ ...s, order: e.target.value })) }} />
         </div>
         <div className="flex flex-wrap gap-x-4">
-          {isStatus ? <Checkbox label={t('handbooks.isInitial')} checked={form.is_initial} onChange={(e) => { setForm((s) => ({ ...s, is_initial: e.target.checked })) }} /> : null}
+          {isStatus ? <Checkbox label={t('handbooks.isInitial')} checked={form.is_initial} disabled={isSystem || handbook.values.some((x) => x.is_initial && x.is_system && x.id !== value?.id)} onChange={(e) => { setForm((s) => ({ ...s, is_initial: e.target.checked })) }} /> : null}
           <Checkbox label={t('handbooks.isFinal')} checked={form.is_final} disabled={isSystem} onChange={(e) => { setForm((s) => ({ ...s, is_final: e.target.checked })) }} />
           <Checkbox label={t('handbooks.isActive')} checked={form.is_active} disabled={isSystem} onChange={(e) => { setForm((s) => ({ ...s, is_active: e.target.checked })) }} />
         </div>
@@ -166,7 +166,7 @@ function ValuesPanel({ code }: { code: string }) {
       align: 'right',
       cell: (v) => (
         <span className="flex justify-end gap-1">
-          {isStatus && !v.is_initial && v.is_active ? (
+          {isStatus && !v.is_initial && v.is_active && !(book?.values.some((x) => x.is_initial && x.is_system) ?? false) ? (
             <WriteButton permission="handbooks.update" variant="ghost" aria-label={t('handbooks.makeInitialNamed', { name: v.name })} disabled={makeInitial.isPending} onClick={() => { makeInitial.mutate(v.id) }}>
               {t('handbooks.makeInitial')}
             </WriteButton>

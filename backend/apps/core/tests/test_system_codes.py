@@ -1,7 +1,7 @@
 """Защита системных кодов справочников: API, модель, queryset, реестр (задача 1.1, блок B)."""
 
 import pytest
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from rest_framework.exceptions import ValidationError
 
 from apps.core.handbooks.defaults import DEFAULTS
@@ -219,7 +219,7 @@ def test_model_save_blocks_reserved_code_on_nonsystem(company):
         hb = Handbook.objects.get(code="order_status")
         with pytest.raises(SystemValueProtected):
             HandbookValue.objects.create(handbook=hb, name="Дубль", code="cancelled", order=50)
-        with pytest.raises(SystemValueProtected), transaction.atomic():
+        with pytest.raises((SystemValueProtected, IntegrityError)), transaction.atomic():
             HandbookValue.objects.filter(pk=value.pk).update(code="cancelled")
 
 

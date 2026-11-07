@@ -75,22 +75,28 @@ class HandbookValueSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def _check_system(handbook, instance, attrs, code):
-        """Защита системных кодов: ошибки привязаны к полю (code, is_active, is_final)."""
+        """Защита системных кодов: ошибки привязаны к полю (code, is_active, is_final, ...)."""
         old = None
         if instance is not None:
             old = {
                 "code": instance.code,
                 "is_active": instance.is_active,
                 "is_final": instance.is_final,
+                "is_initial": instance.is_initial,
+                "handbook_id": instance.handbook_id,
                 "handbook_code": instance.handbook.code,
             }
+        base = old or {"is_active": True, "is_final": False, "is_initial": False}
         new = {
             "code": code,
-            "is_active": attrs.get("is_active", instance.is_active if instance else True),
-            "is_final": attrs.get("is_final", instance.is_final if instance else False),
+            "is_active": attrs.get("is_active", base["is_active"]),
+            "is_final": attrs.get("is_final", base["is_final"]),
+            "is_initial": attrs.get("is_initial", base["is_initial"]),
+            "handbook_id": handbook.pk,
+            "handbook_code": handbook.code,
         }
         try:
-            system_codes.check_change(handbook.code, old=old, new=new)
+            system_codes.check_change(old, new)
         except system_codes.SystemValueProtected as exc:
             raise serializers.ValidationError(exc.detail) from None
 

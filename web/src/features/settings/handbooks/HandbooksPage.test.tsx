@@ -95,7 +95,21 @@ describe('Справочники', () => {
     await userEvent.clear(name)
     await userEvent.type(name, 'Выполнен')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
-    await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Выполнен', order: 6, is_initial: false }) })
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Выполнен', order: 6 }) })
+  })
+
+  it('начальный статус системный: «Сделать начальным» для других скрыта, флажок начального заблокирован', async () => {
+    const trip = [
+      hv('order_status', 1, 'Планируется', { code: 'PLANNED', is_initial: true, is_system: true }),
+      hv('order_status', 2, 'В пути'),
+    ]
+    loggedIn([['GET', '/api/handbooks/?code=order_status', { body: handbookBody('order_status', trip) }], ...base])
+    renderApp('/settings/handbooks')
+    await screen.findByRole('button', { name: 'В пути' })
+    expect(screen.queryByRole('button', { name: /Сделать начальным/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Планируется' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('checkbox', { name: 'Начальное значение' })).toBeDisabled()
   })
 
   it('«Начальное значение» только у справочников статусов', async () => {
