@@ -20,6 +20,8 @@ import { Money } from '../../../shared/ui/Money'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useCurrencies, useDeleteOrderLine, useOrderLines, useSaveOrderLine } from '../hooks'
+import { OrderFinanceBlock } from '../../finance/OrderFinanceBlock'
+import { useFinanceEngine } from '../../finance/ledgerHooks'
 import { OrderInvoicesBlock } from './OrderInvoicesBlock'
 import type { Order, OrderLine } from '../types'
 
@@ -96,6 +98,8 @@ export function FinanceTab({ order }: { order: Order }) {
   const [toDelete, setToDelete] = useState<OrderLine | null>(null)
   const code = codeOf(order.currency)
   const { money } = useFormat()
+  const { engine } = useFinanceEngine()
+  const isNew = engine === 'new'
 
   const columns: Column<OrderLine>[] = [
     { key: 'date', header: t('orders.lineDate'), cell: (l) => <DateTime value={l.date} dateOnly /> },
@@ -119,7 +123,7 @@ export function FinanceTab({ order }: { order: Order }) {
       cell: (l) =>
         l.is_base ? null : (
           <span className="flex justify-end gap-1">
-            <WriteButton variant="ghost" permission="finance.update" aria-label={t('orders.editLineNamed', { name: l.title })} onClick={() => { setEditor({ line: l, nonce: Date.now() }) }}>
+            <WriteButton variant="ghost" permission="finance.update" disabled={isNew} aria-label={t('orders.editLineNamed', { name: l.title })} onClick={() => { setEditor({ line: l, nonce: Date.now() }) }}>
               {t('common.edit')}
             </WriteButton>
             {hasPermission('finance.delete') ? (
@@ -147,8 +151,9 @@ export function FinanceTab({ order }: { order: Order }) {
           </div>
         ))}
       </dl>
-      <Banner kind="info">{t('orders.baseLineHint')}</Banner>
-      {hasPermission('finance.create') ? (
+      {isNew ? <OrderFinanceBlock orderId={order.id} /> : null}
+      <Banner kind="info">{isNew ? t('finance.ledger.legacyReadonly') : t('orders.baseLineHint')}</Banner>
+      {hasPermission('finance.create') && !isNew ? (
         <WriteButton permission="finance.create" onClick={() => { setEditor({ line: null, nonce: Date.now() }) }}>
           {t('orders.addLine')}
         </WriteButton>

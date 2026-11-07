@@ -16,6 +16,8 @@ import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
+import { useFinanceEngine } from '../../finance/ledgerHooks'
+import { TripFinanceBlock } from '../../finance/TripFinanceBlock'
 import { useDeleteTrip, usePatchTrip, useTrip } from '../hooks'
 import type { Trip } from '../types'
 import { ReassignDrawer } from './ReassignDrawer'
@@ -30,6 +32,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   const { dateTime } = useFormat()
   const currencies = useHandbookValues('currency')
   const canUpdate = useCanWrite('trips.update')
+  const { engine } = useFinanceEngine()
   const patch = usePatchTrip()
   const remove = useDeleteTrip()
   const formRef = useRef<HTMLFormElement>(null)
@@ -117,6 +120,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
           <IssueDocumentButton kind="cmr" source={{ trip: trip.id }} label={t('documents.kind.cmr')} />
         </div>
       </section>
+      {engine === 'new' && hasPermission('finance.view') ? <TripFinanceBlock tripId={trip.id} /> : null}
       {hasPermission('trips.delete') ? (
         <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700">
           <WriteButton permission="trips.delete" variant="danger" onClick={() => { setDeleting(true) }}>{t('trips.delete')}</WriteButton>

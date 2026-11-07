@@ -64,6 +64,8 @@ const FINANCE_CODES = [
   'rate_missing', 'currency_mismatch', 'party_mismatch', 'item_already_invoiced', 'payment_exceeds_balance',
   'invoice_not_editable', 'invoice_has_payments', 'invoice_exceeds_order_income', 'credit_limit_exceeded', 'invoice_empty',
   'line_unavailable', 'line_invoiced', 'allocation_mismatch', 'order_not_in_trip', 'expense_exists', 'invalid_vat', 'amount_too_large', 'payment_not_restorable',
+  'finance_frozen', 'legacy_lines_readonly', 'period_closed', 'backdating_forbidden', 'period_reason_required', 'completed_status_missing',
+  'switch_refused', 'allocation_exceeds', 'field_not_editable', 'status_code_taken', 'status_already_coded',
 ]
 const DOCUMENT_CODES = [
   'template_invalid', 'template_missing', 'template_too_large', 'source_not_ready', 'letter_invalid',

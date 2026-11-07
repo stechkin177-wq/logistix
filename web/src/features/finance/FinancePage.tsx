@@ -3,12 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Tabs } from '../../shared/ui/Tabs'
 import { DebtsTab } from './DebtsTab'
+import { ExpensesTab } from './ExpensesTab'
+import { IncomesTab } from './IncomesTab'
+import { useFinanceEngine } from './ledgerHooks'
 import { InvoicesTab } from './InvoicesTab'
 import { OperationsTab } from './OperationsTab'
 import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
 
-const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates'] as const
+const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates', 'incomes', 'expenses'] as const
+/** Доходы и расходы показываются только при engine = new. */
+const NEW_ONLY: TabKey[] = ['incomes', 'expenses']
 type TabKey = (typeof TAB_KEYS)[number]
 
 const PANELS: Record<TabKey, () => ReactNode> = {
@@ -17,6 +22,8 @@ const PANELS: Record<TabKey, () => ReactNode> = {
   operations: () => <OperationsTab />,
   debts: () => <DebtsTab />,
   rates: () => <RatesTab />,
+  incomes: () => <IncomesTab />,
+  expenses: () => <ExpensesTab />,
 }
 
 const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'invoices') }
@@ -25,17 +32,20 @@ const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'invoices') }
 export function FinancePage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(SCHEMA)
+  const { engine } = useFinanceEngine()
+  const visible = TAB_KEYS.filter((key) => engine === 'new' || !NEW_ONLY.includes(key))
+  const active: TabKey = visible.includes(state.tab) ? state.tab : 'invoices'
   return (
     <div className="space-y-3">
       <h1 className="text-base font-semibold">{t('nav.finance')}</h1>
       <Tabs
         label={t('finance.tabsLabel')}
-        active={state.tab}
-        tabs={TAB_KEYS.map((key) => ({ key, label: t(`finance.tabs.${key}`) }))}
+        active={active}
+        tabs={visible.map((key) => ({ key, label: t(`finance.tabs.${key}`) }))}
         onChange={(tab) => { setState({ tab: tab as TabKey }) }}
       />
-      <div role="tabpanel" id={`panel-${state.tab}`} aria-labelledby={`tab-${state.tab}`}>
-        {PANELS[state.tab]()}
+      <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
+        {PANELS[active]()}
       </div>
     </div>
   )

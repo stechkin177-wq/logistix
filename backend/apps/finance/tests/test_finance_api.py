@@ -162,7 +162,10 @@ def test_income_service_flow_and_filters(new_company, admin_client):
         f"{F}/incomes/?status=recognized&kind=service&order={o.pk}&currency=KZT&date_from=2026-07-01&date_to=2026-07-31"
     ).json()
     assert lst["count"] == 1
-    assert admin_client.get(f"{F}/incomes/?status=planned&kind=service&order={o.pk}").json()["count"] == 0
+    assert (
+        admin_client.get(f"{F}/incomes/?status=planned&kind=service&order={o.pk}").json()["count"]
+        == 0
+    )
     # аннулировать можно только плановый
     r = admin_client.post(f"{F}/incomes/{pk}/void/", {"reason": "ошибка"}, format="json")
     assert r.status_code == 409 and code(r) == "income_not_planned"
