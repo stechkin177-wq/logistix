@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.finance",
     "apps.documents",
     "apps.drivers",
+    "apps.fleet",
 ]
 
 # Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP

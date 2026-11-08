@@ -96,6 +96,9 @@ if STEP == "M6":
         "core_companymodule",
         "drivers_driver",  # этап 2.1
         "drivers_driverdocument",
+        "fleet_vehicle",  # этап 2.2
+        "fleet_vehicledocument",
+        "fleet_insurance",
     }
     ok(
         expected - LATER_TABLES <= present,

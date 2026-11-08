@@ -15,6 +15,7 @@ SECTIONS = [
     "numbering",
     "documents",
     "drivers",
+    "fleet",
 ]
 ACTIONS = ["view", "create", "update", "delete"]
 
@@ -68,7 +69,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     "Администратор": list(ALL_PERMISSIONS),
     "Менеджер": _codes(_OPERATIONS, _VCU)
     + TRANSFER_PERMISSIONS
-    + _codes(["finance", "trash", "handbooks", "drivers"], ["view"])
+    + _codes(["finance", "trash", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Бухгалтер": _codes(["finance"], ACTIONS)
     + FINANCE_EXTRA_PERMISSIONS
@@ -77,9 +78,9 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)
     + TRANSFER_PERMISSIONS
-    + _codes(["clients", "carriers", "handbooks", "drivers"], ["view"])
+    + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
-    "Механик": ["trips.view"],
+    "Механик": ["trips.view", *_codes(["fleet"], _VCU)],
     "Наблюдатель": [p for p in ALL_PERMISSIONS if p.endswith(".view")],
     "Водитель": [],
 }

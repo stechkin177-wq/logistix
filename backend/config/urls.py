@@ -60,6 +60,7 @@ from apps.finance.api.payments import PaymentViewSet
 from apps.finance.api.rates import RateViewSet
 from apps.finance.api.reports import CarrierDebtsView, ClientDebtsView, SummaryView
 from apps.finance.api.trips import TripExpenseLinesView
+from apps.fleet.api import InsuranceViewSet, VehicleDocumentViewSet, VehicleViewSet
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
 from apps.forwarding.dashboard import DashboardSummaryView
@@ -85,6 +86,9 @@ router.register("trips", TripViewSet, basename="trip")
 router.register("transfers", TransferViewSet, basename="transfer")
 router.register("drivers", DriverViewSet, basename="driver")
 router.register("driver-documents", DriverDocumentViewSet, basename="driver-document")
+router.register("vehicles", VehicleViewSet, basename="vehicle")
+router.register("vehicle-documents", VehicleDocumentViewSet, basename="vehicle-document")
+router.register("insurances", InsuranceViewSet, basename="insurance")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")
