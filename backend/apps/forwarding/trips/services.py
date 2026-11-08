@@ -30,6 +30,7 @@ from ..consignments.services import initial_status
 from ..models import Carrier, Order
 from ..orders.services import _default_currency
 from . import legs as leg_rules
+from . import resources
 from .models import Trip, TripConsignment
 
 NUMBER_CONSTRAINT = "trip_company_number_uniq"
@@ -300,7 +301,11 @@ def create_trip(
     for c in consignments:
         leg_rules.check_consignment_legs(c, specs[c.pk])
     carrier = _carrier(carrier_id)
-    fields = {k: data[k] for k in ("vehicle_plate", "driver_name", "currency") if k in data}
+    fields = {
+        k: data[k]
+        for k in ("vehicle_plate", "driver_name", "currency", "vehicle", "trailer", "driver")
+        if k in data
+    }
     carrier_price = _carrier_price(data)
     if carrier_price is not None:
         fields["carrier_price"] = carrier_price
@@ -490,6 +495,8 @@ def change_trip_status(
         raise ValidationError({"status": "Нужен активный статус рейса этой компании"})
     if status.pk == locked.status_id:
         raise ValidationError({"status": "Рейс уже в этом статусе"})
+    if status.code in resources.BUSY_CODES:  # ресурсы рейса не заняты другим рейсом в работе
+        resources.assert_free(locked)
     leaving = locked.status.code == COMPLETED_CODE
     reason = (reason or "").strip()
     if leaving:

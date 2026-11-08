@@ -39,6 +39,18 @@ class Trip(TenantModel, SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="trips",
     )
+    # назначение собственных техники и водителя (модули fleet и drivers); необязательно, свободные
+    # поля vehicle_plate и driver_name ниже сохраняются для совместимости. Участки рейса
+    # наследуют технику и водителя из рейса (индивидуальной подмены на участке нет).
+    vehicle = models.ForeignKey(
+        "fleet.Vehicle", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    trailer = models.ForeignKey(
+        "fleet.Vehicle", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    driver = models.ForeignKey(
+        "drivers.Driver", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     vehicle_plate = models.CharField(max_length=32, blank=True)
     driver_name = models.CharField(max_length=255, blank=True)
     # Стоимость перевозчика. Столбец БД остаётся `price` (переименование только в коде);

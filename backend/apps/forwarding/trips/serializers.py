@@ -4,9 +4,13 @@ from rest_framework import serializers
 
 from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
+from apps.core.tenancy import get_current_company_id
+from apps.drivers.models import Driver
+from apps.fleet.models import Vehicle
 
 from ..fields import ActiveHandbookField, CurrentTolerantField
 from ..models import Carrier, Trip, TripConsignment
+from .resources import validate_assignment
 from .services import change_trip_status, create_trip, reassign
 
 SERVER_FIELDS = {
@@ -88,6 +92,16 @@ class CarrierField(CurrentTolerantField):
         return Carrier.objects.filter(status=Carrier.ACTIVE)
 
 
+class VehicleField(CurrentTolerantField):
+    def get_queryset(self):  # техника компании без удалённой
+        return Vehicle.objects.all()
+
+
+class DriverField(CurrentTolerantField):
+    def get_queryset(self):  # водители компании без удалённых
+        return Driver.objects.all()
+
+
 class TripSerializer(serializers.ModelSerializer):
     """Рейс: чтение и PATCH (перевозчик, госномер, водитель, цена, валюта).
 
@@ -96,6 +110,9 @@ class TripSerializer(serializers.ModelSerializer):
     """
 
     carrier = CarrierField(allow_null=True, required=False)
+    vehicle = VehicleField(allow_null=True, required=False)
+    trailer = VehicleField(allow_null=True, required=False)
+    driver = DriverField(allow_null=True, required=False)
     currency = ActiveHandbookField("currency", required=False)
     # price - временный алиас carrier_price (чтение и запись); удаляется отдельным решением
     price = serializers.DecimalField(
@@ -114,6 +131,9 @@ class TripSerializer(serializers.ModelSerializer):
             "number",
             "carrier",
             "carrier_name",
+            "vehicle",
+            "trailer",
+            "driver",
             "vehicle_plate",
             "driver_name",
             "carrier_price",
@@ -193,6 +213,12 @@ class TripSerializer(serializers.ModelSerializer):
             return
         if alias != main:
             raise serializers.ValidationError({"price": [PRICE_CONFLICT]})
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if any(k in attrs for k in ("vehicle", "trailer", "driver")):
+            attrs.update(validate_assignment(attrs, self.instance, get_current_company_id()))
+        return attrs
 
     def validate_driver_name(self, value):
         return value.strip()
