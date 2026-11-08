@@ -39,7 +39,13 @@ def test_requirements_follow_addendum_table():
     assert by["ocr"].requires == ["documents"]
     assert by["notifications"].requires == ["core"]
     assert by["analytics"].requires == ["core"]  # analytics требует только core
-    assert set(by["documents"].enhances) == {"forwarding", "finance", "fleet", "drivers"}
+    assert set(by["documents"].enhances) == {
+        "logistics",
+        "forwarding",
+        "finance",
+        "fleet",
+        "drivers",
+    }
     assert by["finance"].enhances == ["documents"]
 
 
@@ -73,9 +79,10 @@ def test_every_hard_dependency_has_a_reason():
 
 def test_activity_profiles_seeded():
     profiles = {p.name: p.modules for p in ActivityProfile.objects.all()}
-    assert profiles["Экспедитор"] == ["forwarding", "finance", "documents"]
-    assert profiles["Перевозчик"] == ["forwarding", "fleet", "drivers", "documents"]
+    assert profiles["Экспедитор"] == ["logistics", "forwarding", "finance", "documents"]
+    assert profiles["Перевозчик"] == ["logistics", "finance", "fleet", "drivers", "documents"]
     assert set(profiles["Экспедитор и перевозчик"]) == {
+        "logistics",
         "forwarding",
         "finance",
         "documents",

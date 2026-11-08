@@ -37,7 +37,7 @@ def test_admin_session_shape(make_company):
     }
     assert data["companies"] == [{"id": company.id, "name": "Alpha"}]
     assert data["role"]["name"] == "Администратор"
-    assert data["modules"] == ["forwarding", "finance", "documents"]
+    assert data["modules"] == ["forwarding", "logistics", "finance", "documents"]
     assert "users.view" in data["permissions"] and "orders.update" in data["permissions"]
     sub = data["subscription"]
     assert sub["status"] in ("active", "trial")

@@ -92,9 +92,9 @@ def test_builtin_providers_cover_seven_kinds_without_overlap():
         "letter",
     }
     assert set(FINANCE_PROVIDER.kinds) == {"act", "invoice_print"}
-    assert FORWARDING_PROVIDER.module_code == "forwarding"
+    assert FORWARDING_PROVIDER.module_code == "logistics"
     assert FINANCE_PROVIDER.module_code == "finance"
-    assert set(providers.available_kinds(["forwarding", "finance"])) == set(KINDS)
+    assert set(providers.available_kinds(["logistics", "finance"])) == set(KINDS)
     assert providers.available_kinds(["documents"]) == []
 
 
@@ -288,10 +288,10 @@ def test_forwarding_kinds_unavailable_until_forwarding_enabled(
 
 def test_finance_kinds_follow_finance_module(company, admin_client):
     invoice = issue_invoice(company, order=make_order(company, consignments=[cargo()]))
-    set_company_modules(company, ["forwarding", "documents"])  # без finance
+    set_company_modules(company, ["logistics", "forwarding", "documents"])  # без finance
     denied = admin_client.post(I, {"kind": "act", "invoice": invoice.pk}, format="json")
     assert denied.status_code == 403 and denied.json()["code"] == "module_disabled"
-    set_company_modules(company, ["forwarding", "finance", "documents"])
+    set_company_modules(company, ["logistics", "forwarding", "finance", "documents"])
     ok = admin_client.post(I, {"kind": "act", "invoice": invoice.pk}, format="json")
     assert ok.status_code == 201 and ok.json()["subject_type"] == "finance.invoice"
 

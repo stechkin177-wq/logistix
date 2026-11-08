@@ -19,5 +19,6 @@ def test_admin_client_is_authenticated(admin_client):
 def test_make_company_gives_independent_triples(make_company):
     a, _, client_a = make_company("A")
     b, _, _ = make_company("B", modules=["forwarding", "fleet"])
-    assert a.id != b.id and b.modules == ["forwarding", "fleet", "finance", "documents"]
+    assert a.id != b.id
+    assert b.modules == ["forwarding", "fleet", "logistics", "finance", "documents"]
     assert len(client_a.get("/api/roles/").json()) == 7

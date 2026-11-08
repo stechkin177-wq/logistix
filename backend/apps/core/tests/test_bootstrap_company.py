@@ -32,7 +32,7 @@ def run(monkeypatch, capsys, *extra, password=STRONG, name="ТОО Альфа", 
 def test_creates_company_and_owner(monkeypatch, capsys):
     out = run(monkeypatch, capsys, "--modules", "forwarding,fleet")
     company = Company.objects.get(name="ТОО Альфа")
-    assert company.modules == ["forwarding", "fleet", "finance", "documents"]
+    assert company.modules == ["forwarding", "fleet", "logistics", "finance", "documents"]
     user = User.objects.get(email="owner@alfa.kz")
     assert user.check_password(STRONG) and user.full_name == "Иван"
     assert Membership.objects.get(user=user, company=company).role.name == "Администратор"

@@ -67,13 +67,13 @@ def test_effective_access_is_plan_and_company_and_permission(make_company, modul
 
 
 def test_finance_and_documents_follow_their_own_modules(make_company):
-    """Отключение finance не закрывает documents и forwarding (и наоборот)."""
+    """Отключение finance не закрывает documents и logistics (и наоборот)."""
     company, admin, api = make_company("Own", modules=["forwarding"])
-    set_company_modules(company, ["forwarding", "documents"])
+    set_company_modules(company, ["logistics", "documents"])
     assert api.get("/api/finance/invoices/").json()["code"] == "module_disabled"
     assert api.get("/api/documents/issued/").status_code == 200
     assert api.get("/api/clients/").status_code == 200
-    set_company_modules(company, ["forwarding", "finance"])
+    set_company_modules(company, ["logistics", "finance"])
     assert api.get("/api/finance/invoices/").status_code == 200
     assert api.get("/api/documents/issued/").json()["code"] == "module_disabled"
     assert api.get("/api/documents/templates/").json()["code"] == "module_disabled"
@@ -81,9 +81,9 @@ def test_finance_and_documents_follow_their_own_modules(make_company):
     assert api.get("/api/clients/").status_code == 200
 
 
-def test_forwarding_off_keeps_finance_and_documents_endpoints_working(make_company):
+def test_logistics_off_blocks_clients_but_keeps_documents_endpoints_working(make_company):
     company, admin, api = make_company("NoFwd", modules=["forwarding"])
-    set_company_modules(company, ["finance", "documents"])
+    set_company_modules(company, ["finance", "documents"])  # finance без logistics (прямое задание)
     assert api.get("/api/clients/").json()["code"] == "module_disabled"
     assert api.get("/api/documents/issued/").status_code == 200
     assert api.get("/api/finance/invoices/").status_code == 200

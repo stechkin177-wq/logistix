@@ -48,9 +48,14 @@ def test_valid_modules_is_non_core_catalog_and_import_compat():
 
 def test_new_forwarding_company_gets_finance_and_documents(make_company):
     company, _, _ = make_company("F", modules=["forwarding"])
-    assert rows(company) == {"forwarding": True, "finance": True, "documents": True}
+    assert rows(company) == {
+        "forwarding": True,
+        "logistics": True,
+        "finance": True,
+        "documents": True,
+    }
     assert_projection(company)
-    assert company.modules == ["forwarding", "finance", "documents"]
+    assert company.modules == ["forwarding", "logistics", "finance", "documents"]
 
 
 def test_new_fleet_only_company_has_only_fleet(make_company):
@@ -133,7 +138,12 @@ def test_set_modules_is_atomic_with_projection(make_company, monkeypatch):
     with pytest.raises(RuntimeError):
         set_company_modules(company, ["fleet"], user=admin)
     monkeypatch.undo()
-    assert rows(company) == {"forwarding": True, "finance": True, "documents": True}
+    assert rows(company) == {
+        "forwarding": True,
+        "logistics": True,
+        "finance": True,
+        "documents": True,
+    }
     assert_projection(company)
 
 
@@ -148,7 +158,8 @@ def test_effective_modules_is_plan_intersection(make_company):
 
 def test_module_access_is_read_from_company_module(make_company):
     company, _, api = make_company("Acc", modules=["forwarding"])
-    assert api.get("/api/session/").json()["modules"] == ["forwarding", "finance", "documents"]
+    mods = api.get("/api/session/").json()["modules"]
+    assert mods == ["forwarding", "logistics", "finance", "documents"]
     with tenant_context(company.id):
         CompanyModule.objects.filter(module_code="forwarding").update(enabled=False)
     # Company.modules не менялась вручную: решает именно CompanyModule

@@ -15,8 +15,8 @@ pytestmark = pytest.mark.django_db
 
 URL = "/api/company/modules/"
 ALL_PLAN = [
-    "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps", "ocr",
-    "notifications", "analytics",
+    "logistics", "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps",
+    "ocr", "notifications", "analytics",
 ]  # fmt: skip
 
 

@@ -39,8 +39,8 @@ def with_default_companions(
         for code in FORWARDING_COMPANIONS:
             if code in result or code in skip:
                 continue
-            if allowed is not None and code not in allowed:
-                continue
+            if code != "logistics" and allowed is not None and code not in allowed:
+                continue  # logistics - техническая зависимость forwarding, а не спутник
             result.append(code)
     return result
 

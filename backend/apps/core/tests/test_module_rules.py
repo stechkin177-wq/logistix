@@ -95,18 +95,20 @@ def test_enable_is_idempotent(make_company, wide_plan):
 def test_disable_blocked_by_dependents_with_list(make_company, wide_plan):
     company, admin, _ = make_company("D1", modules=["forwarding"])
     with pytest.raises(ModuleConfigError) as e:
-        disable_module(company, "forwarding", admin, "хочу")
+        disable_module(company, "logistics", admin, "хочу")
     assert code_of(e) == "module_has_dependents" and e.value.status_code == 409
-    assert e.value.detail["modules"] == ["finance"]
-    assert state(company) == {"forwarding", "finance", "documents"}
+    assert set(e.value.detail["modules"]) == {"finance", "forwarding"}
+    assert state(company) == {"logistics", "forwarding", "finance", "documents"}
+    disable_module(company, "forwarding", admin, "без экспедирования")  # свободно отключается
+    assert "forwarding" not in state(company) and "logistics" in state(company)
 
 
 def test_disable_cascade_disables_dependents_explicitly(make_company, wide_plan):
     company, admin, _ = make_company("D2", modules=["forwarding", "fleet"])
     enable_module(company, "drivers", admin)
-    enable_module(company, "driver_app", admin)  # требует drivers и forwarding
-    disable_module(company, "forwarding", admin, "не работаем с заказами", cascade=True)
-    # finance и driver_app зависят от forwarding напрямую; documents и drivers - нет
+    enable_module(company, "driver_app", admin)  # требует drivers и logistics
+    disable_module(company, "logistics", admin, "не работаем с заказами", cascade=True)
+    # forwarding, finance и driver_app зависят от logistics напрямую; documents и drivers - нет
     assert state(company) == {"fleet", "documents", "drivers"}
     from apps.core.audit.models import AuditLog
 
@@ -167,9 +169,9 @@ def test_finance_protected_also_by_cascade_and_nothing_changed(make_company, wid
     company, admin, _ = make_company("PC", modules=["forwarding"])
     CompanyFinancialSettings.all_objects.filter(company=company).update(engine="shadow")
     with pytest.raises(ModuleConfigError) as e:
-        disable_module(company, "forwarding", admin, "всё", cascade=True)
+        disable_module(company, "logistics", admin, "всё", cascade=True)
     assert code_of(e) == "module_protected"
-    assert state(company) == {"forwarding", "finance", "documents"}  # ни одного изменения
+    assert state(company) == {"logistics", "forwarding", "finance", "documents"}  # без изменений
 
 
 def test_finance_can_be_disabled_in_legacy(make_company, wide_plan):
@@ -198,13 +200,14 @@ def test_data_kept_and_reenable_restores_access(make_company, wide_plan):
     disable_module(company, "documents", admin, "тест")
     disable_module(company, "finance", admin, "тест")
     disable_module(company, "forwarding", admin, "тест")
+    disable_module(company, "logistics", admin, "тест")
     resp = api.get("/api/clients/")
     assert resp.status_code == 403 and resp.json()["code"] == "module_disabled"
     with tenant_context(company.id):  # данные на месте
         assert Client.objects.filter(name="Клиент до отключения").exists()
-    enable_module(company, "forwarding", admin, "вернули")
+    enable_module(company, "logistics", admin, "вернули")
     with tenant_context(company.id):
-        assert CompanyModule.objects.filter(module_code="forwarding").count() == 1
+        assert CompanyModule.objects.filter(module_code="logistics").count() == 1
     enable_module(company, "documents", admin)
     with tenant_context(company.id):
         assert CompanyModule.objects.get(module_code="documents").pk == row_id
@@ -230,9 +233,10 @@ def test_describe_modules_reports_blockers(make_company, wide_plan):
     company, admin, _ = make_company("DM", modules=["forwarding"])
     items = {i["code"]: i for i in describe_modules(company)}
     assert items["core"]["enabled"] and not items["core"]["can_disable"]
-    assert items["forwarding"]["enabled"] and not items["forwarding"]["can_disable"]
-    assert items["forwarding"]["blocker"]["code"] == "module_has_dependents"
-    assert items["forwarding"]["dependents"] == ["finance"]
+    assert items["logistics"]["enabled"] and not items["logistics"]["can_disable"]
+    assert items["logistics"]["blocker"]["code"] == "module_has_dependents"
+    assert set(items["logistics"]["dependents"]) == {"finance", "forwarding"}
+    assert items["forwarding"]["can_disable"]  # экспедирование отключается свободно
     assert items["documents"]["can_disable"] and items["documents"]["blocker"] is None
     assert items["fleet"]["can_enable"] and not items["fleet"]["enabled"]
     assert items["gps"]["blocker"]["code"] == "module_requires"
