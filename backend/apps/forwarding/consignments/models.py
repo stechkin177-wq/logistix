@@ -57,14 +57,58 @@ class Consignment(TenantModel, SoftDeleteModel):
 
 
 class ConsignmentPoint(TenantModel):
-    """Точка погрузки или выгрузки груза: не более одной каждого вида."""
+    """Остановка маршрута груза (в коде также ``ConsignmentStop``).
+
+    Маршрут груза - упорядоченный по ``seq`` список остановок: начинается остановкой ``load`` и
+    заканчивается ``unload`` (это правило проверяет сервис, а не БД, чтобы маршрут можно было
+    править по шагам). Имя модели и таблица прежние (``ConsignmentPoint``); прежняя схема
+    «одна погрузка + одна выгрузка» - частный случай (seq 1 и 2).
+
+    Доли ``weight_kg``/``volume_m3``/``pallets`` - сколько груза грузится/выгружается на
+    остановке; пусто (NULL) - весь груз.
+    """
 
     LOAD = "load"
     UNLOAD = "unload"
-    KINDS = [(LOAD, "Погрузка"), (UNLOAD, "Выгрузка")]
+    TRANSIT = "transit"
+    TRANSFER = "transfer"
+    CUSTOMS = "customs"
+    KINDS = [
+        (LOAD, "Погрузка"),
+        (UNLOAD, "Выгрузка"),
+        (TRANSIT, "Промежуточная"),
+        (TRANSFER, "Передача/перегрузка"),
+        (CUSTOMS, "Граница/таможня"),
+    ]
+    KIND_CODES = [code for code, _ in KINDS]
+
+    PLANNED = "planned"
+    ARRIVED = "arrived"
+    DONE = "done"
+    SKIPPED = "skipped"
+    STATUSES = [
+        (PLANNED, "Запланирована"),
+        (ARRIVED, "Прибыли"),
+        (DONE, "Выполнена"),
+        (SKIPPED, "Пропущена"),
+    ]
+    STATUS_CODES = [code for code, _ in STATUSES]
 
     consignment = models.ForeignKey(Consignment, on_delete=models.CASCADE, related_name="points")
+    # порядок остановки в маршруте груза (1..N); уникален в грузе. Если не задан при создании,
+    # save() ставит следующий номер (сервисы маршрута всегда задают его сами).
+    seq = models.PositiveSmallIntegerField(default=0)
     kind = models.CharField(max_length=8, choices=KINDS)
+    status = models.CharField(max_length=8, choices=STATUSES, default=PLANNED)
+    arrived_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+    weight_kg = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
+    volume_m3 = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
+    pallets = models.PositiveIntegerField(null=True, blank=True)
     window_from = models.DateTimeField()
     window_to = models.DateTimeField(null=True, blank=True)
     country = models.ForeignKey(
@@ -104,13 +148,29 @@ class ConsignmentPoint(TenantModel):
     note = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["kind"]  # load, затем unload
+        ordering = ["seq", "id"]
+        indexes = [
+            models.Index(
+                fields=["company", "consignment", "seq"], name="point_company_cons_seq_idx"
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
-                fields=["consignment", "kind"], name="point_consignment_kind_uniq"
+                fields=["consignment", "seq"], name="point_consignment_seq_uniq"
+            ),
+            models.CheckConstraint(condition=Q(seq__gte=1), name="point_seq_gte_1"),
+            models.CheckConstraint(
+                condition=Q(kind__in=["load", "unload", "transit", "transfer", "customs"]),
+                name="point_kind_valid",
             ),
             models.CheckConstraint(
-                condition=Q(kind__in=["load", "unload"]), name="point_kind_valid"
+                condition=Q(status__in=["planned", "arrived", "done", "skipped"]),
+                name="point_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=(Q(weight_kg__isnull=True) | Q(weight_kg__gte=0))
+                & (Q(volume_m3__isnull=True) | Q(volume_m3__gte=0)),
+                name="point_share_gte_0",
             ),
             models.CheckConstraint(
                 condition=Q(window_to__isnull=True) | Q(window_to__gte=models.F("window_from")),
@@ -125,3 +185,20 @@ class ConsignmentPoint(TenantModel):
                 name="point_lng_range",
             ),
         ]
+
+    def __str__(self):
+        return f"{self.consignment_id}:{self.seq} {self.kind} {self.city}"
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.seq:
+            last = (
+                ConsignmentPoint.objects.filter(consignment_id=self.consignment_id)
+                .order_by("-seq")
+                .values_list("seq", flat=True)
+                .first()
+            )
+            self.seq = (last or 0) + 1
+        super().save(*args, **kwargs)
+
+
+ConsignmentStop = ConsignmentPoint  # новое имя сущности; таблица и модель прежние

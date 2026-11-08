@@ -524,14 +524,19 @@ def test_route_uses_first_consignment_with_both_points(admin_client, company):
     assert got.data["route"] == "Омск → Тверь"
 
 
-def test_consignment_point_unique_per_kind(company):
+def test_consignment_point_db_constraints(company):
+    """Уникальность вида снята (1.5-B1): допустима вторая погрузка; seq уникален в грузе."""
     order = make_order(company, consignments=[_svc_cargo()])
     with tenant_context(company.id):
         cons = Consignment.objects.get(order=order)
+        extra = ConsignmentPoint.objects.create(
+            consignment=cons, kind="load", window_from=NOW, city="Вторая погрузка"
+        )
+        assert extra.seq == 3  # следующий номер после load=1, unload=2
         with pytest.raises(IntegrityError), transaction.atomic():
-            ConsignmentPoint.objects.create(
-                consignment=cons, kind="load", window_from=NOW, city="Дубль"
-            )
+            ConsignmentPoint.objects.filter(pk=extra.pk).update(seq=1)  # (груз, seq) уникален
+        with pytest.raises(IntegrityError), transaction.atomic():
+            ConsignmentPoint.objects.filter(pk=extra.pk).update(kind="river")
         with pytest.raises(IntegrityError), transaction.atomic():
             ConsignmentPoint.objects.filter(consignment=cons, kind="load").update(
                 window_to=NOW - timedelta(days=1)
