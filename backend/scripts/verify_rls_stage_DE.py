@@ -1,5 +1,5 @@
 # ruff: noqa: E501
-"""RLS и миграции на данных этапов 1.5-D (передачи, события, права) и 1.5-E под РЕАЛЬНОЙ ролью logistix_app, пошагово.
+"""RLS и миграции на данных этапов 1.5-D (передачи, события, права) и 1.5-E (метод распределения расходов) под РЕАЛЬНОЙ ролью logistix_app, пошагово.
 
 Основная БД и демо-БД не затрагиваются: временная БД, роль logistix_app создаётся настоящим
 deploy/db-init.sql (NOSUPERUSER NOBYPASSRLS). Состояние ДО этапа: все миграции применены, засеяны две
@@ -66,12 +66,21 @@ for key in ("A", "B"):
         mid = ConsignmentPoint.objects.get(consignment=cons["S"], kind="transfer")
         ConsignmentPoint.objects.filter(pk=mid.pk).update(status="arrived")
         probe_stop = ConsignmentPoint.objects.get(consignment=cons["E"], kind="transfer")
+        from apps.finance.models import Expense
+        cat = HandbookValue.objects.get(handbook__code="expense_category", code="OTHER")
+        kzt = get("currency", "KZT")
+        exp_ids = {}
+        for src in ("migrated", "manual", "carrier_price_sync"):
+            e = Expense.objects.create(company_id=company.id, kind="other", title=f"Расход {src}", category=cat, amount="100.00",
+                                       currency=kzt, expense_date="2026-06-01", source=src)
+            exp_ids[src] = e.pk
         roles = {r.name: r.permissions for r in __import__("apps.core.models", fromlist=["Role"]).Role.objects.all()}
     out[key] = {"company": company.id, "probe_cargo": cons["E"].pk, "probe_stop": probe_stop.pk,
                 "expect": {str(cons["D"].pk): ["delivered", None], str(cons["P"].pk): ["planned", None],
                            str(cons["N"].pk): ["planned", None], str(cons["T"].pk): ["in_transit", None],
                            str(cons["S"].pk): ["at_stop", mid.pk], str(cons["E"].pk): ["planned", None]},
-                "cons": {n: c.pk for n, c in cons.items()}, "roles": sorted(roles)}
+                "cons": {n: c.pk for n, c in cons.items()}, "roles": sorted(roles),
+                "expenses": {str(v): ("manual" if k == "migrated" else "equal") for k, v in exp_ids.items()}}
 print("IDS=" + json.dumps(out))
 """
 
@@ -80,8 +89,9 @@ STEPS = [
     ("forwarding", "0013", "D1-0013"),
     ("forwarding", "0014", "D1-0014"),
     ("core", "0019", "D3-core0019"),
+    ("finance", "0011", "E2-finance0011"),
 ]
-ROLLBACK = [("forwarding", "0012"), ("core", "0018")]
+ROLLBACK = [("forwarding", "0012"), ("core", "0018"), ("finance", "0010")]
 HOLDERS = ("Администратор", "Менеджер", "Диспетчер")
 PERM = "consignments.transfer"
 
@@ -217,6 +227,19 @@ def check_data(label, owner_url, ids, base):
                 )
             }
             assert got == {"planned"}, f"{label}: до заполнения planned у всех, получено {got}"
+        # метод распределения расходов (finance.0011)
+        has_method = "allocation_method" in columns(owner_url, "finance_expense")
+        if has_method:
+            got = {
+                str(i): m
+                for i, m in with_company(
+                    owner_url,
+                    cid,
+                    "SELECT id, allocation_method FROM finance_expense WHERE company_id=%s",
+                    [cid],
+                )
+            }
+            assert got == ids[key]["expenses"], f"{label} {key}: allocation_method {got}"
         # права ролей
         perms = {
             name: PERM in perms
@@ -253,6 +276,7 @@ def main() -> int:
             manage(owner_url, "migrate", app, name, "--noinput")
         assert not table_exists(owner_url, "forwarding_cargotransfer")
         assert "location_status" not in columns(owner_url, "forwarding_consignment")
+        assert "allocation_method" not in columns(owner_url, "finance_expense")
         # право убираем у ролей: имитация компаний, созданных до этапа
         for key in ("A", "B"):
             with_company(
@@ -288,7 +312,9 @@ def main() -> int:
                     conn.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
         print("OK мутация: при снятии FORCE RLS батарея падает (обе таблицы)")
 
-        # откат: forwarding до 0012 (таблицы передач/событий и колонки груза исчезают, остальное цело)
+        # откат: finance до 0010 и forwarding до 0012 (новые таблицы/колонки исчезают, остальное цело)
+        manage(owner_url, "migrate", "finance", "0010", "--noinput")
+        assert "allocation_method" not in columns(owner_url, "finance_expense")
         manage(owner_url, "migrate", "forwarding", "0012", "--noinput")
         assert not table_exists(owner_url, "forwarding_cargotransfer") and not table_exists(
             owner_url, "forwarding_consignmentevent"

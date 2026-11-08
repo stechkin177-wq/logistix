@@ -31,4 +31,5 @@ def test_rls_and_data_migrations_step_by_step_for_stages_d_and_e():
     assert "OK мутация" in done.stdout
     assert "OK D1-0014" in done.stdout
     assert "OK D3-core0019" in done.stdout
+    assert "OK E2-finance0011" in done.stdout
     assert "OK откат-0013" in done.stdout
