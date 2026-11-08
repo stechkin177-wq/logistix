@@ -116,6 +116,23 @@ describe('Расходы', () => {
     expect(within(list).getByText(/Не распределено/)).toBeInTheDocument()
   })
 
+  it('метод распределения: показан и меняется через reallocate', async () => {
+    const m = loggedIn([
+      engine('new'),
+      ['GET', /^\/api\/finance\/expenses\//, { body: page([{ ...EXPENSE, allocation_method: 'equal' }]) }],
+      ['POST', '/api/finance/expenses/9/reallocate/', { body: { ...EXPENSE, allocation_method: 'proportional' } }],
+    ])
+    const user = userEvent.setup()
+    renderApp('/finance?tab=expenses')
+    const row = (await screen.findByText('Перевозка TR-1')).closest('tr')!
+    await user.click(within(row).getByRole('button', { name: /Доли \(1\)/ }))
+    const select = within(row).getByLabelText('Метод распределения')
+    expect(select).toHaveValue('equal')
+    await user.selectOptions(select, 'proportional')
+    await waitFor(() => { expect(m.count('POST', '/api/finance/expenses/9/reallocate/')).toBe(1) })
+    expect(m.calls.find((c) => c.method === 'POST')!.body).toEqual({ method: 'proportional' })
+  })
+
   it('фильтр «только требующие проверки» уходит на сервер', async () => {
     const m = loggedIn([engine('new'), ['GET', /^\/api\/finance\/expenses\//, { body: page([EXPENSE]) }]])
     renderApp('/finance?tab=expenses&needs_review=true&date_from=2026-07-01')

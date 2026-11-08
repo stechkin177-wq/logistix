@@ -3,7 +3,7 @@ import { useSession } from '../../shared/auth/useSession'
 import {
   closePeriod, createCarrierExpense, createExpense, createIncome, getEngine, getFinanceSettings, getMigration,
   getOrderFinance, getStatusMapping, getTripFinance, incomeAction, listExpenses, listIncomes, listPeriods,
-  mapStatus, patchFinanceSettings, reopenPeriod, resolveIssue, voidExpense,
+  mapStatus, patchFinanceSettings, reallocateExpense, reopenPeriod, resolveIssue, voidExpense,
 } from './ledgerApi'
 import type { LedgerFilters } from './ledgerTypes'
 
@@ -63,6 +63,11 @@ export function useIncomeAction() {
 export function useCreateExpense() {
   const invalidate = useInvalidate()
   return useMutation({ mutationFn: createExpense, onSuccess: invalidate })
+}
+
+export function useReallocateExpense() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: ({ id, method }: { id: number; method: string }) => reallocateExpense(id, method), onSuccess: invalidate })
 }
 
 export function useVoidExpense() {

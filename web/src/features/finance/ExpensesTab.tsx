@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '../../shared/api/errors'
+import { useSession } from '../../shared/auth/useSession'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { useHandbookValues } from '../../shared/handbooks/useHandbook'
 import { Button } from '../../shared/ui/Button'
@@ -14,7 +15,7 @@ import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { FieldsDialog } from './FieldsDialog'
-import { useCreateExpense, useExpenses, useVoidExpense } from './ledgerHooks'
+import { useCreateExpense, useExpenses, useReallocateExpense, useVoidExpense } from './ledgerHooks'
 import { ExpenseStatusBadge, ReviewBadge } from './LedgerBadges'
 import type { ExpenseRow, LedgerFilters } from './ledgerTypes'
 
@@ -27,14 +28,35 @@ const SCHEMA = {
   pageSize: codecs.choiceInt(PAGE_SIZES, 50),
 }
 
+const ALLOCATION_METHODS = ['equal', 'proportional', 'manual'] as const
+
 type Dialog = { kind: 'create' } | { kind: 'void'; expense: ExpenseRow } | null
 
 /** Панель долей: компактный список «заказ/рейс - сумма» + нераспределённый остаток. */
 function Allocations({ expense }: { expense: ExpenseRow }) {
   const { t } = useTranslation()
+  const { hasPermission } = useSession()
+  const reallocate = useReallocateExpense()
   const cur = expense.currency?.code
+  const method = expense.allocation_method ?? 'equal'
+  const canChange = expense.status === 'active' && expense.trip !== null && hasPermission('finance.update')
   return (
-    <ul className="space-y-0.5 text-xs" aria-label={t('finance.ledger.allocations')}>
+    <>
+      <div className="flex flex-wrap items-end gap-2 text-xs">
+        {canChange ? (
+          <Select
+            label={t('finance.ledger.allocationMethod')}
+            value={method}
+            disabled={reallocate.isPending}
+            options={ALLOCATION_METHODS.map((m) => ({ value: m, label: t(`finance.ledger.methods.${m}`) }))}
+            onChange={(value) => { reallocate.mutate({ id: expense.id, method: value }) }}
+          />
+        ) : (
+          <span>{t('finance.ledger.allocationMethod')}: {t(`finance.ledger.methods.${method}`)}</span>
+        )}
+        {reallocate.isError ? <span role="alert" className="text-red-700 dark:text-red-300">{errorMessage(reallocate.error, t)}</span> : null}
+      </div>
+      <ul className="space-y-0.5 text-xs" aria-label={t('finance.ledger.allocations')}>
       {expense.allocations.map((a) => (
         <li key={a.id} className="flex gap-2">
           <span>
@@ -49,6 +71,7 @@ function Allocations({ expense }: { expense: ExpenseRow }) {
         <li className="text-slate-500">{t('finance.ledger.unallocated')}: <Money value={expense.unallocated} currency={cur} /></li>
       ) : null}
     </ul>
+    </>
   )
 }
 

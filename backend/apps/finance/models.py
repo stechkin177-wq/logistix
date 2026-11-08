@@ -593,6 +593,14 @@ class Expense(TenantModel, FxSnapshot):
     needs_review = models.BooleanField(default=False)
     review_reason = models.CharField(max_length=24, choices=REVIEW_REASONS, blank=True)
     requires_full_allocation = models.BooleanField(default=False)
+    # метод распределения по заказам рейса: equal - поровну (по умолчанию), proportional - по долям
+    # груза на участках рейса, manual - ручные суммы (набор долей задан человеком)
+    ALLOCATION_METHODS = [
+        ("equal", "Поровну"),
+        ("proportional", "Пропорционально долям груза"),
+        ("manual", "Вручную"),
+    ]
+    allocation_method = models.CharField(max_length=12, choices=ALLOCATION_METHODS, default="equal")
     voided_by = _user_fk()
     voided_at = models.DateTimeField(null=True, blank=True)
     void_reason = models.TextField(blank=True)
@@ -609,6 +617,10 @@ class Expense(TenantModel, FxSnapshot):
         ]
         constraints = [
             models.CheckConstraint(condition=Q(amount__gte=0), name="expense_amount_gte_0"),
+            models.CheckConstraint(
+                condition=Q(allocation_method__in=["equal", "proportional", "manual"]),
+                name="expense_allocation_method_valid",
+            ),
             models.CheckConstraint(
                 condition=~Q(kind="carrier_transport")
                 | (Q(trip__isnull=False) & Q(carrier__isnull=False)),

@@ -29,6 +29,8 @@ export interface IncomeRow {
   legacy: boolean
 }
 
+export type AllocationMethod = 'equal' | 'proportional' | 'manual'
+
 export interface AllocationRow {
   id: number
   order: { id: number; number: string } | null
@@ -50,6 +52,8 @@ export interface ExpenseRow {
   carrier: { id: number; name: string } | null
   needs_review: boolean
   review_reason: string
+  /** Метод распределения по заказам рейса (старые ответы без поля = equal). */
+  allocation_method?: AllocationMethod
   allocations: AllocationRow[]
   allocated: string
   unallocated: string

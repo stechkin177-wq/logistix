@@ -227,7 +227,7 @@ def _migrate_manual(ctx: _Ctx, line, order) -> None:
         expense = Expense(
             company_id=ctx.cid, kind="other", title=line.title[:255], category=ctx.category,
             amount=quantize_money(line.expense), currency_id=order.currency_id,
-            expense_date=line.date, status="active", source="migrated", legacy_group_key=key,
+            expense_date=line.date, status="active", source="migrated", allocation_method="manual", legacy_group_key=key,
             requires_full_allocation=False, **snap,
         )  # fmt: skip
         expense.save()
@@ -335,7 +335,7 @@ def _migrate_group(ctx: _Ctx, title: str, mine: list) -> None:
         expense = Expense(
             company_id=ctx.cid, kind="carrier_transport", title=title[:255], category=ctx.category,
             amount=total, currency_id=trip.currency_id, expense_date=day, status="active",
-            source="migrated", trip=trip, carrier_id=trip.carrier_id, legacy_group_key=key,
+            source="migrated", allocation_method="manual", trip=trip, carrier_id=trip.carrier_id, legacy_group_key=key,
             carrier_price_snapshot=quantize_money(trip.carrier_price),
             requires_full_allocation=True, needs_review=mismatch,
             review_reason="migrated_mismatch" if mismatch else "", **snap,
@@ -655,7 +655,7 @@ def _apply_carrier(ctx: _Ctx, line, trip_id: int) -> None:
         expense = Expense(
             company_id=ctx.cid, kind="carrier_transport", title=f"Перевозка {trip.number}"[:255],
             category=ctx.category, amount=amount, currency_id=trip.currency_id,
-            expense_date=line.date, status="active", source="migrated", trip=trip,
+            expense_date=line.date, status="active", source="migrated", allocation_method="manual", trip=trip,
             carrier_id=trip.carrier_id, legacy_group_key=key,
             carrier_price_snapshot=quantize_money(trip.carrier_price),
             requires_full_allocation=True, needs_review=mismatch,
@@ -706,7 +706,7 @@ def _apply_manual(ctx: _Ctx, line, category_id: int) -> None:
     expense = Expense(
         company_id=ctx.cid, kind="other", title=line.title[:255], category=category,
         amount=quantize_money(line.expense), currency_id=order.currency_id,
-        expense_date=line.date, status="active", source="migrated", legacy_group_key=key,
+        expense_date=line.date, status="active", source="migrated", allocation_method="manual", legacy_group_key=key,
         requires_full_allocation=False, **snap,
     )  # fmt: skip
     expense.save()

@@ -20,7 +20,7 @@ from apps.core.audit import services as audit
 from apps.core.handbooks.models import HandbookValue
 from apps.core.tenancy import tenant_context
 from apps.forwarding.finance_lines.models import company_today
-from apps.forwarding.models import Order, Trip
+from apps.forwarding.models import Order, Trip, TripConsignment
 
 from . import periods
 from .engine import current_cid
@@ -31,6 +31,8 @@ from .models import Expense, ExpenseAllocation, ExpenseInvoiceAllocation
 from .money import CENT, quantize_money
 from .trip_expense import split_evenly
 
+METHODS = ("equal", "proportional", "manual")
+DIMENSIONS = ("weight_kg", "volume_m3", "pallets")
 UNIQUE_CARRIER = "expense_one_active_carrier_per_trip"
 DEFAULT_CATEGORY = "OTHER"
 
@@ -77,6 +79,70 @@ def trip_order_ids(trip: Trip) -> list[int]:
             )
         )
     )
+
+
+def check_method(method) -> str:
+    if method not in METHODS:
+        raise FinanceError(
+            "allocation_method_invalid", "Метод распределения: equal, proportional или manual"
+        )
+    return method
+
+
+def order_shares(trip: Trip, order_ids: list[int]) -> dict[int, dict[str, Decimal]]:
+    """Доля каждого заказа в рейсе по измерениям (вес, объём, паллеты).
+
+    По каждому грузу заказа берётся наибольшее значение по его неотменённым участкам этого рейса
+    (доля участка, а при пустой доле - количество груза): груз, едущий несколькими участками
+    рейса, считается один раз; затем суммируется по грузам заказа."""
+    legs = (
+        TripConsignment.objects.filter(
+            trip=trip,
+            consignment__order_id__in=order_ids,
+            consignment__deleted_at__isnull=True,
+        )
+        .exclude(status=TripConsignment.CANCELLED)
+        .select_related("consignment")
+    )
+    per_cargo: dict[int, dict] = {}
+    for leg in legs:
+        c = leg.consignment
+        row = per_cargo.setdefault(
+            c.pk, {"order": c.order_id, **{d: Decimal("0") for d in DIMENSIONS}}
+        )
+        for d in DIMENSIONS:
+            value = getattr(leg, d)
+            value = getattr(c, d) if value is None else value
+            row[d] = max(row[d], Decimal(value or 0))
+    shares = {oid: {d: Decimal("0") for d in DIMENSIONS} for oid in order_ids}
+    for row in per_cargo.values():
+        for d in DIMENSIONS:
+            shares[row["order"]][d] += row[d]
+    return shares
+
+
+def proportional_rows(trip: Trip, orders: list[Order], amount: Decimal):
+    """Доли пропорционально грузу на участках рейса: вес; если весов нет - объём, затем паллеты,
+    иначе поровну. Заказ с нулевой долей по выбранному измерению доли не получает.
+    Наибольший остаток, копейки по правилу G1 (split_proportionally)."""
+    if amount == 0:
+        return []
+    if not orders:
+        return [(None, trip.pk, amount)]
+    shares = order_shares(trip, [o.pk for o in orders])
+    for dimension in DIMENSIONS:
+        weights = [shares[o.pk][dimension] for o in orders]
+        if sum(weights, Decimal("0")) > 0:
+            positive = [(o, w) for o, w in zip(orders, weights) if w > 0]
+            parts = split_proportionally(amount, [w for _, w in positive])
+            return [(o.pk, trip.pk, a) for (o, _), a in zip(positive, parts) if a > 0]
+    return [(o.pk, trip.pk, a) for o, a in zip(orders, split_evenly(amount, len(orders)))]
+
+
+def default_rows(trip: Trip, orders: list[Order], amount: Decimal, method: str = "equal"):
+    if method == "proportional":
+        return proportional_rows(trip, orders, amount)
+    return _default_rows(trip, orders, amount)
 
 
 def active_link_total(expense: Expense) -> Decimal:
@@ -238,6 +304,7 @@ def create_expense(
             trip=trip,
             carrier=carrier,
             requires_full_allocation=bool(requires_full_allocation),
+            allocation_method="manual" if allocations is not None else "equal",
             created_by=user if getattr(user, "pk", None) else None,
             **snapshot,
         )
@@ -262,8 +329,21 @@ def create_carrier_expense(
     expense_date: date | None = None,
     adjust_reason: str | None = None,
     category=None,
+    allocation_method: str | None = None,
 ) -> Expense:
-    """Ручное действие «Создать расход из цены рейса» (автоматически не вызывается)."""
+    """Ручное действие «Создать расход из цены рейса» (автоматически не вызывается).
+
+    allocation_method: equal (по умолчанию) или proportional - доли считаются сервисом;
+    явные allocations означают manual (вместе с другим методом - ошибка)."""
+    if allocation_method is not None:
+        check_method(allocation_method)
+    if allocations is not None and allocation_method not in (None, "manual"):
+        raise FinanceError(
+            "allocation_method_conflict", "Явные доли возможны только с методом manual"
+        )
+    if allocation_method == "manual" and allocations is None:
+        raise FinanceError("allocation_method_conflict", "Для метода manual передайте доли")
+    method = "manual" if allocations is not None else (allocation_method or "equal")
     cid = current_cid(trip.company_id)
     with tenant_context(cid):
         periods.assert_finance_writable(cid)
@@ -306,6 +386,7 @@ def create_carrier_expense(
             carrier_id=trip.carrier_id,
             carrier_price_snapshot=amount,
             requires_full_allocation=True,
+            allocation_method=method,
             created_by=user if getattr(user, "pk", None) else None,
             **snapshot,
         )
@@ -320,7 +401,7 @@ def create_carrier_expense(
                 "expense_exists", "Расход по этому рейсу уже создан", status_code=409
             ) from None
         if allocations is None:
-            rows = _default_rows(trip, orders, amount)
+            rows = default_rows(trip, orders, amount, method)
             allocations = [{"order": o, "trip": t, "amount": a} for o, t, a in rows]
         _write_allocations(expense, _normalize(expense, allocations))
         changes = audit.diff({}, audit.snapshot(expense))
@@ -361,6 +442,20 @@ def _rebalanced(expense: Expense, old_rows: list[ExpenseAllocation], new_amount:
     return split_proportionally(target, [a.amount for a in old_rows])
 
 
+def _equal_rows_if_equal(trip: Trip, old_rows, old_amount: Decimal, new_amount: Decimal):
+    """Метод equal: если прежние доли действительно были «поровну» (по заказам, копейки первым),
+    новые доли - тоже поровну между теми же заказами; иначе None (прежняя пропорциональная
+    корректировка: вручную заданные пропорции не теряются)."""
+    order_ids = [a.order_id for a in sorted(old_rows, key=lambda a: (a.order_id or 0, a.pk))]
+    if not old_rows or None in order_ids or len(set(order_ids)) != len(order_ids):
+        return None
+    by_order = {a.order_id: a.amount for a in old_rows}
+    was_equal = [by_order[o] for o in order_ids] == split_evenly(old_amount, len(order_ids))
+    if not was_equal:
+        return None
+    return [(o, trip.pk, a) for o, a in zip(order_ids, split_evenly(new_amount, len(order_ids)))]
+
+
 @transaction.atomic
 def sync_trip_expense(
     trip: Trip, *, user, can_adjust: bool = False, reason: str | None = None
@@ -388,16 +483,30 @@ def sync_trip_expense(
         )
         old_alloc = alloc_state(expense)
         before = audit.snapshot(expense)
-        new_parts = _rebalanced(expense, old_rows, new_amount)
+        method = expense.allocation_method
+        keep_method_rows = None
+        if method == "proportional" and expense.requires_full_allocation and new_amount > 0:
+            orders = list(Order.all_objects.filter(pk__in=trip_order_ids(trip)).order_by("pk"))
+            keep_method_rows = proportional_rows(trip, orders, new_amount)
+        elif method == "equal" and expense.requires_full_allocation and new_amount > 0:
+            keep_method_rows = _equal_rows_if_equal(trip, old_rows, expense.amount, new_amount)
+        new_parts = _rebalanced(expense, old_rows, new_amount) if keep_method_rows is None else []
         expense.amount = new_amount
         expense.carrier_price_snapshot = new_amount
         if expense.fx_rate is not None:  # курс снимка не меняется
             expense.base_amount = quantize_money(new_amount * expense.fx_rate)
         expense.save()
-        if new_parts is None:
+        if keep_method_rows is not None:
+            _write_allocations(
+                expense,
+                _normalize(
+                    expense, [{"order": o, "trip": t, "amount": a} for o, t, a in keep_method_rows]
+                ),
+            )
+        elif new_parts is None:
             orders = list(Order.all_objects.filter(pk__in=trip_order_ids(trip)).order_by("pk"))
             if expense.requires_full_allocation:
-                rows = _default_rows(trip, orders, new_amount)
+                rows = default_rows(trip, orders, new_amount, method)
                 _write_allocations(
                     expense,
                     _normalize(expense, [{"order": o, "trip": t, "amount": a} for o, t, a in rows]),
@@ -444,12 +553,93 @@ def set_allocations(
         old = alloc_state(locked)
         new = [{"order": o, "trip": t, "amount": str(a)} for o, t, a in rows]
         if sorted(map(str, old)) == sorted(map(str, new)):
+            if locked.allocation_method != "manual":  # тот же набор, но теперь заданный вручную
+                locked.allocation_method = "manual"
+                locked.save(update_fields=["allocation_method", "updated_at"])
+                audit.log("update", locked, user, {"allocation_method": ["equal", "manual"]})
             return locked
         adjusted = periods.assert_period_open(
             cid, locked.expense_date, can_adjust=periods.ADJUST_PERMISSION in perms, reason=reason
         )
+        previous_method = locked.allocation_method
         _write_allocations(locked, rows)
+        locked.allocation_method = "manual"
+        locked.save(update_fields=["allocation_method", "updated_at"])
         changes = {"allocations": [old, alloc_state(locked)]}
+        if previous_method != "manual":
+            changes["allocation_method"] = [previous_method, "manual"]
+        if adjusted:
+            changes.update(periods.adjustment_changes(reason, old, alloc_state(locked)))
+        audit.log("update", locked, user, changes)
+        return locked
+
+
+@transaction.atomic
+def reallocate(
+    expense: Expense, method: str, *, user, perms=(), reason: str | None = None
+) -> Expense:
+    """Меняет метод распределения расхода рейса и пересчитывает доли в одной транзакции.
+
+    equal/proportional пересчитывают доли по заказам рейса (под блокировкой заказов, рейса и
+    расхода; копейки по правилу G1); manual только фиксирует метод, прежние суммы остаются."""
+    check_method(method)
+    cid = current_cid(expense.company_id)
+    with tenant_context(cid):
+        periods.assert_finance_writable(cid)
+        probe = Expense.objects.get(pk=expense.pk)
+        if probe.trip_id is None and method != "manual":
+            raise FinanceError(
+                "allocation_method_unsupported", "У расхода нет рейса: метод применим только manual"
+            )
+        orders = []
+        if probe.trip_id is not None:
+            trip_probe = Trip.objects.get(pk=probe.trip_id)
+            ids = trip_order_ids(trip_probe)
+            orders = list(Order.all_objects.select_for_update().filter(pk__in=ids).order_by("pk"))
+            trip = Trip.objects.select_for_update().get(pk=probe.trip_id)
+        locked = Expense.objects.select_for_update().get(pk=expense.pk)
+        if locked.status != "active":
+            raise FinanceError("expense_void", "Расход аннулирован", status_code=409)
+        previous = locked.allocation_method
+        old = alloc_state(locked)
+        if method == "manual":
+            if previous == "manual":
+                return locked
+            new_rows = None
+        else:
+            current_total = sum(
+                (a.amount for a in ExpenseAllocation.objects.filter(expense=locked)), Decimal("0")
+            )
+            target = (
+                locked.amount
+                if locked.requires_full_allocation
+                else (current_total or locked.amount)
+            )
+            new_rows = default_rows(trip, orders, target, method)
+            if (
+                sorted(map(str, old))
+                == sorted(
+                    map(str, [{"order": o, "trip": t, "amount": str(a)} for o, t, a in new_rows])
+                )
+                and previous == method
+            ):
+                return locked
+        adjusted = periods.assert_period_open(
+            cid, locked.expense_date, can_adjust=periods.ADJUST_PERMISSION in perms, reason=reason
+        )
+        if new_rows is not None:
+            _write_allocations(
+                locked,
+                _normalize(locked, [{"order": o, "trip": t, "amount": a} for o, t, a in new_rows]),
+            )
+        locked.allocation_method = method
+        locked.save(update_fields=["allocation_method", "updated_at"])
+        changes = {
+            "allocation_method": [previous, method],
+            "allocations": [old, alloc_state(locked)],
+        }
+        if reason:
+            changes["reason"] = reason.strip()
         if adjusted:
             changes.update(periods.adjustment_changes(reason, old, alloc_state(locked)))
         audit.log("update", locked, user, changes)

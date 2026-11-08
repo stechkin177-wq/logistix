@@ -31,6 +31,9 @@ export const createExpense = (body: Record<string, unknown>) => api.post<Expense
 export const voidExpense = (expenseId: number, reason: string) =>
   api.post<ExpenseRow>(`/finance/expenses/${id(expenseId)}/void/`, { reason })
 
+export const reallocateExpense = (expenseId: number, method: string) =>
+  api.post<ExpenseRow>(`/finance/expenses/${id(expenseId)}/reallocate/`, { method })
+
 export const getOrderFinance = (orderId: number, signal?: AbortSignal) =>
   api.get<OrderFinance>(`/orders/${id(orderId)}/finance/`, undefined, { signal })
 export const getTripFinance = (tripId: number, signal?: AbortSignal) =>

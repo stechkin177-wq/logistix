@@ -243,6 +243,7 @@ def expense_data(e: Expense) -> dict:
         "needs_review": e.needs_review,
         "review_reason": e.review_reason,
         "requires_full_allocation": e.requires_full_allocation,
+        "allocation_method": e.allocation_method,
         "base_amount": money(e.base_amount) if e.base_amount is not None else None,
         "fx_rate_source": e.fx_rate_source,
         "allocations": [allocation_data(a) for a in allocs],
@@ -266,6 +267,7 @@ class ExpenseViewSet(viewsets.GenericViewSet):
         "create": "finance.create",
         "partial_update": "finance.update",
         "allocations": "finance.update",
+        "reallocate": "finance.update",
         "link_invoice_item": "finance.update",
         "unlink_invoice_item": "finance.update",
         "void": "finance.delete",
@@ -387,6 +389,19 @@ class ExpenseViewSet(viewsets.GenericViewSet):
         expense = exp_svc.set_allocations(
             self.get_object(),
             items,
+            user=request.user,
+            perms=periods.request_perms(request),
+            reason=periods.request_adjust_reason(request),
+        )
+        return self._respond(expense)
+
+    @action(detail=True, methods=["post"])
+    def reallocate(self, request, pk=None):
+        """Смена метода распределения: {"method": "equal"|"proportional"|"manual"}."""
+        data = _body(request)
+        expense = exp_svc.reallocate(
+            self.get_object(),
+            data.get("method"),
             user=request.user,
             perms=periods.request_perms(request),
             reason=periods.request_adjust_reason(request),

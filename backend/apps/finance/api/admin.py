@@ -382,6 +382,7 @@ class CarrierExpenseView(APIView):
                 expense_date=_date(data, "expense_date", False),
                 adjust_reason=c["adjust_reason"],
                 category=data.get("category"),
+                allocation_method=data.get("allocation_method"),
             )
             fresh = (
                 Expense.objects.select_related("category", "currency", "trip", "carrier")
