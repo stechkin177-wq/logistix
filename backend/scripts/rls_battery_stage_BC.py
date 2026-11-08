@@ -159,7 +159,13 @@ for t in tenant_tables():
     if t in flags:
         ok(flags[t] == (True, True), f"{t}: ENABLE+FORCE RLS {flags[t]}")
 REPORT["tables"] = len(flags)
-ok(tables_missing_rls() == [], "tables_missing_rls() пуст")
+# таблицы более поздних этапов (D-E) в состоянии «до этапа» ещё не созданы: проверяются существующие
+missing = [
+    t
+    for t in tables_missing_rls()
+    if owner_rows("SELECT 1 FROM information_schema.tables WHERE table_name=%s", [t])
+]
+ok(missing == [], f"tables_missing_rls() пуст среди существующих таблиц: {missing}")
 
 # --- 1-2. fail closed, свои данные, чужие недоступны --------------------------------------------
 for table in (PT, TC):
