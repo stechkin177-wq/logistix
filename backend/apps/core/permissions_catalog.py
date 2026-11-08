@@ -39,8 +39,16 @@ EXTRA_PERMISSIONS = [
     "trips.revert_completed",
     *FINANCE_ARCHITECTURE_PERMISSIONS,
 ]
+# Права модульной архитектуры (этап 1.5-A): отдельный список, не входит в общие extra-списки.
+# company.manage_modules - включение и отключение модулей компании (по умолчанию только
+# Администратор; другим ролям назначается штатно, как trips.revert_completed).
+MODULE_MANAGEMENT_PERMISSIONS = ["company.manage_modules"]
 
-ALL_PERMISSIONS: list[str] = [f"{s}.{a}" for s in SECTIONS for a in ACTIONS] + EXTRA_PERMISSIONS
+ALL_PERMISSIONS: list[str] = (
+    [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
+    + EXTRA_PERMISSIONS
+    + MODULE_MANAGEMENT_PERMISSIONS
+)
 
 
 def _codes(sections, actions):

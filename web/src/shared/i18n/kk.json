@@ -893,7 +893,8 @@
       "finance.reopen_period": "Қаржы: жабылған кезеңді қайта ашу",
       "finance.adjust_closed": "Қаржы: жабылған кезеңге түзету енгізу",
       "finance.backdate": "Қаржы: операцияларды өткен күнмен енгізу",
-      "finance.manage_settings": "Қаржы: компанияның қаржылық баптауларын өзгерту"
+      "finance.manage_settings": "Қаржы: компанияның қаржылық баптауларын өзгерту",
+      "company.manage_modules": "Компания: модульдерді қосу және өшіру"
     }
   },
   "departments": {

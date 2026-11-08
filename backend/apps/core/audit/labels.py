@@ -5,6 +5,11 @@
 """
 
 FIELD_LABELS: dict[str, dict[str, str]] = {
+    "core.companymodule": {
+        "module_code": "Модуль",
+        "enabled": "Включён",
+        "reason": "Причина",
+    },
     "forwarding.trip": {
         "price": "Стоимость перевозчика",
         "carrier_price": "Стоимость перевозчика",

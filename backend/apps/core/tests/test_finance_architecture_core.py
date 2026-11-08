@@ -176,7 +176,7 @@ def test_catalog_contains_five_new_permissions_in_separate_list():
     assert set(NEW_PERMS) <= set(ALL_PERMISSIONS) and set(NEW_PERMS) <= set(EXTRA_PERMISSIONS)
     # Бухгалтер получил бы лишнее, если бы они попали в FINANCE_EXTRA_PERMISSIONS
     assert not set(NEW_PERMS) & set(FINANCE_EXTRA_PERMISSIONS)
-    assert len(ALL_PERMISSIONS) == 60 == len(set(ALL_PERMISSIONS))
+    assert len(ALL_PERMISSIONS) == 61 == len(set(ALL_PERMISSIONS))
 
 
 def test_default_matrix_of_system_roles():
@@ -228,7 +228,8 @@ def test_m6_updates_existing_roles_per_matrix_and_is_idempotent(company, make_co
         custom.refresh_from_db()
         assert custom.permissions == ["finance.view", "orders.view"]  # пользовательские - как были
         admin = Role.objects.get(name="Администратор")
-        assert admin.permissions[: len(ALL_PERMISSIONS) - 5] == ALL_PERMISSIONS[:-5]
+        # прежние права на месте, пять новых добавлены в конец (company.manage_modules - этап 1.5-A)
+        assert admin.permissions[:-5] == [p for p in ALL_PERMISSIONS if p not in NEW_PERMS]
         assert set(admin.permissions) == set(ALL_PERMISSIONS)
     # другая компания не затронута (у неё и так по матрице)
     with tenant_context(other.id):

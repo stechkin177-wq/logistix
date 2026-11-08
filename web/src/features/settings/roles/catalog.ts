@@ -14,4 +14,7 @@ export const EXTRA_CODES = [
   'finance.close_period', 'finance.reopen_period', 'finance.adjust_closed', 'finance.backdate', 'finance.manage_settings',
 ] as const
 
-export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES]
+/** Права модульной архитектуры (отдельный список, как MODULE_MANAGEMENT_PERMISSIONS на бэкенде). */
+export const MODULE_CODES = ['company.manage_modules'] as const
+
+export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES]
