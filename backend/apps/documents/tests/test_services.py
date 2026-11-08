@@ -500,6 +500,10 @@ def test_trip_context_has_stops_and_old_keys(company):
     assert ctx["loading"]["city"] == "Астана" and ctx["delivery"]["city"] == "Алматы"
     assert [s["n"] for s in ctx["consignments"][0]["stops"]] == ["1", "2", "3"]
     assert ctx["consignments"][0]["load"]["city"] == "Астана"
+    # участки рейса: весь маршрут одним участком (долей нет)
+    (leg,) = ctx["legs"]
+    assert (leg["from_city"], leg["to_city"], leg["status"]) == ("Астана", "Алматы", "planned")
+    assert (leg["weight_kg"], leg["pallets"], leg["consignment"]) == ("", "", "Многоточечный")
 
 
 def test_issued_snapshot_does_not_change_when_route_changes(company):
@@ -522,3 +526,33 @@ def test_issued_snapshot_does_not_change_when_route_changes(company):
         mid = stop_services.stops_of(cons)[1]
         stop_services.remove_stop(mid)
     assert text_of(render(company, doc)[0]) == before
+
+
+def test_trip_legs_in_context_for_transfer_and_old_template(company):
+    """Передача между рейсами: у рейса свой участок; старый шаблон заказа перевозчику рендерится."""
+    from decimal import Decimal
+
+    from apps.documents.context import build_context
+    from apps.forwarding.tests.test_legs import leg, make_cargos, mk_trip, stops_of
+
+    _, (c,) = make_cargos(company, stops_per=3)
+    s1, s2, s3 = stops_of(company, c)
+    first = mk_trip(company, legs=[leg(c, s1, s2, weight_kg=Decimal("400"))])
+    mk_trip(company, legs=[leg(c, s2, s3)])
+    with tenant_context(company.id):
+        ctx = build_context(
+            "carrier_order", trip=first, number="ЗП-1", issue_date=NOW.date(), language="ru"
+        )["trip"]
+    (item,) = ctx["legs"]
+    assert (item["from_city"], item["to_city"], item["weight_kg"]) == ("Город 1", "Город 2", "400")
+    assert item["order"] and item["status"] == "planned"
+    assert ctx["loading"]["city"] == "Город 1" and ctx["delivery"]["city"] == "Город 3"
+    t = tmpl(company, "carrier_order")
+    with tenant_context(company.id):
+        services.upload_version(
+            t,
+            docx_with_text("СТАРЫЙ {{ trip.number }} {{ carrier.name }}", "carrier_order"),
+            first_user(company),
+        )
+    doc = issue(company, "carrier_order", trip=first)
+    assert "СТАРЫЙ" in text_of(render(company, doc)[0])

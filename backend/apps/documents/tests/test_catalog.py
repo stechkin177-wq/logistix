@@ -75,6 +75,12 @@ _PARTY = [
 ]
 _CARGO = ["name", "weight_kg", "volume_m3", "pallets"]
 _STOP = ["n", "kind", "kind_name", "city", "address", "date", "date_to"]
+_LEG = ["n", "consignment", "order", "from_city", "from_address", "to_city", "to_address"] + [
+    "status",
+    "weight_kg",
+    "volume_m3",
+    "pallets",
+]
 
 _EXPECTED_BLOCKS = {
     "doc": _expand("doc", ["number", "date", "date_long"]),
@@ -102,7 +108,8 @@ _EXPECTED_BLOCKS = {
         + [f"consignments[].load.{x}" for x in _POINT]
         + [f"consignments[].unload.{x}" for x in _POINT]
         + [f"consignments[].stops[].{x}" for x in _STOP]
-        + [f"stops[].{x}" for x in _STOP],
+        + [f"stops[].{x}" for x in _STOP]
+        + [f"legs[].{x}" for x in _LEG],
     ),
     "invoice": _expand(
         "invoice",

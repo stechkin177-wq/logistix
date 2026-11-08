@@ -184,6 +184,36 @@ def _merged_stops(consignments, language: str) -> list[dict]:
     return [_stop(p, n, language) for n, p in enumerate(merged, start=1)]
 
 
+def _legs(trip) -> list[dict]:
+    """Участки рейса (действующие грузы): груз, заказ, откуда - куда, статус, доли."""
+    links = (
+        trip.links.filter(
+            consignment__deleted_at__isnull=True, consignment__order__deleted_at__isnull=True
+        )
+        .select_related("consignment__order", "from_stop", "to_stop")
+        .order_by("consignment_id", "leg_seq", "id")
+    )
+    items = []
+    for n, link in enumerate(links, start=1):
+        first, last = link.from_stop, link.to_stop
+        items.append(
+            {
+                "n": str(n),
+                "consignment": link.consignment.name,
+                "order": link.consignment.order.number,
+                "from_city": _str(first and first.city),
+                "from_address": _str(first and first.street),
+                "to_city": _str(last and last.city),
+                "to_address": _str(last and last.street),
+                "status": link.status,
+                "weight_kg": _qty(link.weight_kg),
+                "volume_m3": _qty(link.volume_m3),
+                "pallets": _str(link.pallets),
+            }
+        )
+    return items
+
+
 def _consignment(consignment, language: str = "ru") -> dict:
     load, unload = _points_of(consignment)
     return {
@@ -267,6 +297,7 @@ def _trip(trip, language: str) -> dict:
         "orders": list(orders.values()),
         "consignments": items,
         "stops": _merged_stops(consignments, language),
+        "legs": _legs(trip),
     }
 
 
@@ -347,6 +378,7 @@ def build_context(
                 "orders": [],
                 "consignments": [],
                 "stops": [],
+                "legs": [],
             }
         )
     if "invoice" in blocks:
