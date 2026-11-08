@@ -52,7 +52,15 @@ export interface IssuedFilters {
 }
 
 /** Источник документа: ровно одно поле (письмо можно привязать к заказу). */
-export interface IssueSource { client?: number; order?: number; trip?: number; invoice?: number }
+export interface IssueSource {
+  client?: number
+  order?: number
+  trip?: number
+  invoice?: number
+  /** Универсальный субъект поставщика модуля (например, drivers.driver, fleet.vehicle). */
+  subject_type?: string
+  subject_id?: number
+}
 
 export interface LetterPayload { recipient: string; subject: string; body: string }
 

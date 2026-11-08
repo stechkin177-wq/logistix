@@ -40,6 +40,9 @@ class Vehicle(TenantModel, SoftDeleteModel):
     capacity_kg = models.PositiveIntegerField(null=True, blank=True)
     volume_m3 = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=16, choices=STATUSES, default=ACTIVE)
+    # «Сверять пробег по GPS»: только показывает расхождение, официальный пробег не меняет.
+    # Независимо от подключения GPS для отслеживания местоположения.
+    gps_check = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -150,21 +153,31 @@ class Insurance(_Dated):
 
 
 class MileageReading(TenantModel):
-    """Показание одометра ОДНОЙ единицы техники (тягач и полуприцеп учитываются раздельно).
+    """ОФИЦИАЛЬНЫЙ пробег единицы техники (тягач и полуприцеп учитываются раздельно).
 
-    Показания не убывают во времени (проверка в сервисе: вставка между соседними показаниями
-    допустима, если значение не нарушает порядок).
+    Фиксируется только при выезде в рейс (``trip_start``) и после его завершения по отчёту
+    водителя (``trip_end``). Пробег, указанный в заправках, обслуживании, страховках и других
+    записях, - справочная информация и сюда не попадает. GPS показания не создаёт и не меняет.
+    ``manual`` - только прежние записи, новые не создаются. Показания не убывают во времени.
     """
 
+    TRIP_START = "trip_start"
+    TRIP_END = "trip_end"
     MANUAL = "manual"
-    FUEL = "fuel"
-    SERVICE = "service"
-    SOURCES = [(MANUAL, "Вручную"), (FUEL, "Заправка"), (SERVICE, "Обслуживание")]
+    SOURCES = [
+        (TRIP_START, "Выезд в рейс"),
+        (TRIP_END, "Завершение рейса"),
+        (MANUAL, "Прежняя запись"),
+    ]
 
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="mileage")
+    # рейс-источник; рейс не удаляется физически (корзина), SET_NULL - на случай жёсткой очистки
+    trip = models.ForeignKey(
+        "forwarding.Trip", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     recorded_at = models.DateTimeField()
     odometer_km = models.PositiveIntegerField()
-    source = models.CharField(max_length=8, choices=SOURCES, default=MANUAL)
+    source = models.CharField(max_length=10, choices=SOURCES, default=TRIP_START)
     note = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -174,8 +187,26 @@ class MileageReading(TenantModel):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(source__in=["manual", "fuel", "service"]), name="mileage_source_valid"
+                condition=Q(source__in=["trip_start", "trip_end", "manual"]),
+                name="mileage_source_valid",
             ),
+            models.UniqueConstraint(
+                fields=["trip", "vehicle", "source"],
+                condition=Q(trip__isnull=False),
+                name="mileage_one_per_trip_vehicle_phase",
+            ),
+        ]
+
+
+class FleetSettings(TenantModel):
+    """Настройки автопарка компании (одна запись на компанию)."""
+
+    # допустимое расхождение официального пробега и GPS, км; больше - предупреждение
+    gps_mismatch_km = models.PositiveIntegerField(default=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company"], name="fleetsettings_company_uniq"),
         ]
 
 

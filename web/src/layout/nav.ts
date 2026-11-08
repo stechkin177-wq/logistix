@@ -29,6 +29,8 @@ export const NAV: NavItem[] = [
       { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'logistics' },
     ],
   },
+  { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'fleet.view', module: 'fleet' },
+  { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers' },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },
   { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents' },
   { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },

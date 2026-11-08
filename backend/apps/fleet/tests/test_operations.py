@@ -27,27 +27,17 @@ def vehicle(company, plate="T1", **extra):
         return Vehicle.objects.create(plate=plate, **extra)
 
 
-def reading(api, v, km, at, **extra):
-    return api.post(MILEAGE, {"vehicle": v.pk, "odometer_km": km, "recorded_at": at, **extra})
+def reading(company, v, km, at="2026-06-01T10:00:00Z", source="trip_end"):
+    """Официальное показание напрямую в БД (в API оно пишется только по рейсу)."""
+    from datetime import datetime
 
-
-# --- пробег ---
-
-
-def test_mileage_monotonic_and_independent_per_vehicle(fco):
-    company, _, api = fco
-    tractor, trailer = vehicle(company, "T1"), vehicle(company, "P1", kind="trailer")
-    assert reading(api, tractor, 1000, "2026-06-01T10:00:00Z").status_code == 201
-    assert reading(api, tractor, 1500, "2026-06-10T10:00:00Z").status_code == 201
-    assert reading(api, tractor, 900, "2026-06-11T10:00:00Z").status_code == 400  # меньше прежнего
-    assert (
-        reading(api, tractor, 1600, "2026-06-05T10:00:00Z").status_code == 400
-    )  # больше следующего
-    assert reading(api, tractor, 1200, "2026-06-05T10:00:00Z").status_code == 201  # между
-    # у прицепа свой одометр, значения тягача ему не мешают
-    assert reading(api, trailer, 50, "2026-06-02T10:00:00Z").status_code == 201
-    assert api.get(MILEAGE, {"vehicle": tractor.pk}).json()["count"] == 3
-    assert api.get(MILEAGE, {"vehicle": trailer.pk}).json()["count"] == 1
+    with tenant_context(company.id):
+        return MileageReading.objects.create(
+            vehicle=v,
+            odometer_km=km,
+            source=source,
+            recorded_at=datetime.fromisoformat(at.replace("Z", "+00:00")),
+        )
 
 
 # --- топливо ---
@@ -73,9 +63,9 @@ def test_fuel_consumption_between_full_tanks(fco):
     listing = api.get(FUEL, {"vehicle": v.pk}).json()["results"]
     by_liters = {Decimal(r["liters"]): r["l_per_100km"] for r in listing}
     assert by_liters[Decimal("130")] == "28.75" and by_liters[Decimal("300")] is None
-    # заправка записала показания одометра (источник fuel)
+    # пробег в заправках - справочный: официальный пробег не создаётся и не меняется
     with tenant_context(company.id):
-        assert MileageReading.objects.filter(vehicle=v, source="fuel").count() == 3
+        assert MileageReading.objects.filter(vehicle=v).count() == 0
 
 
 def test_fuel_validation_and_skipped_without_odometer(fco):
@@ -93,17 +83,18 @@ def services_stats(company, v):
         return services.fuel_stats(v)
 
 
-def test_fuel_with_lower_odometer_rejected(fco):
+def test_fuel_odometer_is_reference_only_and_not_validated_against_official(fco):
     company, _, api = fco
     v = vehicle(company)
+    reading(company, v, 9000)
     assert fill(api, v, "2026-06-01T08:00:00Z", "100", 5000).status_code == 201
-    assert fill(api, v, "2026-06-02T08:00:00Z", "100", 4000).status_code == 400
+    assert fill(api, v, "2026-06-02T08:00:00Z", "100", 4000).status_code == 201
 
 
 # --- обслуживание ---
 
 
-def test_service_flow_and_mileage_sync(fco):
+def test_service_flow_does_not_touch_official_mileage(fco):
     company, _, api = fco
     v = vehicle(company)
     r = api.post(SERVICES, {"vehicle": v.pk, "title": "ТО-1", "planned_date": "2026-07-01"})
@@ -118,9 +109,7 @@ def test_service_flow_and_mileage_sync(fco):
     )
     assert ok.status_code == 200, ok.content
     with tenant_context(company.id):
-        assert MileageReading.objects.filter(
-            vehicle=v, source="service", odometer_km=120000
-        ).exists()
+        assert MileageReading.objects.filter(vehicle=v).count() == 0  # пробег в ТО - справочный
     assert api.get(SERVICES, {"vehicle": v.pk, "status": "done"}).json()["count"] == 1
     assert api.post(SERVICES, {"vehicle": v.pk, "title": " "}).status_code == 400
 
@@ -182,7 +171,7 @@ def test_reminders_by_date_km_documents_and_insurance(fco):
     company, _, api = fco
     v = vehicle(company)
     today = services_today(company)
-    reading(api, v, 99_500, "2026-06-01T10:00:00Z")
+    reading(company, v, 99_500)
     api.post(
         SERVICES,
         {

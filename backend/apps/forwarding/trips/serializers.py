@@ -10,6 +10,7 @@ from apps.fleet.models import Vehicle
 
 from ..fields import ActiveHandbookField, CurrentTolerantField
 from ..models import Carrier, Trip, TripConsignment
+from . import odometer
 from .resources import validate_assignment
 from .services import change_trip_status, create_trip, reassign
 
@@ -300,8 +301,37 @@ class TripStatusSerializer(serializers.Serializer):
     status = TripStatusField()
     # обязательна только при выходе из статуса «Завершён» (проверяет сервис)
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000, default="")
+    # официальный пробег по отчёту водителя (необязательно): при выезде и при завершении
+    vehicle_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+    trailer_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+
+    def validate(self, attrs):
+        if ("vehicle_km" in attrs or "trailer_km" in attrs) and odometer.phase_for_transition(
+            "", attrs["status"].code
+        ) is None:
+            raise serializers.ValidationError(
+                {"vehicle_km": "Пробег фиксируется только при выезде в рейс и при его завершении"}
+            )
+        return attrs
 
     def save(self, trip, user, ip=None, can_revert=False, perms=(), adjust_reason=None):
+        phase = odometer.phase_for_transition(trip.status.code, self.validated_data["status"].code)
+        given = "vehicle_km" in self.validated_data or "trailer_km" in self.validated_data
+        if given and phase is None:  # до смены статуса: ничего не меняем
+            raise serializers.ValidationError(
+                {"vehicle_km": "Пробег фиксируется только при выезде в рейс и при его завершении"}
+            )
+        saved = self._save(trip, user, ip, can_revert, perms, adjust_reason)
+        if phase:
+            odometer.record(
+                saved,
+                phase,
+                vehicle_km=self.validated_data.get("vehicle_km"),
+                trailer_km=self.validated_data.get("trailer_km"),
+            )
+        return saved
+
+    def _save(self, trip, user, ip, can_revert, perms, adjust_reason):
         return change_trip_status(
             trip,
             self.validated_data["status"],
@@ -312,3 +342,16 @@ class TripStatusSerializer(serializers.Serializer):
             perms=perms,
             adjust_reason=adjust_reason,
         )
+
+
+class TripOdometerSerializer(serializers.Serializer):
+    """Позднее внесение или исправление официального пробега рейса."""
+
+    phase = serializers.ChoiceField(choices=[odometer.START, odometer.END])
+    vehicle_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+    trailer_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+
+    def validate(self, attrs):
+        if "vehicle_km" not in attrs and "trailer_km" not in attrs:
+            raise serializers.ValidationError({"vehicle_km": "Укажите пробег тягача или прицепа"})
+        return attrs

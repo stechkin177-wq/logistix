@@ -3,7 +3,7 @@ import { ALL_PERMISSIONS } from '../test/permissions'
 import { NAV, flattenNav, visibleNav, type NavItem } from './nav'
 
 const keys = (items: NavItem[]) => flattenNav(items).map((i) => i.key)
-const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents']
+const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers']
 const admin = { permissions: ALL_PERMISSIONS, modules: ALL_MODULES }
 
 describe('visibleNav', () => {
@@ -42,7 +42,7 @@ describe('visibleNav', () => {
       { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'trips.view', module: 'fleet' },
     ]
     const perms = { permissions: ['trips.view'] }
-    expect(visibleNav({ ...perms, modules: ALL_MODULES }, fleet)).toEqual([])
+    expect(visibleNav({ ...perms, modules: ['logistics'] }, fleet)).toEqual([])
     expect(visibleNav({ ...perms, modules: ['fleet'] }, fleet)).toHaveLength(1)
   })
 

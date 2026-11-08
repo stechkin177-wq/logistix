@@ -11,7 +11,15 @@ from rest_framework.exceptions import ValidationError
 from apps.core.models import Company
 from apps.core.tenancy import get_current_company_id
 
-from .models import FuelFill, Insurance, MileageReading, ServiceRecord, Vehicle, VehicleDocument
+from .models import (
+    FleetSettings,
+    FuelFill,
+    Insurance,
+    MileageReading,
+    ServiceRecord,
+    Vehicle,
+    VehicleDocument,
+)
 
 CENT = Decimal("0.01")
 
@@ -21,11 +29,12 @@ def company_today() -> date:
     return timezone.now().astimezone(ZoneInfo(company.timezone)).date()
 
 
-# --- пробег ---------------------------------------------------------------------------------
+# --- официальный пробег ---------------------------------------------------------------------
+# Фиксируется только при выезде в рейс и по завершении рейса (отчёт водителя). Пробег в заправках,
+# обслуживании и т.п. - справочный и сюда не попадает. GPS показания не создаёт и не меняет.
 
 
 def day_start(day: date) -> datetime:
-    """Момент показаний одометра по записи обслуживания: начало дня выполнения (UTC)."""
     return datetime.combine(day, datetime.min.time(), tzinfo=UTC)
 
 
@@ -46,26 +55,102 @@ def check_odometer(vehicle: Vehicle, km: int, at: datetime, *, exclude_id=None) 
         )
 
 
-def record_mileage(vehicle: Vehicle, km: int | None, at: datetime, source: str):
-    """Записывает показание, если такого (техника, значение, источник) ещё нет."""
-    if km is None:
-        return None
-    existing = MileageReading.objects.filter(vehicle=vehicle, odometer_km=km, source=source)
-    if existing.filter(recorded_at=at).exists():
-        return None
+def record_trip_mileage(trip, vehicle: Vehicle, km: int, phase: str) -> MileageReading:
+    """Официальное показание единицы техники для рейса: одно на (рейс, техника, фаза).
+
+    Повторная передача исправляет значение (исправление ошибки водителя/диспетчера) без второй
+    записи. Показание при завершении не меньше показания выезда этого же рейса.
+    """
+    source = MileageReading.TRIP_START if phase == "start" else MileageReading.TRIP_END
+    existing = MileageReading.objects.filter(trip=trip, vehicle=vehicle, source=source).first()
+    at = existing.recorded_at if existing else timezone.now()
+    check_odometer(vehicle, km, at, exclude_id=existing.pk if existing else None)
+    if phase == "end":
+        start = MileageReading.objects.filter(
+            trip=trip, vehicle=vehicle, source=MileageReading.TRIP_START
+        ).first()
+        if start is not None and km < start.odometer_km:
+            raise ValidationError(
+                {"odometer_km": f"Пробег по завершении меньше пробега выезда ({start.odometer_km})"}
+            )
+    if existing:
+        existing.odometer_km = km
+        existing.save(update_fields=["odometer_km"])
+        return existing
     return MileageReading.objects.create(
-        vehicle=vehicle, recorded_at=at, odometer_km=km, source=source
+        vehicle=vehicle, trip=trip, recorded_at=at, odometer_km=km, source=source
+    )
+
+
+def latest_official(vehicle_id: int) -> MileageReading | None:
+    return (
+        MileageReading.objects.filter(vehicle_id=vehicle_id)
+        .order_by("-recorded_at", "-id")
+        .first()
     )
 
 
 def latest_odometer(vehicle_id: int) -> int | None:
-    row = (
-        MileageReading.objects.filter(vehicle_id=vehicle_id)
-        .order_by("-odometer_km")
-        .values_list("odometer_km", flat=True)
-        .first()
-    )
-    return row
+    reading = latest_official(vehicle_id)
+    return reading.odometer_km if reading else None
+
+
+def fleet_settings() -> FleetSettings:
+    """Настройки автопарка текущей компании (создаются при первом обращении)."""
+    obj = FleetSettings.objects.first()
+    return obj or FleetSettings.objects.create()
+
+
+def mileage_check(vehicle: Vehicle) -> dict:
+    """Сверка официального пробега с GPS (только показ; ничего не меняет и не записывает).
+
+    GPS-модуль регистрирует источник через ``register_gps_source``; пока источника нет или он не
+    отдаёт данные, ``gps_available`` = False (данные недоступны).
+    """
+    if not vehicle.gps_check:
+        return {"enabled": False}
+    threshold = fleet_settings().gps_mismatch_km
+    official = latest_official(vehicle.pk)
+    result = {
+        "enabled": True,
+        "official_km": official.odometer_km if official else None,
+        "official_at": official.recorded_at if official else None,
+        "gps_km": None,
+        "gps_available": False,
+        "difference_km": None,
+        "threshold_km": threshold,
+        "warning": False,
+    }
+    gps = gps_mileage(vehicle, official.recorded_at if official else timezone.now())
+    if gps is not None:
+        result["gps_km"], result["gps_available"] = gps, True
+        if official is not None:
+            diff = gps - official.odometer_km
+            result["difference_km"] = diff
+            result["warning"] = abs(diff) > threshold
+    return result
+
+
+_GPS_SOURCES = []
+
+
+def register_gps_source(source) -> None:
+    """Источник GPS-пробега: ``source(vehicle, at) -> км | None`` (регистрирует модуль gps)."""
+    if source not in _GPS_SOURCES:
+        _GPS_SOURCES.append(source)
+
+
+def unregister_gps_source(source) -> None:
+    if source in _GPS_SOURCES:
+        _GPS_SOURCES.remove(source)
+
+
+def gps_mileage(vehicle: Vehicle, at: datetime) -> int | None:
+    for source in _GPS_SOURCES:
+        value = source(vehicle, at)
+        if value is not None:
+            return value
+    return None
 
 
 # --- расход топлива -------------------------------------------------------------------------

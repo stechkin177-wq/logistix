@@ -65,6 +65,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             "capacity_kg",
             "volume_m3",
             "status",
+            "gps_check",
             "notes",
             "documents",
             "insurances",
@@ -120,20 +121,15 @@ def _require_finance(attrs):
 
 
 class MileageSerializer(serializers.ModelSerializer):
-    vehicle = _VehicleField()
+    """Официальный пробег: только чтение (создаётся при выезде в рейс и по его завершении)."""
+
+    vehicle = _VehicleField(read_only=True)
+    trip = serializers.IntegerField(source="trip_id", read_only=True)
 
     class Meta:
         model = MileageReading
-        fields = ["id", "vehicle", "recorded_at", "odometer_km", "source", "note"]
-
-    def validate(self, attrs):
-        from . import services
-
-        vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
-        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
-        at = attrs.get("recorded_at", getattr(self.instance, "recorded_at", None))
-        services.check_odometer(vehicle, km, at, exclude_id=getattr(self.instance, "pk", None))
-        return attrs
+        fields = ["id", "vehicle", "trip", "recorded_at", "odometer_km", "source", "note"]
+        read_only_fields = fields
 
 
 class ServiceRecordSerializer(serializers.ModelSerializer):
@@ -172,12 +168,6 @@ class ServiceRecordSerializer(serializers.ModelSerializer):
         if status == "done" and done is None:
             raise serializers.ValidationError({"done_date": "Укажите дату выполнения"})
         _require_finance(attrs)
-        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
-        if status == "done" and km is not None:
-            from . import services
-
-            vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
-            services.check_odometer(vehicle, km, services.day_start(done))
         return attrs
 
 
@@ -213,12 +203,5 @@ class FuelFillSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        from . import services
-
         _require_finance(attrs)
-        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
-        if km is not None:
-            vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
-            at = attrs.get("filled_at", getattr(self.instance, "filled_at", None))
-            services.check_odometer(vehicle, km, at)
         return attrs

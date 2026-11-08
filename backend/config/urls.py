@@ -61,6 +61,7 @@ from apps.finance.api.rates import RateViewSet
 from apps.finance.api.reports import CarrierDebtsView, ClientDebtsView, SummaryView
 from apps.finance.api.trips import TripExpenseLinesView
 from apps.fleet.api import (
+    FleetSettingsView,
     FuelFillViewSet,
     InsuranceViewSet,
     MileageViewSet,
@@ -111,6 +112,7 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 urlpatterns = [
     path("api/health/", health),
     path("api/fleet/reminders/", RemindersView.as_view()),
+    path("api/fleet/settings/", FleetSettingsView.as_view()),
     path("api/documents/capabilities/", CapabilitiesView.as_view()),
     path("api/documents/kinds/", KindsView.as_view()),
     path("api/finance/debts/clients/export/", ClientDebtsExportView.as_view()),

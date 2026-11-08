@@ -68,6 +68,11 @@ class VehicleViewSet(AuditedMixin, _FleetPermissions, viewsets.ModelViewSet):
         expr = expr.desc(nulls_last=True) if ordering.startswith("-") else expr.asc(nulls_last=True)
         return qs.order_by(expr, "id")
 
+    @action(detail=True, methods=["get"], url_path="mileage-check")
+    def mileage_check(self, request, pk=None):
+        """Официальный пробег, пробег по GPS и разница (если включено «Сверять пробег по GPS»)."""
+        return Response(services.mileage_check(self.get_object()))
+
     @action(detail=True, methods=["get"], url_path="fuel-stats")
     def fuel_stats(self, request, pk=None):
         """Средний расход на 100 км по заправкам «до полного бака» и сегменты расчёта."""
@@ -148,13 +153,20 @@ class _OperationsViewSet(_ChildViewSet):
         return qs
 
 
-class MileageViewSet(_OperationsViewSet):
-    model = MileageReading
+class MileageViewSet(_FleetPermissions, viewsets.ReadOnlyModelViewSet):
+    """История ОФИЦИАЛЬНОГО пробега (чтение). Пишется только при выезде и завершении рейса."""
+
     serializer_class = MileageSerializer
-    filter_fields = ("source",)
+    pagination_class = StandardPagination
 
     def get_queryset(self):
-        return super().get_queryset().order_by("-recorded_at", "-id")
+        qs = MileageReading.objects.filter(vehicle__deleted_at__isnull=True)
+        vehicle = self.request.query_params.get("vehicle")
+        if self.action == "list" and vehicle:
+            if not vehicle.isascii() or not vehicle.isdigit():
+                raise ValidationError({"vehicle": "Ожидается числовой id"})
+            qs = qs.filter(vehicle_id=int(vehicle))
+        return qs.order_by("-recorded_at", "-id")
 
 
 class ServiceRecordViewSet(_OperationsViewSet):
@@ -162,20 +174,7 @@ class ServiceRecordViewSet(_OperationsViewSet):
     serializer_class = ServiceRecordSerializer
     filter_fields = ("status", "kind")
 
-    def _sync_mileage(self, instance):
-        if instance.status == "done" and instance.odometer_km is not None:
-            at = services.day_start(instance.done_date)
-            services.record_mileage(instance.vehicle, instance.odometer_km, at, "service")
-
-    def perform_create(self, serializer):
-        with transaction.atomic():
-            super().perform_create(serializer)
-            self._sync_mileage(serializer.instance)
-
-    def perform_update(self, serializer):
-        with transaction.atomic():
-            super().perform_update(serializer)
-            self._sync_mileage(serializer.instance)
+    # odometer_km в обслуживании - справочный: официальный пробег не меняется
 
 
 class FuelFillViewSet(_OperationsViewSet):
@@ -196,17 +195,7 @@ class FuelFillViewSet(_OperationsViewSet):
     def get_queryset(self):
         return super().get_queryset().order_by("-filled_at", "-id")
 
-    def perform_create(self, serializer):
-        with transaction.atomic():
-            super().perform_create(serializer)
-            fill = serializer.instance
-            services.record_mileage(fill.vehicle, fill.odometer_km, fill.filled_at, "fuel")
-
-    def perform_update(self, serializer):
-        with transaction.atomic():
-            super().perform_update(serializer)
-            fill = serializer.instance
-            services.record_mileage(fill.vehicle, fill.odometer_km, fill.filled_at, "fuel")
+    # odometer_km в заправке - справочный: нужен для расчёта расхода, официальный пробег не меняется
 
 
 class RemindersView(APIView):
@@ -235,3 +224,26 @@ class RemindersView(APIView):
             vehicle_id=int(vehicle) if vehicle else None,
         )
         return Response({"count": len(items), "results": items})
+
+
+class FleetSettingsView(APIView):
+    """Настройки автопарка компании: допустимое расхождение пробега с GPS (км)."""
+
+    def get_permissions(self):
+        from apps.core.api_permissions import permission_required
+
+        code = "fleet.view" if self.request.method in ("GET", "HEAD", "OPTIONS") else "fleet.update"
+        return [ModuleRequired("fleet")(), permission_required(code)()]
+
+    def get(self, request):
+        return Response({"gps_mismatch_km": services.fleet_settings().gps_mismatch_km})
+
+    def patch(self, request):
+        value = request.data.get("gps_mismatch_km") if hasattr(request.data, "get") else None
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1_000_000:
+            raise ValidationError({"gps_mismatch_km": "Ожидается целое число от 0 до 1000000"})
+        with transaction.atomic():
+            settings = services.fleet_settings()
+            settings.gps_mismatch_km = value
+            settings.save(update_fields=["gps_mismatch_km"])
+        return Response({"gps_mismatch_km": settings.gps_mismatch_km})

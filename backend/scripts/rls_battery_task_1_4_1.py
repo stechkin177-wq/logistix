@@ -102,6 +102,7 @@ if STEP == "M6":
         "fleet_mileagereading",  # этап 2.4
         "fleet_servicerecord",
         "fleet_fuelfill",
+        "fleet_fleetsettings",  # этап 2.4 (порог сверки GPS)
     }
     ok(
         expected - LATER_TABLES <= present,

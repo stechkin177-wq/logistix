@@ -15,9 +15,11 @@ from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, Trip, TripConsignment
 from ..orders.filters import flag_param, int_param
+from . import odometer
 from .serializers import (
     ReassignSerializer,
     TripCreateSerializer,
+    TripOdometerSerializer,
     TripSerializer,
     TripStatusSerializer,
 )
@@ -40,7 +42,7 @@ def concurrency_guard():
         raise ConcurrentChange() from None
 
 
-UPDATE_ACTIONS = ("reassign", "change_status")
+UPDATE_ACTIONS = ("reassign", "change_status", "set_odometer")
 
 
 def filter_trips(qs, params):
@@ -155,6 +157,21 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         with concurrency_guard():
             serializer.save(trip, request.user, ip=client_ip(request))
+        return Response(self._output(trip))
+
+    @action(detail=True, methods=["post"], url_path="odometer")
+    def set_odometer(self, request, pk=None):
+        """Официальный пробег рейса: {"phase": "start"|"end", "vehicle_km": n, "trailer_km": n}."""
+        trip = self.get_object()
+        serializer = TripOdometerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        odometer.record(
+            trip,
+            data["phase"],
+            vehicle_km=data.get("vehicle_km"),
+            trailer_km=data.get("trailer_km"),
+        )
         return Response(self._output(trip))
 
     @action(detail=True, methods=["post"], url_path="status")

@@ -25,17 +25,19 @@ interface Props extends Pick<ButtonProps, 'variant'> {
   source: IssueSource
   /** Текст кнопки (название документа). */
   label: string
+  /** Модуль-поставщик субъекта (drivers, fleet): вместо модуля-владельца вида. */
+  module?: string
 }
 
 /** Кнопка «выдать документ»: POST issued/, затем диалог со скачиванием. Скрыта без модуля documents или модуля-владельца вида (logistics/finance), отключена без documents.create. */
-export function IssueDocumentButton({ kind, source, label, variant }: Props) {
+export function IssueDocumentButton({ kind, source, label, variant, module }: Props) {
   const { t } = useTranslation()
   const { hasModule } = useSession()
   const issue = useIssueDocument()
   const busy = useRef(false)
   const [result, setResult] = useState<{ doc: IssuedDocument | null; error?: string } | null>(null)
 
-  if (!hasModule('documents') || !hasModule(KIND_MODULE[kind])) return null
+  if (!hasModule('documents') || !hasModule(module ?? KIND_MODULE[kind])) return null
 
   const run = () => {
     if (busy.current) return // второй клик, пока идёт запрос, документ не создаёт
