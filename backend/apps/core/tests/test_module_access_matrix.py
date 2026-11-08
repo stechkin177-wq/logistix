@@ -93,7 +93,8 @@ def test_session_modules_are_effective_list_and_format_unchanged(make_company):
     company, admin, api = make_company("Sess", modules=["forwarding", "fleet"])
     Plan.objects.filter(code="start").update(modules=["logistics", "forwarding", "documents"])
     data = api.get("/api/session/").json()
-    assert data["modules"] == ["forwarding", "logistics", "documents"]  # список строк, тариф ∩ компания
+    # список строк, тариф ∩ компания
+    assert data["modules"] == ["forwarding", "logistics", "documents"]
     assert isinstance(data["modules"], list) and all(isinstance(m, str) for m in data["modules"])
     assert set(data) == {
         "user",

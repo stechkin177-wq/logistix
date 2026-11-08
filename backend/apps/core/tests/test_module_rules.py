@@ -20,7 +20,8 @@ from apps.finance.models import CompanyFinancialSettings
 pytestmark = pytest.mark.django_db
 
 ALL_PLAN = [
-    "logistics", "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps", "ocr",
+    "logistics", "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps",
+    "ocr",
     "notifications", "analytics",
 ]  # fmt: skip
 
@@ -235,7 +236,9 @@ def test_describe_modules_reports_blockers(make_company, wide_plan):
     assert items["documents"]["can_disable"] and items["documents"]["blocker"] is None
     assert items["fleet"]["can_enable"] and not items["fleet"]["enabled"]
     assert items["gps"]["blocker"]["code"] == "module_requires"
-    Plan.objects.filter(code="start").update(modules=["logistics", "forwarding", "finance", "documents"])
+    Plan.objects.filter(code="start").update(
+        modules=["logistics", "forwarding", "finance", "documents"]
+    )
     items = {i["code"]: i for i in describe_modules(company)}
     assert items["fleet"]["blocker"]["code"] == "module_not_in_plan"
     assert items["fleet"]["available_in_plan"] is False
