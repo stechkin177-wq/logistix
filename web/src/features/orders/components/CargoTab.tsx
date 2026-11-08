@@ -15,10 +15,11 @@ import { FormBanner } from '../../../shared/ui/FormBanner'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useDeleteConsignment, useSaveConsignment } from '../hooks'
 import {
-  CONSIGNMENT_KNOWN_PATH, consignmentFromApi, consignmentPayload, emptyConsignment, validateConsignment, type ConsignmentForm,
+  CONSIGNMENT_KNOWN_PATH, consignmentFromApi, consignmentPayload, emptyConsignment, isMultiStop, validateConsignment, type ConsignmentForm,
 } from '../orderForm'
 import type { Order, OrderConsignment } from '../types'
 import { ConsignmentFields } from './ConsignmentFields'
+import { RouteChain } from './RouteChain'
 
 function ConsignmentDrawer({ order, consignment, onClose }: { order: Order; consignment: OrderConsignment | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -110,10 +111,11 @@ export function CargoTab({ order }: { order: Order }) {
               <p className="text-xs text-slate-600 dark:text-slate-300">
                 {t('orders.cargoSummary', { weight: c.weight_kg, volume: c.volume_m3, pallets: c.pallets, packaging: c.packaging_name ?? '—' })}
               </p>
+              {c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}
               <ul className="grid gap-1 text-xs md:grid-cols-2">
-                {c.points.map((p) => (
-                  <li key={p.kind} className="rounded bg-slate-50 p-1.5 dark:bg-slate-800">
-                    <span className="font-medium">{t(p.kind === 'load' ? 'orders.loadPoint' : 'orders.unloadPoint')}: </span>
+                {(c.stops && isMultiStop(c.stops) ? c.stops : c.points).map((p, index) => (
+                  <li key={'seq' in p ? p.seq : index} className="rounded bg-slate-50 p-1.5 dark:bg-slate-800">
+                    <span className="font-medium">{t(`orders.stopKinds.${p.kind}`)}: </span>
                     {[p.country_name, p.city, p.street].filter(Boolean).join(', ')}
                     <br />
                     <DateTime value={p.window_from} />

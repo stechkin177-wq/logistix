@@ -1,5 +1,5 @@
 import { fromInputDateTime, toInputDateTime } from '../../shared/format/datetime'
-import type { Order, OrderConsignment, OrderPoint } from './types'
+import type { Order, OrderConsignment, OrderPoint, OrderStop, StopKind } from './types'
 
 export interface PointForm {
   window_from: string
@@ -15,6 +15,17 @@ export interface PointForm {
   note: string
 }
 
+/** Остановка маршрута в форме: точка + вид и доли (пусто = весь груз). */
+export interface StopForm extends PointForm {
+  key: string
+  /** id существующей остановки (при правке); у новой нет. */
+  id?: number
+  kind: StopKind
+  weight_kg: string
+  volume_m3: string
+  pallets: string
+}
+
 export interface ConsignmentForm {
   key: string
   id?: number
@@ -25,6 +36,11 @@ export interface ConsignmentForm {
   packaging: string
   /** [0] - погрузка, [1] - выгрузка: индексы совпадают с путями ошибок сервера (points.0 / points.1). */
   points: [PointForm, PointForm]
+  /**
+   * null - простой маршрут (погрузка и выгрузка, поле points). Список - расширенный маршрут
+   * (поле stops): порядок списка = порядок остановок, индексы совпадают с путями ошибок stops.N.
+   */
+  stops: StopForm[] | null
 }
 
 export interface OrderFormState {
@@ -53,12 +69,31 @@ export const emptyPoint = (): PointForm => ({
 })
 
 export const emptyConsignment = (): ConsignmentForm => ({
-  key: nextKey(), name: '', weight_kg: '', volume_m3: '', pallets: '0', packaging: '', points: [emptyPoint(), emptyPoint()],
+  key: nextKey(), name: '', weight_kg: '', volume_m3: '', pallets: '0', packaging: '', points: [emptyPoint(), emptyPoint()], stops: null,
 })
+
+export const emptyStop = (kind: StopKind = 'transit'): StopForm => ({
+  ...emptyPoint(), key: nextKey(), kind, weight_kg: '', volume_m3: '', pallets: '',
+})
+
+/** Простой маршрут -> расширенный: две точки становятся остановками load и unload. */
+export function toStops(c: ConsignmentForm): StopForm[] {
+  return [
+    { ...c.points[0], key: nextKey(), kind: 'load', weight_kg: '', volume_m3: '', pallets: '' },
+    { ...c.points[1], key: nextKey(), kind: 'unload', weight_kg: '', volume_m3: '', pallets: '' },
+  ]
+}
+
+/** Расширенный маршрут можно свернуть в простой, только если это ровно погрузка и выгрузка. */
+export const canSimplify = (stops: StopForm[]) => stops.length === 2 && stops[0]?.kind === 'load' && stops[1]?.kind === 'unload'
+
+/** Маршрут не простой (больше двух остановок или промежуточные виды): его правят только как stops. */
+export const isMultiStop = (stops: readonly { kind: string }[] | undefined) =>
+  !!stops && (stops.length > 2 || stops.some((s) => s.kind !== 'load' && s.kind !== 'unload'))
 
 const idText = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v))
 
-function pointFromApi(point: OrderPoint | undefined, tz: string | undefined): PointForm {
+function pointFromApi(point: Omit<OrderPoint, 'kind'> | undefined, tz: string | undefined): PointForm {
   if (!point) return emptyPoint()
   return {
     window_from: toInputDateTime(point.window_from, tz),
@@ -75,7 +110,20 @@ function pointFromApi(point: OrderPoint | undefined, tz: string | undefined): Po
   }
 }
 
+function stopFromApi(stop: OrderStop, tz: string | undefined): StopForm {
+  return {
+    ...pointFromApi(stop, tz),
+    key: nextKey(),
+    id: stop.id,
+    kind: stop.kind,
+    weight_kg: stop.weight_kg ?? '',
+    volume_m3: stop.volume_m3 ?? '',
+    pallets: stop.pallets === null ? '' : String(stop.pallets),
+  }
+}
+
 export function consignmentFromApi(c: OrderConsignment, tz: string | undefined): ConsignmentForm {
+  const multi = isMultiStop(c.stops)
   return {
     key: nextKey(),
     id: c.id,
@@ -88,6 +136,7 @@ export function consignmentFromApi(c: OrderConsignment, tz: string | undefined):
       pointFromApi(c.points.find((p) => p.kind === 'load'), tz),
       pointFromApi(c.points.find((p) => p.kind === 'unload'), tz),
     ],
+    stops: multi && c.stops ? c.stops.map((st) => stopFromApi(st, tz)) : null,
   }
 }
 
@@ -124,18 +173,35 @@ export function validateConsignment(c: ConsignmentForm, prefix: string, t: Trans
   if (!c.volume_m3.trim()) errors[`${prefix}.volume_m3`] = required
   else if (!DECIMAL.test(c.volume_m3.trim())) errors[`${prefix}.volume_m3`] = t('errors.invalidNumber')
   if (c.pallets.trim() && !INT.test(c.pallets.trim())) errors[`${prefix}.pallets`] = t('errors.invalidNumber')
-  c.points.forEach((p, i) => {
-    const base = `${prefix}.points.${String(i)}`
-    if (!p.window_from) errors[`${base}.window_from`] = required
-    if (!p.city.trim()) errors[`${base}.city`] = required
-    if (p.window_from && p.window_to && p.window_to < p.window_from) errors[`${base}.window_to`] = t('orders.windowOrder')
-    for (const key of ['lat', 'lng'] as const) {
-      const value = p[key].trim()
-      if (!value) continue
-      const limit = key === 'lat' ? 90 : 180
-      if (!COORD.test(value) || Math.abs(Number(value)) > limit) errors[`${base}.${key}`] = t('orders.coordRange')
+  if (c.stops === null) {
+    c.points.forEach((p, i) => { validatePoint(p, `${prefix}.points.${String(i)}`, t, errors) })
+    return
+  }
+  const stops = c.stops
+  if (stops.length < 2 || stops[0]?.kind !== 'load' || stops[stops.length - 1]?.kind !== 'unload') {
+    errors[`${prefix}.stops`] = t('orders.routeEdges')
+  }
+  stops.forEach((st, i) => {
+    const base = `${prefix}.stops.${String(i)}`
+    validatePoint(st, base, t, errors)
+    for (const [key, pattern] of [['weight_kg', DECIMAL], ['volume_m3', DECIMAL], ['pallets', INT]] as const) {
+      const value = st[key].trim()
+      if (value && !pattern.test(value)) errors[`${base}.${key}`] = t('errors.invalidNumber')
     }
   })
+}
+
+function validatePoint(p: PointForm, base: string, t: Translate, errors: Record<string, string>): void {
+  const required = t('errors.requiredField')
+  if (!p.window_from) errors[`${base}.window_from`] = required
+  if (!p.city.trim()) errors[`${base}.city`] = required
+  if (p.window_from && p.window_to && p.window_to < p.window_from) errors[`${base}.window_to`] = t('orders.windowOrder')
+  for (const key of ['lat', 'lng'] as const) {
+    const value = p[key].trim()
+    if (!value) continue
+    const limit = key === 'lat' ? 90 : 180
+    if (!COORD.test(value) || Math.abs(Number(value)) > limit) errors[`${base}.${key}`] = t('orders.coordRange')
+  }
 }
 
 /** Клиентская проверка зеркалит сервер; пути ошибок те же, что в ответах API. */
@@ -153,29 +219,44 @@ export function validateOrder(form: OrderFormState, mode: 'create' | 'edit', t: 
 const idOrNull = (v: string) => (v ? Number(v) : null)
 const intOrNull = (v: string) => (v.trim() ? Number(v.trim()) : null)
 
+const pointBody = (p: PointForm, tz: string | undefined) => ({
+  window_from: fromInputDateTime(p.window_from, tz),
+  window_to: p.window_to ? fromInputDateTime(p.window_to, tz) : null,
+  country: idOrNull(p.country),
+  city: p.city.trim(),
+  street: p.street,
+  method: idOrNull(p.method),
+  contact: p.contact,
+  postal_code: p.postal_code,
+  lat: p.lat.trim() || null,
+  lng: p.lng.trim() || null,
+  note: p.note,
+})
+
+/** Простой маршрут уходит в points (как раньше), расширенный - в stops (порядок списка = порядок). */
 export function consignmentPayload(c: ConsignmentForm, tz: string | undefined) {
   const kinds = ['load', 'unload'] as const
-  return {
+  const head = {
     name: c.name.trim(),
     weight_kg: c.weight_kg.trim(),
     volume_m3: c.volume_m3.trim(),
     pallets: Number(c.pallets.trim() || '0'),
     packaging: idOrNull(c.packaging),
-    points: c.points.map((p, i) => ({
-      kind: kinds[i],
-      window_from: fromInputDateTime(p.window_from, tz),
-      window_to: p.window_to ? fromInputDateTime(p.window_to, tz) : null,
-      country: idOrNull(p.country),
-      city: p.city.trim(),
-      street: p.street,
-      method: idOrNull(p.method),
-      contact: p.contact,
-      postal_code: p.postal_code,
-      lat: p.lat.trim() || null,
-      lng: p.lng.trim() || null,
-      note: p.note,
-    })),
   }
+  if (c.stops !== null) {
+    return {
+      ...head,
+      stops: c.stops.map((st) => ({
+        ...(st.id === undefined ? {} : { id: st.id }),
+        kind: st.kind,
+        ...pointBody(st, tz),
+        weight_kg: st.weight_kg.trim() || null,
+        volume_m3: st.volume_m3.trim() || null,
+        pallets: intOrNull(st.pallets),
+      })),
+    }
+  }
+  return { ...head, points: c.points.map((p, i) => ({ kind: kinds[i], ...pointBody(p, tz) })) }
 }
 
 /**
@@ -209,7 +290,7 @@ export function orderPayload(form: OrderFormState, mode: 'create' | 'edit', tz: 
 
 /** Какие пути ошибок сервера есть в форме (остальные уходят в баннер). */
 export const ORDER_KNOWN_PATH =
-  /^(client|client_ref|contract_number|contact|manager|forwarder|extra_managers|currency|client_rate|transport_condition|delivery_days|payment_delay_days|payment_delay_condition|comment)$|^consignments(\.\d+(\.(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?))?)?$/
+  /^(client|client_ref|contract_number|contact|manager|forwarder|extra_managers|currency|client_rate|transport_condition|delivery_days|payment_delay_days|payment_delay_condition|comment)$|^consignments(\.\d+(\.(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?|stops(\.\d+(\.(kind|status|weight_kg|volume_m3|pallets|window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?))?)?$/
 
 export const CONSIGNMENT_KNOWN_PATH =
-  /^(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?)$/
+  /^(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?|stops(\.\d+(\.(kind|status|weight_kg|volume_m3|pallets|window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?)$/

@@ -408,7 +408,26 @@
     "historyFrom": "Күйден",
     "historyTo": "Күйге",
     "historyWho": "Кім",
-    "noHistory": "Тарих жоқ"
+    "noHistory": "Тарих жоқ",
+    "stopKinds": {
+      "load": "Тиеу",
+      "unload": "Түсіру",
+      "transit": "Аралық аялдама",
+      "transfer": "Тапсыру / қайта тиеу",
+      "customs": "Шекара / кеден"
+    },
+    "stopN": "{{n}}-аялдама",
+    "stopKind": "Аялдама түрі",
+    "addStop": "Аялдама қосу",
+    "removeStopN": "{{n}}-аялдаманы алып тастау",
+    "moveStopUp": "{{n}}-аялдаманы жоғарылату",
+    "moveStopDown": "{{n}}-аялдаманы төмендету",
+    "multiStops": "Бірнеше аялдама",
+    "simpleRoute": "Қарапайым маршрут (тиеу және түсіру)",
+    "stopShares": "Аялдамадағы жүк үлесі",
+    "stopSharesHint": "бос - бүкіл жүк",
+    "routeEdges": "Маршрут тиеуден басталып, түсірумен аяқталуы керек",
+    "routeChain": "Жүк маршруты"
   },
   "consignments": {
     "createTrip": "Рейс құру",

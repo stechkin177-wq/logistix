@@ -16,6 +16,21 @@ export interface OrderPoint {
   note: string
 }
 
+export type StopKind = 'load' | 'unload' | 'transit' | 'transfer' | 'customs'
+export type StopStatus = 'planned' | 'arrived' | 'done' | 'skipped'
+
+/** Остановка маршрута груза (stops): точка с порядком, видом, статусом и долями. */
+export interface OrderStop extends Omit<OrderPoint, 'kind'> {
+  kind: StopKind
+  seq: number
+  status: StopStatus
+  arrived_at: string | null
+  done_at: string | null
+  weight_kg: string | null
+  volume_m3: string | null
+  pallets: number | null
+}
+
 export interface OrderConsignment {
   id: number
   name: string
@@ -26,7 +41,10 @@ export interface OrderConsignment {
   packaging_name: string | null
   status: number
   status_name: string
+  /** Устаревшее поле: первая погрузка и последняя выгрузка маршрута. */
   points: OrderPoint[]
+  /** Полный маршрут по порядку (может отсутствовать у старых ответов/фикстур). */
+  stops?: OrderStop[]
   created_at: string
 }
 
