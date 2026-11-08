@@ -379,7 +379,7 @@ def test_module_required_allows_company_with_module(api_client, owner_b, company
 
 
 def test_module_required_denies_when_plan_lacks_module(api_client, owner_b, company_b):
-    Plan.objects.filter(code="start").update(modules=["forwarding"])
+    Plan.objects.filter(code="start").update(modules=["logistics", "forwarding"])
     client = client_for(api_client, owner_b, company_b)
     r = client.get("/api/_probe/fleet/")
     assert r.status_code == 403

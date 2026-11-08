@@ -68,7 +68,7 @@ def drivers_provider():
 @pytest.fixture
 def plan_with_drivers(db):
     Plan.objects.filter(code="start").update(
-        modules=["forwarding", "fleet", "finance", "documents", "drivers"]
+        modules=["logistics", "forwarding", "fleet", "finance", "documents", "drivers"]
     )
 
 
@@ -275,7 +275,7 @@ def test_forwarding_kinds_unavailable_until_forwarding_enabled(
     )
     assert denied.status_code in (400, 403)  # встроенный поставщик отдаёт вид только прежним путём
     # включение forwarding и finance добавляет их виды без перенастройки
-    configure(company, ["documents", "drivers", "forwarding", "finance"])
+    configure(company, ["documents", "drivers", "logistics", "forwarding", "finance"])
     caps = admin_client.get("/api/documents/kinds/").json()
     assert set(caps["available_kinds"]) == set(KINDS)
     ok = admin_client.post(I, {"kind": "contract", "client": client.pk}, format="json")

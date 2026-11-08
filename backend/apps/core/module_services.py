@@ -25,12 +25,34 @@ VALID_MODULES = module_catalog.non_core_codes()
 FORWARDING_COMPANIONS = ("logistics", "finance", "documents")
 
 
-def with_default_companions(codes: list[str]) -> list[str]:
-    """Набор для новой компании: forwarding тянет finance и documents (порядок сохраняется)."""
+def with_default_companions(
+    codes: list[str], allowed=None, skip=()
+) -> list[str]:
+    """Набор для новой компании: logistics/forwarding тянут finance и documents (порядок тот же).
+
+    Спутники - стартовая настройка, а не техническая зависимость. ``allowed`` - модули тарифа
+    (None - без проверки тарифа): недоступные по тарифу спутники не добавляются. ``skip`` -
+    модули, отключённые владельцем вручную: повторно не включаются.
+    """
     result = list(dict.fromkeys(codes))
     if "forwarding" in result or "logistics" in result:
-        result += [c for c in FORWARDING_COMPANIONS if c not in result]
+        for code in FORWARDING_COMPANIONS:
+            if code in result or code in skip:
+                continue
+            if allowed is not None and code not in allowed:
+                continue
+            result.append(code)
     return result
+
+
+def manually_disabled_codes(company_id: int) -> set[str]:
+    """Модули, отключённые владельцем/сотрудником вручную (строка enabled=False с disabled_by)."""
+    with tenant_context(company_id):
+        return set(
+            CompanyModule.objects.filter(enabled=False, disabled_by__isnull=False).values_list(
+                "module_code", flat=True
+            )
+        )
 
 
 def unmet_requirements(codes) -> list[str]:
@@ -393,9 +415,20 @@ def apply_profile(company: Company, profile, user=None, reason: str = "", replac
         wanted = [c for c in profile.modules if c in catalog and not catalog[c].is_core]
         target: list[str] = []
         have = set(enabled)
+        manual_off = manually_disabled_codes(locked.pk)
         for code in _requires_order(catalog, wanted):
             if code in enabled:
                 target.append(code)
+                continue
+            if code in manual_off:  # решение владельца не отменяется без его согласия
+                skipped.append(
+                    {
+                        "code": code,
+                        "error_code": "manually_disabled",
+                        "detail": f"Модуль «{catalog[code].name}» отключён владельцем вручную; "
+                        "включите его явно",
+                    }
+                )
                 continue
             problem = enable_problem(locked.pk, catalog, have, plan, code)
             if problem:

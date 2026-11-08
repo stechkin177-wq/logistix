@@ -14,7 +14,8 @@ from apps.core.tenancy import set_current_company, tenant_context
 pytestmark = pytest.mark.django_db
 
 ENDPOINTS = {
-    "forwarding": ("/api/clients/", "clients.view"),
+    "logistics": ("/api/clients/", "clients.view"),
+    "forwarding": ("/api/carriers/", "carriers.view"),
     "finance": ("/api/finance/invoices/", "finance.view"),
     "documents": ("/api/documents/issued/", "documents.view"),
 }
@@ -48,7 +49,8 @@ def test_effective_access_is_plan_and_company_and_permission(make_company, modul
         Plan.objects.filter(code="start").update(
             modules=[*BASE_PLAN, *([module] if in_plan else [])]
         )
-        wanted = [m for m in ["forwarding", "fleet", "finance", "documents"] if m != module]
+        base = ["logistics", "forwarding", "fleet", "finance", "documents"]
+        wanted = [m for m in base if m != module]
         set_company_modules(company, [*wanted, *([module] if enabled else [])])
         api = with_perm if has_perm else without_perm
         response = api.get(path)
@@ -89,9 +91,9 @@ def test_forwarding_off_keeps_finance_and_documents_endpoints_working(make_compa
 
 def test_session_modules_are_effective_list_and_format_unchanged(make_company):
     company, admin, api = make_company("Sess", modules=["forwarding", "fleet"])
-    Plan.objects.filter(code="start").update(modules=["forwarding", "documents"])
+    Plan.objects.filter(code="start").update(modules=["logistics", "forwarding", "documents"])
     data = api.get("/api/session/").json()
-    assert data["modules"] == ["forwarding", "documents"]  # список строк, тариф ∩ компания
+    assert data["modules"] == ["forwarding", "logistics", "documents"]  # список строк, тариф ∩ компания
     assert isinstance(data["modules"], list) and all(isinstance(m, str) for m in data["modules"])
     assert set(data) == {
         "user",

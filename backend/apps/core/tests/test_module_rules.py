@@ -20,7 +20,7 @@ from apps.finance.models import CompanyFinancialSettings
 pytestmark = pytest.mark.django_db
 
 ALL_PLAN = [
-    "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps", "ocr",
+    "logistics", "forwarding", "fleet", "finance", "documents", "drivers", "driver_app", "gps", "ocr",
     "notifications", "analytics",
 ]  # fmt: skip
 
@@ -235,7 +235,40 @@ def test_describe_modules_reports_blockers(make_company, wide_plan):
     assert items["documents"]["can_disable"] and items["documents"]["blocker"] is None
     assert items["fleet"]["can_enable"] and not items["fleet"]["enabled"]
     assert items["gps"]["blocker"]["code"] == "module_requires"
-    Plan.objects.filter(code="start").update(modules=["forwarding", "finance", "documents"])
+    Plan.objects.filter(code="start").update(modules=["logistics", "forwarding", "finance", "documents"])
     items = {i["code"]: i for i in describe_modules(company)}
     assert items["fleet"]["blocker"]["code"] == "module_not_in_plan"
     assert items["fleet"]["available_in_plan"] is False
+
+
+def test_companions_respect_plan_and_manual_disable():
+    from apps.core.module_services import with_default_companions
+
+    assert with_default_companions(["logistics"]) == ["logistics", "finance", "documents"]
+    assert with_default_companions(["logistics"], allowed={"logistics", "documents"}) == [
+        "logistics",
+        "documents",
+    ]
+    assert with_default_companions(["logistics"], skip={"finance"}) == [
+        "logistics",
+        "documents",
+    ]
+
+
+def test_apply_profile_does_not_reenable_manually_disabled(make_company, wide_plan):
+    from apps.core.models import ActivityProfile
+    from apps.core.module_services import apply_profile
+
+    company, admin, _ = make_company("Manual", modules=["forwarding"])
+    disable_module(company, "documents", admin, "не нужны")  # решение владельца
+    profile = ActivityProfile.objects.get(code="forwarder")
+    result = apply_profile(company, profile, admin)
+    skipped = {s["code"]: s["error_code"] for s in result["skipped"]}
+    assert skipped == {"documents": "manually_disabled"}
+    assert "documents" not in enabled_module_codes(company.id)
+
+
+def test_carrier_without_forwarding_has_finance_and_logistics(make_company, wide_plan):
+    company, admin, _ = make_company("Carrier", modules=["logistics", "fleet"])
+    assert set(enabled_module_codes(company.id)) == {"logistics", "fleet", "finance", "documents"}
+    assert "forwarding" not in enabled_module_codes(company.id)

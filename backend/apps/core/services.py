@@ -32,7 +32,10 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     modules = list(modules)
     if not modules or not set(modules) <= VALID_MODULES:
         raise ValueError(f"modules должен быть непустым подмножеством {sorted(VALID_MODULES)}")
-    modules = with_default_companions(modules)  # forwarding включает finance и documents
+    start_plan = Plan.objects.filter(code="start").first()  # стартовый тариф компании
+    modules = with_default_companions(
+        modules, allowed=set(start_plan.modules or []) if start_plan else None
+    )  # logistics/forwarding включают finance и documents, если они есть в тарифе
     unmet = unmet_requirements(modules)
     if unmet:
         raise ValueError("Не выполнены зависимости модулей: " + "; ".join(unmet))
