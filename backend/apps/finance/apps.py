@@ -20,3 +20,9 @@ class FinanceConfig(AppConfig):
         company_created.connect(
             on_company_created, dispatch_uid="finance_company_financial_settings"
         )
+
+        from apps.core.module_services import register_disable_guard
+
+        from .module_guard import finance_disable_guard
+
+        register_disable_guard("finance", finance_disable_guard)
