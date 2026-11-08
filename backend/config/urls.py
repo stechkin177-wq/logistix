@@ -60,7 +60,15 @@ from apps.finance.api.payments import PaymentViewSet
 from apps.finance.api.rates import RateViewSet
 from apps.finance.api.reports import CarrierDebtsView, ClientDebtsView, SummaryView
 from apps.finance.api.trips import TripExpenseLinesView
-from apps.fleet.api import InsuranceViewSet, VehicleDocumentViewSet, VehicleViewSet
+from apps.fleet.api import (
+    FuelFillViewSet,
+    InsuranceViewSet,
+    MileageViewSet,
+    RemindersView,
+    ServiceRecordViewSet,
+    VehicleDocumentViewSet,
+    VehicleViewSet,
+)
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
 from apps.forwarding.dashboard import DashboardSummaryView
@@ -89,6 +97,9 @@ router.register("driver-documents", DriverDocumentViewSet, basename="driver-docu
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("vehicle-documents", VehicleDocumentViewSet, basename="vehicle-document")
 router.register("insurances", InsuranceViewSet, basename="insurance")
+router.register("mileage", MileageViewSet, basename="mileage")
+router.register("service-records", ServiceRecordViewSet, basename="service-record")
+router.register("fuel-fills", FuelFillViewSet, basename="fuel-fill")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")
@@ -99,6 +110,7 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/fleet/reminders/", RemindersView.as_view()),
     path("api/documents/capabilities/", CapabilitiesView.as_view()),
     path("api/documents/kinds/", KindsView.as_view()),
     path("api/finance/debts/clients/export/", ClientDebtsExportView.as_view()),

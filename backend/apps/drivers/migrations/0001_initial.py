@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("core", "0020_logistics_module"),
+        ("core", "0001_initial"),  # только Company и User: не тянет поздние миграции core
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

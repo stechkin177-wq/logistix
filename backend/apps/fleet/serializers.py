@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 
-from .models import Insurance, Vehicle, VehicleDocument
+from .models import FuelFill, Insurance, MileageReading, ServiceRecord, Vehicle, VehicleDocument
 
 # госномер: латиница/кириллица/цифры без пробелов и дефисов в нормализованном виде
 PLATE_CLEAN_RE = re.compile(r"[\s\-]+")
@@ -88,3 +88,137 @@ class VehicleSerializer(serializers.ModelSerializer):
         if value is not None and value < 0:
             raise serializers.ValidationError("Объём не может быть отрицательным")
         return value
+
+
+# --- эксплуатационный учёт (2.4) -------------------------------------------------------------
+
+
+class _ExpenseField(serializers.PrimaryKeyRelatedField):
+    """Расход Finance G1 компании (только активный). Fleet сам денег не хранит."""
+
+    def get_queryset(self):
+        from apps.finance.models import Expense
+
+        return Expense.objects.all()
+
+    def to_internal_value(self, data):
+        expense = super().to_internal_value(data)
+        if expense.status != "active":
+            raise serializers.ValidationError("Расход аннулирован")
+        return expense
+
+
+def _require_finance(attrs):
+    """Связь с расходом возможна, только если модуль finance включён и есть в тарифе."""
+    from apps.core.tenancy import get_current_company_id
+    from apps.forwarding.trips.resources import effective_modules
+
+    if attrs.get("expense") is not None and "finance" not in effective_modules(
+        get_current_company_id()
+    ):
+        raise serializers.ValidationError({"expense": "Модуль финансов не подключён"})
+
+
+class MileageSerializer(serializers.ModelSerializer):
+    vehicle = _VehicleField()
+
+    class Meta:
+        model = MileageReading
+        fields = ["id", "vehicle", "recorded_at", "odometer_km", "source", "note"]
+
+    def validate(self, attrs):
+        from . import services
+
+        vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
+        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
+        at = attrs.get("recorded_at", getattr(self.instance, "recorded_at", None))
+        services.check_odometer(vehicle, km, at, exclude_id=getattr(self.instance, "pk", None))
+        return attrs
+
+
+class ServiceRecordSerializer(serializers.ModelSerializer):
+    vehicle = _VehicleField()
+    expense = _ExpenseField(allow_null=True, required=False)
+
+    class Meta:
+        model = ServiceRecord
+        fields = [
+            "id",
+            "vehicle",
+            "kind",
+            "status",
+            "title",
+            "planned_date",
+            "done_date",
+            "odometer_km",
+            "description",
+            "next_due_date",
+            "next_due_km",
+            "expense",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Укажите название работ")
+        return value
+
+    def validate(self, attrs):
+        status = attrs.get("status", getattr(self.instance, "status", "planned"))
+        done = attrs.get("done_date", getattr(self.instance, "done_date", None))
+        if status == "done" and done is None:
+            raise serializers.ValidationError({"done_date": "Укажите дату выполнения"})
+        _require_finance(attrs)
+        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
+        if status == "done" and km is not None:
+            from . import services
+
+            vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
+            services.check_odometer(vehicle, km, services.day_start(done))
+        return attrs
+
+
+class FuelFillSerializer(serializers.ModelSerializer):
+    vehicle = _VehicleField()
+    expense = _ExpenseField(allow_null=True, required=False)
+    l_per_100km = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FuelFill
+        fields = [
+            "id",
+            "vehicle",
+            "filled_at",
+            "liters",
+            "odometer_km",
+            "full_tank",
+            "fuel_type",
+            "station",
+            "note",
+            "expense",
+            "l_per_100km",
+        ]
+
+    def get_l_per_100km(self, obj):
+        """Расход сегмента, закрытого этой заправкой (считается списком для всей выборки)."""
+        value = self.context.get("consumption", {}).get(obj.pk)
+        return None if value is None else str(value)
+
+    def validate_liters(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Количество литров должно быть больше нуля")
+        return value
+
+    def validate(self, attrs):
+        from . import services
+
+        _require_finance(attrs)
+        km = attrs.get("odometer_km", getattr(self.instance, "odometer_km", None))
+        if km is not None:
+            vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
+            at = attrs.get("filled_at", getattr(self.instance, "filled_at", None))
+            services.check_odometer(vehicle, km, at)
+        return attrs

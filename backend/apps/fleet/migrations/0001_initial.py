@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("core", "0021_drivers_permissions"),
+        ("core", "0001_initial"),  # только Company и User: не тянет поздние миграции core
     ]
 
     operations = [

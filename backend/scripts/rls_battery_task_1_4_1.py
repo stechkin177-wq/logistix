@@ -99,6 +99,9 @@ if STEP == "M6":
         "fleet_vehicle",  # этап 2.2
         "fleet_vehicledocument",
         "fleet_insurance",
+        "fleet_mileagereading",  # этап 2.4
+        "fleet_servicerecord",
+        "fleet_fuelfill",
     }
     ok(
         expected - LATER_TABLES <= present,

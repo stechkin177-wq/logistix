@@ -147,3 +147,151 @@ class Insurance(_Dated):
                 name="insur_kind_valid",
             ),
         ]
+
+
+class MileageReading(TenantModel):
+    """Показание одометра ОДНОЙ единицы техники (тягач и полуприцеп учитываются раздельно).
+
+    Показания не убывают во времени (проверка в сервисе: вставка между соседними показаниями
+    допустима, если значение не нарушает порядок).
+    """
+
+    MANUAL = "manual"
+    FUEL = "fuel"
+    SERVICE = "service"
+    SOURCES = [(MANUAL, "Вручную"), (FUEL, "Заправка"), (SERVICE, "Обслуживание")]
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="mileage")
+    recorded_at = models.DateTimeField()
+    odometer_km = models.PositiveIntegerField()
+    source = models.CharField(max_length=8, choices=SOURCES, default=MANUAL)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["recorded_at", "id"]
+        indexes = [
+            models.Index(fields=["company", "vehicle", "recorded_at"], name="mileage_veh_time_idx")
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(source__in=["manual", "fuel", "service"]), name="mileage_source_valid"
+            ),
+        ]
+
+
+class ServiceRecord(TenantModel):
+    """Обслуживание и ремонт: плановое ТО, выполненные работы, замена расходников.
+
+    Деньги здесь НЕ хранятся: стоимость работ и запчастей учитывается только в Finance G1,
+    запись лишь ссылается на расход (``expense``). Несколько записей могут ссылаться на один
+    расход (например, акт на несколько работ) - сумма живёт в одном месте, двойного учёта нет.
+    """
+
+    MAINTENANCE = "maintenance"
+    REPAIR = "repair"
+    TIRES = "tires"
+    OIL = "oil"
+    FILTERS = "filters"
+    INSPECTION = "inspection"
+    OTHER = "other"
+    KINDS = [
+        (MAINTENANCE, "Плановое ТО"),
+        (REPAIR, "Ремонт"),
+        (TIRES, "Шины"),
+        (OIL, "Масло"),
+        (FILTERS, "Фильтры"),
+        (INSPECTION, "Осмотр"),
+        (OTHER, "Другое"),
+    ]
+    PLANNED = "planned"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    CANCELLED = "cancelled"
+    STATUSES = [
+        (PLANNED, "Запланировано"),
+        (IN_PROGRESS, "В работе"),
+        (DONE, "Выполнено"),
+        (CANCELLED, "Отменено"),
+    ]
+
+    audit_masked_fields = ("description",)
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="services")
+    kind = models.CharField(max_length=16, choices=KINDS, default=MAINTENANCE)
+    status = models.CharField(max_length=16, choices=STATUSES, default=PLANNED)
+    title = models.CharField(max_length=255)
+    planned_date = models.DateField(null=True, blank=True)
+    done_date = models.DateField(null=True, blank=True)
+    odometer_km = models.PositiveIntegerField(null=True, blank=True)
+    description = models.TextField(blank=True)  # выполненные работы, замененные детали
+    # напоминание о следующем таком же обслуживании
+    next_due_date = models.DateField(null=True, blank=True)
+    next_due_km = models.PositiveIntegerField(null=True, blank=True)
+    expense = models.ForeignKey(
+        "finance.Expense", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-id"]
+        indexes = [models.Index(fields=["company", "vehicle", "status"], name="service_veh_st_idx")]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    kind__in=[
+                        "maintenance",
+                        "repair",
+                        "tires",
+                        "oil",
+                        "filters",
+                        "inspection",
+                        "other",
+                    ]
+                ),
+                name="service_kind_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=["planned", "in_progress", "done", "cancelled"]),
+                name="service_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=~Q(status="done") | Q(done_date__isnull=False),
+                name="service_done_has_date",
+            ),
+        ]
+
+
+class FuelFill(TenantModel):
+    """Заправка: литры, дата, пробег. Стоимость - только в Finance G1 (ссылка ``expense``)."""
+
+    DIESEL = "diesel"
+    PETROL = "petrol"
+    GAS = "gas"
+    OTHER = "other"
+    FUELS = [(DIESEL, "Дизель"), (PETROL, "Бензин"), (GAS, "Газ"), (OTHER, "Другое")]
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="fuel_fills")
+    filled_at = models.DateTimeField()
+    liters = models.DecimalField(max_digits=8, decimal_places=2)
+    odometer_km = models.PositiveIntegerField(null=True, blank=True)
+    full_tank = models.BooleanField(default=True)
+    fuel_type = models.CharField(max_length=8, choices=FUELS, default=DIESEL)
+    station = models.CharField(max_length=255, blank=True)
+    note = models.CharField(max_length=255, blank=True)
+    expense = models.ForeignKey(
+        "finance.Expense", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["filled_at", "id"]
+        indexes = [
+            models.Index(fields=["company", "vehicle", "filled_at"], name="fuel_veh_time_idx")
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(liters__gt=0), name="fuel_liters_gt_0"),
+            models.CheckConstraint(
+                condition=Q(fuel_type__in=["diesel", "petrol", "gas", "other"]),
+                name="fuel_type_valid",
+            ),
+        ]
