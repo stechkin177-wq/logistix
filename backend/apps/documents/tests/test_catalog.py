@@ -74,6 +74,7 @@ _PARTY = [
     "contact.email",
 ]
 _CARGO = ["name", "weight_kg", "volume_m3", "pallets"]
+_STOP = ["n", "kind", "kind_name", "city", "address", "date", "date_to"]
 
 _EXPECTED_BLOCKS = {
     "doc": _expand("doc", ["number", "date", "date_long"]),
@@ -86,7 +87,9 @@ _EXPECTED_BLOCKS = {
         + ["currency", "payment_delay_days", "comment", "manager"]
         + [f"consignments[].{x}" for x in _CARGO]
         + [f"consignments[].load.{x}" for x in _POINT]
-        + [f"consignments[].unload.{x}" for x in _POINT],
+        + [f"consignments[].unload.{x}" for x in _POINT]
+        + [f"consignments[].stops[].{x}" for x in _STOP]
+        + [f"stops[].{x}" for x in _STOP],
     ),
     "trip": _expand(
         "trip",
@@ -97,7 +100,9 @@ _EXPECTED_BLOCKS = {
         + ["orders[].number", "orders[].client"]
         + [f"consignments[].{x}" for x in _CARGO + ["order"]]
         + [f"consignments[].load.{x}" for x in _POINT]
-        + [f"consignments[].unload.{x}" for x in _POINT],
+        + [f"consignments[].unload.{x}" for x in _POINT]
+        + [f"consignments[].stops[].{x}" for x in _STOP]
+        + [f"stops[].{x}" for x in _STOP],
     ),
     "invoice": _expand(
         "invoice",

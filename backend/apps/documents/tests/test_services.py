@@ -403,3 +403,122 @@ def test_concurrent_issue_unique_numbers(company):
     assert sorted(numbers) == ["АКТ-2026-00001", "АКТ-2026-00002"]
     with tenant_context(company.id):
         assert Invoice.objects.get(pk=invoice.pk).status == "issued"
+
+
+# --- этап 1.5-B4: остановки маршрута в контексте, прежние ключи сохранены ---
+
+
+def _three_stop_cargo(name="Многоточечный"):
+    def stop(kind, city, hour):
+        return {
+            "kind": kind,
+            "window_from": datetime(2026, 6, 2, hour, 0, tzinfo=dt_tz.utc),
+            "city": city,
+            "street": f"ул. {city}",
+        }
+
+    return _svc_cargo(
+        name=name,
+        weight_kg="100",
+        volume_m3="1",
+        pallets=1,
+        points=None,
+        stops=[
+            stop("load", "Астана", 6),
+            stop("transit", "Караганда", 8),
+            stop("unload", "Алматы", 12),
+        ],
+    )
+
+
+def _multistop_order(company):
+    item = _three_stop_cargo()
+    del item["points"]
+    return make_order(company, make_client(company), consignments=[item])
+
+
+def test_old_template_renders_and_new_stops_keys_exist(company):
+    """Старый пользовательский шаблон (load/unload) рендерится; stops[] доступны для новых."""
+    t = tmpl(company, "order_request")
+    order = _multistop_order(company)
+    with tenant_context(company.id):
+        services.upload_version(
+            t,
+            docx_with_text(
+                "СТАРЫЙ {{ order.consignments[0].load.city }}"
+                "/{{ order.consignments[0].unload.city }}"
+            ),
+            first_user(company),
+        )
+    old = issue(company, "order_request", order=order)
+    assert "СТАРЫЙ Астана/Алматы" in text_of(
+        render(company, old)[0]
+    )  # первая погрузка, последняя выгрузка
+    with tenant_context(company.id):
+        services.upload_version(
+            t,
+            docx_with_text(
+                "{% for s in order.consignments[0].stops %}"
+                "{{ s.n }}:{{ s.kind }}:{{ s.city }};{% endfor %}"
+                " ИТОГО {{ order.stops | length }}"
+            ),
+            first_user(company),
+        )
+    new = issue(company, "order_request", order=order)
+    text = text_of(render(company, new)[0])
+    assert "1:load:Астана;2:transit:Караганда;3:unload:Алматы;" in text and "ИТОГО 3" in text
+    ctx = new.snapshot
+    stop = ctx["order"]["consignments"][0]["stops"][1]
+    assert stop == {
+        "n": "2",
+        "kind": "transit",
+        "kind_name": "Промежуточная остановка",
+        "city": "Караганда",
+        "address": "ул. Караганда",
+        "date": "02.06.2026",
+        "date_to": "",
+    }
+    # прежние ключи не тронуты
+    first = ctx["order"]["consignments"][0]
+    assert first["load"]["city"] == "Астана" and first["unload"]["city"] == "Алматы"
+
+
+def test_trip_context_has_stops_and_old_keys(company):
+    from apps.documents.context import build_context
+    from apps.forwarding.models import Consignment
+
+    order = _multistop_order(company)
+    with tenant_context(company.id):
+        ids = list(Consignment.objects.filter(order=order).values_list("pk", flat=True))
+    trip = svc_create(company, ids, make_carrier(company, "П"))
+    with tenant_context(company.id):
+        ctx = build_context(
+            "carrier_order", trip=trip, number="ЗП-1", issue_date=NOW.date(), language="kk"
+        )["trip"]
+    assert [s["city"] for s in ctx["stops"]] == ["Астана", "Караганда", "Алматы"]
+    assert ctx["stops"][0]["kind_name"] == "Тиеу" and ctx["stops"][2]["kind_name"] == "Түсіру"
+    assert ctx["loading"]["city"] == "Астана" and ctx["delivery"]["city"] == "Алматы"
+    assert [s["n"] for s in ctx["consignments"][0]["stops"]] == ["1", "2", "3"]
+    assert ctx["consignments"][0]["load"]["city"] == "Астана"
+
+
+def test_issued_snapshot_does_not_change_when_route_changes(company):
+    from apps.forwarding.consignments import services as stop_services
+    from apps.forwarding.models import Consignment
+
+    t = tmpl(company, "order_request")
+    order = _multistop_order(company)
+    with tenant_context(company.id):
+        services.upload_version(
+            t,
+            docx_with_text("{% for s in order.stops %}{{ s.city }};{% endfor %}"),
+            first_user(company),
+        )
+    doc = issue(company, "order_request", order=order)
+    before = text_of(render(company, doc)[0])
+    assert "Астана;Караганда;Алматы;" in before
+    with tenant_context(company.id):
+        cons = Consignment.objects.get(order=order)
+        mid = stop_services.stops_of(cons)[1]
+        stop_services.remove_stop(mid)
+    assert text_of(render(company, doc)[0]) == before

@@ -132,17 +132,59 @@ def _point(point) -> dict:
     }
 
 
+_KIND_NAMES = {
+    "load": ("Погрузка", "Тиеу"),
+    "unload": ("Выгрузка", "Түсіру"),
+    "transit": ("Промежуточная остановка", "Аралық аялдама"),
+    "transfer": ("Передача / перегрузка", "Тапсыру / қайта тиеу"),
+    "customs": ("Граница / таможня", "Шекара / кеден"),
+}
+
+
+def _ordered_stops(consignment) -> list:
+    return sorted(consignment.points.all(), key=lambda p: (p.seq, p.pk))
+
+
 def _points_of(consignment) -> tuple:
-    load = unload = None
-    for p in consignment.points.all():
-        if p.kind == "load":
-            load = p
-        elif p.kind == "unload":
-            unload = p
+    """Первая погрузка и последняя выгрузка маршрута (прежние ключи load/unload)."""
+    stops = _ordered_stops(consignment)
+    load = next((p for p in stops if p.kind == "load"), None)
+    unload = next((p for p in reversed(stops) if p.kind == "unload"), None)
     return load, unload
 
 
-def _consignment(consignment) -> dict:
+def _stop(point, number: int, language: str) -> dict:
+    names = _KIND_NAMES.get(point.kind, (point.kind, point.kind))
+    return {
+        "n": str(number),
+        "kind": point.kind,
+        "kind_name": names[1] if language == "kk" else names[0],
+        "city": point.city,
+        "address": point.street,
+        "date": _date(point.window_from),
+        "date_to": _date(point.window_to),
+    }
+
+
+def _stops(consignment, language: str) -> list[dict]:
+    return [_stop(p, n, language) for n, p in enumerate(_ordered_stops(consignment), start=1)]
+
+
+def _merged_stops(consignments, language: str) -> list[dict]:
+    """Маршрут нескольких грузов одним списком: одинаковые остановки (вид, город, адрес,
+    начало окна) показываются один раз, порядок - по началу окна, затем по порядку в грузе."""
+    seen, merged = set(), []
+    for c in consignments:
+        for p in _ordered_stops(c):
+            key = (p.kind, p.city, p.street, p.window_from)
+            if key not in seen:
+                seen.add(key)
+                merged.append(p)
+    merged.sort(key=lambda p: (p.window_from, p.seq, p.pk))
+    return [_stop(p, n, language) for n, p in enumerate(merged, start=1)]
+
+
+def _consignment(consignment, language: str = "ru") -> dict:
     load, unload = _points_of(consignment)
     return {
         "name": consignment.name,
@@ -151,6 +193,7 @@ def _consignment(consignment) -> dict:
         "pallets": _str(consignment.pallets),
         "load": _point(load),
         "unload": _point(unload),
+        "stops": _stops(consignment, language),
     }
 
 
@@ -168,9 +211,10 @@ def _order(order, language: str) -> dict:
             "comment": "",
             "manager": "",
             "consignments": [],
+            "stops": [],
         }
     currency = _code(order.currency)
-    consignments = order.consignments.prefetch_related("points").order_by("id")
+    consignments = list(order.consignments.prefetch_related("points").order_by("id"))
     return {
         "number": order.number,
         "date": _date(order.created_at),
@@ -182,7 +226,8 @@ def _order(order, language: str) -> dict:
         "payment_delay_days": _str(order.payment_delay_days),
         "comment": order.comment,
         "manager": order.manager.full_name or "" if order.manager_id else "",
-        "consignments": [_consignment(c) for c in consignments],
+        "consignments": [_consignment(c, language) for c in consignments],
+        "stops": _merged_stops(consignments, language),
     }
 
 
@@ -204,7 +249,7 @@ def _trip(trip, language: str) -> dict:
             loads.append(load)
         if unload is not None:
             unloads.append(unload)
-        items.append({**_consignment(c), "order": c.order.number})
+        items.append({**_consignment(c, language), "order": c.order.number})
     loading = min(loads, key=lambda p: p.window_from, default=None)
     delivery = max(unloads, key=lambda p: p.window_from, default=None)
     return {
@@ -221,6 +266,7 @@ def _trip(trip, language: str) -> dict:
         "delivery": _point(delivery),
         "orders": list(orders.values()),
         "consignments": items,
+        "stops": _merged_stops(consignments, language),
     }
 
 
@@ -300,6 +346,7 @@ def build_context(
                 "delivery": _point(None),
                 "orders": [],
                 "consignments": [],
+                "stops": [],
             }
         )
     if "invoice" in blocks:

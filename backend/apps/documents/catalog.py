@@ -86,6 +86,33 @@ def _point(prefix: str, label: str) -> list[tuple]:
     ]
 
 
+def _stop(prefix: str, label: str) -> list[tuple]:
+    """Остановка маршрута: порядок, вид, город, адрес, окно (с и по)."""
+    return [
+        (f"{prefix}[].n", f"Порядковый номер остановки: {label}", lambda lang, i: str(i + 1)),
+        (
+            f"{prefix}[].kind",
+            f"Вид остановки (load, unload, transit, transfer, customs): {label}",
+            lambda lang, i: ("load", "unload")[i % 2],
+        ),
+        (
+            f"{prefix}[].kind_name",
+            f"Вид остановки словами: {label}",
+            lambda lang, i: (("Тиеу", "Түсіру") if lang == "kk" else ("Погрузка", "Выгрузка"))[
+                i % 2
+            ],
+        ),
+        (f"{prefix}[].city", f"Город остановки: {label}", _s("Алматы", "Алматы")),
+        (
+            f"{prefix}[].address",
+            f"Адрес остановки: {label}",
+            _s("ул. Складская, 5", "Қоймалық к., 5"),
+        ),
+        (f"{prefix}[].date", f"Начало окна остановки: {label}", _date(1)),
+        (f"{prefix}[].date_to", f"Конец окна остановки: {label}", _date(2)),
+    ]
+
+
 def _cargo(prefix: str) -> list[tuple]:
     return [
         (f"{prefix}[].name", "Наименование груза", _s("Продукты питания", "Азық-түлік")),
@@ -133,6 +160,8 @@ def _build_blocks() -> dict[str, list[tuple]]:
             *_cargo("order.consignments"),
             *_point("order.consignments[].load", "погрузка"),
             *_point("order.consignments[].unload", "выгрузка"),
+            *_stop("order.consignments[].stops", "маршрут груза"),
+            *_stop("order.stops", "маршрут заказа"),
         ],
         "trip": [
             ("trip.number", "Номер рейса", _const("Р-2026-0017")),
@@ -163,6 +192,8 @@ def _build_blocks() -> dict[str, list[tuple]]:
             ("trip.consignments[].order", "Номер заказа грузового места", _const("З-2026-0042")),
             *_point("trip.consignments[].load", "погрузка"),
             *_point("trip.consignments[].unload", "выгрузка"),
+            *_stop("trip.consignments[].stops", "маршрут груза"),
+            *_stop("trip.stops", "маршрут рейса"),
         ],
         "invoice": [
             ("invoice.number", "Номер счёта", _const("СЧ-2026-0100")),

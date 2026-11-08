@@ -863,8 +863,20 @@ def _full_template(kind):
             paragraphs.append("{{ " + name + " }}")
     rows = []
     for prefix, fields in loops.items():
+        # вложенный список (stops[] внутри consignments[]) - вложенным циклом по строкам
+        flat = [f for f in fields if "[]." not in f]
+        nested: dict[str, list[str]] = {}
+        for f in fields:
+            if "[]." in f:
+                inner, leaf = f.split("[].", 1)
+                nested.setdefault(inner, []).append(leaf)
         rows.append(["{%tr for it in " + prefix + " %}"])
-        rows.append([" ".join("{{ it." + f + " }}" for f in fields)])
+        if flat:
+            rows.append([" ".join("{{ it." + f + " }}" for f in flat)])
+        for inner, leaves in nested.items():
+            rows.append(["{%tr for st in it." + inner + " %}"])
+            rows.append([" ".join("{{ st." + leaf + " }}" for leaf in leaves)])
+            rows.append(["{%tr endfor %}"])
         rows.append(["{%tr endfor %}"])
     return make_docx(paragraphs, table_rows=rows or None)
 
