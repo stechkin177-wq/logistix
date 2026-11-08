@@ -107,3 +107,20 @@ def test_session_modules_are_effective_list_and_format_unchanged(make_company):
         "subscription",
     }
     assert set(enabled_module_codes(company.id)) >= {"forwarding", "fleet", "finance", "documents"}
+
+
+def test_carrier_without_forwarding_works_with_orders_trips_finance_documents(make_company):
+    """Перевозчик (logistics + finance + documents) работает без forwarding; перевозчики закрыты."""
+    company, _, api = make_company("OwnFleet", modules=["logistics", "fleet"])
+    assert set(enabled_module_codes(company.id)) == {"logistics", "fleet", "finance", "documents"}
+    for path in (
+        "/api/clients/",
+        "/api/orders/",
+        "/api/consignments/",
+        "/api/trips/",
+        "/api/finance/invoices/",
+        "/api/documents/issued/",
+    ):
+        assert api.get(path).status_code == 200, path
+    blocked = api.get("/api/carriers/")
+    assert blocked.status_code == 403 and blocked.json()["code"] == "module_disabled"
