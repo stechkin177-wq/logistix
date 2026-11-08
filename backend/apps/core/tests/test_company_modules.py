@@ -70,6 +70,7 @@ def test_with_default_companions_order():
     assert with_default_companions(["forwarding", "fleet"]) == [
         "forwarding",
         "fleet",
+        "logistics",
         "finance",
         "documents",
     ]

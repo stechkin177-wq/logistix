@@ -60,14 +60,14 @@ def test_enable_requires_catalog_non_core_and_plan(make_company, wide_plan):
 def test_enable_requires_dependencies_enabled(make_company, wide_plan):
     company, admin, _ = make_company("E2", modules=["fleet"])
     with pytest.raises(ModuleConfigError) as e:
-        enable_module(company, "finance", admin)  # finance требует forwarding
-    assert code_of(e) == "module_requires" and e.value.detail["modules"] == ["forwarding"]
+        enable_module(company, "finance", admin)  # finance требует logistics
+    assert code_of(e) == "module_requires" and e.value.detail["modules"] == ["logistics"]
     with pytest.raises(ModuleConfigError) as e:
         enable_module(company, "ocr", admin)  # ocr требует documents
     assert code_of(e) == "module_requires" and e.value.detail["modules"] == ["documents"]
-    enable_module(company, "forwarding", admin, "старт")
-    enable_module(company, "finance", admin, "учёт")
-    assert state(company) == {"fleet", "forwarding", "finance"}
+    enable_module(company, "logistics", admin, "старт")
+    enable_module(company, "finance", admin, "учёт")  # без экспедирования
+    assert state(company) == {"fleet", "logistics", "finance"}
 
 
 def test_documents_do_not_require_forwarding(make_company, wide_plan):
@@ -132,7 +132,7 @@ def test_cascade_is_transitive(make_company, wide_plan):
 def test_documents_can_be_disabled_with_forwarding_on(make_company, wide_plan):
     company, admin, _ = make_company("D4", modules=["forwarding"])
     disable_module(company, "documents", admin, "не нужны")
-    assert state(company) == {"forwarding", "finance"}
+    assert state(company) == {"logistics", "forwarding", "finance"}
 
 
 def test_ocr_blocks_documents_disable(make_company, wide_plan):

@@ -42,7 +42,7 @@ class _BuiltinProvider(DocumentProvider):
 
 
 class ForwardingDocumentProvider(_BuiltinProvider):
-    module_code = "forwarding"
+    module_code = "logistics"
     table = FORWARDING_KINDS
 
 
@@ -52,7 +52,7 @@ class FinanceDocumentProvider(_BuiltinProvider):
 
 
 def module_of_kind(kind: str) -> str:
-    return "finance" if kind in FINANCE_KINDS else "forwarding"
+    return "finance" if kind in FINANCE_KINDS else "logistics"
 
 
 def subject_of(kind: str, links: dict) -> tuple[str, int] | None:

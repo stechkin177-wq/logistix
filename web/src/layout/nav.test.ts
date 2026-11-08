@@ -3,7 +3,7 @@ import { ALL_PERMISSIONS } from '../test/permissions'
 import { NAV, flattenNav, visibleNav, type NavItem } from './nav'
 
 const keys = (items: NavItem[]) => flattenNav(items).map((i) => i.key)
-const ALL_MODULES = ['forwarding', 'finance', 'documents']
+const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents']
 const admin = { permissions: ALL_PERMISSIONS, modules: ALL_MODULES }
 
 describe('visibleNav', () => {
@@ -21,12 +21,12 @@ describe('visibleNav', () => {
   })
 
   it('финансы и настройки финансов зависят от модуля finance, документы и шаблоны - от documents', () => {
-    const noFinance = keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['forwarding', 'documents'] }))
+    const noFinance = keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['logistics', 'forwarding', 'documents'] }))
     expect(noFinance).not.toContain('finance')
     expect(noFinance).not.toContain('financesettings')
     expect(noFinance).toContain('documents')
     expect(noFinance).toContain('doctemplates')
-    const noDocs = keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['forwarding', 'finance'] }))
+    const noDocs = keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['logistics', 'forwarding', 'finance'] }))
     expect(noDocs).not.toContain('documents')
     expect(noDocs).not.toContain('doctemplates')
     expect(noDocs).toContain('finance')

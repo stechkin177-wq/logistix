@@ -27,10 +27,10 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "change_status":
-            return [ModuleRequired("forwarding")(), permission_required("orders.update")()]
+            return [ModuleRequired("logistics")(), permission_required("orders.update")()]
         if self.action in ("board", "export"):  # читают то же, что и список
-            return [ModuleRequired("forwarding")(), permission_required("orders.view")()]
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+            return [ModuleRequired("logistics")(), permission_required("orders.view")()]
+        return [ModuleRequired("logistics")(), *super().get_permissions()]
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

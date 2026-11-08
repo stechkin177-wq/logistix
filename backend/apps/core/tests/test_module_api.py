@@ -80,7 +80,9 @@ def test_list_shape_and_states(make_company, wide_plan):
 
 def test_list_reports_plan_availability(make_company):
     company, _, api = make_company("Plan", modules=["forwarding"])
-    Plan.objects.filter(code="start").update(modules=["forwarding", "finance", "documents"])
+    Plan.objects.filter(code="start").update(
+        modules=["logistics", "forwarding", "finance", "documents"]
+    )
     modules = by_code(api.get(URL))
     assert modules["fleet"]["available_in_plan"] is False
     assert modules["fleet"]["blocker"]["code"] == "module_not_in_plan"
@@ -118,7 +120,9 @@ def test_error_texts_in_russian_with_codes(make_company, wide_plan):
     assert r.status_code == 400 and r.json()["code"] == "module_core"
     r = api.post(f"{URL}bogus/enable/", {}, format="json")
     assert r.status_code == 400 and r.json()["code"] == "module_unknown"
-    Plan.objects.filter(code="start").update(modules=["forwarding", "finance", "documents"])
+    Plan.objects.filter(code="start").update(
+        modules=["logistics", "forwarding", "finance", "documents"]
+    )
     r = api.post(f"{URL}fleet/enable/", {}, format="json")
     assert r.status_code == 409 and r.json()["code"] == "module_not_in_plan"
     assert "тарифе" in r.json()["detail"]
@@ -164,9 +168,16 @@ def test_activity_profiles_list(make_company, wide_plan):
     data = api.get("/api/activity-profiles/").json()
     names = {p["name"]: p for p in data}
     assert set(names) == {"Экспедитор", "Перевозчик", "Экспедитор и перевозчик"}
-    assert names["Перевозчик"]["modules"] == ["forwarding", "fleet", "drivers", "documents"]
-    assert names["Экспедитор"]["already_enabled"] == ["forwarding", "finance", "documents"]
-    Plan.objects.filter(code="start").update(modules=["forwarding", "finance", "documents"])
+    assert names["Перевозчик"]["modules"] == ["logistics", "finance", "fleet", "drivers", "documents"]
+    assert names["Экспедитор"]["already_enabled"] == [
+        "logistics",
+        "forwarding",
+        "finance",
+        "documents",
+    ]
+    Plan.objects.filter(code="start").update(
+        modules=["logistics", "forwarding", "finance", "documents"]
+    )
     data = {p["name"]: p for p in api.get("/api/activity-profiles/").json()}
     assert data["Перевозчик"]["unavailable_modules"] == ["fleet", "drivers"]
 
@@ -176,20 +187,33 @@ def test_apply_profile_enables_missing_and_keeps_others(make_company, wide_plan)
     r = api.post(f"{URL}apply-profile/", {"profile": "forwarder"}, format="json")
     assert r.status_code == 200
     result = r.json()["result"]
-    assert result["enabled"] == ["forwarding", "finance", "documents"]
+    assert result["enabled"] == ["logistics", "forwarding", "finance", "documents"]
     assert result["disabled"] == [] and result["skipped"] == []
-    assert set(enabled_module_codes(company.id)) == {"fleet", "forwarding", "finance", "documents"}
+    assert set(enabled_module_codes(company.id)) == {
+        "fleet",
+        "logistics",
+        "forwarding",
+        "finance",
+        "documents",
+    }
 
 
 def test_apply_profile_skips_unavailable_by_plan_and_reports(make_company):
     company, _, api = make_company("Skip", modules=["forwarding"])
-    Plan.objects.filter(code="start").update(modules=["forwarding", "finance", "documents"])
+    Plan.objects.filter(code="start").update(
+        modules=["logistics", "forwarding", "finance", "documents"]
+    )
     r = api.post(f"{URL}apply-profile/", {"profile": "carrier"}, format="json")
     assert r.status_code == 200
     skipped = {s["code"]: s for s in r.json()["result"]["skipped"]}
     assert set(skipped) == {"fleet", "drivers"}
     assert all(s["error_code"] == "module_not_in_plan" for s in skipped.values())
-    assert set(enabled_module_codes(company.id)) == {"forwarding", "finance", "documents"}
+    assert set(enabled_module_codes(company.id)) == {
+        "logistics",
+        "forwarding",
+        "finance",
+        "documents",
+    }
 
 
 def test_apply_profile_without_replace_does_not_disable(make_company, wide_plan):
@@ -204,17 +228,24 @@ def test_apply_profile_replace_disables_the_rest(make_company, wide_plan):
     r = api.post(f"{URL}apply-profile/", {"profile": "forwarder", "replace": True}, format="json")
     assert r.status_code == 200
     assert r.json()["result"]["disabled"] == ["fleet"]
-    assert set(enabled_module_codes(company.id)) == {"forwarding", "finance", "documents"}
+    assert set(enabled_module_codes(company.id)) == {
+        "logistics",
+        "forwarding",
+        "finance",
+        "documents",
+    }
     company.refresh_from_db()
     assert company.modules == enabled_module_codes(company.id)
 
 
-def test_apply_profile_replace_is_atomic_when_protected(make_company, wide_plan):
+def test_apply_profile_replace_is_atomic_when_protected(make_company, wide_plan, monkeypatch):
+    from apps.core import module_services
+
     company, _, api = make_company("RepProt", modules=["forwarding", "fleet"])
-    CompanyFinancialSettings.all_objects.filter(company=company).update(engine="shadow")
+    # профиль «Перевозчик» не содержит forwarding; защита его отключения откатывает всё
+    monkeypatch.setitem(module_services._DISABLE_GUARDS, "forwarding", [lambda c: "защита"])
     before = set(enabled_module_codes(company.id))
     r = api.post(f"{URL}apply-profile/", {"profile": "carrier", "replace": True}, format="json")
-    # профиль «Перевозчик» не содержит finance, а он защищён: откат всех изменений
     assert r.status_code == 409 and r.json()["code"] == "module_protected"
     assert set(enabled_module_codes(company.id)) == before
 

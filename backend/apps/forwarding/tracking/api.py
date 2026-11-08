@@ -103,7 +103,7 @@ class TransferViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = StandardPagination
 
     def get_permissions(self):
-        base = ModuleRequired("forwarding")()
+        base = ModuleRequired("logistics")()
         if self.action in ("confirm", "reverse"):
             return [base, permission_required(TRANSFER_PERMISSION)()]
         return [base, permission_required("consignments.view")()]

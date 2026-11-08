@@ -27,7 +27,7 @@ describe('Sidebar', () => {
     expect(within(nav).queryByText('Пользователи')).not.toBeInTheDocument()
   })
 
-  it('без модуля forwarding прячет клиентов и заказы', async () => {
+  it('без модуля logistics прячет клиентов и заказы', async () => {
     setTokens({ access: 'a', refresh: 'r' })
     mockFetch(base(makeSession({ modules: ['fleet', 'finance'] })))
     renderApp('/')

@@ -22,10 +22,10 @@ class ConsignmentViewSet(
     def get_permissions(self):
         if self.action in ("events", "transfers"):
             return [
-                ModuleRequired("forwarding")(),
+                ModuleRequired("logistics")(),
                 *consignment_permissions(self.request, self.action),
             ]
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+        return [ModuleRequired("logistics")(), *super().get_permissions()]
 
     def get_queryset(self):
         qs = (

@@ -15,18 +15,18 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { key: 'dashboard', labelKey: 'nav.dashboard', path: '/', permission: 'orders.view' },
-  { key: 'clients', labelKey: 'nav.clients', path: '/clients', permission: 'clients.view', module: 'forwarding' },
+  { key: 'clients', labelKey: 'nav.clients', path: '/clients', permission: 'clients.view', module: 'logistics' },
   { key: 'carriers', labelKey: 'nav.carriers', path: '/carriers', permission: 'carriers.view', module: 'forwarding' },
   {
     key: 'orders',
     labelKey: 'nav.orders',
     path: '/orders',
     permission: 'orders.view',
-    module: 'forwarding',
+    module: 'logistics',
     children: [
-      { key: 'consignments', labelKey: 'nav.consignments', path: '/consignments', permission: 'consignments.view', module: 'forwarding' },
-      { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'forwarding' },
-      { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'forwarding' },
+      { key: 'consignments', labelKey: 'nav.consignments', path: '/consignments', permission: 'consignments.view', module: 'logistics' },
+      { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'logistics' },
+      { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'logistics' },
     ],
   },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },

@@ -11,7 +11,7 @@ pytestmark = pytest.mark.django_db
 def test_catalog_seeded_exactly_as_registry():
     rows = {m.code: m for m in Module.objects.all()}
     assert set(rows) == set(registry.module_codes())
-    assert len(rows) == 11
+    assert len(rows) == 12
     for spec in registry.MODULES:
         row = rows[spec["code"]]
         assert row.requires == spec["requires"], spec["code"]
@@ -29,11 +29,12 @@ def test_requirements_follow_addendum_table():
     by = {m.code: m for m in Module.objects.all()}
     assert by["documents"].requires == ["core"]  # документы НЕ требуют forwarding
     assert "forwarding" not in by["documents"].requires
-    assert by["forwarding"].requires == ["core"]
-    assert set(by["finance"].requires) == {"core", "forwarding"}
+    assert by["logistics"].requires == ["core"]
+    assert set(by["forwarding"].requires) == {"core", "logistics"}
+    assert set(by["finance"].requires) == {"core", "logistics"}  # без экспедирования
     assert by["fleet"].requires == ["core"]
     assert by["drivers"].requires == ["core"]  # drivers не требует fleet
-    assert set(by["driver_app"].requires) == {"drivers", "forwarding"}
+    assert set(by["driver_app"].requires) == {"drivers", "logistics"}
     assert by["gps"].requires == ["fleet"]
     assert by["ocr"].requires == ["documents"]
     assert by["notifications"].requires == ["core"]

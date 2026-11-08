@@ -76,8 +76,8 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in UPDATE_ACTIONS:
-            return [ModuleRequired("forwarding")(), permission_required("trips.update")()]
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+            return [ModuleRequired("logistics")(), permission_required("trips.update")()]
+        return [ModuleRequired("logistics")(), *super().get_permissions()]
 
     def get_queryset(self):
         qs = Trip.objects.select_related("carrier", "status").prefetch_related(

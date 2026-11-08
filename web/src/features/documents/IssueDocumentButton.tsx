@@ -8,13 +8,13 @@ import { useIssueDocument } from './hooks'
 import { IssuedDialog } from './IssuedDialog'
 import type { DocumentKind, IssuedDocument, IssueSource } from './types'
 
-/** Модуль-владелец вида документа: акт и счёт на оплату принадлежат finance, остальные виды - forwarding. */
+/** Модуль-владелец вида документа: акт и счёт на оплату принадлежат finance, остальные виды - logistics. */
 const KIND_MODULE: Record<DocumentKind, string> = {
-  contract: 'forwarding',
-  order_request: 'forwarding',
-  carrier_order: 'forwarding',
-  cmr: 'forwarding',
-  letter: 'forwarding',
+  contract: 'logistics',
+  order_request: 'logistics',
+  carrier_order: 'logistics',
+  cmr: 'logistics',
+  letter: 'logistics',
   act: 'finance',
   invoice_print: 'finance',
 }
@@ -27,7 +27,7 @@ interface Props extends Pick<ButtonProps, 'variant'> {
   label: string
 }
 
-/** Кнопка «выдать документ»: POST issued/, затем диалог со скачиванием. Скрыта без модуля documents или модуля-владельца вида (forwarding/finance), отключена без documents.create. */
+/** Кнопка «выдать документ»: POST issued/, затем диалог со скачиванием. Скрыта без модуля documents или модуля-владельца вида (logistics/finance), отключена без documents.create. */
 export function IssueDocumentButton({ kind, source, label, variant }: Props) {
   const { t } = useTranslation()
   const { hasModule } = useSession()

@@ -20,15 +20,15 @@ from .tenancy import tenant_context
 
 # Модули, которые можно включать компании: не-core модули каталога.
 VALID_MODULES = module_catalog.non_core_codes()
-# При создании компании с forwarding вместе с ним включаются finance и documents (они были частью
-# forwarding до разделения модулей; поведение компаний не меняется).
-FORWARDING_COMPANIONS = ("finance", "documents")
+# При создании компании с forwarding вместе с ним включаются logistics (общий слой), finance и
+# documents (они были частью forwarding до разделения модулей; поведение компаний не меняется).
+FORWARDING_COMPANIONS = ("logistics", "finance", "documents")
 
 
 def with_default_companions(codes: list[str]) -> list[str]:
     """Набор для новой компании: forwarding тянет finance и documents (порядок сохраняется)."""
     result = list(dict.fromkeys(codes))
-    if "forwarding" in result:
+    if "forwarding" in result or "logistics" in result:
         result += [c for c in FORWARDING_COMPANIONS if c not in result]
     return result
 

@@ -125,7 +125,7 @@ def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
 
 class DashboardSummaryView(APIView):
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), permission_required("orders.view")()]
+        return [ModuleRequired("logistics")(), permission_required("orders.view")()]
 
     def get(self, request):
         membership = request.membership

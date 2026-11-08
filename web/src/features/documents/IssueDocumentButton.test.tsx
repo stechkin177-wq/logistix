@@ -72,7 +72,7 @@ describe('Выдача документов: заказ', () => {
     expect(await screen.findByRole('button', { name: 'Заявка клиента' })).toBeDisabled()
   })
 
-  it('без модуля forwarding кнопка скрыта, с модулем показана', async () => {
+  it('без модуля logistics кнопка скрыта, с модулем показана', async () => {
     loggedIn([], { session: { modules: [] } })
     const first = renderWithProviders(<IssueDocumentButton kind="order_request" source={{ order: 5 }} label="Заявка клиента" />)
     await waitFor(() => { expect(screen.queryByRole('button')).not.toBeInTheDocument() })
@@ -85,7 +85,7 @@ describe('Выдача документов: заказ', () => {
     expect(await screen.findByRole('button', { name: 'Заявка клиента' })).toBeInTheDocument()
   })
 
-  it('требует модуль documents и модуль-владелец вида: акт - finance, заявка - forwarding', async () => {
+  it('требует модуль documents и модуль-владелец вида: акт - finance, заявка - logistics', async () => {
     const hidden = async (modules: string[], kind: 'act' | 'order_request') => {
       loggedIn([], { session: { modules } })
       const view = renderWithProviders(<IssueDocumentButton kind={kind} source={{ order: 5 }} label="Док" />)
@@ -95,9 +95,9 @@ describe('Выдача документов: заказ', () => {
       vi.unstubAllGlobals()
       return absent
     }
-    expect(await hidden(['forwarding', 'finance'], 'order_request')).toBe(true) // нет documents
-    expect(await hidden(['documents', 'finance'], 'order_request')).toBe(true) // нет forwarding
-    expect(await hidden(['documents', 'forwarding'], 'act')).toBe(true) // нет finance
+    expect(await hidden(['logistics', 'finance'], 'order_request')).toBe(true) // нет documents
+    expect(await hidden(['documents', 'finance'], 'order_request')).toBe(true) // нет logistics
+    expect(await hidden(['documents', 'logistics'], 'act')).toBe(true) // нет finance
     loggedIn([], { session: { modules: ['documents', 'finance'] } })
     renderWithProviders(<IssueDocumentButton kind="act" source={{ invoice: 5 }} label="Док" />)
     expect(await screen.findByRole('button', { name: 'Док' })).toBeInTheDocument()

@@ -209,8 +209,10 @@ class PartyViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     ordering_fields: tuple
     pagination_class = StandardPagination
 
+    required_module = "logistics"  # общий слой; справочник перевозчиков - модуль forwarding
+
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+        return [ModuleRequired(self.required_module)(), *super().get_permissions()]
 
     def get_queryset(self):
         qs = self.model.objects.select_related("type").prefetch_related("contacts")
@@ -255,6 +257,7 @@ class ClientViewSet(PartyViewSet):
 
 
 class CarrierViewSet(PartyViewSet):
+    required_module = "forwarding"  # сторонние перевозчики - экспедиторское направление
     permission_section = "carriers"
     serializer_class = CarrierSerializer
     model = Carrier

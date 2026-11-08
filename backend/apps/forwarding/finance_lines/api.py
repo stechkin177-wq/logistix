@@ -29,7 +29,7 @@ class OrderServiceViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVi
     pagination_class = StandardPagination
 
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+        return [ModuleRequired("logistics")(), *super().get_permissions()]
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)

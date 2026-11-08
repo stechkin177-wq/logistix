@@ -1,4 +1,4 @@
-export type Module = 'forwarding' | 'fleet'
+export type Module = 'logistics' | 'forwarding' | 'fleet'
 export type SubscriptionState = 'trial' | 'active' | 'grace' | 'readonly' | 'blocked'
 export type Theme = 'light' | 'dark' | 'system'
 
