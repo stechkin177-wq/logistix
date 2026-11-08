@@ -1,6 +1,7 @@
 """Назначение техники и водителя на рейс (подзадача 2.3)."""
 
 import pytest
+from django.db import connection
 
 from apps.core.module_services import set_company_modules
 from apps.core.tenancy import tenant_context
@@ -178,8 +179,6 @@ def test_patching_resource_of_trip_in_work_checks_busy(co):
 def test_concurrent_starts_with_shared_resource_only_one_wins(make_company):
     import threading
 
-    from django.db import connection
-
     from apps.core.models import User
     from apps.forwarding.trips.resources import ResourceBusy
     from apps.forwarding.trips.services import change_trip_status
@@ -200,10 +199,16 @@ def test_concurrent_starts_with_shared_resource_only_one_wins(make_company):
     outcomes = []
     barrier = threading.Barrier(2)
 
+    backend_pids = []
+
     def worker(trip):
         try:
             with tenant_context(company.id):
                 status = hv(company, "trip_status", code="IN_PROGRESS")
+                assert connection.vendor == "postgresql"  # блокировки проверяются именно на PG
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_backend_pid()")
+                    backend_pids.append(cursor.fetchone()[0])
                 barrier.wait(timeout=10)
                 change_trip_status(trip, status, User.objects.get(pk=admin.pk))
             outcomes.append("ok")
@@ -220,3 +225,34 @@ def test_concurrent_starts_with_shared_resource_only_one_wins(make_company):
     for t in threads:
         t.join()
     assert sorted(outcomes) == ["busy", "ok"], outcomes
+    assert len(set(backend_pids)) == 2  # два независимых подключения к БД и две транзакции
+
+
+def test_own_resources_are_not_busy_when_moving_in_progress_to_unloading(co):
+    company, _, api = co
+    _, ids = make_cargos(company)
+    v, t, d = vehicle(company), vehicle(company, "T1", kind="trailer"), driver(company)
+    trip = new_trip(api, ids, vehicle=v.pk, trailer=t.pk, driver=d.pk)
+    assert set_status(api, company, trip["id"], "IN_PROGRESS").status_code == 200
+    assert set_status(api, company, trip["id"], "UNLOADING").status_code == 200  # свой ресурс
+    assert set_status(api, company, trip["id"], "IN_PROGRESS").status_code == 200  # и обратно
+    assert api.patch(trip_url(trip["id"]), {"notes": "x"}, format="json").status_code in (200, 400)
+
+
+def test_resources_released_by_cancel_and_completion(co):
+    company, _, api = co
+    v, d = vehicle(company), driver(company)
+    trips = []
+    for _ in range(3):
+        _, ids = make_cargos(company)
+        trips.append(new_trip(api, ids, vehicle=v.pk, driver=d.pk))
+    a, b, c = trips
+    assert set_status(api, company, a["id"], "IN_PROGRESS").status_code == 200
+    assert set_status(api, company, b["id"], "IN_PROGRESS").status_code == 409
+    assert set_status(api, company, a["id"], "CANCELLED").status_code == 200  # отмена освободила
+    assert set_status(api, company, b["id"], "IN_PROGRESS").status_code == 200
+    assert set_status(api, company, c["id"], "UNLOADING").status_code == 409
+    assert set_status(api, company, b["id"], "COMPLETED").status_code == 200  # освободило
+    assert set_status(api, company, c["id"], "UNLOADING").status_code == 200
+    # отменённый рейс вернуть в работу нельзя, пока ресурсы заняты третьим
+    assert set_status(api, company, a["id"], "IN_PROGRESS").status_code == 409

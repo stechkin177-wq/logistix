@@ -12,3 +12,9 @@ class DriversConfig(AppConfig):
         from .models import Driver
 
         trash.register(Driver, "drivers", "drivers.view")
+
+        from apps.documents.providers import register_provider
+
+        from .documents import DRIVERS_PROVIDER
+
+        register_provider(DRIVERS_PROVIDER)  # документы водителя - через общую систему documents

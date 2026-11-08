@@ -72,25 +72,28 @@ def latest_odometer(vehicle_id: int) -> int | None:
 
 
 def fuel_stats(vehicle: Vehicle) -> dict:
-    """Расход на 100 км по заправкам «до полного бака».
+    """Расход на 100 км между полными заправками.
 
-    Сегмент - от одной полной заправки до следующей полной: литры всех заправок сегмента
-    (после предыдущей полной, включая текущую) делятся на пройденные километры. Заправки без
-    пробега в расчёт не входят (перечислены в ``skipped``). Среднее - по сумме сегментов.
+    Точки отсчёта (якоря) - только ПОЛНЫЕ заправки С пробегом: по ним определяется пройденное
+    расстояние. Литры ВСЕХ заправок между двумя соседними якорями (после первого, включая второй)
+    суммируются, даже если у части из них нет пробега или бак не полный: топливо потрачено, а
+    расстояние известно по якорям. Заправки до первого якоря не учитываются (неизвестен уровень
+    топлива в начале). Заправки без пробега не могут быть якорем и перечислены в ``no_odometer``.
+    Сегмент с нулевым или отрицательным расстоянием отбрасывается. Среднее - по сумме сегментов.
     """
     fills = list(FuelFill.objects.filter(vehicle=vehicle).order_by("filled_at", "id"))
-    skipped = [f.pk for f in fills if f.odometer_km is None]
-    usable = [f for f in fills if f.odometer_km is not None]
+    no_odometer = [f.pk for f in fills if f.odometer_km is None]
     segments = []
     anchor = None
     liters = Decimal(0)
-    for fill in usable:
+    for fill in fills:
+        is_anchor = fill.full_tank and fill.odometer_km is not None
         if anchor is None:
-            if fill.full_tank:
+            if is_anchor:
                 anchor, liters = fill, Decimal(0)
             continue
         liters += fill.liters
-        if fill.full_tank:
+        if is_anchor:
             distance = fill.odometer_km - anchor.odometer_km
             if distance > 0:
                 segments.append(
@@ -117,7 +120,7 @@ def fuel_stats(vehicle: Vehicle) -> dict:
         "distance_km": total_distance,
         "liters": total_liters,
         "segments": segments,
-        "skipped": skipped,
+        "no_odometer": no_odometer,
     }
 
 

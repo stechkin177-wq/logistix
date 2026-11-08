@@ -12,3 +12,9 @@ class FleetConfig(AppConfig):
         from .models import Vehicle
 
         trash.register(Vehicle, "vehicles", "fleet.view")
+
+        from apps.documents.providers import register_provider
+
+        from .documents import FLEET_PROVIDER
+
+        register_provider(FLEET_PROVIDER)  # документы техники - через общую систему documents

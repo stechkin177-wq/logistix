@@ -60,9 +60,14 @@ def _clear_cache():
 
 @pytest.fixture
 def drivers_provider():
+    """Тестовый поставщик заменяет настоящего поставщика модуля drivers на время теста."""
+    from apps.drivers.documents import DRIVERS_PROVIDER
+
+    unregister_provider(DRIVERS_PROVIDER)
     provider = register_provider(DriversProvider())
     yield provider
     unregister_provider(provider)
+    register_provider(DRIVERS_PROVIDER)
 
 
 @pytest.fixture

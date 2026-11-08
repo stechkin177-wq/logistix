@@ -85,7 +85,7 @@ def test_fuel_validation_and_skipped_without_odometer(fco):
     assert fill(api, v, "2026-06-01T08:00:00Z", "-5").status_code == 400
     assert fill(api, v, "2026-06-01T08:00:00Z", "50").status_code == 201  # без пробега
     stats = services_stats(company, v)
-    assert stats["average_l_per_100km"] is None and len(stats["skipped"]) == 1
+    assert stats["average_l_per_100km"] is None and len(stats["no_odometer"]) == 1
 
 
 def services_stats(company, v):
