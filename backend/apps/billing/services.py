@@ -10,7 +10,13 @@ from .models import Plan, Subscription
 GRACE_DAYS = 14
 READONLY_DAYS = 30
 
-LIMIT_KEYS = ("max_users", "max_vehicles", "max_orders_per_month", "max_ocr_per_month")
+LIMIT_KEYS = (
+    "max_users",
+    "max_vehicles",
+    "max_drivers",
+    "max_orders_per_month",
+    "max_ocr_per_month",
+)
 
 
 class LimitExceeded(APIException):

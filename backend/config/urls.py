@@ -32,6 +32,7 @@ from apps.core.views import health
 from apps.documents.api.capabilities import CapabilitiesView, KindsView
 from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
+from apps.drivers.api import DriverDocumentViewSet, DriverViewSet
 from apps.finance.api.admin import (
     CarrierExpenseView,
     EngineView,
@@ -82,6 +83,8 @@ router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
 router.register("transfers", TransferViewSet, basename="transfer")
+router.register("drivers", DriverViewSet, basename="driver")
+router.register("driver-documents", DriverDocumentViewSet, basename="driver-document")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")

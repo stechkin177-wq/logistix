@@ -72,7 +72,7 @@ def admin_client(api_client, owner_a, company_a):
 def test_catalog_has_62_unique_codes():
     # 13 разделов x 4 действия + 10 особых прав (override_limit, cancel_invoice, revert_completed,
     # пять прав финансовой архитектуры, company.manage_modules и consignments.transfer)
-    assert len(ALL_PERMISSIONS) == 62 == len(set(ALL_PERMISSIONS))
+    assert len(ALL_PERMISSIONS) == 66 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
     assert "trips.revert_completed" in ALL_PERMISSIONS
 
