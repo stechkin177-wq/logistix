@@ -168,7 +168,13 @@ def test_activity_profiles_list(make_company, wide_plan):
     data = api.get("/api/activity-profiles/").json()
     names = {p["name"]: p for p in data}
     assert set(names) == {"Экспедитор", "Перевозчик", "Экспедитор и перевозчик"}
-    assert names["Перевозчик"]["modules"] == ["logistics", "finance", "fleet", "drivers", "documents"]
+    assert names["Перевозчик"]["modules"] == [
+        "logistics",
+        "finance",
+        "fleet",
+        "drivers",
+        "documents",
+    ]
     assert names["Экспедитор"]["already_enabled"] == [
         "logistics",
         "forwarding",

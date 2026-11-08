@@ -155,7 +155,7 @@ PROFILES = [
     {
         "code": "carrier",
         "name": "Перевозчик",
-        "description": "Перевозчик: свои заказы, рейсы, автопарк, водители и финансы без экспедирования",
+        "description": "Перевозчик: свои заказы, рейсы, автопарк, водители и финансы",
         "modules": ["logistics", "finance", "fleet", "drivers", "documents"],
     },
     {

@@ -41,7 +41,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--modules",
             default="logistics,forwarding",
-            help="Модули через запятую: logistics[,forwarding,fleet,drivers] (включают finance и docs)",
+            help="Модули через запятую: logistics[,forwarding,fleet,drivers] (+ finance, docs)",
         )
         parser.add_argument(
             "--allow-existing-user",
