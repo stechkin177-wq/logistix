@@ -17,4 +17,7 @@ export const EXTRA_CODES = [
 /** Права модульной архитектуры (отдельный список, как MODULE_MANAGEMENT_PERMISSIONS на бэкенде). */
 export const MODULE_CODES = ['company.manage_modules'] as const
 
-export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES]
+/** Право передач груза (отдельный список, как TRANSFER_PERMISSIONS на бэкенде). */
+export const TRANSFER_CODES = ['consignments.transfer'] as const
+
+export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES]

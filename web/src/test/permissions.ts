@@ -16,4 +16,5 @@ export const ALL_PERMISSIONS: string[] = [
   'finance.backdate',
   'finance.manage_settings',
   'company.manage_modules',
+  'consignments.transfer',
 ]

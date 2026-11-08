@@ -31,6 +31,19 @@ def permission_required(code: str) -> type[BasePermission]:
     return _PermissionRequired
 
 
+def permission_any(*codes: str) -> type[BasePermission]:
+    """Право выполнено, если у роли есть ХОТЯ БЫ ОДИН из кодов (например, инициирование
+    передачи: consignments.transfer или consignments.update)."""
+    parts = [permission_required(code) for code in codes]
+
+    class _PermissionAny(BasePermission):
+        def has_permission(self, request, view):
+            return any(part().has_permission(request, view) for part in parts)
+
+    _PermissionAny.__name__ = f"PermissionAny[{'|'.join(codes)}]"
+    return _PermissionAny
+
+
 class SectionPermissionMixin:
     """Права по действию вьюсета: <permission_section>.<view|create|update|delete>."""
 

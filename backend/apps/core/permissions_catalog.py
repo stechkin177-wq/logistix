@@ -43,11 +43,16 @@ EXTRA_PERMISSIONS = [
 # company.manage_modules - включение и отключение модулей компании (по умолчанию только
 # Администратор; другим ролям назначается штатно, как trips.revert_completed).
 MODULE_MANAGEMENT_PERMISSIONS = ["company.manage_modules"]
+# Право передач груза (этап 1.5-D): подтверждение передачи/сторно. Отдельный список, не входит в
+# общие extra-списки; по умолчанию Администратор, Менеджер, Диспетчер. Инициировать передачу можно
+# с consignments.transfer или consignments.update.
+TRANSFER_PERMISSIONS = ["consignments.transfer"]
 
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
     + MODULE_MANAGEMENT_PERMISSIONS
+    + TRANSFER_PERMISSIONS
 )
 
 
@@ -61,6 +66,7 @@ _VCU = ["view", "create", "update"]
 SYSTEM_ROLES: dict[str, list[str]] = {
     "Администратор": list(ALL_PERMISSIONS),
     "Менеджер": _codes(_OPERATIONS, _VCU)
+    + TRANSFER_PERMISSIONS
     + _codes(["finance", "trash", "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Бухгалтер": _codes(["finance"], ACTIONS)
@@ -69,6 +75,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes([*_OPERATIONS, "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)
+    + TRANSFER_PERMISSIONS
     + _codes(["clients", "carriers", "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Механик": ["trips.view"],
