@@ -176,7 +176,7 @@ def test_catalog_contains_five_new_permissions_in_separate_list():
     assert set(NEW_PERMS) <= set(ALL_PERMISSIONS) and set(NEW_PERMS) <= set(EXTRA_PERMISSIONS)
     # Бухгалтер получил бы лишнее, если бы они попали в FINANCE_EXTRA_PERMISSIONS
     assert not set(NEW_PERMS) & set(FINANCE_EXTRA_PERMISSIONS)
-    assert len(ALL_PERMISSIONS) == 62 == len(set(ALL_PERMISSIONS))
+    assert len(ALL_PERMISSIONS) == 66 == len(set(ALL_PERMISSIONS))
 
 
 def test_default_matrix_of_system_roles():

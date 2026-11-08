@@ -215,6 +215,7 @@ def main() -> int:
         battery_step("0010-повторно", owner_url, app_url, battery, ids, probe_module, reports)
 
         # --- итоговый контроль покрытия средствами приложения и согласованность моделей ---
+        manage(owner_url, "migrate", "--noinput")  # таблицы поздних этапов появляются позже
         out = manage(
             owner_url,
             "shell",

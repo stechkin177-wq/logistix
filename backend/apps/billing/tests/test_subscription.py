@@ -149,7 +149,8 @@ def test_default_plans_seeded():
         "max_ocr_per_month": None,
     }
     for plan in plans.values():
-        assert plan.modules == ["forwarding", "fleet", "finance", "documents", "logistics"]
+        expected = ["forwarding", "fleet", "finance", "documents", "logistics", "drivers"]
+        assert plan.modules == expected
         assert plan.is_active
     assert _public(plans["start"].options) == {"white_label": False, "custom_domain": False}
     assert _public(plans["business"].options) == {"white_label": True, "custom_domain": True}
