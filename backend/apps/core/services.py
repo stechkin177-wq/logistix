@@ -7,18 +7,23 @@ from apps.billing.models import Plan, Subscription
 
 from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
+from .module_services import (
+    VALID_MODULES,
+    set_company_modules,
+    unmet_requirements,
+    with_default_companions,
+)
 from .numbering.services import seed_numbering
 from .permissions_catalog import ADMIN_ROLE_NAME, SYSTEM_ROLES
 from .signals import company_created
 from .tenancy import tenant_context
 
-VALID_MODULES = {"forwarding", "fleet"}
 FREE_PERIOD_DAYS = 365
 
 
 @transaction.atomic
 def create_company_with_defaults(name: str, owner, modules: list[str]) -> Company:
-    """Компания + системные роли + юрлицо по умолчанию + членство владельца (Администратор).
+    """Компания + модули + системные роли + юрлицо + членство владельца (Администратор).
 
     Контекст компании после возврата не остаётся: записи создаются с явным company_id
     во временном контексте новой компании (иначе их не пропустит RLS), внешний контекст
@@ -27,7 +32,12 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     modules = list(modules)
     if not modules or not set(modules) <= VALID_MODULES:
         raise ValueError(f"modules должен быть непустым подмножеством {sorted(VALID_MODULES)}")
-    company = Company.objects.create(name=name, modules=modules)
+    modules = with_default_companions(modules)  # forwarding включает finance и documents
+    unmet = unmet_requirements(modules)
+    if unmet:
+        raise ValueError("Не выполнены зависимости модулей: " + "; ".join(unmet))
+    company = Company.objects.create(name=name, modules=[])
+    set_company_modules(company, modules, audit_changes=False)  # CompanyModule + проекция
     with tenant_context(company.id):  # RLS: строки пишутся в контексте новой компании
         roles = {
             role_name: Role.all_objects.create(

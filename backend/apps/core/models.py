@@ -300,3 +300,36 @@ class Membership(models.Model):
 
     def __str__(self):
         return f"{self.user} @ {self.company}"
+
+
+class CompanyModule(TenantModel):
+    """Конфигурация модулей компании (tenant-таблица, RLS): включён ли модуль каталога.
+
+    ``core`` не хранится (всегда включён). Уникальность (company, module_code). Отключение не
+    удаляет данные модуля: строка остаётся с enabled=False и возвращается при повторном
+    включении. ``Company.modules`` - проекция включённых модулей (обновляется сервисом в той же
+    транзакции); права доступа читаются из этой таблицы.
+    """
+
+    module_code = models.CharField(max_length=32)
+    enabled = models.BooleanField(default=True)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    enabled_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    disabled_at = models.DateTimeField(null=True, blank=True)
+    disabled_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "module_code"], name="companymodule_company_code_uniq"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.module_code}={'on' if self.enabled else 'off'}"

@@ -2,7 +2,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from apps.core.services import VALID_MODULES
+from apps.core.module_services import VALID_MODULES, enabled_module_codes
 
 from .models import Subscription
 from .services import effective_status, get_subscription
@@ -40,6 +40,17 @@ def subscription_state(request):
     return cached
 
 
+def company_enabled_modules(request) -> set[str]:
+    """Включённые модули компании запроса из CompanyModule; кэшируется на запросе."""
+    raw = getattr(request, "_request", request)
+    cached = getattr(raw, "_company_enabled_modules", None)
+    if cached is None:
+        company_id = _company_id(request)
+        cached = set(enabled_module_codes(company_id)) if company_id is not None else set()
+        raw._company_enabled_modules = cached
+    return cached
+
+
 def enforce_subscription(request):
     """Бросает отказ по подписке. Неаутентифицированные запросы не трогает.
 
@@ -72,7 +83,7 @@ class SubscriptionGate(BasePermission):
 
 
 def ModuleRequired(module: str) -> type[BasePermission]:  # noqa: N802 - фабрика, стиль permission_required
-    """Фабрика DRF-права: модуль должен быть и у компании, и в тарифе подписки."""
+    """Фабрика DRF-права: модуль в тарифе подписки И включён в CompanyModule компании."""
     if module not in VALID_MODULES:
         raise ValueError(f"Неизвестный модуль: {module!r}")
 
@@ -88,7 +99,7 @@ def ModuleRequired(module: str) -> type[BasePermission]:  # noqa: N802 - фаб�
             sub, _ = subscription_state(request)
             if membership is None or sub is None:
                 return False
-            if module not in (membership.company.modules or []):
+            if module not in company_enabled_modules(request):
                 raise ModuleDisabled()
             if module not in (sub.plan.modules or []):
                 raise ModuleDisabled()

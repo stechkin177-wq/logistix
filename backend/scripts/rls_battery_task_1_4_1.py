@@ -88,8 +88,9 @@ ok(
 tables_info = [t for t in all_info if t[0] in expected]
 tables = [t[0] for t in tables_info]
 if STEP == "M6":
-    # таблицы finance.0010 (1.4.14) появляются позже шагов этого скрипта: до M6 их в БД нет
-    LATER_TABLES = {"finance_fxrevaluation", "finance_fxrevaluationline"}
+    # таблицы finance.0010 (1.4.14) и core.0016 (этап 1.5-A: CompanyModule) появляются позже
+    # шагов этого скрипта: до M6 их в БД нет
+    LATER_TABLES = {"finance_fxrevaluation", "finance_fxrevaluationline", "core_companymodule"}
     ok(
         expected - LATER_TABLES <= present,
         f"таблицы TenantModel отсутствуют в БД: {expected - LATER_TABLES - present}",

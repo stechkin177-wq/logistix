@@ -39,7 +39,9 @@ class Command(BaseCommand):
         parser.add_argument("--owner-login", required=True, help="Email или телефон владельца")
         parser.add_argument("--owner-name", default="", help="ФИО владельца")
         parser.add_argument(
-            "--modules", default="forwarding", help="Модули через запятую: forwarding[,fleet]"
+            "--modules",
+            default="forwarding",
+            help="Модули через запятую: forwarding[,fleet] (forwarding включает finance и docs)",
         )
         parser.add_argument(
             "--allow-existing-user",

@@ -47,6 +47,18 @@ from apps.core.signals import company_created
 # состояние ДО подзадачи: нет справочника категорий, нет обработчика настроек
 defaults.DEFAULTS.pop("expense_category", None)
 company_created.receivers = []
+# состояние ДО CompanyModule (core.0016): модули пишутся только в Company.modules
+from apps.core import services as core_services
+from apps.core.models import Company as _Company
+
+
+def _legacy_modules(company, modules, **kwargs):
+    _Company.objects.filter(pk=company.pk).update(modules=list(modules))
+    company.modules = list(modules)
+    return list(modules)
+
+
+core_services.set_company_modules = _legacy_modules
 out = {}
 for key in %(keys)r:
     user = User.objects.create_user(email=f"{key}@upgrade141.kz", password="s3cret-pass-1")

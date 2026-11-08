@@ -12,14 +12,14 @@ from apps.billing.permissions import subscription_state
 from apps.billing.services import days_left, grace_days_left
 from apps.core import branding as branding_rules
 from apps.core.models import CompanyBranding
+from apps.core.module_services import effective_module_codes
 
 from .auth import companies_payload, memberships_of
 
 
 def effective_modules(company, plan) -> list[str]:
-    """Модули компании, разрешённые тарифом (порядок как в компании)."""
-    allowed = set(plan.modules or [])
-    return [m for m in (company.modules or []) if m in allowed]
+    """Эффективные модули: включены в CompanyModule И разрешены тарифом (порядок как в компании)."""
+    return effective_module_codes(company.pk, plan.modules)
 
 
 class SessionView(APIView):
