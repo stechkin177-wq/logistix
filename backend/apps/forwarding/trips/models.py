@@ -89,7 +89,18 @@ class Trip(TenantModel, SoftDeleteModel):
         )
         if not alive.exists():
             return "Нельзя восстановить рейс: все его грузы удалены. Сначала восстановите груз"
-        return None
+        from apps.finance import hooks  # engine=new: участки не должны конфликтовать с другими
+
+        return hooks.trip_restore_blocker(self)
+
+    def restore(self):
+        super().restore()
+        from apps.finance import hooks  # engine=new: пересчёт признания дохода заказов рейса
+
+        from .services import refresh_tracking
+
+        refresh_tracking(self.links.values_list("consignment_id", flat=True))
+        hooks.after_trip_restored(self)
 
 
 class TripConsignment(TenantModel):

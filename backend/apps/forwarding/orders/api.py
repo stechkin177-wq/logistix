@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Exists, Prefetch
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -81,6 +82,13 @@ class OrderViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         """Выгрузка заказов (те же фильтры, что у списка) в .xlsx."""
         with_finance = "finance.view" in request.membership.role.permissions
         return export_orders(request.query_params, self.company_zone(), with_finance=with_finance)
+
+    def perform_destroy(self, instance):
+        from apps.finance import hooks  # engine=new: блокировка при деньгах, void плановых доходов
+
+        with transaction.atomic():
+            hooks.before_order_delete(instance, self.request.user)
+            super().perform_destroy(instance)
 
     def perform_create(self, serializer):
         serializer.save()  # create_order сам пишет аудит заказа и его грузов

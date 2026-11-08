@@ -65,6 +65,12 @@ class Order(TenantModel, SoftDeleteModel):
             models.CheckConstraint(condition=Q(client_rate__gte=0), name="order_rate_gte_0"),
         ]
 
+    def restore(self):
+        super().restore()
+        from apps.finance import hooks  # engine=new: плановый доход перевозки создаётся заново
+
+        hooks.after_order_restored(self)
+
     def __str__(self):
         return self.number
 

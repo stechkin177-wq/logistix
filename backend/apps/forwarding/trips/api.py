@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-from django.db import OperationalError
+from django.db import OperationalError, transaction
 from django.db.models import Exists, OuterRef, Prefetch, Q
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -21,7 +21,12 @@ from .serializers import (
     TripSerializer,
     TripStatusSerializer,
 )
-from .services import REVERT_PERMISSION, ConcurrentChange, is_concurrency_failure
+from .services import (
+    REVERT_PERMISSION,
+    ConcurrentChange,
+    is_concurrency_failure,
+    refresh_tracking,
+)
 
 
 @contextmanager
@@ -98,10 +103,27 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
             qs = filter_trips(qs, self.request.query_params)
         return qs
 
+    def perform_destroy(self, instance):
+        from apps.finance import hooks  # engine=new: рейс с расходом не удаляется (409)
+
+        with transaction.atomic():
+            hooks.before_trip_delete(instance)
+            consignment_ids = list(instance.links.values_list("consignment_id", flat=True))
+            super().perform_destroy(instance)
+            refresh_tracking(consignment_ids)  # покрытие маршрута и местонахождение грузов
+            hooks.after_trip_deleted(
+                instance, self.request.user, perms=self.request.membership.role.permissions
+            )
+
     def perform_update(self, serializer):
-        old_price = serializer.instance.carrier_price
-        super().perform_update(serializer)
         from apps.finance import hooks  # корректировка расхода перевозчика (только engine=new)
+
+        old_price = serializer.instance.carrier_price
+        if "currency" in serializer.validated_data:
+            hooks.trip_currency_blocker(
+                serializer.instance, serializer.validated_data["currency"].pk
+            )
+        super().perform_update(serializer)
 
         data = request_data = self.request.data
         reason = data.get("adjust_reason") if hasattr(request_data, "get") else None
