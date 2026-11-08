@@ -64,6 +64,7 @@ from apps.forwarding.consignments.api import ConsignmentViewSet
 from apps.forwarding.dashboard import DashboardSummaryView
 from apps.forwarding.finance_lines.api import OrderServiceViewSet
 from apps.forwarding.orders.api import OrderViewSet
+from apps.forwarding.tracking.api import TransferViewSet
 from apps.forwarding.trips.api import TripViewSet
 
 router = SimpleRouter()
@@ -80,6 +81,7 @@ router.register("orders", OrderViewSet, basename="order")
 router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
+router.register("transfers", TransferViewSet, basename="transfer")
 router.register("finance/invoices", InvoiceViewSet, basename="finance-invoice")
 router.register("finance/payments", PaymentViewSet, basename="finance-payment")
 router.register("finance/rates", RateViewSet, basename="finance-rate")

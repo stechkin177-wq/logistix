@@ -25,6 +25,7 @@ import { RolesPage } from '../features/settings/roles/RolesPage'
 import { SettingsIndex } from '../features/settings/SettingsIndex'
 import { UsersPage } from '../features/settings/users/UsersPage'
 import { TrashPage } from '../features/trash/TrashPage'
+import { TransfersPage } from '../features/tracking/pages/TransfersPage'
 import { TripsPage } from '../features/trips/pages/TripsPage'
 import { AppLayout } from '../layout/AppLayout'
 import { NAV, flattenNav, type NavItem } from '../layout/nav'
@@ -38,6 +39,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/orders': OrdersPage,
   '/consignments': ConsignmentsPage,
   '/trips': TripsPage,
+  '/transfers': TransfersPage,
   '/finance': FinancePage,
   '/documents': DocumentsPage,
   '/trash': TrashPage,

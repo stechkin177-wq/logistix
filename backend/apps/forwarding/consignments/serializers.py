@@ -145,6 +145,9 @@ class ConsignmentBaseSerializer(serializers.ModelSerializer):
     points = PointSerializer(many=True, required=False)
     stops = StopSerializer(many=True, required=False)
     route = serializers.SerializerMethodField()
+    location_status_name = serializers.CharField(
+        source="get_location_status_display", read_only=True
+    )
 
     def get_route(self, obj):
         """Маршрут груза: остановки и покрытие неотменёнными участками рейсов."""
@@ -217,6 +220,9 @@ NESTED_FIELDS = [
     "points",
     "stops",
     "route",
+    "location_status",
+    "location_status_name",
+    "current_stop",
     "created_at",
 ]
 
@@ -227,7 +233,7 @@ class NestedConsignmentSerializer(ConsignmentBaseSerializer):
     class Meta:
         model = Consignment
         fields = NESTED_FIELDS
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "location_status", "current_stop"]
         extra_kwargs = {"weight_kg": {"min_value": 0}, "volume_m3": {"min_value": 0}}
 
 
@@ -246,7 +252,7 @@ class ConsignmentSerializer(ConsignmentBaseSerializer):
     class Meta:
         model = Consignment
         fields = ["order", "order_number", "client", "client_name", *NESTED_FIELDS, "trips_count"]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "location_status", "current_stop"]
         extra_kwargs = {"weight_kg": {"min_value": 0}, "volume_m3": {"min_value": 0}}
 
     def get_trips_count(self, obj):

@@ -23,6 +23,8 @@ export interface Consignment {
   stops?: OrderStop[]
   route?: ConsignmentRoute
   trips_count: number
+  location_status?: import('../tracking/types').LocationStatus
+  current_stop?: number | null
 }
 
 export interface ConsignmentListParams {

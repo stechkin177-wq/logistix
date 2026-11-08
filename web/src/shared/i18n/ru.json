@@ -58,7 +58,8 @@
     "documents": "Документы",
     "doctemplates": "Шаблоны документов",
     "financeSettings": "Настройки финансов",
-    "modules": "Модули компании"
+    "modules": "Модули компании",
+    "transfers": "Передачи груза"
   },
   "auth": {
     "title": "Вход в систему",
@@ -948,7 +949,8 @@
       "finance.adjust_closed": "Финансы: вносить корректировки в закрытый период",
       "finance.backdate": "Финансы: вводить операции задним числом",
       "finance.manage_settings": "Финансы: изменять финансовые настройки компании",
-      "company.manage_modules": "Компания: включать и отключать модули"
+      "company.manage_modules": "Компания: включать и отключать модули",
+      "consignments.transfer": "Грузы: подтверждать передачи груза"
     }
   },
   "departments": {
@@ -1195,5 +1197,68 @@
         "description": "Отчёты и настраиваемый дашборд"
       }
     }
+  },
+  "tracking": {
+    "title": "Местонахождение и передачи",
+    "location": {
+      "planned": "Запланирован",
+      "in_transit": "В пути",
+      "at_stop": "На остановке",
+      "in_storage": "На хранении",
+      "delivered": "Доставлен"
+    },
+    "kinds": {
+      "to_carrier": "Другому перевозчику",
+      "between_vehicles": "Перегрузка между ТС",
+      "to_storage": "На склад",
+      "from_storage": "Со склада"
+    },
+    "transferStatus": {
+      "initiated": "Ждёт подтверждения",
+      "confirmed": "Подтверждена",
+      "reversed": "Сторно",
+      "cancelled": "Отменена сторно"
+    },
+    "eventTypes": {
+      "arrived": "Прибыл на остановку",
+      "loaded": "Погружен",
+      "departed": "Отправлен с остановки",
+      "transferred": "Передан",
+      "unloaded": "Выгружен",
+      "delivered": "Доставлен",
+      "skipped": "Остановка пропущена",
+      "stored": "Помещён на хранение"
+    },
+    "transferButton": "Передать груз",
+    "transferTitle": "Передать груз",
+    "transferSubmit": "Передать",
+    "kind": "Вид передачи",
+    "stop": "Остановка",
+    "fromTrip": "Рейс отправления (id)",
+    "toTrip": "Следующий рейс (id)",
+    "tripOptional": "Необязательно: фиктивный рейс создавать не нужно",
+    "toCarrier": "Принимающий перевозчик",
+    "transferredAt": "Время передачи",
+    "note": "Заметка",
+    "needTransferStop": "Выберите остановку передачи",
+    "noTransferStops": "В маршруте груза нет остановки вида «Передача/перегрузка»",
+    "notSelected": "Не выбрано",
+    "eventType": "Событие",
+    "addEvent": "Зафиксировать событие",
+    "events": "События груза",
+    "noEvents": "Событий пока нет",
+    "fromDriverApp": "из приложения водителя",
+    "transfers": "Передачи",
+    "transfersTitle": "Передачи груза",
+    "cargo": "Груз",
+    "trips": "Рейсы",
+    "carriers": "Перевозчики",
+    "carrierChanged": "перевозчик сменился",
+    "status": "Статус",
+    "confirm": "Подтвердить",
+    "reverse": "Сторно",
+    "onlyPending": "Только ждущие подтверждения",
+    "allKinds": "Все виды",
+    "noTransfers": "Передач нет"
   }
 }

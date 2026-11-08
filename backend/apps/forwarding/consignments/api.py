@@ -8,15 +8,23 @@ from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, ConsignmentPoint, TripConsignment
 from ..orders.filters import flag_param, int_param
+from ..tracking.api import ConsignmentTrackingMixin, consignment_permissions
 from .serializers import ConsignmentSerializer
 
 
-class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
+class ConsignmentViewSet(
+    ConsignmentTrackingMixin, AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet
+):
     permission_section = "consignments"
     serializer_class = ConsignmentSerializer
     pagination_class = StandardPagination
 
     def get_permissions(self):
+        if self.action in ("events", "transfers"):
+            return [
+                ModuleRequired("forwarding")(),
+                *consignment_permissions(self.request, self.action),
+            ]
         return [ModuleRequired("forwarding")(), *super().get_permissions()]
 
     def get_queryset(self):
@@ -55,6 +63,10 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
                     consignment=OuterRef("pk"), trip__deleted_at__isnull=True
                 )
                 qs = qs.filter(~Exists(in_trip))
+            if (location := (params.get("location_status") or "").strip()) in dict(
+                Consignment.LOCATION_STATUSES
+            ):
+                qs = qs.filter(location_status=location)
             if q := (params.get("q") or "").strip():
                 qs = qs.filter(name__icontains=q)
             qs = qs.order_by("id")

@@ -58,7 +58,8 @@
     "documents": "Құжаттар",
     "doctemplates": "Құжат үлгілері",
     "financeSettings": "Қаржы баптаулары",
-    "modules": "Компания модульдері"
+    "modules": "Компания модульдері",
+    "transfers": "Жүк тапсырулары"
   },
   "auth": {
     "title": "Жүйеге кіру",
@@ -948,7 +949,8 @@
       "finance.adjust_closed": "Қаржы: жабылған кезеңге түзету енгізу",
       "finance.backdate": "Қаржы: операцияларды өткен күнмен енгізу",
       "finance.manage_settings": "Қаржы: компанияның қаржылық баптауларын өзгерту",
-      "company.manage_modules": "Компания: модульдерді қосу және өшіру"
+      "company.manage_modules": "Компания: модульдерді қосу және өшіру",
+      "consignments.transfer": "Жүктер: жүк тапсыруларын растау"
     }
   },
   "departments": {
@@ -1195,5 +1197,68 @@
         "description": "Есептер және бапталатын дашборд"
       }
     }
+  },
+  "tracking": {
+    "title": "Орналасу және тапсыру",
+    "location": {
+      "planned": "Жоспарланған",
+      "in_transit": "Жолда",
+      "at_stop": "Аялдамада",
+      "in_storage": "Сақтауда",
+      "delivered": "Жеткізілді"
+    },
+    "kinds": {
+      "to_carrier": "Басқа тасымалдаушыға",
+      "between_vehicles": "КҚ арасында қайта тиеу",
+      "to_storage": "Қоймаға",
+      "from_storage": "Қойманан"
+    },
+    "transferStatus": {
+      "initiated": "Растауды күтуде",
+      "confirmed": "Расталды",
+      "reversed": "Сторно",
+      "cancelled": "Сторномен болдырылмады"
+    },
+    "eventTypes": {
+      "arrived": "Аялдамаға келді",
+      "loaded": "Тиелді",
+      "departed": "Аялдамадан шықты",
+      "transferred": "Тапсырылды",
+      "unloaded": "Түсірілді",
+      "delivered": "Жеткізілді",
+      "skipped": "Аялдама өткізілді",
+      "stored": "Сақтауға қойылды"
+    },
+    "transferButton": "Жүкті тапсыру",
+    "transferTitle": "Жүкті тапсыру",
+    "transferSubmit": "Тапсыру",
+    "kind": "Тапсыру түрі",
+    "stop": "Аялдама",
+    "fromTrip": "Жөнелту рейсі (id)",
+    "toTrip": "Келесі рейс (id)",
+    "tripOptional": "Міндетті емес: жалған рейс жасаудың қажеті жоқ",
+    "toCarrier": "Қабылдаушы тасымалдаушы",
+    "transferredAt": "Тапсыру уақыты",
+    "note": "Ескертпе",
+    "needTransferStop": "Тапсыру аялдамасын таңдаңыз",
+    "noTransferStops": "Жүк бағытында «Тапсыру/қайта тиеу» аялдамасы жоқ",
+    "notSelected": "Таңдалмаған",
+    "eventType": "Оқиға",
+    "addEvent": "Оқиғаны тіркеу",
+    "events": "Жүк оқиғалары",
+    "noEvents": "Әзірге оқиға жоқ",
+    "fromDriverApp": "жүргізуші қолданбасынан",
+    "transfers": "Тапсырулар",
+    "transfersTitle": "Жүк тапсырулары",
+    "cargo": "Жүк",
+    "trips": "Рейстер",
+    "carriers": "Тасымалдаушылар",
+    "carrierChanged": "тасымалдаушы ауысты",
+    "status": "Күйі",
+    "confirm": "Растау",
+    "reverse": "Сторно",
+    "onlyPending": "Тек растауды күтетіндер",
+    "allKinds": "Барлық түрлер",
+    "noTransfers": "Тапсырулар жоқ"
   }
 }

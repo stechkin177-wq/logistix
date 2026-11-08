@@ -26,6 +26,7 @@ export const NAV: NavItem[] = [
     children: [
       { key: 'consignments', labelKey: 'nav.consignments', path: '/consignments', permission: 'consignments.view', module: 'forwarding' },
       { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'forwarding' },
+      { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'forwarding' },
     ],
   },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },

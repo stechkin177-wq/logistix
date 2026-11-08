@@ -76,6 +76,9 @@ export interface OrderConsignment {
   /** Полный маршрут по порядку (может отсутствовать у старых ответов/фикстур). */
   stops?: OrderStop[]
   route?: ConsignmentRoute
+  /** Местонахождение груза (производное, считает сервер). */
+  location_status?: import('../tracking/types').LocationStatus
+  current_stop?: number | null
   created_at: string
 }
 

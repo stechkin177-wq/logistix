@@ -18,6 +18,8 @@ import {
   CONSIGNMENT_KNOWN_PATH, consignmentFromApi, consignmentPayload, emptyConsignment, isMultiStop, validateConsignment, type ConsignmentForm,
 } from '../orderForm'
 import type { Order, OrderConsignment } from '../types'
+import { CargoTracking } from '../../tracking/components/CargoTracking'
+import { LocationBadge } from '../../tracking/components/LocationBadge'
 import { ConsignmentFields } from './ConsignmentFields'
 import { RouteChain } from './RouteChain'
 import { RouteLane } from './RouteLane'
@@ -95,7 +97,7 @@ export function CargoTab({ order }: { order: Order }) {
           {order.consignments.map((c) => (
             <li key={c.id} className="space-y-1 rounded border border-slate-200 bg-white p-2 text-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium">{c.name} <Badge>{c.status_name}</Badge></p>
+                <p className="font-medium">{c.name} <Badge>{c.status_name}</Badge> <LocationBadge status={c.location_status} /></p>
                 <div className="flex gap-1">
                   {hasPermission('consignments.view') ? (
                     <Button variant="ghost" aria-label={t('orders.editCargoNamed', { name: c.name })} onClick={() => { setEditor({ consignment: c, nonce: Date.now() }) }}>
@@ -113,6 +115,7 @@ export function CargoTab({ order }: { order: Order }) {
                 {t('orders.cargoSummary', { weight: c.weight_kg, volume: c.volume_m3, pallets: c.pallets, packaging: c.packaging_name ?? '—' })}
               </p>
               {c.route ? <RouteLane route={c.route} /> : c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}
+              {hasPermission('consignments.view') && c.stops ? <CargoTracking consignmentId={c.id} stops={c.stops} /> : null}
               <ul className="grid gap-1 text-xs md:grid-cols-2">
                 {(c.stops && isMultiStop(c.stops) ? c.stops : c.points).map((p, index) => (
                   <li key={'seq' in p ? p.seq : index} className="rounded bg-slate-50 p-1.5 dark:bg-slate-800">
