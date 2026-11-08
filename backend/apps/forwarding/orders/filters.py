@@ -95,12 +95,21 @@ def filter_local_dates(qs, field: str, params, prefix: str, zone):
 
 
 def loading_at_subquery():
-    """Самая ранняя погрузка заказа: window_from точек погрузки его не удалённых грузов."""
+    """Самая ранняя ПЕРВАЯ погрузка заказа: window_from первой (по seq) остановки погрузки
+    каждого из его не удалённых грузов."""
+    first_load_seq = (
+        ConsignmentPoint.objects.filter(
+            consignment=OuterRef("consignment"), kind=ConsignmentPoint.LOAD
+        )
+        .order_by("seq")
+        .values("seq")[:1]
+    )
     return Subquery(
         ConsignmentPoint.objects.filter(
             consignment__order=OuterRef("pk"),
             consignment__deleted_at__isnull=True,
             kind=ConsignmentPoint.LOAD,
+            seq=Subquery(first_load_seq),
         )
         .order_by("window_from")
         .values("window_from")[:1]

@@ -47,6 +47,11 @@ class Consignment(TenantModel, SoftDeleteModel):
     def __str__(self):
         return self.name
 
+    @property
+    def stops(self):
+        """Остановки маршрута по порядку (имя ``points`` - прежнее related_name)."""
+        return self.points.all()
+
     def restore_blocker(self) -> str | None:
         """Причина, по которой груз нельзя восстановить из корзины (None - можно)."""
         from .. import models as forwarding_models

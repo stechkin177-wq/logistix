@@ -50,4 +50,9 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
         return qs
 
     def audit_extra_changes(self, instance):
-        return {"points": "changed"} if getattr(instance, "_points_changed", False) else {}
+        if not getattr(instance, "_points_changed", False):
+            return {}
+        extra = {"points": "changed"}
+        if getattr(instance, "_stops_changed", False):
+            extra["stops"] = "changed"
+        return extra

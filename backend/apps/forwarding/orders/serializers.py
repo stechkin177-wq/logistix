@@ -10,6 +10,7 @@ from apps.core.models import LegalEntity
 
 from ..consignments.models import Consignment, ConsignmentPoint
 from ..consignments.serializers import NestedConsignmentSerializer
+from ..consignments.services import first_load, last_unload
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
 from ..models import Client, Contact, Order, OrderStatusHistory
@@ -36,13 +37,15 @@ def consignments_prefetch() -> Prefetch:
 
 
 def order_route(order) -> str:
-    """«Город погрузки → Город выгрузки» первого (по id) груза с обеими точками.
+    """«Город первой погрузки → Город последней выгрузки» первого (по id) груза, у которого
+    есть обе остановки (промежуточные в строке не показываются).
 
     Грузы и точки должны быть предзагружены (prefetch_related), иначе по запросу на заказ."""
     for consignment in order.consignments.all():
-        points = {p.kind: p for p in consignment.points.all()}
-        if len(points) == 2:
-            return f"{points[ConsignmentPoint.LOAD].city} → {points[ConsignmentPoint.UNLOAD].city}"
+        stops = sorted(consignment.points.all(), key=lambda p: (p.seq, p.pk))
+        load, unload = first_load(stops), last_unload(stops)
+        if load is not None and unload is not None:
+            return f"{load.city} → {unload.city}"
     return ""
 
 

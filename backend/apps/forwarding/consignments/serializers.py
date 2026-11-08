@@ -14,9 +14,20 @@ class _AnyHandbookField(ActiveHandbookField):
         return serializers.PrimaryKeyRelatedField.to_internal_value(self, data)
 
 
+class LegacyPointsListSerializer(serializers.ListSerializer):
+    """Устаревшее поле ``points``: при чтении - только первая погрузка и последняя выгрузка
+    маршрута (по порядку: погрузка, затем выгрузка), как до введения остановок."""
+
+    def get_attribute(self, instance):
+        stops = list(instance.points.all())  # предзагружены (prefetch), порядок по seq
+        edges = [services.first_load(stops), services.last_unload(stops)]
+        return [p for p in edges if p is not None]
+
+
 class PointSerializer(serializers.ModelSerializer):
-    """Точка груза. Отключённые значения справочников (страна, способ) отвергаются в
-    ConsignmentBaseSerializer.validate_points, кроме неизменённого значения той же точки."""
+    """Точка груза (устаревшее поле points). Отключённые значения справочников (страна,
+    способ) отвергаются в ConsignmentBaseSerializer.validate_points, кроме неизменённого
+    значения той же точки."""
 
     country = _AnyHandbookField("country", allow_null=True, required=False)
     method = _AnyHandbookField("loading_method", allow_null=True, required=False)
@@ -25,6 +36,7 @@ class PointSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConsignmentPoint
+        list_serializer_class = LegacyPointsListSerializer
         fields = [
             "id",
             "kind",
@@ -68,14 +80,70 @@ class PointSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class StopSerializer(PointSerializer):
+    """Остановка маршрута (поле ``stops``): порядок ``seq`` задаётся порядком списка.
+
+    Элемент с ``id`` обновляет существующую остановку груза (частично), без ``id`` - создаёт.
+    """
+
+    id = serializers.IntegerField(required=False)
+    kind = serializers.ChoiceField(choices=ConsignmentPoint.KINDS, required=False)
+    status = serializers.ChoiceField(choices=ConsignmentPoint.STATUSES, required=False)
+
+    class Meta(PointSerializer.Meta):
+        list_serializer_class = serializers.ListSerializer
+        fields = [
+            "id",
+            "seq",
+            "kind",
+            "status",
+            "arrived_at",
+            "done_at",
+            "weight_kg",
+            "volume_m3",
+            "pallets",
+            *[f for f in PointSerializer.Meta.fields if f not in ("id", "kind")],
+        ]
+        read_only_fields = ["seq"]
+        extra_kwargs = {
+            "window_from": {"required": False},
+            "city": {"required": False, "allow_blank": False},
+            "lat": {"min_value": -90, "max_value": 90},
+            "lng": {"min_value": -180, "max_value": 180},
+            "weight_kg": {"min_value": 0},
+            "volume_m3": {"min_value": 0},
+        }
+
+
+def _check_inactive_handbooks(items, current: dict, key) -> dict:
+    """Отключённые значения справочников отвергаются, кроме неизменённого значения той же
+    остановки (``key(item)`` - ключ остановки в ``current``)."""
+    errors = {}
+    for index, item in enumerate(items):
+        old = current.get(key(item))
+        for field, attr in (("country", "country_id"), ("method", "method_id")):
+            value = item.get(field)
+            if value is None or value.is_active:
+                continue
+            if old is not None and getattr(old, attr) == value.pk:
+                continue  # неизменённое значение той же точки остаётся допустимым
+            errors.setdefault(index, {})[field] = ["Значение справочника отключено"]
+    return errors
+
+
 class ConsignmentBaseSerializer(serializers.ModelSerializer):
-    """Груз с точками; наследники задают состав полей (с заказом и без)."""
+    """Груз с маршрутом; наследники задают состав полей (с заказом и без).
+
+    ``points`` - устаревшее поле (первая погрузка и последняя выгрузка; запись - ровно две
+    точки load + unload, обновляют крайние остановки). ``stops`` - полный маршрут.
+    """
 
     packaging = ActiveHandbookField("packaging", allow_null=True, required=False)
     status = ActiveHandbookField("consignment_status", required=False)
     packaging_name = serializers.SerializerMethodField()
     status_name = serializers.SerializerMethodField()
-    points = PointSerializer(many=True)
+    points = PointSerializer(many=True, required=False)
+    stops = StopSerializer(many=True, required=False)
 
     def get_packaging_name(self, obj):
         return obj.packaging.name if obj.packaging_id else None
@@ -89,23 +157,40 @@ class ConsignmentBaseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Название не может быть пустым")
         return value
 
+    def validate(self, attrs):
+        if "points" in attrs and "stops" in attrs:
+            raise serializers.ValidationError(
+                {"stops": "Передайте либо points, либо stops, но не оба поля"}
+            )
+        if self.instance is None and "points" not in attrs and "stops" not in attrs:
+            raise serializers.ValidationError(
+                {"points": "Нужны ровно две точки: погрузка и выгрузка (или список stops)"}
+            )
+        return attrs
+
     def validate_points(self, items):
         kinds = [item.get("kind") for item in items]
         if sorted(map(str, kinds)) != sorted(services.KINDS):
             raise serializers.ValidationError("Нужны ровно две точки: погрузка и выгрузка")
         current = {}
         if isinstance(self.instance, Consignment):
-            current = {p.kind: p for p in self.instance.points.all()}
-        errors = {}
-        for index, item in enumerate(items):
-            old = current.get(item.get("kind"))
-            for field, attr in (("country", "country_id"), ("method", "method_id")):
-                value = item.get(field)
-                if value is None or value.is_active:
-                    continue
-                if old is not None and getattr(old, attr) == value.pk:
-                    continue  # неизменённое значение той же точки остаётся допустимым
-                errors.setdefault(index, {})[field] = ["Значение справочника отключено"]
+            stops = list(self.instance.points.all())
+            current = {
+                ConsignmentPoint.LOAD: services.first_load(stops),
+                ConsignmentPoint.UNLOAD: services.last_unload(stops),
+            }
+        errors = _check_inactive_handbooks(items, current, lambda item: item.get("kind"))
+        if errors:
+            raise serializers.ValidationError(errors)
+        return items
+
+    def validate_stops(self, items):
+        if not items:
+            raise serializers.ValidationError("В маршруте нужны минимум две остановки")
+        current = {}
+        if isinstance(self.instance, Consignment):
+            current = {p.pk: p for p in self.instance.points.all()}
+        errors = _check_inactive_handbooks(items, current, lambda item: item.get("id"))
         if errors:
             raise serializers.ValidationError(errors)
         return items
@@ -122,6 +207,7 @@ NESTED_FIELDS = [
     "status",
     "status_name",
     "points",
+    "stops",
     "created_at",
 ]
 
@@ -174,10 +260,15 @@ class ConsignmentSerializer(ConsignmentBaseSerializer):
 
     def update(self, instance, validated_data):
         points = validated_data.pop("points", None)
+        stops = validated_data.pop("stops", None)
         validated_data.pop("order", None)
         with transaction.atomic():
             instance = super().update(instance, validated_data)
-            instance._points_changed = (
-                services.update_points(instance, points) if points is not None else False
-            )
+            if stops is not None:
+                instance._points_changed = services.replace_stops(instance, stops)
+                instance._stops_changed = instance._points_changed
+            else:
+                instance._points_changed = (
+                    services.update_points(instance, points) if points is not None else False
+                )
         return instance
