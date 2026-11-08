@@ -1,0 +1,12 @@
+# Пакет П4 (1.4.10-1.4.12) + замечания заказчика к П3
+
+Коммиты: b49da41 (1.4.10), adfd99b (замечания к П3 0.1-0.3), bdbdd3d (1.4.11), bc70fc2 (1.4.12 backend), 52017d9 (1.4.12 web). Подробности - task-1.4.10/11/12-report.md. Миграции: finance.0008 (resolution/resolution_data + уникальность проблем ambiguous_trip_expense с preflight дублей), finance.0009 (engine_switched_at, financial_writes_frozen).
+
+## Замечания к П3 (0.1-0.3)
+- 0.1: `migration.resolve_issue(issue, user, note, resolution, **params)`: carrier_expense (trip = id или номер; доля в ОДНОМ Expense(carrier_transport, source=migrated) рейса с ключом `resolved-trip:N`; рейс и перевозчик обязательны, валюта заказа = валюте рейса; при существующем чужом расходе рейса - отказ с предложением другого варианта), manual_expense (category, по умолчанию OTHER; ключ `line:N`), justified_exclusion (note >= 10 символов, сумма НЕ отражена). Автоматического превращения в ручные расходы нет; команда `resolve_finance_issue --resolution/--trip/--category`. Сверка больше не исключает суммы: открытая проблема и justified_exclusion дают needs_review, список `not_reflected` (строка, поле, сумма, валюта, месяц, причина/решение); gate переключения блокируется (`not_reflected_amounts`).
+- 0.2: поля resolution/resolution_data; частичное уникальное ограничение (company, issue_type, source_model, source_id) для ambiguous_trip_expense; preflight миграции останавливается, если дубли уже есть (ничего не удаляется). Повторный migrate_finance применяет сохранённое решение идемпотентно (объекты есть - no-op, нет - создаёт; justified_exclusion пропускается; «разрешена без решения» - возвращается в open). Тесты `test_issue_resolution.py` (9): три способа, повтор = 0 изменений и 0 новых проблем, dry-run ничего не пишет, отказы, изоляция.
+- 0.3: `created_sums` группирует доход по дате legacy_line, затем recognized_on, затем дате создания (часовой пояс компании); тест с плановым доходом (перенос/сверка/сводка не падают). Журнал/сводка в новой модели тоже не допускают None (плановый доход - по дате создания).
+- Прежние тесты (test_reconcile, test_migrate_finance) обновлены под новую семантику.
+
+## Что запускалось / не запускалось
+Запускалось: см. отчёты подзадач; итоговый прогон `pytest apps/finance` после всех коммитов (см. ниже в сводке), `makemigrations --check`, ruff, RLS под logistix_app (verify_rls_task_1_4_11.py), tsc, eslint, vitest затронутых каталогов. Не запускалось: полные pytest/vitest/build, CI.
