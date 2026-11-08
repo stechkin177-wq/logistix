@@ -13,6 +13,13 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = ["code", "name", "billing_type", "limits", "modules", "options"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # служебные метки миграций (ключи с «_») наружу не отдаются
+        options = data["options"] or {}
+        data["options"] = {k: v for k, v in options.items() if not k.startswith("_")}
+        return data
+
 
 class PlanListView(ListAPIView):
     serializer_class = PlanSerializer

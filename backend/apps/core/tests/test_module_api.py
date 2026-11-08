@@ -62,12 +62,15 @@ def test_list_shape_and_states(make_company, wide_plan):
     body = response.json()
     assert body["plan_code"] == "start"
     modules = by_code(response)
-    assert list(modules)[0] == "core" and len(modules) == 11
+    assert list(modules)[0] == "core" and len(modules) == 12
     core = modules["core"]
     assert core["enabled"] and core["is_core"] and not core["can_disable"]
     fwd = modules["forwarding"]
-    assert fwd["enabled"] and fwd["dependents"] == ["finance"]
-    assert fwd["blocker"]["code"] == "module_has_dependents"
+    assert fwd["enabled"] and fwd["dependents"] == []  # экспедирование отключается свободно
+    assert fwd["blocker"] is None
+    lg = modules["logistics"]
+    assert lg["enabled"] and set(lg["dependents"]) == {"finance", "forwarding"}
+    assert lg["blocker"]["code"] == "module_has_dependents"
     assert "Финансы" in fwd["blocker"]["detail"]  # русский текст
     assert modules["finance"]["requires"] == ["core", "forwarding"]
     assert modules["documents"]["can_disable"]
@@ -109,9 +112,10 @@ def test_enable_and_disable_with_reason_and_audit(make_company, wide_plan):
 
 def test_error_texts_in_russian_with_codes(make_company, wide_plan):
     company, _, api = make_company("Err", modules=["forwarding"])
-    r = api.post(f"{URL}forwarding/disable/", {"reason": "x"}, format="json")
+    r = api.post(f"{URL}logistics/disable/", {"reason": "x"}, format="json")
     assert r.status_code == 409
-    assert r.json()["code"] == "module_has_dependents" and r.json()["modules"] == ["finance"]
+    assert r.json()["code"] == "module_has_dependents"
+    assert set(r.json()["modules"]) == {"finance", "forwarding"}
     assert "зависят" in r.json()["detail"]
     r = api.post(f"{URL}gps/enable/", {}, format="json")
     assert r.status_code == 409 and r.json()["code"] == "module_requires"
@@ -133,10 +137,11 @@ def test_error_texts_in_russian_with_codes(make_company, wide_plan):
 
 def test_cascade_flag(make_company, wide_plan):
     company, _, api = make_company("Casc", modules=["forwarding"])
-    r = api.post(f"{URL}forwarding/disable/", {"reason": "всё", "cascade": True}, format="json")
+    r = api.post(f"{URL}logistics/disable/", {"reason": "всё", "cascade": True}, format="json")
     assert r.status_code == 200
     state = by_code(r)
-    assert not state["forwarding"]["enabled"] and not state["finance"]["enabled"]
+    assert not state["logistics"]["enabled"] and not state["forwarding"]["enabled"]
+    assert not state["finance"]["enabled"]
     assert state["documents"]["enabled"]
 
 

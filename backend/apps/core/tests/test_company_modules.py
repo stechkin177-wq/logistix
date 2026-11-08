@@ -161,13 +161,13 @@ def test_module_access_is_read_from_company_module(make_company):
     mods = api.get("/api/session/").json()["modules"]
     assert mods == ["forwarding", "logistics", "finance", "documents"]
     with tenant_context(company.id):
-        CompanyModule.objects.filter(module_code="forwarding").update(enabled=False)
+        CompanyModule.objects.filter(module_code="logistics").update(enabled=False)
     # Company.modules не менялась вручную: решает именно CompanyModule
-    assert "forwarding" in Company.objects.get(pk=company.id).modules
+    assert "logistics" in Company.objects.get(pk=company.id).modules
     resp = api.get("/api/clients/")
     assert resp.status_code == 403
     assert resp.json().get("code") == "module_disabled"
-    assert api.get("/api/session/").json()["modules"] == ["finance", "documents"]
+    assert api.get("/api/session/").json()["modules"] == ["forwarding", "finance", "documents"]
 
 
 def test_audit_written_on_change(make_company):

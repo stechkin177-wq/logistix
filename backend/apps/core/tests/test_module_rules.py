@@ -118,8 +118,8 @@ def test_disable_cascade_disables_dependents_explicitly(make_company, wide_plan)
             for a in AuditLog.objects.filter(object_type="core.companymodule")
             if a.changes.get("enabled") == [True, False]
         }
-    assert set(reasons) == {"forwarding", "finance", "driver_app"}
-    assert "каскадно" in reasons["finance"] and "каскадно" not in reasons["forwarding"]
+    assert set(reasons) == {"logistics", "forwarding", "finance", "driver_app"}
+    assert "каскадно" in reasons["finance"] and "каскадно" not in reasons["logistics"]
 
 
 def test_cascade_is_transitive(make_company, wide_plan):

@@ -122,6 +122,11 @@ def test_effective_status_lifetime_and_no_end_always_active():
 # --- планы и подписка при создании компании ---
 
 
+def _public(options):
+    """Опции без служебных меток миграций (ключи с «_»)."""
+    return {k: v for k, v in options.items() if not k.startswith("_")}
+
+
 def test_default_plans_seeded():
     plans = {p.code: p for p in Plan.objects.all()}
     assert set(plans) == {"start", "business", "lifetime"}
@@ -146,9 +151,9 @@ def test_default_plans_seeded():
     for plan in plans.values():
         assert plan.modules == ["forwarding", "fleet", "finance", "documents", "logistics"]
         assert plan.is_active
-    assert plans["start"].options == {"white_label": False, "custom_domain": False}
-    assert plans["business"].options == {"white_label": True, "custom_domain": True}
-    assert plans["lifetime"].options == {"white_label": True, "custom_domain": True}
+    assert _public(plans["start"].options) == {"white_label": False, "custom_domain": False}
+    assert _public(plans["business"].options) == {"white_label": True, "custom_domain": True}
+    assert _public(plans["lifetime"].options) == {"white_label": True, "custom_domain": True}
 
 
 def test_create_company_creates_free_year_subscription(owner_a):

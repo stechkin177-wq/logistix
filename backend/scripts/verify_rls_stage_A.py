@@ -188,12 +188,16 @@ def check_data(label, owner_url, ids, initial):
     plans = {r[0]: r[1] for r in rows(owner_url, "SELECT code, modules FROM billing_plan")}
     if label in ("A2-0017", "A2-billing-0003", "A5-0018", "A7-0003", "A7-0004", "final"):
         state = cm_state(owner_url)
-        assert state[a] == {"forwarding": True, "finance": True, "documents": True}, state[a]
+        # core.0020 (logistics) применяется только в итоговом состоянии
+        more = {"logistics": True} if label == "final" else {}
+        more_set = {"logistics"} if label == "final" else set()
+        assert state[a] == {"forwarding": True, "finance": True, "documents": True, **more}, state[a]
         assert state[b] == {
             "forwarding": True,
             "fleet": True,
             "finance": True,
             "documents": True,
+            **more,
         }, state[b]
         assert all("core" not in codes for codes in state.values()), "core не хранится"
         modules = company_modules(owner_url)
@@ -201,12 +205,14 @@ def check_data(label, owner_url, ids, initial):
             "forwarding",
             "finance",
             "documents",
+            *more_set,
         }, modules[a]
         assert modules[b][:2] == initial[b] and set(modules[b]) == {
             "forwarding",
             "fleet",
             "finance",
             "documents",
+            *more_set,
         }, modules[b]
         for company_id, codes in state.items():  # проекция совпадает с CompanyModule
             assert set(modules[company_id]) == {c for c, on in codes.items() if on}
