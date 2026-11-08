@@ -33,13 +33,50 @@ class Consignment(TenantModel, SoftDeleteModel):
         related_name="+",
         help_text="Значение справочника consignment_status",
     )
+    # Производные поля местонахождения: считает только сервис recompute_location
+    # (apps/forwarding/tracking/services.py), вручную не правятся и в API только для чтения.
+    PLANNED = "planned"
+    IN_TRANSIT = "in_transit"
+    AT_STOP = "at_stop"
+    IN_STORAGE = "in_storage"
+    DELIVERED = "delivered"
+    LOCATION_STATUSES = [
+        (PLANNED, "Запланирован"),
+        (IN_TRANSIT, "В пути"),
+        (AT_STOP, "На остановке"),
+        (IN_STORAGE, "На хранении"),
+        (DELIVERED, "Доставлен"),
+    ]
+    current_stop = models.ForeignKey(
+        "forwarding.ConsignmentPoint",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    location_status = models.CharField(max_length=12, choices=LOCATION_STATUSES, default=PLANNED)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["id"]
-        indexes = [models.Index(fields=["company", "order"], name="consignment_company_order_idx")]
+        indexes = [
+            models.Index(fields=["company", "order"], name="consignment_company_order_idx"),
+            models.Index(fields=["company", "location_status"], name="consignment_location_idx"),
+        ]
         constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    location_status__in=[
+                        "planned",
+                        "in_transit",
+                        "at_stop",
+                        "in_storage",
+                        "delivered",
+                    ]
+                ),
+                name="consignment_location_valid",
+            ),
             models.CheckConstraint(condition=Q(weight_kg__gte=0), name="consignment_weight_gte_0"),
             models.CheckConstraint(condition=Q(volume_m3__gte=0), name="consignment_volume_gte_0"),
         ]

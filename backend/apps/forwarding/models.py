@@ -139,4 +139,5 @@ from .consignments.models import (  # noqa: E402,F401
 )
 from .finance_lines.models import OrderService  # noqa: E402,F401
 from .orders.models import Order, OrderStatusHistory  # noqa: E402,F401
+from .tracking.models import CargoTransfer, ConsignmentEvent  # noqa: E402,F401
 from .trips.models import Trip, TripConsignment  # noqa: E402,F401

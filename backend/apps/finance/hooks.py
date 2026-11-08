@@ -59,6 +59,18 @@ def after_trip_changed(trip, user=None, *, perms=(), reason=None, extra_order_id
             )
 
 
+def after_consignment_changed(consignment, user=None, *, perms=(), reason=None) -> None:
+    """Событие, передача или участки груза изменились: пересчёт признания дохода его заказа."""
+    cid = current_cid(consignment.company_id)
+    if not engine_is_new(cid):
+        return
+    with tenant_context(cid):
+        order = Order.all_objects.get(pk=consignment.order_id)
+        income.reconcile_order_income(
+            order, user=user, can_adjust="finance.adjust_closed" in perms, reason=reason
+        )
+
+
 def after_trip_price_changed(trip, old_price, user=None, *, perms=(), reason=None) -> None:
     """Цена рейса изменилась: корректировка существующего расхода (второй не создаётся)."""
     from . import expenses
