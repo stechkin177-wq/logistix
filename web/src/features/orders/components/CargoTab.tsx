@@ -20,6 +20,7 @@ import {
 import type { Order, OrderConsignment } from '../types'
 import { ConsignmentFields } from './ConsignmentFields'
 import { RouteChain } from './RouteChain'
+import { RouteLane } from './RouteLane'
 
 function ConsignmentDrawer({ order, consignment, onClose }: { order: Order; consignment: OrderConsignment | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -111,7 +112,7 @@ export function CargoTab({ order }: { order: Order }) {
               <p className="text-xs text-slate-600 dark:text-slate-300">
                 {t('orders.cargoSummary', { weight: c.weight_kg, volume: c.volume_m3, pallets: c.pallets, packaging: c.packaging_name ?? '—' })}
               </p>
-              {c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}
+              {c.route ? <RouteLane route={c.route} /> : c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}
               <ul className="grid gap-1 text-xs md:grid-cols-2">
                 {(c.stops && isMultiStop(c.stops) ? c.stops : c.points).map((p, index) => (
                   <li key={'seq' in p ? p.seq : index} className="rounded bg-slate-50 p-1.5 dark:bg-slate-800">

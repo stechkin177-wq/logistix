@@ -427,7 +427,12 @@
     "stopShares": "Доля груза на остановке",
     "stopSharesHint": "пусто - весь груз",
     "routeEdges": "Маршрут должен начинаться с погрузки и заканчиваться выгрузкой",
-    "routeChain": "Маршрут груза"
+    "routeChain": "Маршрут груза",
+    "routeAssigned": "Все отрезки назначены на рейсы",
+    "routeUnassigned": "Не назначено отрезков: {{count}}",
+    "routeLane": "Маршрут с назначением рейсов",
+    "segmentCovered": "рейс",
+    "segmentUncovered": "Рейс не назначен"
   },
   "consignments": {
     "createTrip": "Создать рейс",
@@ -491,7 +496,27 @@
     "orderFilter": "Заказ #{{id}}",
     "empty": "Рейсов пока нет",
     "emptyHint": "Рейс создаётся из очереди грузов",
-    "toQueue": "Перейти к очереди грузов"
+    "toQueue": "Перейти к очереди грузов",
+    "legs": "Участки",
+    "wholeRoute": "Весь маршрут",
+    "wholeCargo": "весь груз",
+    "palletsShort": "пал.",
+    "legStatus": {
+      "planned": "Запланирован",
+      "in_progress": "В пути",
+      "done": "Выполнен",
+      "cancelled": "Отменён"
+    },
+    "pickLegs": "Выбрать участок",
+    "legFrom": "Откуда",
+    "legTo": "Докуда",
+    "legOrder": "Начало участка должно быть раньше конца",
+    "legSharesHint": "Доли необязательны: пусто - весь груз",
+    "legWeight": "Вес, кг",
+    "legVolume": "Объём, м³",
+    "legPallets": "Паллет",
+    "legsSection": "Участки грузов",
+    "legStopLabel": "{{seq}}. {{city}} ({{kind}})"
   },
   "trash": {
     "types": {

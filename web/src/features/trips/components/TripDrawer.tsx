@@ -22,6 +22,7 @@ import { useDeleteTrip, usePatchTrip, useTrip } from '../hooks'
 import type { Trip } from '../types'
 import { ReassignDrawer } from './ReassignDrawer'
 import { TripFields, validateTrip, type TripFormState } from './TripFields'
+import { TripLegs } from './TripLegs'
 import { TripStatusControl } from './TripStatusControl'
 
 const KNOWN = /^(carrier|vehicle_plate|driver_name|carrier_price|currency)$/
@@ -111,6 +112,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
           ))}
         </ul>
       </section>
+      <TripLegs legs={trip.legs ?? []} />
       <section aria-labelledby="trip-documents" className="mt-4 space-y-1">
         <h3 id="trip-documents" className="text-xs font-medium">{t('documents.title')}</h3>
         <div className="flex flex-wrap gap-2">

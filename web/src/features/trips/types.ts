@@ -5,6 +5,41 @@ export interface TripCargo {
   order_number: string
 }
 
+/** Остановка участка (кратко). */
+export interface TripLegStop {
+  id: number
+  seq: number
+  kind: string
+  city: string
+}
+
+export type TripLegStatus = 'planned' | 'in_progress' | 'done' | 'cancelled'
+
+/** Участок рейса: груз на отрезке маршрута между двумя остановками. */
+export interface TripLeg {
+  id: number
+  consignment: number
+  consignment_name: string
+  order: number
+  order_number: string
+  /** null - прежняя связь «весь груз» без привязки к остановкам. */
+  from_stop: TripLegStop | null
+  to_stop: TripLegStop | null
+  leg_seq: number
+  status: TripLegStatus
+  weight_kg: string | null
+  volume_m3: string | null
+  pallets: number | null
+}
+
+/** Явный участок в теле создания рейса; shares - доли (пусто - весь груз). */
+export interface TripLegInput {
+  consignment: number
+  from_stop: number
+  to_stop: number
+  shares?: { weight_kg?: string | null; volume_m3?: string | null; pallets?: number | null }
+}
+
 export interface Trip {
   id: number
   number: string
@@ -24,6 +59,8 @@ export interface Trip {
   completed_at: string | null
   orders: { id: number; number: string }[]
   consignments: TripCargo[]
+  /** Участки рейса (может отсутствовать у старых ответов). */
+  legs?: TripLeg[]
   created_at: string
   updated_at: string
 }
@@ -40,7 +77,9 @@ export interface TripListParams {
 
 /** Тело создания рейса: consignments - id грузов. */
 export interface TripCreatePayload {
+  /** Грузы на весь маршрут; для грузов с явными участками - в legs. */
   consignments: number[]
+  legs?: TripLegInput[]
   carrier: number | null
   vehicle_plate: string
   driver_name: string

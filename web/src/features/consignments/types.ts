@@ -1,3 +1,5 @@
+import type { ConsignmentRoute, OrderStop } from '../orders/types'
+
 export interface ConsignmentPointRef {
   id: number
   kind: 'load' | 'unload'
@@ -17,6 +19,9 @@ export interface Consignment {
   pallets: number | null
   status_name: string
   points: ConsignmentPointRef[]
+  /** Полный маршрут по порядку; может отсутствовать у старых ответов. */
+  stops?: OrderStop[]
+  route?: ConsignmentRoute
   trips_count: number
 }
 

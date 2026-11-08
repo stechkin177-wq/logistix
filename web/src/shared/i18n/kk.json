@@ -427,7 +427,12 @@
     "stopShares": "Аялдамадағы жүк үлесі",
     "stopSharesHint": "бос - бүкіл жүк",
     "routeEdges": "Маршрут тиеуден басталып, түсірумен аяқталуы керек",
-    "routeChain": "Жүк маршруты"
+    "routeChain": "Жүк маршруты",
+    "routeAssigned": "Барлық бөлікше рейстерге тағайындалған",
+    "routeUnassigned": "Тағайындалмаған бөлікше: {{count}}",
+    "routeLane": "Рейстер тағайындалған маршрут",
+    "segmentCovered": "рейс",
+    "segmentUncovered": "Рейс тағайындалмаған"
   },
   "consignments": {
     "createTrip": "Рейс құру",
@@ -491,7 +496,27 @@
     "orderFilter": "Тапсырыс #{{id}}",
     "empty": "Рейстер әзірше жоқ",
     "emptyHint": "Рейс жүктер кезегінен құрылады",
-    "toQueue": "Жүктер кезегіне өту"
+    "toQueue": "Жүктер кезегіне өту",
+    "legs": "Учаскелер",
+    "wholeRoute": "Бүкіл маршрут",
+    "wholeCargo": "бүкіл жүк",
+    "palletsShort": "паллет",
+    "legStatus": {
+      "planned": "Жоспарланған",
+      "in_progress": "Жолда",
+      "done": "Орындалды",
+      "cancelled": "Бас тартылды"
+    },
+    "pickLegs": "Учаске таңдау",
+    "legFrom": "Қайдан",
+    "legTo": "Қайда дейін",
+    "legOrder": "Учаске басы соңынан бұрын болуы керек",
+    "legSharesHint": "Үлестер міндетті емес: бос - бүкіл жүк",
+    "legWeight": "Салмағы, кг",
+    "legVolume": "Көлемі, м³",
+    "legPallets": "Паллет",
+    "legsSection": "Жүк учаскелері",
+    "legStopLabel": "{{seq}}. {{city}} ({{kind}})"
   },
   "trash": {
     "types": {

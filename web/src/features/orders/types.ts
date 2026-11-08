@@ -31,6 +31,36 @@ export interface OrderStop extends Omit<OrderPoint, 'kind'> {
   pallets: number | null
 }
 
+/** Рейс, покрывающий отрезок маршрута груза (по неотменённым участкам). */
+export interface CoverageTrip {
+  id: number
+  number: string
+  status: string
+}
+
+/** Отрезок маршрута между соседними остановками и его покрытие участками рейсов. */
+export interface CoverageSegment {
+  from_stop: number
+  to_stop: number
+  from_seq: number
+  to_seq: number
+  covered: boolean
+  legs: number[]
+  trips: CoverageTrip[]
+}
+
+export interface RouteCoverage {
+  segments: CoverageSegment[]
+  uncovered: CoverageSegment[]
+  fully_assigned: boolean
+}
+
+/** Маршрут груза: остановки и покрытие (route в ответе API груза). */
+export interface ConsignmentRoute {
+  stops: OrderStop[]
+  coverage: RouteCoverage
+}
+
 export interface OrderConsignment {
   id: number
   name: string
@@ -45,6 +75,7 @@ export interface OrderConsignment {
   points: OrderPoint[]
   /** Полный маршрут по порядку (может отсутствовать у старых ответов/фикстур). */
   stops?: OrderStop[]
+  route?: ConsignmentRoute
   created_at: string
 }
 
