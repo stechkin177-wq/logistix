@@ -25,10 +25,11 @@ from apps.core.audit import services as audit
 from apps.core.handbooks.models import HandbookValue
 from apps.core.numbering.services import next_number, peek_number
 
-from ..consignments.models import Consignment
+from ..consignments.models import Consignment, ConsignmentPoint
 from ..consignments.services import initial_status
 from ..models import Carrier, Order
 from ..orders.services import _default_currency
+from . import legs as leg_rules
 from .models import Trip, TripConsignment
 
 NUMBER_CONSTRAINT = "trip_company_number_uniq"
@@ -155,6 +156,108 @@ def _single_order_number(order: Order) -> str:
         n += 1
 
 
+def _specs_from_input(legs: list[dict], consignments: dict[int, Consignment]) -> dict:
+    """Явные участки из запроса -> {id груза: [LegSpec]}. Остановки ищутся среди остановок
+    компании (чужие/несуществующие id - ValidationError). Участок без остановок - весь маршрут."""
+    stop_ids = {sid for item in legs for sid in (item.get("from_stop"), item.get("to_stop")) if sid}
+    stops = {p.pk: p for p in ConsignmentPoint.objects.filter(pk__in=stop_ids)}
+    result: dict[int, list] = {}
+    for item in legs:
+        consignment = consignments[item["consignment"]]
+        from_id, to_id = item.get("from_stop"), item.get("to_stop")
+        if (from_id is None) != (to_id is None):
+            raise ValidationError({"legs": "Укажите обе остановки участка или ни одной"})
+        if from_id is None:
+            whole = leg_rules.whole_spec(consignment)
+            first, last = whole.from_stop, whole.to_stop
+        else:
+            first, last = stops.get(from_id), stops.get(to_id)
+            if first is None or last is None:
+                raise ValidationError({"legs": "Остановка участка не найдена"})
+        shares = item.get("shares") or {}
+        result.setdefault(consignment.pk, []).append(
+            leg_rules.LegSpec(
+                consignment,
+                first,
+                last,
+                shares.get("weight_kg"),
+                shares.get("volume_m3"),
+                shares.get("pallets"),
+            )
+        )
+    return result
+
+
+def _leg_ordinals(specs: list) -> list:
+    """Участки груза в рейсе по порядку маршрута (для leg_seq)."""
+    return sorted(
+        specs,
+        key=lambda s: (s.from_stop.seq if s.from_stop else 0, s.to_stop.seq if s.to_stop else 0),
+    )
+
+
+def _new_links(trip: Trip, specs: list, status: str) -> list[TripConsignment]:
+    return [
+        TripConsignment(
+            company_id=trip.company_id,
+            trip=trip,
+            consignment=spec.consignment,
+            from_stop=spec.from_stop,
+            to_stop=spec.to_stop,
+            leg_seq=n,
+            status=status,
+            weight_kg=spec.weight_kg,
+            volume_m3=spec.volume_m3,
+            pallets=spec.pallets,
+        )
+        for n, spec in enumerate(_leg_ordinals(specs), start=1)
+    ]
+
+
+def _repr(value):
+    return None if value is None else str(value)
+
+
+def _leg_repr(consignment_id, from_id, to_id, weight, volume, pallets) -> list:
+    """Участок в аудите: [груз, от остановки, до остановки, вес, объём, паллеты]."""
+    return [consignment_id, from_id, to_id, _repr(weight), _repr(volume), pallets]
+
+
+def _spec_repr(spec) -> list:
+    return _leg_repr(
+        spec.consignment.pk,
+        spec.from_stop.pk if spec.from_stop else None,
+        spec.to_stop.pk if spec.to_stop else None,
+        spec.weight_kg,
+        spec.volume_m3,
+        spec.pallets,
+    )
+
+
+def _link_repr(link: TripConsignment) -> list:
+    return _leg_repr(
+        link.consignment_id,
+        link.from_stop_id,
+        link.to_stop_id,
+        link.weight_kg,
+        link.volume_m3,
+        link.pallets,
+    )
+
+
+def _plan_specs(
+    consignments: list[Consignment], consignment_ids, legs: list[dict]
+) -> tuple[dict, set]:
+    """Участки по грузам: явные из ``legs``, для остальных грузов из ``consignment_ids`` -
+    весь маршрут. Возвращает ({id груза: [LegSpec]}, {id грузов с явными участками})."""
+    by_id = {c.pk: c for c in consignments}
+    explicit = _specs_from_input(legs, by_id) if legs else {}
+    specs = {}
+    for c in consignments:
+        specs[c.pk] = explicit.get(c.pk) or [leg_rules.whole_spec(c)]
+    return specs, set(explicit)
+
+
 @transaction.atomic
 def create_trip(
     consignment_ids: list[int],
@@ -162,9 +265,16 @@ def create_trip(
     data: dict,
     user,
     *,
+    legs: list[dict] | None = None,
     ip: str | None = None,
 ) -> Trip:
     """Создаёт рейс на грузы (не менее одного) в одной транзакции.
+
+    consignment_ids - грузы на весь маршрут (участок от первой погрузки до последней выгрузки);
+    legs (необязательно) - явные участки [{consignment, from_stop, to_stop, shares}]: грузы
+    участков добавляются к consignment_ids, для грузов с явными участками «весь маршрут» не
+    создаётся. Участки проверяются правилами legs (остановки груза, доли, пересечения с другими
+    рейсами).
 
     Все грузы должны быть грузами текущей компании, не удалены, заказ не удалён; иначе
     ValidationError с id. Грузы одного заказа: номер {order}-{n} и is_consolidated=False;
@@ -173,7 +283,12 @@ def create_trip(
     vehicle_plate, driver_name, carrier_price (или устаревший алиас price), currency (остальные
     игнорируются). Пишет аудит create.
     """
-    consignments = _load_consignments(consignment_ids, lock_single_order=True)
+    legs = legs or []
+    all_ids = _unique([*(consignment_ids or []), *(item["consignment"] for item in legs)])
+    consignments = _load_consignments(all_ids, lock_single_order=True)
+    specs, explicit = _plan_specs(consignments, consignment_ids, legs)
+    for c in consignments:
+        leg_rules.check_consignment_legs(c, specs[c.pk])
     carrier = _carrier(carrier_id)
     fields = {k: data[k] for k in ("vehicle_plate", "driver_name", "currency") if k in data}
     carrier_price = _carrier_price(data)
@@ -204,14 +319,17 @@ def create_trip(
         if constraint != NUMBER_CONSTRAINT:
             raise
         raise TripNumberConflict() from None
+    status = leg_rules.leg_status_for(trip.status.code)
     TripConsignment.objects.bulk_create(
-        [
-            TripConsignment(company_id=trip.company_id, trip=trip, consignment=c)
-            for c in consignments
-        ]
+        [link for c in consignments for link in _new_links(trip, specs[c.pk], status)]
     )
     changes = audit.diff({}, audit.snapshot(trip), audit.masked_fields(trip))
     changes["consignments"] = [[], sorted(c.pk for c in consignments)]
+    if explicit:
+        changes["legs"] = [
+            [],
+            sorted((_spec_repr(s) for c in consignments for s in specs[c.pk]), key=repr),
+        ]
     audit.log("create", trip, user, changes, ip=ip)
     return trip
 
@@ -224,31 +342,101 @@ def _locked_trip(trip: Trip) -> Trip:
 
 
 @transaction.atomic
-def reassign(trip: Trip, consignment_ids: list[int], user, *, ip: str | None = None) -> Trip:
+def reassign(
+    trip: Trip,
+    consignment_ids: list[int],
+    user,
+    *,
+    legs: list[dict] | None = None,
+    ip: str | None = None,
+) -> Trip:
     """Заменяет набор грузов рейса (не менее одного; требования к грузам как при создании).
 
+    consignment_ids - грузы (для новых - участок на весь маршрут, у прежних участки сохраняются);
+    legs (необязательно) - явные участки: для грузов с явными участками участки рейса заменяются
+    на указанные (сужение/расширение/передача), грузы участков добавляются к набору.
     is_consolidated пересчитывается (грузов больше чем одного заказа). Номер рейса НИКОГДА
     не меняется: он уже мог попасть в документы, даже если рейс стал сборным или наоборот.
-    Пишет аудит update {"consignments": [было, стало]} (списки id), если набор изменился.
+    Пишет аудит update {"consignments": [было, стало]} (списки id) и {"legs": [...]}, если
+    набор грузов/участков изменился.
     """
     locked = _locked_trip(trip)
-    consignments = _load_consignments(consignment_ids)
+    legs = legs or []
+    all_ids = _unique([*(consignment_ids or []), *(item["consignment"] for item in legs)])
+    consignments = _load_consignments(all_ids)
     new_ids = [c.pk for c in consignments]
     old_order_ids = set(locked.consignments.values_list("order_id", flat=True))
-    old_ids = sorted(
-        TripConsignment.objects.filter(trip=locked).values_list("consignment_id", flat=True)
+    current = list(
+        TripConsignment.objects.filter(trip=locked).select_related("from_stop", "to_stop")
     )
+    old_ids = sorted({link.consignment_id for link in current})
+    by_consignment: dict[int, list] = {}
+    for link in current:
+        by_consignment.setdefault(link.consignment_id, []).append(link)
+    explicit_specs = _specs_from_input(legs, {c.pk: c for c in consignments}) if legs else {}
+    status = leg_rules.leg_status_for(locked.status.code)
+    active = status != TripConsignment.CANCELLED
+    legs_before, legs_after = [], []
+    changed_legs = False
+    # 1) грузы, которых больше нет в рейсе
+    removed = [link.pk for link in current if link.consignment_id not in set(new_ids)]
+    if removed:
+        legs_before += [_link_repr(link) for link in current if link.pk in set(removed)]
+        TripConsignment.objects.filter(pk__in=removed).delete()
+        changed_legs = True
+    # 2) участки оставшихся и новых грузов
+    for c in consignments:
+        kept = by_consignment.get(c.pk, [])
+        if c.pk in explicit_specs:
+            desired = explicit_specs[c.pk]
+        elif kept:
+            legs_before += [_link_repr(link) for link in kept]
+            legs_after += [_link_repr(link) for link in kept]
+            continue  # участки груза не трогаем
+        else:
+            desired = [leg_rules.whole_spec(c)]
+        if active:
+            leg_rules.check_consignment_legs(c, desired, exclude_trip_id=locked.pk)
+        want = {spec.key: spec for spec in desired}
+        legs_before += [_link_repr(link) for link in kept]
+        legs_after += [_spec_repr(spec) for spec in desired]
+        gone = [
+            link.pk
+            for link in kept
+            if (link.consignment_id, link.from_stop_id, link.to_stop_id) not in want
+        ]
+        if gone:
+            TripConsignment.objects.filter(pk__in=gone).delete()
+            changed_legs = True
+        have = {
+            (link.consignment_id, link.from_stop_id, link.to_stop_id): link
+            for link in kept
+            if link.pk not in gone
+        }
+        ordered = _leg_ordinals(desired)
+        for n, spec in enumerate(ordered, start=1):
+            link = have.get(spec.key)
+            if link is None:
+                new_link = _new_links(locked, [spec], status)[0]
+                new_link.leg_seq = n
+                new_link.save()
+                changed_legs = True
+                continue
+            fields = {}
+            for field in (*leg_rules.DIMENSIONS, "leg_seq"):
+                value = n if field == "leg_seq" else getattr(spec, field)
+                if getattr(link, field) != value:
+                    fields[field] = value
+            if fields:
+                TripConsignment.objects.filter(pk=link.pk).update(**fields)
+                changed_legs = True
+    changes = {}
     if old_ids != sorted(new_ids):
-        TripConsignment.objects.filter(trip=locked).exclude(consignment_id__in=new_ids).delete()
-        kept = set(old_ids)
-        TripConsignment.objects.bulk_create(
-            [
-                TripConsignment(company_id=locked.company_id, trip=locked, consignment=c)
-                for c in consignments
-                if c.pk not in kept
-            ]
-        )
-        audit.log("update", locked, user, {"consignments": [old_ids, sorted(new_ids)]}, ip=ip)
+        changes["consignments"] = [old_ids, sorted(new_ids)]
+    if legs and changed_legs:
+        changes["legs"] = [sorted(legs_before, key=repr), sorted(legs_after, key=repr)]
+    if changes:
+        audit.log("update", locked, user, changes, ip=ip)
     consolidated = len({c.order_id for c in consignments}) > 1
     if consolidated != locked.is_consolidated:
         locked.is_consolidated = consolidated
@@ -311,6 +499,7 @@ def change_trip_status(
         changes["completed_at"] = [before["completed_at"], None]
         changes["reason"] = reason
     audit.log("update", locked, user, changes, ip=ip)
+    leg_rules.sync_leg_statuses(locked)  # статусы участков следуют за статусом рейса
     from apps.finance import hooks  # признание дохода (только engine=new; ошибка откатывает)
 
     hooks.after_trip_changed(locked, user, perms=perms, reason=adjust_reason or reason)

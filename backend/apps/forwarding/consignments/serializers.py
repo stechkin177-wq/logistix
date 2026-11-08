@@ -144,6 +144,14 @@ class ConsignmentBaseSerializer(serializers.ModelSerializer):
     status_name = serializers.SerializerMethodField()
     points = PointSerializer(many=True, required=False)
     stops = StopSerializer(many=True, required=False)
+    route = serializers.SerializerMethodField()
+
+    def get_route(self, obj):
+        """Маршрут груза: остановки и покрытие неотменёнными участками рейсов."""
+        from ..trips.legs import route_coverage
+
+        stops = StopSerializer(obj.stops, many=True, context=self.context).data
+        return {"stops": stops, "coverage": route_coverage(obj)}
 
     def get_packaging_name(self, obj):
         return obj.packaging.name if obj.packaging_id else None
@@ -208,6 +216,7 @@ NESTED_FIELDS = [
     "status_name",
     "points",
     "stops",
+    "route",
     "created_at",
 ]
 
@@ -244,7 +253,12 @@ class ConsignmentSerializer(ConsignmentBaseSerializer):
         """Не удалённые рейсы с грузом: аннотация списка/деталей, иначе (после создания) запрос."""
         count = getattr(obj, "trips_count", None)
         if count is None:
-            count = obj.trip_links.filter(trip__deleted_at__isnull=True).count()
+            count = (
+                obj.trip_links.filter(trip__deleted_at__isnull=True)
+                .values("trip_id")
+                .distinct()
+                .count()
+            )
         return count
 
     def validate_order(self, value):

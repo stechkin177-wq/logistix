@@ -24,13 +24,24 @@ class ConsignmentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelVie
             Consignment.objects.filter(order__deleted_at__isnull=True)  # груз скрыт с заказом
             .select_related("order", "order__client", "status", "packaging")
             .annotate(
-                trips_count=Count("trip_links", filter=Q(trip_links__trip__deleted_at__isnull=True))
+                # рейсы, а не участки: груз может ехать несколькими участками одного рейса
+                trips_count=Count(
+                    "trip_links__trip",
+                    filter=Q(trip_links__trip__deleted_at__isnull=True),
+                    distinct=True,
+                )
             )
             .prefetch_related(
                 Prefetch(
                     "points",
                     queryset=ConsignmentPoint.objects.select_related("country", "method"),
-                )
+                ),
+                Prefetch(
+                    "trip_links",
+                    queryset=TripConsignment.objects.select_related(
+                        "trip", "from_stop", "to_stop"
+                    ).order_by("leg_seq", "id"),
+                ),
             )
         )
         if self.action == "list":

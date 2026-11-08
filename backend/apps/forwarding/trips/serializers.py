@@ -6,7 +6,7 @@ from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
 
 from ..fields import ActiveHandbookField, CurrentTolerantField
-from ..models import Carrier, Trip
+from ..models import Carrier, Trip, TripConsignment
 from .services import change_trip_status, create_trip, reassign
 
 SERVER_FIELDS = {
@@ -16,7 +16,71 @@ SERVER_FIELDS = {
     "completed_at": "Время завершения выставляется автоматически при смене статуса",
 }
 MAX_CONSIGNMENTS = 500
+MAX_LEGS = 500
 PRICE_CONFLICT = "Поля price и carrier_price различаются: передайте одно значение"
+
+
+class StopRefSerializer(serializers.Serializer):
+    """Остановка участка (кратко): для ленты маршрута."""
+
+    id = serializers.IntegerField()
+    seq = serializers.IntegerField()
+    kind = serializers.CharField()
+    city = serializers.CharField()
+
+
+class LegSerializer(serializers.ModelSerializer):
+    """Участок перевозки (TripConsignment) в ответе рейса."""
+
+    consignment_name = serializers.CharField(source="consignment.name", read_only=True)
+    order = serializers.IntegerField(source="consignment.order_id", read_only=True)
+    order_number = serializers.CharField(source="consignment.order.number", read_only=True)
+    from_stop = StopRefSerializer(read_only=True)
+    to_stop = StopRefSerializer(read_only=True)
+
+    class Meta:
+        model = TripConsignment
+        fields = [
+            "id",
+            "consignment",
+            "consignment_name",
+            "order",
+            "order_number",
+            "from_stop",
+            "to_stop",
+            "leg_seq",
+            "status",
+            "weight_kg",
+            "volume_m3",
+            "pallets",
+        ]
+        read_only_fields = fields
+
+
+class SharesSerializer(serializers.Serializer):
+    """Доли груза на участке; пусто (или не указано) - весь груз по этому измерению."""
+
+    weight_kg = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True
+    )
+    volume_m3 = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True
+    )
+    pallets = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+
+
+class LegInputSerializer(serializers.Serializer):
+    """Участок в запросе: груз, остановки (обе или ни одной - весь маршрут), доли."""
+
+    consignment = serializers.IntegerField(min_value=1)
+    from_stop = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    to_stop = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    shares = SharesSerializer(required=False)
+
+    def validate(self, attrs):
+        if (attrs.get("from_stop") is None) != (attrs.get("to_stop") is None):
+            raise serializers.ValidationError("Укажите обе остановки участка или ни одной")
+        return attrs
 
 
 class CarrierField(CurrentTolerantField):
@@ -41,6 +105,7 @@ class TripSerializer(serializers.ModelSerializer):
     status_name = serializers.CharField(source="status.name", read_only=True)
     orders = serializers.SerializerMethodField()
     consignments = serializers.SerializerMethodField()
+    legs = serializers.SerializerMethodField()
 
     class Meta:
         model = Trip
@@ -60,6 +125,7 @@ class TripSerializer(serializers.ModelSerializer):
             "completed_at",
             "orders",
             "consignments",
+            "legs",
             "created_by",
             "created_at",
             "updated_at",
@@ -79,13 +145,19 @@ class TripSerializer(serializers.ModelSerializer):
     forbidden = {
         **SERVER_FIELDS,
         "consignments": "Грузы меняются действием POST /api/trips/{id}/reassign/",
+        "legs": "Участки меняются действием POST /api/trips/{id}/reassign/",
     }
 
     def get_carrier_name(self, obj):
         return obj.carrier.name if obj.carrier_id else None
 
     def _cargos(self, obj):
-        return list(obj.consignments.all())  # prefetch: только действующие грузы, по id
+        # prefetch: только действующие грузы, по id; груз с несколькими участками в рейсе - один раз
+        return list({c.pk: c for c in obj.consignments.all()}.values())
+
+    def get_legs(self, obj):
+        """Участки рейса (груз, откуда-куда, статус, доли); по грузам и порядку маршрута."""
+        return LegSerializer(obj.links.all(), many=True, context=self.context).data
 
     def get_orders(self, obj):
         seen = {}
@@ -134,33 +206,63 @@ class TripCreateSerializer(TripSerializer):
 
     forbidden = SERVER_FIELDS
 
+    # грузы на весь маршрут; вместе с ним (или вместо) можно передать явные участки legs
     consignments = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
-        allow_empty=False,
+        allow_empty=True,
+        required=False,
         max_length=MAX_CONSIGNMENTS,
         write_only=True,
     )
+    legs = LegInputSerializer(many=True, required=False, write_only=True, max_length=MAX_LEGS)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if not attrs.get("consignments") and not attrs.get("legs"):
+            raise serializers.ValidationError(
+                {"consignments": "В рейсе должен быть хотя бы один груз"}
+            )
+        return attrs
 
     def create(self, validated_data):
         request = self.context["request"]
-        ids = validated_data.pop("consignments")
+        ids = validated_data.pop("consignments", [])
+        legs = validated_data.pop("legs", [])
         carrier = validated_data.pop("carrier", None)
         return create_trip(
             ids,
             carrier.pk if carrier else None,
             validated_data,
             request.user,
+            legs=legs,
             ip=client_ip(request),
         )
 
 
 class ReassignSerializer(serializers.Serializer):
     consignment_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1), allow_empty=False, max_length=MAX_CONSIGNMENTS
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=True,
+        required=False,
+        max_length=MAX_CONSIGNMENTS,
     )
+    legs = LegInputSerializer(many=True, required=False, max_length=MAX_LEGS)
+
+    def validate(self, attrs):
+        if not attrs.get("consignment_ids") and not attrs.get("legs"):
+            raise serializers.ValidationError(
+                {"consignment_ids": "В рейсе должен быть хотя бы один груз"}
+            )
+        return attrs
 
     def save(self, trip, user, ip=None):
-        return reassign(trip, self.validated_data["consignment_ids"], user, ip=ip)
+        return reassign(
+            trip,
+            self.validated_data.get("consignment_ids", []),
+            user,
+            legs=self.validated_data.get("legs", []),
+            ip=ip,
+        )
 
 
 class TripStatusField(serializers.PrimaryKeyRelatedField):

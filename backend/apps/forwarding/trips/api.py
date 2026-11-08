@@ -82,7 +82,17 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
                 queryset=Consignment.objects.filter(order__deleted_at__isnull=True)
                 .select_related("order")
                 .order_by("id"),
-            )
+            ),
+            Prefetch(
+                "links",
+                # участки действующих грузов, по грузам и порядку маршрута
+                queryset=TripConsignment.objects.filter(
+                    consignment__deleted_at__isnull=True,
+                    consignment__order__deleted_at__isnull=True,
+                )
+                .select_related("consignment", "consignment__order", "from_stop", "to_stop")
+                .order_by("consignment_id", "leg_seq", "id"),
+            ),
         )
         if self.action == "list":
             qs = filter_trips(qs, self.request.query_params)
@@ -116,7 +126,8 @@ class TripViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="reassign")
     def reassign(self, request, pk=None):
-        """Замена грузов рейса: тело {"consignment_ids": [id, ...]}."""
+        """Замена грузов рейса: тело {"consignment_ids": [id, ...], "legs": [...]} (legs -
+        необязательные явные участки {consignment, from_stop, to_stop, shares})."""
         trip = self.get_object()
         serializer = ReassignSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

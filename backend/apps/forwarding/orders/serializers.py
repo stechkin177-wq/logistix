@@ -13,7 +13,7 @@ from ..consignments.serializers import NestedConsignmentSerializer
 from ..consignments.services import first_load, last_unload
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
-from ..models import Client, Contact, Order, OrderStatusHistory
+from ..models import Client, Contact, Order, OrderStatusHistory, TripConsignment
 from .services import carried_with_carrier, change_status, create_order
 
 FORBIDDEN_FIELDS = {
@@ -28,10 +28,16 @@ def consignments_prefetch() -> Prefetch:
     points = Prefetch(
         "points", queryset=ConsignmentPoint.objects.select_related("country", "method")
     )
+    links = Prefetch(
+        "trip_links",
+        queryset=TripConsignment.objects.select_related("trip", "from_stop", "to_stop").order_by(
+            "leg_seq", "id"
+        ),
+    )
     return Prefetch(
         "consignments",
         queryset=Consignment.objects.select_related("status", "packaging")
-        .prefetch_related(points)
+        .prefetch_related(points, links)
         .order_by("id"),
     )
 
