@@ -306,8 +306,9 @@ def test_base_switch_prior_base_is_separate_and_not_mixed(company, usd_rates):
     assert report["is_partial"] is True
 
 
-def test_invoice_without_base_rate_shows_equivalent_but_no_difference(company, usd_rates):
-    inv = usd_invoice(company, "100")
+def test_invoice_without_base_rate_is_excluded_from_totals(company, usd_rates):
+    inv = usd_invoice(company, "100", due=date(2026, 6, 1))
+    ok = usd_invoice(company, "10", due=date(2026, 7, 30))
     with tenant_context(company.id):
         Invoice.objects.filter(pk=inv.pk).update(
             base_currency=None, rate_to_base=None, rate_to_base_date=None
@@ -315,10 +316,55 @@ def test_invoice_without_base_rate_shows_equivalent_but_no_difference(company, u
     enable_new(company)
     with tenant_context(company.id):
         report = debts_base.debts_report("out", TODAY)
-    row = one(report["results"])
-    assert row["balance_base"] == D("48000.00") and row["carrying_base"] == D("0.00")
-    assert row["unrealized_diff"] == D("0.00")
-    assert report["excluded"]["no_base_rate"]["count"] == 1 and report["is_partial"] is True
+        summary = debts_base.summary_extras(TODAY, date(2026, 6, 1), date(2026, 6, 30))
+    # в итоги входит только счёт с курсом (10 USD * 480), счёт без базового курса - нет
+    totals = report["totals"]
+    assert ok.pk != inv.pk
+    assert totals["balance_base"] == D("4800.00") and totals["overdue_base"] == D("0.00")
+    assert totals["carrying_base"] == D("4500.00") and totals["unrealized_diff"] == D("300.00")
+    excl = report["excluded"]["no_base_rate"]
+    assert excl["count"] == 1 and report["is_partial"] is True
+    cell = excl["by_currency"]["USD"]
+    assert cell["open"] == D("100.00") and cell["overdue"] == D("100.00")
+    assert cell["equivalent_base"] == D("48000.00")  # справочно, не в итогах
+    assert summary["client_debt_base"] == D("4800.00") and summary["overdue_base"] == D("0.00")
+    assert summary["debts_partial"] is True
+    assert summary["debts_excluded"]["no_base_rate"]["count"] == 1
+
+
+def test_no_base_rate_does_not_touch_profit_margin(company, usd_rates):
+    set_engine(company, "legacy")
+    order = make_order(company, currency="USD")
+    inv = issue_invoice(company, order=order, amount="100", currency="USD", day=date(2026, 6, 1))
+    enable_new(company)
+    mk_income(company, order, 100, day=date(2026, 6, 10))
+    mk_expense(company, order, 40, day=date(2026, 6, 10))
+    before = snapshot_profit(company, order)
+    with tenant_context(company.id):
+        Invoice.objects.filter(pk=inv.pk).update(
+            base_currency=None, rate_to_base=None, rate_to_base_date=None
+        )
+        report = debts_base.debts_report("out", TODAY)
+    assert report["excluded"]["no_base_rate"]["count"] == 1
+    assert report["totals"]["balance_base"] == D("0.00")
+    assert snapshot_profit(company, order) == before
+
+
+def test_backfilled_invoice_enters_totals(company, usd_rates):
+    inv = usd_invoice(company, "100")
+    clear_snapshots(company)
+    enable_new(company)
+    with tenant_context(company.id):
+        before = debts_base.debts_report("out", TODAY)
+    assert before["totals"]["balance_base"] == D("0.00")
+    assert before["excluded"]["no_base_rate"]["count"] == 1
+    call_command("backfill_fx_base_snapshots", company=company.id)
+    with tenant_context(company.id):
+        after = debts_base.debts_report("out", TODAY)
+        assert Invoice.objects.get(pk=inv.pk).rate_to_base == D("450.000000")
+    assert after["totals"]["balance_base"] == D("48000.00")
+    assert after["totals"]["unrealized_diff"] == D("3000.00")
+    assert after["excluded"]["no_base_rate"]["count"] == 0 and after["is_partial"] is False
 
 
 def test_realized_excludes_payments_without_base_rate_or_other_base(company, usd_rates):

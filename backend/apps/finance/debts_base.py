@@ -20,9 +20,12 @@ as_of (по умолчанию сегодня компании): остаток 
   no_rate      - нет курса на дату отчёта: эквивалента в базе нет вообще;
   prior_base   - снимок счёта сделан в ДРУГОЙ базовой валюте: в итоги базы не входит, эквивалент на
                  дату отчёта показывается отдельно (equivalent_base) и в итоги не суммируется;
-  no_base_rate - у счёта нет базового курса (выпущен до введения снимков): эквивалент на дату
-                 отчёта входит в balance_base/overdue_base, но carrying_base и нереализованная
-                 разница не считаются (курс не придумывается).
+  no_base_rate - у счёта (оплаты) нет базового курса выставления (запись выпущена до введения
+                 снимков): достоверного курса нет, поэтому сумма НЕ входит в итоговые
+                 balance_base/overdue_base/carrying_base/нереализованную разницу, как рассчитанная.
+                 Остаток и просрочка остаются в исходной валюте в excluded (is_partial=true);
+                 эквивалент на дату отчёта показывается там же справочно (equivalent_base).
+                 Курс не придумывается. Оплаты без базового курса не входят в реализованную разницу.
 Счёт в валюте, равной базовой, всегда пригоден (курс 1, разница 0).
 """
 
@@ -217,7 +220,7 @@ def _add_excluded(excluded: dict, entry: Entry) -> None:
     cell["open"] += entry.open
     if entry.overdue:
         cell["overdue"] += entry.open
-    if entry.status == PRIOR_BASE and entry.current_base is not None:
+    if entry.status in (PRIOR_BASE, NO_BASE_RATE) and entry.current_base is not None:
         cell["equivalent_base"] += entry.current_base  # справочно, в итоги не суммируется
 
 
@@ -238,11 +241,10 @@ def _totals() -> dict:
 
 def _accumulate(totals: dict, entry: Entry) -> None:
     """Вклад записи в итоги базы (только пригодные; см. описание модуля)."""
-    if entry.status in (OK, NO_BASE_RATE):
+    if entry.status == OK:
         totals["balance_base"] += entry.current_base
         if entry.overdue:
             totals["overdue_base"] += entry.current_base
-    if entry.status == OK:
         totals["carrying_base"] += entry.carrying_base
         totals["revalued_base"] += entry.current_base
         totals["unrealized_diff"] += entry.unrealized

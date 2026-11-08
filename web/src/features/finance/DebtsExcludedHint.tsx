@@ -17,7 +17,7 @@ export function DebtsExcludedHint({ excluded, className }: { excluded: DebtsExcl
   const lines = REASONS.filter((reason) => excluded[reason].count > 0).map((reason) => {
     const part = excluded[reason]
     const sums = Object.entries(part.by_currency)
-      .map(([code, v]) => `${money(v.open, code)}${reason === 'prior_base' ? ` (${t('finance.fx.equivalentRef')} ${money(v.equivalent_base)})` : ''}`)
+      .map(([code, v]) => `${money(v.open, code)}${reason !== 'no_rate' ? ` (${t('finance.fx.equivalentRef')} ${money(v.equivalent_base)})` : ''}`)
       .join('; ')
     return `${t(`finance.fx.excluded.${KEYS[reason]}`, { count: part.count })}: ${sums}`
   })
