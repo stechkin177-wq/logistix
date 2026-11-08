@@ -34,7 +34,8 @@ RELEASE SAVEPOINT значение сохраняют. Новое (пере)по
 Не покрывается: SQL мимо курсоров Django (``connection.connection.cursor()``) и ручной
 ``ROLLBACK``/``SET`` через курсор - такой код обязан сам позаботиться о GUC.
 
-Принятый пробел: Company, User, Membership, Subscription, Plan и CompanyBranding - не
+Принятый пробел: Company, User, Membership, Subscription, Plan, Module, ActivityProfile и
+CompanyBranding - не
 TenantModel и RLS не имеют: их читают до появления контекста компании (вход, аутентификация,
 шлюз подписки, публичный эндпоинт оформления экрана входа).
 Их изоляция обеспечивается только кодом.

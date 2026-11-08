@@ -102,6 +102,56 @@ class Company(models.Model):
         return self.name
 
 
+class Module(models.Model):
+    """Каталог модулей платформы (платформенная таблица: без company и без RLS, как billing.Plan).
+
+    Наполняется миграцией core.0015 и админ-панелью платформы. ``requires`` - жёсткие зависимости
+    (модуль технически не работает без них), ``enhances`` - мягкие связи (работает без них).
+    ``is_core`` - основа: всегда включена у каждой компании и в CompanyModule не хранится.
+    """
+
+    AVAILABLE = "available"
+    BETA = "beta"
+    RETIRED = "retired"
+    STATUSES = [(AVAILABLE, "Доступен"), (BETA, "Бета"), (RETIRED, "Выведен")]
+
+    code = models.SlugField(max_length=32, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    sort = models.PositiveIntegerField(default=0)
+    is_core = models.BooleanField(default=False)
+    requires = models.JSONField(default=list, blank=True)
+    enhances = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=16, choices=STATUSES, default=AVAILABLE)
+
+    class Meta:
+        ordering = ["sort", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=["available", "beta", "retired"]),
+                name="module_status_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return self.code
+
+
+class ActivityProfile(models.Model):
+    """Профиль деятельности: рекомендуемый стартовый набор модулей (платформенная таблица)."""
+
+    code = models.SlugField(max_length=32, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    modules = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.code
+
+
 class CompanyBranding(models.Model):
     """Оформление компании: название приложения, логотип, цвет, тема, свой домен.
 
