@@ -1,7 +1,9 @@
+from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models import OuterRef
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import Membership
+from .models import CompanyModule, Membership
 from .tenancy import set_current_company, tenant_context
 
 
@@ -20,8 +22,15 @@ class CompanyJWTAuthentication(JWTAuthentication):
         # Membership без RLS, но присоединённая роль (Role - TenantModel) под RLS видна
         # только в контексте её компании; контекст запроса ставится лишь после проверки.
         with tenant_context(company_id):
+            # включённые модули компании читаются тем же запросом (без лишнего обращения к БД)
+            enabled_modules = ArraySubquery(
+                CompanyModule.all_objects.filter(company_id=OuterRef("company_id"), enabled=True)
+                .order_by("id")
+                .values("module_code")
+            )
             membership = (
                 Membership.objects.select_related("role", "company")
+                .annotate(enabled_module_codes=enabled_modules)
                 .filter(user_id=user.pk, company_id=company_id, is_active=True)
                 .first()
             )

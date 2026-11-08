@@ -37,7 +37,7 @@ BASE_STATUS_TEXT = {
 
 class OperationsMixin:
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), permission_required("finance.view")()]
+        return [ModuleRequired("finance")(), permission_required("finance.view")()]
 
     def filters(self, request) -> dict:
         p = request.query_params

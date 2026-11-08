@@ -128,7 +128,7 @@ class IncomeViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         code = self.PERMISSIONS.get(self.action, "finance.delete")
-        return [ModuleRequired("forwarding")(), permission_required(code)()]
+        return [ModuleRequired("finance")(), permission_required(code)()]
 
     def get_queryset(self):
         qs = Income.objects.select_related(
@@ -274,7 +274,7 @@ class ExpenseViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         code = self.PERMISSIONS.get(self.action, "finance.delete")
-        return [ModuleRequired("forwarding")(), permission_required(code)()]
+        return [ModuleRequired("finance")(), permission_required(code)()]
 
     def get_queryset(self):
         active_links = (

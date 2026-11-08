@@ -16,7 +16,7 @@ from .serializers import excluded_data, jsonable, money
 
 class ReportView(APIView):
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), permission_required("finance.view")()]
+        return [ModuleRequired("finance")(), permission_required("finance.view")()]
 
     def today(self, request):
         return company_today(request.membership.company_id)

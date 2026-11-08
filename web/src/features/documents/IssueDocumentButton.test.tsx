@@ -85,6 +85,24 @@ describe('Выдача документов: заказ', () => {
     expect(await screen.findByRole('button', { name: 'Заявка клиента' })).toBeInTheDocument()
   })
 
+  it('требует модуль documents и модуль-владелец вида: акт - finance, заявка - forwarding', async () => {
+    const hidden = async (modules: string[], kind: 'act' | 'order_request') => {
+      loggedIn([], { session: { modules } })
+      const view = renderWithProviders(<IssueDocumentButton kind={kind} source={{ order: 5 }} label="Док" />)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      const absent = screen.queryByRole('button', { name: 'Док' }) === null
+      view.unmount()
+      vi.unstubAllGlobals()
+      return absent
+    }
+    expect(await hidden(['forwarding', 'finance'], 'order_request')).toBe(true) // нет documents
+    expect(await hidden(['documents', 'finance'], 'order_request')).toBe(true) // нет forwarding
+    expect(await hidden(['documents', 'forwarding'], 'act')).toBe(true) // нет finance
+    loggedIn([], { session: { modules: ['documents', 'finance'] } })
+    renderWithProviders(<IssueDocumentButton kind="act" source={{ invoice: 5 }} label="Док" />)
+    expect(await screen.findByRole('button', { name: 'Док' })).toBeInTheDocument()
+  })
+
   it('source_not_ready показывает причину сервера в диалоге', async () => {
     loggedIn([...orderRoutes, caps(true), ['POST', '/api/documents/issued/', { status: 400, body: { detail: 'У рейса не указан перевозчик.', code: 'source_not_ready' } }]])
     renderApp('/orders/5')

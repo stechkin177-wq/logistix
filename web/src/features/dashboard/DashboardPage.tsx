@@ -64,8 +64,8 @@ export function DashboardPage() {
   const { money } = useFormat()
   const canCreate = useCanWrite('orders.create')
   const query = useDashboardSummary()
-  const { hasPermission } = useSession()
-  const canFinance = hasPermission('finance.view')
+  const { hasPermission, hasModule } = useSession()
+  const canFinance = hasPermission('finance.view') && hasModule('finance')
   const finance = useFinanceSummary(canFinance).data
   const data = query.data
 

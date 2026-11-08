@@ -20,11 +20,11 @@ function useInvalidate() {
 
 /** Режим учёта компании; запрос только при праве finance.view. Пока не известен - 'legacy'. */
 export function useFinanceEngine() {
-  const { hasPermission, session } = useSession()
+  const { hasPermission, hasModule, session } = useSession()
   const query = useQuery({
     queryKey: ['finance', 'engine'],
     queryFn: ({ signal }) => getEngine(signal),
-    enabled: session !== undefined && hasPermission('finance.view'),
+    enabled: session !== undefined && hasModule('finance') && hasPermission('finance.view'),
     staleTime: 60_000,
   })
   return { engine: query.data?.engine ?? 'legacy', frozen: query.data?.financial_writes_frozen ?? false, isLoading: query.isPending }

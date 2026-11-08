@@ -59,7 +59,7 @@ def any_permission(*codes):
 
 def _perm(*codes):
     guard = permission_required(codes[0]) if len(codes) == 1 else any_permission(*codes)
-    return [ModuleRequired("forwarding")(), guard()]
+    return [ModuleRequired("finance")(), guard()]
 
 
 def revaluation_data(r: FxRevaluation) -> dict:

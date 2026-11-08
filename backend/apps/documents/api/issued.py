@@ -44,7 +44,7 @@ class IssuedViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         code = PERMISSIONS.get(self.action, "documents.create")
-        return [ModuleRequired("forwarding")(), permission_required(code)()]
+        return [ModuleRequired("documents")(), permission_required(code)()]
 
     def get_throttles(self):
         if self.action == "download" and self.request.query_params.get("format") == "pdf":

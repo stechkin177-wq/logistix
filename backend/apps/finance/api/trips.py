@@ -45,7 +45,7 @@ class TripExpenseLinesView(APIView):
 
     def get_permissions(self):
         code = "finance.create" if self.request.method == "POST" else "finance.view"
-        return [ModuleRequired("forwarding")(), permission_required(code)()]
+        return [ModuleRequired("finance")(), permission_required(code)()]
 
     def get_trip(self, pk):
         trip = Trip.objects.filter(pk=pk).first()

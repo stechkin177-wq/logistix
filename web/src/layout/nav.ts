@@ -28,8 +28,8 @@ export const NAV: NavItem[] = [
       { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'forwarding' },
     ],
   },
-  { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view' },
-  { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'forwarding' },
+  { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },
+  { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents' },
   { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
   {
     key: 'settings',
@@ -40,9 +40,9 @@ export const NAV: NavItem[] = [
       { key: 'departments', labelKey: 'nav.departments', path: '/settings/departments', permission: 'users.view' },
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
-      { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings' },
+      { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance' },
       { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view' },
-      { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'forwarding' },
+      { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'documents' },
     ],
   },
 ]

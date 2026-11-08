@@ -44,7 +44,7 @@ class InvoiceViewSet(AuditedMixin, viewsets.GenericViewSet):
         code = PERMISSIONS.get(self.action)
         if self.action == "payments":
             code = "finance.create" if self.request.method == "POST" else "finance.view"
-        return [ModuleRequired("forwarding")(), permission_required(code or "finance.delete")()]
+        return [ModuleRequired("finance")(), permission_required(code or "finance.delete")()]
 
     def today(self):
         return company_today(self.request.membership.company_id)

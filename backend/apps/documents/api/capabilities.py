@@ -11,7 +11,7 @@ class CapabilitiesView(APIView):
     """GET /api/documents/capabilities/ -> {"pdf_available": bool}."""
 
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), permission_required("documents.view")()]
+        return [ModuleRequired("documents")(), permission_required("documents.view")()]
 
     def get(self, request):
         return Response({"pdf_available": pdf.pdf_available()})

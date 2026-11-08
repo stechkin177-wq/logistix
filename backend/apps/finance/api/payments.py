@@ -20,7 +20,7 @@ class PaymentViewSet(viewsets.GenericViewSet):
 
     def get_permissions(self):
         code = "finance.delete" if self.action == "destroy" else "finance.view"
-        return [ModuleRequired("forwarding")(), permission_required(code)()]
+        return [ModuleRequired("finance")(), permission_required(code)()]
 
     def get_queryset(self):
         qs = Payment.objects.select_related("invoice").order_by("-date", "-id")

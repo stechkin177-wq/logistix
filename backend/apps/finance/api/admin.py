@@ -39,7 +39,7 @@ from .serializers import money
 
 
 def _perm(code):
-    return [ModuleRequired("forwarding")(), permission_required(code)()]
+    return [ModuleRequired("finance")(), permission_required(code)()]
 
 
 def _hv(value):

@@ -8,6 +8,17 @@ import { useIssueDocument } from './hooks'
 import { IssuedDialog } from './IssuedDialog'
 import type { DocumentKind, IssuedDocument, IssueSource } from './types'
 
+/** Модуль-владелец вида документа: акт и счёт на оплату принадлежат finance, остальные виды - forwarding. */
+const KIND_MODULE: Record<DocumentKind, string> = {
+  contract: 'forwarding',
+  order_request: 'forwarding',
+  carrier_order: 'forwarding',
+  cmr: 'forwarding',
+  letter: 'forwarding',
+  act: 'finance',
+  invoice_print: 'finance',
+}
+
 interface Props extends Pick<ButtonProps, 'variant'> {
   kind: DocumentKind
   /** Ровно один источник: клиент, заказ, рейс или счёт. */
@@ -16,7 +27,7 @@ interface Props extends Pick<ButtonProps, 'variant'> {
   label: string
 }
 
-/** Кнопка «выдать документ»: POST issued/, затем диалог со скачиванием. Скрыта без модуля forwarding, отключена без documents.create. */
+/** Кнопка «выдать документ»: POST issued/, затем диалог со скачиванием. Скрыта без модуля documents или модуля-владельца вида (forwarding/finance), отключена без documents.create. */
 export function IssueDocumentButton({ kind, source, label, variant }: Props) {
   const { t } = useTranslation()
   const { hasModule } = useSession()
@@ -24,7 +35,7 @@ export function IssueDocumentButton({ kind, source, label, variant }: Props) {
   const busy = useRef(false)
   const [result, setResult] = useState<{ doc: IssuedDocument | null; error?: string } | null>(null)
 
-  if (!hasModule('forwarding')) return null
+  if (!hasModule('documents') || !hasModule(KIND_MODULE[kind])) return null
 
   const run = () => {
     if (busy.current) return // второй клик, пока идёт запрос, документ не создаёт

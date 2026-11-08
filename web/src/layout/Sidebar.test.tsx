@@ -29,12 +29,13 @@ describe('Sidebar', () => {
 
   it('без модуля forwarding прячет клиентов и заказы', async () => {
     setTokens({ access: 'a', refresh: 'r' })
-    mockFetch(base(makeSession({ modules: ['fleet'] })))
+    mockFetch(base(makeSession({ modules: ['fleet', 'finance'] })))
     renderApp('/')
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
     expect(within(nav).queryByText('Клиенты')).not.toBeInTheDocument()
     expect(within(nav).queryByText('Заказы')).not.toBeInTheDocument()
     expect(within(nav).getByText('Финансы')).toBeInTheDocument()
+    expect(within(nav).queryByText('Документы')).not.toBeInTheDocument() // отдельный модуль documents
   })
 
   it('переключатель компании вызывает switch-company и сбрасывает кэш', async () => {

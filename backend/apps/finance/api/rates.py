@@ -61,7 +61,7 @@ class RateViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_permissions(self):
-        return [ModuleRequired("forwarding")(), *super().get_permissions()]
+        return [ModuleRequired("finance")(), *super().get_permissions()]
 
     def get_queryset(self):
         qs = ExchangeRate.objects.select_related("currency").filter(quote_currency__isnull=True)

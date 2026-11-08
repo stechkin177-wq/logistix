@@ -27,7 +27,7 @@ export function OrderDetailPage() {
   const { t } = useTranslation()
   const params = useParams()
   const navigate = useNavigate()
-  const { hasPermission } = useSession()
+  const { hasPermission, hasModule } = useSession()
   const rawId = params.id ?? ''
   const id = /^\d{1,12}$/.test(rawId) ? Number(rawId) : null
   const query = useOrder(id)
@@ -56,7 +56,7 @@ export function OrderDetailPage() {
   const tabs: TabDef[] = [
     { key: 'overview', label: t('orders.tabOverview') },
     { key: 'cargo', label: t('orders.tabCargo') },
-    ...(hasPermission('finance.view') ? [{ key: 'finance', label: t('orders.tabFinance') }] : []),
+    ...(hasPermission('finance.view') && hasModule('finance') ? [{ key: 'finance', label: t('orders.tabFinance') }] : []),
     ...(hasPermission('trips.view') ? [{ key: 'trips', label: t('orders.tabTrips') }] : []),
     { key: 'history', label: t('orders.tabHistory') },
   ]

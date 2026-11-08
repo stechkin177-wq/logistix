@@ -45,8 +45,12 @@ def company_enabled_modules(request) -> set[str]:
     raw = getattr(request, "_request", request)
     cached = getattr(raw, "_company_enabled_modules", None)
     if cached is None:
-        company_id = _company_id(request)
-        cached = set(enabled_module_codes(company_id)) if company_id is not None else set()
+        membership = getattr(request, "membership", None)
+        codes = getattr(membership, "enabled_module_codes", None)  # аннотация из аутентификации
+        if codes is None:
+            company_id = _company_id(request)
+            codes = enabled_module_codes(company_id) if company_id is not None else []
+        cached = set(codes)
         raw._company_enabled_modules = cached
     return cached
 
