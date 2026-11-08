@@ -207,21 +207,23 @@ def check_consignment_legs(
 # --- покрытие маршрута ---
 
 
-def route_coverage(consignment: Consignment) -> dict:
+def route_coverage(consignment: Consignment, legs: list | None = None) -> dict:
     """Покрытие маршрута груза неотменёнными участками рейсов (без фиктивных строк).
 
     Отрезок - пара соседних остановок. Покрыт, если есть неотменённый участок рейса (рейс не
     удалён) с ``from.seq <= начало отрезка`` и ``to.seq >= конец отрезка``. Участок без
     остановок (прежняя связь) покрывает весь маршрут. Доли не учитываются: частично
-    покрытый долями отрезок считается покрытым. В отрезке: legs - id участков, trips - рейсы
-    (id, номер, статус участка) без повторов.
+    покрытый долями отрезок считается покрытым. ``legs`` - готовый список участков (финансы
+    передают только действующие), по умолчанию читаются из связей груза. В отрезке: legs -
+    id участков, trips - рейсы (id, номер, статус участка) без повторов.
     """
     stops = stops_of(consignment)
-    legs = [
-        link
-        for link in consignment.trip_links.all()
-        if link.status != TripConsignment.CANCELLED and link.trip.deleted_at is None
-    ]
+    if legs is None:
+        legs = [
+            link
+            for link in consignment.trip_links.all()
+            if link.status != TripConsignment.CANCELLED and link.trip.deleted_at is None
+        ]
     segments = []
     last_seq = stops[-1].seq if stops else 1
     for begin, end in zip(stops, stops[1:], strict=False):

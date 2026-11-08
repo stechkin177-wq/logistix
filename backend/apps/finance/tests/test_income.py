@@ -157,13 +157,17 @@ def test_cancelled_trip_is_not_counted(company):
     t2 = new_trip(company, [ids[1]])
     move(company, t1, "COMPLETED", T1)
     assert one(order).status == "planned"
-    move(company, t2, "CANCELLED", T2)  # остался один действующий и он завершён
+    move(company, t2, "CANCELLED", T2)
+    # R-1: груз отменённого рейса остался без назначенного рейса - доход не признаётся
+    assert one(order).status == "planned"
+    t3 = new_trip(company, [ids[1]])  # груз назначен на новый рейс
+    move(company, t3, "COMPLETED", T3)
     income = one(order)
-    assert income.status == "recognized" and income.recognized_on == date(2026, 6, 1)
-    with tenant_context(company.id):
-        assert list(IncomeTrip.objects.filter(income=income).values_list("trip_id", flat=True)) == [
-            t1.pk
-        ]
+    assert income.status == "recognized" and income.recognized_on == date(2026, 6, 5)
+    with tenant_context(company.id):  # отменённый рейс в признании не участвует
+        assert sorted(
+            IncomeTrip.objects.filter(income=income).values_list("trip_id", flat=True)
+        ) == sorted([t1.pk, t3.pk])
 
 
 def test_all_trips_cancelled_means_no_recognition(company):
@@ -184,6 +188,9 @@ def test_unfinished_cancelled_waits_for_remaining(company):
     move(company, t2, "CANCELLED", T1)
     assert one(order).status == "planned"  # t1 ещё не завершён
     move(company, t1, "COMPLETED", T2)
+    assert one(order).status == "planned"  # R-1: у груза отменённого рейса нет назначенного рейса
+    t3 = new_trip(company, [ids[1]])
+    move(company, t3, "COMPLETED", T3)
     assert one(order).status == "recognized"
 
 

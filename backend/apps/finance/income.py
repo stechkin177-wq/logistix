@@ -1,15 +1,23 @@
 """Доходы (Income): плановый доход заказа, признание, возврат, услуги, корректировка.
 
-Принцип начисления. Доход перевозки заказа признаётся, когда ВСЕ действующие рейсы заказа
-завершены (статус = CompanyFinancialSettings.completed_status и заполнен completed_at); дата
-признания - дата (в часовом поясе компании) самого позднего завершения. Рейс с системным кодом
-CANCELLED и удалённый рейс не считаются. Признание идемпотентно: второго дохода не создаётся.
+Принцип начисления (правило R-1, Master Spec §6.3.1 в редакции v1.1). Доход перевозки заказа
+признаётся ТОЛЬКО при одновременном выполнении:
+(а) каждому действующему грузу назначены рейсы на все отрезки маршрута (fully_assigned);
+(б) ВСЕ действующие рейсы заказа завершены (статус = CompanyFinancialSettings.completed_status и
+    заполнен completed_at);
+(в) последняя остановка каждого груза выполнена: она в статусе done ИЛИ участок, заканчивающийся
+    на ней, завершён (для двухточечных грузов это то же завершение рейса: прежнее поведение).
+Предикат один (recognition_state, income_recognition_ready/blockers) и служит и признанию, и
+возврату. Дата признания - дата (в часовом поясе компании) последнего события: завершения
+последнего рейса или фиксации последней доставки. Рейс с системным кодом CANCELLED и удалённый
+рейс не считаются. Признание идемпотентно: второго дохода не создаётся.
 Услуги признаются отдельно: после mark_service_delivered и confirm_service.
 
 Порядок блокировок: Order -> Trip -> Income -> (доли) -> Invoice -> Payment. Engine сервисы не
 проверяют (см. engine.py и hooks.py). Права и причины приходят параметрами от API-слоя.
 """
 
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
@@ -18,7 +26,8 @@ from django.utils import timezone
 
 from apps.core.audit import services as audit
 from apps.core.tenancy import tenant_context
-from apps.forwarding.models import Order, Trip, TripConsignment
+from apps.forwarding.models import Consignment, ConsignmentPoint, Order, Trip, TripConsignment
+from apps.forwarding.trips.legs import route_coverage
 
 from . import periods
 from .engine import current_cid, local_date
@@ -84,6 +93,108 @@ def completion_state(order: Order, settings, *, lock: bool = False):
         t.status_id == settings.completed_status_id and t.completed_at is not None for t in trips
     )
     return done, trips
+
+
+@dataclass
+class RecognitionState:
+    """Итог проверки R-1: готовность, причины отказа, действующие рейсы, времена доставок."""
+
+    ready: bool
+    blockers: list[dict] = field(default_factory=list)
+    trips: list[Trip] = field(default_factory=list)
+    delivered_at: list = field(default_factory=list)  # done_at последних остановок (если есть)
+
+    def recognized_on(self, cid: int) -> date:
+        """Дата последнего события: завершения последнего рейса или фиксации доставки."""
+        days = [local_date(t.completed_at, cid) for t in self.trips if t.completed_at]
+        days += [local_date(moment, cid) for moment in self.delivered_at]
+        return max(days)
+
+    def last_trip(self) -> Trip:
+        return max((t for t in self.trips), key=lambda t: (t.completed_at, t.pk))
+
+
+def _trip_completed(trip: Trip, settings) -> bool:
+    return trip.status_id == settings.completed_status_id and trip.completed_at is not None
+
+
+def _consignment_blockers(consignment, settings, delivered_at: list) -> list[dict]:
+    """Причины, по которым груз не готов к признанию: отрезки без рейса, не доставлен."""
+    links = [
+        link
+        for link in TripConsignment.objects.filter(
+            consignment=consignment, trip__deleted_at__isnull=True
+        )
+        .exclude(status=TripConsignment.CANCELLED)
+        .exclude(trip__status__code=CANCELLED_CODE)
+        .select_related("trip", "from_stop", "to_stop")
+    ]
+    stops = list(ConsignmentPoint.objects.filter(consignment=consignment).order_by("seq", "id"))
+    blockers = []
+    if len(stops) >= 2:
+        uncovered = route_coverage(consignment, legs=links)["uncovered"]
+        if uncovered:
+            blockers.append(
+                {
+                    "code": "route_not_assigned",
+                    "consignment": consignment.pk,
+                    "segments": [[s["from_seq"], s["to_seq"]] for s in uncovered],
+                }
+            )
+    elif not links:  # груз без маршрута: достаточно любого действующего участка
+        blockers.append(
+            {"code": "route_not_assigned", "consignment": consignment.pk, "segments": []}
+        )
+    last = stops[-1] if stops else None
+    if last is not None and last.status == ConsignmentPoint.DONE:
+        if last.done_at is not None:
+            delivered_at.append(last.done_at)
+        return blockers
+    for link in links:
+        ends_last = last is None or link.to_stop_id is None or link.to_stop_id == last.pk
+        if ends_last and (
+            link.status == TripConsignment.DONE or _trip_completed(link.trip, settings)
+        ):
+            return blockers
+    code = (
+        "in_storage" if consignment.location_status == Consignment.IN_STORAGE else "not_delivered"
+    )
+    blockers.append({"code": code, "consignment": consignment.pk})
+    return blockers
+
+
+def recognition_state(order: Order, settings, *, lock: bool = False) -> RecognitionState:
+    """Единый предикат R-1 для признания и возврата дохода (см. docstring модуля)."""
+    if settings.completed_status_id is None:
+        raise FinanceError(
+            "completed_status_missing",
+            "Не сопоставлен статус рейса «Завершён» (completed_status)",
+            status_code=409,
+        )
+    trips = active_trips(order, lock=lock)
+    blockers: list[dict] = []
+    if not trips:
+        blockers.append({"code": "no_active_trips"})
+    else:
+        open_trips = [t.pk for t in trips if not _trip_completed(t, settings)]
+        if open_trips:
+            blockers.append({"code": "trips_not_completed", "trips": open_trips})
+    delivered_at: list = []
+    consignments = list(Consignment.objects.filter(order=order).order_by("pk"))
+    if not consignments:
+        blockers.append({"code": "no_consignments"})
+    for consignment in consignments:
+        blockers += _consignment_blockers(consignment, settings, delivered_at)
+    return RecognitionState(not blockers, blockers, trips, delivered_at)
+
+
+def income_recognition_blockers(order: Order, settings, *, lock: bool = False) -> list[dict]:
+    """Список причин, мешающих признать доход (пусто - можно признавать)."""
+    return recognition_state(order, settings, lock=lock).blockers
+
+
+def income_recognition_ready(order: Order, settings, *, lock: bool = False) -> bool:
+    return recognition_state(order, settings, lock=lock).ready
 
 
 def _freight(order: Order, *, lock: bool = True) -> Income | None:
@@ -154,18 +265,18 @@ def recognize_order_income(order: Order, *, user=None, now=None) -> Income | Non
         periods.assert_finance_writable(cid)
         order = _lock_order(order)
         settings = get_settings_for(cid)
-        done, trips = completion_state(order, settings, lock=True)
+        state = recognition_state(order, settings, lock=True)
         income = _freight(order)
-        if not done:
+        if not state.ready:
             return income
+        trips = state.trips
         if income is not None and income.status == "recognized":
             return income  # повторный вызов: ничего не меняется
         if income is None:
             income = sync_planned_freight(order, user=user)
             income = _freight(order)
-        completed = [(local_date(t.completed_at, cid), t.completed_at, t.pk, t) for t in trips]
-        recognized_on = max(c[0] for c in completed)
-        last_trip = max(completed, key=lambda c: (c[1], c[2]))[3]
+        recognized_on = state.recognized_on(cid)
+        last_trip = state.last_trip()
         periods.assert_period_open(cid, recognized_on)  # системное событие: только период
         snapshot = fx_snapshot(
             cid_company(cid), income.amount, income.currency, recognized_on, settings
@@ -178,14 +289,14 @@ def recognize_order_income(order: Order, *, user=None, now=None) -> Income | Non
         for key, value in snapshot.items():
             setattr(income, key, value)
         income.save()
-        old_trips = _set_trips(income, [c[3] for c in completed])
+        old_trips = _set_trips(income, trips)
         audit.log(
             "update",
             income,
             user,
             {
                 "recognition": [before, _state(income)],
-                "trips": [old_trips, sorted(c[2] for c in completed)],
+                "trips": [old_trips, sorted(t.pk for t in trips)],
             },
         )
         return income
@@ -201,9 +312,9 @@ def unrecognize_order_income(
         periods.assert_finance_writable(cid)
         order = _lock_order(order)
         settings = get_settings_for(cid)
-        done, trips = completion_state(order, settings, lock=True)
+        ready = recognition_state(order, settings, lock=True).ready
         income = _freight(order)
-        if income is None or income.status != "recognized" or done:
+        if income is None or income.status != "recognized" or ready:
             return income
         adjusted = periods.assert_period_open(
             cid, income.recognized_on, can_adjust=can_adjust, reason=reason

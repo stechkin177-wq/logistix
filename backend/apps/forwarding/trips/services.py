@@ -258,6 +258,16 @@ def _plan_specs(
     return specs, set(explicit)
 
 
+def refresh_tracking(consignment_ids) -> None:
+    """Пересчёт местонахождения грузов после изменения их участков (рейс создан/изменён/отменён)."""
+    from ..tracking.services import recompute_location
+
+    for consignment in Consignment.objects.filter(pk__in=sorted(set(consignment_ids))).order_by(
+        "pk"
+    ):
+        recompute_location(consignment)
+
+
 @transaction.atomic
 def create_trip(
     consignment_ids: list[int],
@@ -331,6 +341,10 @@ def create_trip(
             sorted((_spec_repr(s) for c in consignments for s in specs[c.pk]), key=repr),
         ]
     audit.log("create", trip, user, changes, ip=ip)
+    refresh_tracking(c.pk for c in consignments)
+    from apps.finance import hooks  # новый рейс меняет условия признания (только engine=new)
+
+    hooks.after_trip_changed(trip, user)
     return trip
 
 
@@ -441,6 +455,7 @@ def reassign(
     if consolidated != locked.is_consolidated:
         locked.is_consolidated = consolidated
         locked.save(update_fields=["is_consolidated", "updated_at"])
+    refresh_tracking([*new_ids, *old_ids])
     from apps.finance import hooks  # пересчёт признания по прежним и новым заказам
 
     hooks.after_trip_changed(locked, user, extra_order_ids=old_order_ids)
@@ -500,6 +515,9 @@ def change_trip_status(
         changes["reason"] = reason
     audit.log("update", locked, user, changes, ip=ip)
     leg_rules.sync_leg_statuses(locked)  # статусы участков следуют за статусом рейса
+    refresh_tracking(
+        TripConsignment.objects.filter(trip=locked).values_list("consignment_id", flat=True)
+    )
     from apps.finance import hooks  # признание дохода (только engine=new; ошибка откатывает)
 
     hooks.after_trip_changed(locked, user, perms=perms, reason=adjust_reason or reason)

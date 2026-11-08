@@ -22,7 +22,6 @@ from apps.forwarding.models import Order
 
 from . import income as income_svc
 from . import periods, reconcile, status_mapping
-from .engine import local_date
 from .errors import FinanceError
 from .fx import fx_snapshot, get_settings
 from .models import (
@@ -225,10 +224,10 @@ def apply_cutover_rule(company, cutover: date, *, user, approval_ref: str, write
         if order.deleted_at is not None or (order.status and order.status.code == "cancelled"):
             counters["skipped_orders"] += 1
             continue
-        done, trips = income_svc.completion_state(order, settings, lock=write)
-        if done:
-            completed = [(local_date(t.completed_at, cid), t.completed_at, t.pk, t) for t in trips]
-            recognized_on = max(c[0] for c in completed)
+        state = income_svc.recognition_state(order, settings, lock=write)
+        if state.ready:
+            trips = state.trips
+            recognized_on = state.recognized_on(cid)
             if (
                 income.status == "recognized"
                 and income.recognition_basis == "trip_completed"
@@ -248,7 +247,7 @@ def apply_cutover_rule(company, cutover: date, *, user, approval_ref: str, write
                 periods.assert_period_open(cid, income.recognized_on)
             periods.assert_period_open(cid, recognized_on)
             before = income_svc._state(income)
-            last_trip = max(completed, key=lambda c: (c[1], c[2]))[3]
+            last_trip = state.last_trip()
             snapshot = fx_snapshot(company, income.amount, income.currency, recognized_on, settings)
             income.status = "recognized"
             income.recognized_on = recognized_on
@@ -257,7 +256,7 @@ def apply_cutover_rule(company, cutover: date, *, user, approval_ref: str, write
             for key, value in snapshot.items():
                 setattr(income, key, value)
             income.save()
-            income_svc._set_trips(income, [c[3] for c in completed])
+            income_svc._set_trips(income, trips)
             audit.log(
                 "update",
                 income,
