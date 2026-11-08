@@ -71,7 +71,7 @@ def test_list_shape_and_states(make_company, wide_plan):
     lg = modules["logistics"]
     assert lg["enabled"] and set(lg["dependents"]) == {"finance", "forwarding"}
     assert lg["blocker"]["code"] == "module_has_dependents"
-    assert "Финансы" in fwd["blocker"]["detail"]  # русский текст
+    assert "Финансы" in lg["blocker"]["detail"]  # русский текст
     assert modules["finance"]["requires"] == ["core", "forwarding"]
     assert modules["documents"]["can_disable"]
     assert modules["fleet"]["can_enable"] and not modules["fleet"]["enabled"]

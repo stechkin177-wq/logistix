@@ -135,7 +135,7 @@ if HAS_MODULE:
         cur.execute(f"SELECT code, is_core, requires FROM {MODULE} ORDER BY sort")
         mods = cur.fetchall()
         ok(
-            len(mods) == 11 and mods[0][0] == "core" and mods[0][1],
+            len(mods) in (11, 12)  # 12 после core.0020 (logistics) and mods[0][0] == "core" and mods[0][1],
             f"каталог читается без контекста: {len(mods)}",
         )
         ok(
