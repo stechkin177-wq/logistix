@@ -19,6 +19,7 @@ import { FinanceSettingsPage } from '../features/finance/FinanceSettingsPage'
 import { CompanyPage } from '../features/settings/company/CompanyPage'
 import { DepartmentsPage } from '../features/settings/departments/DepartmentsPage'
 import { HandbooksPage } from '../features/settings/handbooks/HandbooksPage'
+import { ModulesPage } from '../features/settings/modules/ModulesPage'
 import { NumberingPage } from '../features/settings/numbering/NumberingPage'
 import { RolesPage } from '../features/settings/roles/RolesPage'
 import { SettingsIndex } from '../features/settings/SettingsIndex'
@@ -46,6 +47,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/roles': RolesPage,
   '/settings/handbooks': HandbooksPage,
   '/settings/finance': FinanceSettingsPage,
+  '/settings/modules': ModulesPage,
   '/settings/numbering': NumberingPage,
   '/settings/document-templates': TemplatesPage,
 }

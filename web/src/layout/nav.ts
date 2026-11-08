@@ -41,6 +41,7 @@ export const NAV: NavItem[] = [
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
       { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance' },
+      { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules' },
       { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view' },
       { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'documents' },
     ],

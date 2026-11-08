@@ -72,10 +72,16 @@ const DOCUMENT_CODES = [
   'render_unavailable', 'pdf_unavailable', 'kind_invalid',
 ]
 
-/** Код ошибки сервера -> ключ i18n перевода (разделы finance и documents). */
+const MODULE_CODES = [
+  'module_unknown', 'module_core', 'module_retired', 'module_not_in_plan', 'module_requires', 'module_has_dependents',
+  'module_protected',
+]
+
+/** Код ошибки сервера -> ключ i18n перевода (разделы finance, documents и модули компании). */
 const KNOWN_CODES = new Map<string, string>([
   ...FINANCE_CODES.map((code): [string, string] => [code, `errors.finance.${code}`]),
   ...DOCUMENT_CODES.map((code): [string, string] => [code, `errors.documents.${code}`]),
+  ...MODULE_CODES.map((code): [string, string] => [code, `errors.modules.${code}`]),
 ])
 
 /** Сообщение для пользователя: известные коды - через i18n, остальное - нейтральный текст. */

@@ -350,3 +350,79 @@ def describe_modules(company: Company, plan_modules=None) -> list[dict]:
                 }
             )
         return result
+
+
+# --- профили деятельности (A6) --------------------------------------------------------------------
+
+
+def _requires_order(catalog, codes) -> list[str]:
+    """Коды в порядке, при котором requires идут раньше зависимых (устойчиво к порядку профиля)."""
+    ordered: list[str] = []
+
+    def visit(code):
+        if code in ordered or code not in catalog:
+            return
+        for dep in catalog[code].requires:
+            if dep in codes:
+                visit(dep)
+        ordered.append(code)
+
+    for code in codes:
+        visit(code)
+    return ordered
+
+
+@transaction.atomic
+def apply_profile(company: Company, profile, user=None, reason: str = "", replace: bool = False):
+    """Применить профиль деятельности: включить его модули, недоступные пропустить и сообщить.
+
+    Без replace остальные включённые модули не трогаются. С replace=True отключаются модули,
+    которых нет в применяемом наборе (зависимости и защита finance проверяются как обычно,
+    при отказе откатывается всё). Возвращает {"enabled", "disabled", "skipped": [{code, error_code,
+    detail}]}.
+    """
+    locked = Company.objects.select_for_update().get(pk=company.pk)
+    note = f"Профиль «{profile.name}»" + (f": {reason}" if reason else "")
+    enabled_now: list[str] = []
+    disabled_now: list[str] = []
+    skipped: list[dict] = []
+    with tenant_context(locked.pk):
+        catalog = _catalog()
+        enabled = set(enabled_module_codes(locked.pk))
+        plan = _plan_modules(locked.pk)
+        wanted = [c for c in profile.modules if c in catalog and not catalog[c].is_core]
+        target: list[str] = []
+        have = set(enabled)
+        for code in _requires_order(catalog, wanted):
+            if code in enabled:
+                target.append(code)
+                continue
+            problem = enable_problem(locked.pk, catalog, have, plan, code)
+            if problem:
+                skipped.append({"code": code, "error_code": problem[0], "detail": problem[1]})
+                continue
+            _write(locked, code, True, user, note, timezone.now())
+            have.add(code)
+            enabled_now.append(code)
+            target.append(code)
+        unknown = [c for c in profile.modules if c not in catalog]
+        for code in unknown:
+            skipped.append(
+                {
+                    "code": code,
+                    "error_code": "module_unknown",
+                    "detail": f"Неизвестный модуль: {code}",
+                }
+            )
+        if replace:
+            leftover = [c for c in enabled_module_codes(locked.pk) if c not in set(target)]
+            for code in leftover:
+                if code not in set(enabled_module_codes(locked.pk)):
+                    continue  # уже отключён каскадом
+                current = set(enabled_module_codes(locked.pk))
+                for victim in _disable_plan(locked, catalog, current, code, cascade=True):
+                    _write(locked, victim, False, user, note, timezone.now())
+                    disabled_now.append(victim)
+        codes = sync_projection(locked)
+    company.modules = codes
+    return {"enabled": enabled_now, "disabled": disabled_now, "skipped": skipped}

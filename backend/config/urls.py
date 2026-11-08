@@ -14,6 +14,13 @@ from apps.core.api.auth import (
 )
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
+from apps.core.api.modules import (
+    ActivityProfilesView,
+    ApplyProfileView,
+    CompanyModulesView,
+    ModuleDisableView,
+    ModuleEnableView,
+)
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
 from apps.core.api.session import SessionView
 from apps.core.api.trash import TrashListView, TrashRestoreView
@@ -114,6 +121,11 @@ urlpatterns = [
     path("api/session/", SessionView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
+    path("api/company/modules/apply-profile/", ApplyProfileView.as_view()),
+    path("api/company/modules/<slug:code>/enable/", ModuleEnableView.as_view()),
+    path("api/company/modules/<slug:code>/disable/", ModuleDisableView.as_view()),
+    path("api/company/modules/", CompanyModulesView.as_view()),
+    path("api/activity-profiles/", ActivityProfilesView.as_view()),
     path("api/company/settings/", CompanySettingsView.as_view()),
     path("api/company/branding/", CompanyBrandingView.as_view()),
     path("api/branding/", PublicBrandingView.as_view()),
