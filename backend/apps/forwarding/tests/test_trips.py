@@ -325,10 +325,25 @@ def test_db_checks_on_trip(company):
 
 
 def test_trip_cargo_link_is_unique(company):
+    """Уникальны участок (рейс, груз, от, до) и прежняя связь без остановок (рейс, груз)."""
     _, ids = make_cargos(company)
     trip = svc_create(company, ids)
-    with tenant_context(company.id), pytest.raises(IntegrityError), transaction.atomic():
+    with tenant_context(company.id):
+        link = TripConsignment.objects.get(trip=trip, consignment_id=ids[0])
+        assert link.from_stop_id is not None and link.to_stop_id is not None
+        with pytest.raises(IntegrityError), transaction.atomic():
+            TripConsignment(
+                trip=trip,
+                consignment_id=ids[0],
+                from_stop_id=link.from_stop_id,
+                to_stop_id=link.to_stop_id,
+            ).save()
+        # прежняя запись без остановок: частичная уникальность (рейс, груз)
         TripConsignment(trip=trip, consignment_id=ids[0]).save()
+        with pytest.raises(IntegrityError), transaction.atomic():
+            TripConsignment(trip=trip, consignment_id=ids[0]).save()
+        with pytest.raises(IntegrityError), transaction.atomic():  # одна остановка без другой
+            TripConsignment(trip=trip, consignment_id=ids[0], from_stop_id=link.from_stop_id).save()
 
 
 def test_number_conflict_is_409_and_rolls_back(admin_client, company):
@@ -730,9 +745,9 @@ def test_list_default_order_pagination_and_filters(admin_client, company):
 
 
 # верхняя граница запросов списка рейсов: аутентификация и подписка, count, рейсы (с
-# перевозчиком и статусом), одним запросом грузы с заказами = 5 измеренных запросов, остальное
-# запас; число запросов не зависит от числа рейсов и грузов
-TRIP_LIST_QUERY_BOUND = 8
+# перевозчиком и статусом), одним запросом грузы с заказами, одним запросом участки (этап 1.5-C)
+# = 6 измеренных запросов, остальное запас; число запросов не зависит от числа рейсов и грузов
+TRIP_LIST_QUERY_BOUND = 9
 
 
 def test_list_query_count_is_flat(admin_client, company, django_assert_max_num_queries):
