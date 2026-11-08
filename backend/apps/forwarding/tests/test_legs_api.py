@@ -145,6 +145,8 @@ def test_consignment_and_order_expose_route_with_coverage(admin_client, company)
         (s2.pk, s3.pk, False),
     ]
     assert [(u["from_stop"], u["to_stop"]) for u in cov["uncovered"]] == [(s2.pk, s3.pk)]
+    assert [[t["number"] for t in x["trips"]] for x in cov["segments"]][1] == []
+    assert len(cov["segments"][0]["trips"]) == 1 and cov["segments"][0]["trips"][0]["number"]
     in_order = admin_client.get(f"{ORDERS}{order.pk}/").data["consignments"][0]
     assert in_order["route"]["coverage"]["fully_assigned"] is False
     listed = admin_client.get(CONSIGNMENTS, {"order": order.pk}).data["results"][0]

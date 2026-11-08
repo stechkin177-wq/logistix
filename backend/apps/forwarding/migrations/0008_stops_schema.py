@@ -50,7 +50,6 @@ def guard_reverse(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0018_manage_modules_permission"),
         ("forwarding", "0007_trip_completed_at"),
     ]
 

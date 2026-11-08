@@ -213,7 +213,8 @@ def route_coverage(consignment: Consignment) -> dict:
     Отрезок - пара соседних остановок. Покрыт, если есть неотменённый участок рейса (рейс не
     удалён) с ``from.seq <= начало отрезка`` и ``to.seq >= конец отрезка``. Участок без
     остановок (прежняя связь) покрывает весь маршрут. Доли не учитываются: частично
-    покрытый долями отрезок считается покрытым.
+    покрытый долями отрезок считается покрытым. В отрезке: legs - id участков, trips - рейсы
+    (id, номер, статус участка) без повторов.
     """
     stops = stops_of(consignment)
     legs = [
@@ -228,7 +229,13 @@ def route_coverage(consignment: Consignment) -> dict:
         for link in legs:
             start, finish = _interval(consignment, link.from_stop, link.to_stop, last_seq)
             if start <= begin.seq and finish >= end.seq:
-                covering.append(link.pk)
+                covering.append(link)
+        trips = {}
+        for link in covering:  # рейсы отрезка без повторов (несколько участков одного рейса)
+            trips.setdefault(
+                link.trip_id,
+                {"id": link.trip_id, "number": link.trip.number, "status": link.status},
+            )
         segments.append(
             {
                 "from_stop": begin.pk,
@@ -236,7 +243,8 @@ def route_coverage(consignment: Consignment) -> dict:
                 "from_seq": begin.seq,
                 "to_seq": end.seq,
                 "covered": bool(covering),
-                "legs": covering,
+                "legs": [link.pk for link in covering],
+                "trips": list(trips.values()),
             }
         )
     uncovered = [s for s in segments if not s["covered"]]

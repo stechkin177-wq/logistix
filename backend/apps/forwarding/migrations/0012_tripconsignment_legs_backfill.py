@@ -69,6 +69,6 @@ def forwards(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("forwarding", "0011_tripconsignment_legs"), ("core", "0018_manage_modules_permission")]
+    dependencies = [("forwarding", "0011_tripconsignment_legs")]
 
     operations = [migrations.RunPython(forwards, migrations.RunPython.noop)]

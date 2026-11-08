@@ -129,6 +129,21 @@ def test_consignment_ids_create_whole_route_leg(company):
     cov = coverage(company, c)
     assert cov["fully_assigned"] and cov["uncovered"] == []
     assert [s["covered"] for s in cov["segments"]] == [True, True]
+    # каждый отрезок знает, какой рейс его покрывает
+    assert [[t["number"] for t in s["trips"]] for s in cov["segments"]] == [[trip.number]] * 2
+    assert cov["segments"][0]["trips"][0]["status"] == "planned"
+
+
+def test_segment_lists_a_trip_once_even_with_two_legs_in_it(company):
+    """Два участка одного рейса с долями перекрываются на отрезке 2-3: рейс в отрезке один раз."""
+    _, (c,) = make_cargos(company, stops_per=4)
+    s1, s2, s3, s4 = stops_of(company, c)
+    trip = mk_trip(
+        company, legs=[leg(c, s1, s3, weight_kg=D("300")), leg(c, s2, s4, weight_kg=D("300"))]
+    )
+    segment = coverage(company, c)["segments"][1]  # отрезок 2-3 покрыт обоими участками
+    assert len(segment["legs"]) == 2
+    assert [t["id"] for t in segment["trips"]] == [trip.pk]
 
 
 def test_two_trips_on_different_legs_is_a_transfer(company):
