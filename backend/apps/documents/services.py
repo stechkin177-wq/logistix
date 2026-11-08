@@ -19,7 +19,8 @@ from apps.core.tenancy import get_current_company_id
 from apps.finance.models import Invoice
 from apps.forwarding.models import Client, Order, Trip
 
-from . import engine, pdf
+from . import access, engine, pdf
+from .builtin import module_of_kind, subject_of
 from .context import build_context
 from .errors import DocumentError
 from .models import (
@@ -198,6 +199,7 @@ def issue_document(
     """Выдать документ: шаблон, номер, снимок данных и запись журнала в одной транзакции."""
     if kind not in KINDS:
         raise ValueError(f"Неизвестный вид документа: {kind}")
+    access.require_module(module_of_kind(kind))  # вид доступен, если включён модуль его поставщика
     company = _company()
     template = _pick_template(kind, language or company.language or FALLBACK_LANGUAGE)
     cleaned = _clean_letter(letter) if kind == "letter" else None
@@ -237,12 +239,15 @@ def issue_document(
         issue_date=issue_date,
         language=language_used,
     )
+    subject = subject_of(kind, links)
     doc = IssuedDocument.objects.create(
         kind=kind,
         template_version=template.current_version,
         number=number,
         issue_date=issue_date,
         language=language_used,
+        subject_type=subject[0] if subject else None,
+        subject_id=subject[1] if subject else None,
         client=links["client"],
         order=links["order"],
         trip=links["trip"],

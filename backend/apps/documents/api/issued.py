@@ -12,8 +12,9 @@ from apps.core.api_permissions import permission_required
 from apps.core.pagination import StandardPagination
 from apps.forwarding.orders.filters import date_param, int_param
 
-from .. import services
+from .. import access, providers, services
 from ..errors import DocumentError
+from ..issuing import issue_for_subject
 from ..models import KINDS, IssuedDocument
 from .http import PdfDownloadThrottle, file_response
 from .serializers import IssueSerializer, issued_data
@@ -68,6 +69,10 @@ class IssuedViewSet(viewsets.GenericViewSet):
         for name in ("client", "order", "trip", "invoice"):
             if (value := int_param(params, name)) is not None:
                 qs = qs.filter(**{f"{name}_id": value})
+        if subject_type := params.get("subject_type"):
+            qs = qs.filter(subject_type=subject_type)
+        if (value := int_param(params, "subject_id")) is not None:
+            qs = qs.filter(subject_id=value)
         if (day := date_param(params, "date_from")) is not None:
             qs = qs.filter(issue_date__gte=day)
         if (day := date_param(params, "date_to")) is not None:
@@ -91,12 +96,32 @@ class IssuedViewSet(viewsets.GenericViewSet):
         needed = SOURCE_PERMISSION.get(kind)
         if kind == "letter" and data.get("order") not in (None, ""):
             needed = "orders.view"
+        subject_type = data.get("subject_type")
+        if subject_type:
+            provider = (
+                providers.find_provider(kind, subject_type)
+                if isinstance(subject_type, str)
+                else None
+            )
+            if provider is None:
+                raise DocumentError("kind_invalid", "Неизвестный вид документа или субъект.")
+            access.require_module(provider.module_code)
+            needed = provider.required_permission(kind)
         # доступ к источнику проверяется раньше разбора id, чтобы не раскрывать чужие записи
         if needed and needed not in request.membership.role.permissions:
             raise PermissionDenied("Нет доступа к источнику документа")
         ser = IssueSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         v = ser.validated_data
+        if v.get("subject_type"):
+            doc = issue_for_subject(
+                v["kind"],
+                v["subject_type"],
+                v["subject_id"],
+                user=request.user,
+                language=v.get("language"),
+            )
+            return self._created(doc)
         doc = services.issue_document(
             v["kind"],
             user=request.user,
@@ -107,6 +132,9 @@ class IssuedViewSet(viewsets.GenericViewSet):
             letter=v.get("letter"),
             language=v.get("language"),
         )
+        return self._created(doc)
+
+    def _created(self, doc):
         fresh = (
             IssuedDocument.objects.select_related(*RELATED, "template_version")
             .defer("template_version__content", "snapshot")

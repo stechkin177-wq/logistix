@@ -93,6 +93,10 @@ class IssuedDocument(TenantModel):
     invoice = models.ForeignKey(
         "finance.Invoice", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # Универсальный субъект документа (addendum v1.1, разд. 2.3): "<модуль>.<сущность>" + id,
+    # например forwarding.order, drivers.driver. Прежние client/order/trip/invoice сохраняются.
+    subject_type = models.CharField(max_length=64, null=True, blank=True)
+    subject_id = models.BigIntegerField(null=True, blank=True)
     snapshot = models.JSONField(default=dict)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
@@ -101,6 +105,11 @@ class IssuedDocument(TenantModel):
 
     class Meta:
         ordering = ["-issue_date", "-id"]
+        indexes = [
+            models.Index(
+                fields=["company", "subject_type", "subject_id"], name="issueddoc_subject_idx"
+            ),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["company", "kind", "number"],

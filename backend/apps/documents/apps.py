@@ -7,6 +7,10 @@ class DocumentsConfig(AppConfig):
     label = "documents"
 
     def ready(self):
+        from .builtin import register_builtin_providers
+
+        register_builtin_providers()  # семь прежних видов - встроенными поставщиками
+
         from apps.core.signals import company_created
 
         from .starter import seed_starter_templates

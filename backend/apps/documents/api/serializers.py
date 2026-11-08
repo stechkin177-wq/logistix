@@ -51,6 +51,8 @@ def issued_data(doc):
         "order": _ref(doc.order, "number"),
         "trip": _ref(doc.trip, "number"),
         "invoice": _ref(doc.invoice, "number"),
+        "subject_type": doc.subject_type,
+        "subject_id": doc.subject_id,
         "template_version": {
             "id": version.pk,
             "number": version.number,
@@ -91,11 +93,25 @@ class IssueSerializer(serializers.Serializer):
     invoice = TenantRefField(Invoice, required=False, allow_null=True)
     letter = serializers.DictField(required=False, allow_null=True)
     language = serializers.CharField(max_length=8, required=False, allow_null=True)
+    # универсальный субъект (поставщики модулей): взамен client/order/trip/invoice
+    subject_type = serializers.CharField(max_length=64, required=False, allow_null=True)
+    subject_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
 
     def validate(self, attrs):
         from ..services import SOURCES
 
         kind = attrs["kind"]
+        if attrs.get("subject_type") or attrs.get("subject_id") is not None:
+            legacy = {k for k in ("client", "order", "trip", "invoice") if attrs.get(k) is not None}
+            if not attrs.get("subject_type") or attrs.get("subject_id") is None:
+                raise serializers.ValidationError(
+                    {"detail": "Субъект указывается парой subject_type и subject_id."}
+                )
+            if legacy or attrs.get("letter"):
+                raise serializers.ValidationError(
+                    {"detail": "Укажите либо субъект (subject_type, subject_id), либо источник."}
+                )
+            return attrs
         needed = SOURCES[kind][0]
         given = {k for k in ("client", "order", "trip", "invoice") if attrs.get(k) is not None}
         allowed = {needed} if needed else set()

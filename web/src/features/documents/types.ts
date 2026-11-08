@@ -34,6 +34,9 @@ export interface IssuedDocument {
   order: { id: number; number: string } | null
   trip: { id: number; number: string } | null
   invoice: { id: number; number: string } | null
+  /** Универсальный субъект документа (например, drivers.driver); null у документов без субъекта. */
+  subject_type?: string | null
+  subject_id?: number | null
   template_version: { id: number; number: number; template: number }
   created_by: UserRef | null
   created_at: string
