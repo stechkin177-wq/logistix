@@ -101,6 +101,13 @@ class Trip(TenantModel, SoftDeleteModel):
         )
         if not alive.exists():
             return "Нельзя восстановить рейс: все его грузы удалены. Сначала восстановите груз"
+        from . import resources
+
+        if self.status.code in resources.BUSY_CODES:  # рейс был в работе: ресурсы не заняты ли?
+            try:
+                resources.assert_free(self)
+            except resources.ResourceBusy as exc:
+                return str(exc.detail["detail"])
         from apps.finance import hooks  # engine=new: участки не должны конфликтовать с другими
 
         return hooks.trip_restore_blocker(self)

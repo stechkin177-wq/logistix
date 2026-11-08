@@ -2,8 +2,15 @@
 
 Назначение необязательно и допустимо, только если соответствующий модуль включён и есть в
 тарифе. Тягач/грузовик и прицеп - разные поля; водитель и техника должны быть в работе (проверка
-при смене значения, прежние назначения не ломаются). Один ресурс не может одновременно быть на
-двух рейсах, которые физически в работе (статусы IN_PROGRESS и UNLOADING): иначе 409.
+при смене значения, прежние назначения не ломаются).
+
+Занятость определяется ТОЛЬКО статусами (плановых дат у рейса нет, решение заказчика):
+ - на один ресурс можно назначать несколько будущих рейсов;
+ - ресурс занят, пока рейс в статусе IN_PROGRESS или UNLOADING; завершение/отмена освобождают;
+ - перевод рейса в IN_PROGRESS/UNLOADING (в том числе из CANCELLED), восстановление из корзины и
+   смена ресурса у рейса в работе проверяют, что ресурс не занят другим рейсом в работе: иначе 409;
+ - проверка транзакционная: ресурсы блокируются (SELECT ... FOR UPDATE, сначала техника по
+   возрастанию pk, затем водители), поэтому два одновременных запуска с общим ресурсом не пройдут.
 Свободные поля vehicle_plate и driver_name заполняются из назначенных объектов, если пусты.
 """
 
@@ -42,12 +49,28 @@ def _busy_trips(trip, *, vehicle_ids=(), driver_id=None):
     return qs.exclude(pk=trip.pk) if getattr(trip, "pk", None) else qs
 
 
+def lock_resources(vehicle_ids=(), driver_id=None) -> None:
+    """Блокирует строки техники (по возрастанию pk), затем водителя: единый порядок без дедлоков."""
+    from apps.drivers.models import Driver
+    from apps.fleet.models import Vehicle
+
+    ids = sorted({i for i in vehicle_ids if i})
+    if ids:
+        list(Vehicle.all_objects.select_for_update().filter(pk__in=ids).order_by("pk"))
+    if driver_id:
+        list(Driver.all_objects.select_for_update().filter(pk=driver_id))
+
+
 def assert_free(trip, *, vehicle=None, trailer=None, driver=None) -> None:
-    """409, если техника/прицеп/водитель (по умолчанию - рейса) заняты на другом рейсе в работе."""
+    """409, если техника/прицеп/водитель (по умолчанию - рейса) заняты на другом рейсе в работе.
+
+    Вызывать внутри транзакции: ресурсы блокируются до проверки (защита от гонки запусков).
+    """
     vehicle = vehicle if vehicle is not None else getattr(trip, "vehicle", None)
     trailer = trailer if trailer is not None else getattr(trip, "trailer", None)
     driver = driver if driver is not None else getattr(trip, "driver", None)
     ids = [v.pk for v in (vehicle, trailer) if v is not None]
+    lock_resources(ids, driver.pk if driver else None)
     other = _busy_trips(trip, vehicle_ids=ids, driver_id=driver.pk if driver else None).first()
     if other is not None:
         raise ResourceBusy(
@@ -86,9 +109,10 @@ def validate_assignment(attrs: dict, instance, company_id: int) -> dict:
     driver = attrs.get("driver", getattr(instance, "driver", None))
     if vehicle is not None and trailer is not None and vehicle.pk == trailer.pk:
         raise ValidationError({"trailer": "Тягач и прицеп не могут совпадать"})
-    # занятость: против других рейсов в работе (сам рейс исключается по pk)
-    probe = instance if instance is not None else _Probe()
-    assert_free(probe, vehicle=vehicle, trailer=trailer, driver=driver)
+    # занятость важна, только если сам рейс уже в работе (будущим рейсам можно назначать любые
+    # ресурсы: конфликт проверится при их запуске)
+    if instance is not None and instance.status.code in BUSY_CODES:
+        assert_free(instance, vehicle=vehicle, trailer=trailer, driver=driver)
     # свободные поля заполняются из назначенных объектов, если пусты (совместимость документов)
     if attrs.get("vehicle") is not None and not (
         attrs.get("vehicle_plate") or getattr(instance, "vehicle_plate", "")
@@ -99,10 +123,3 @@ def validate_assignment(attrs: dict, instance, company_id: int) -> dict:
     ):
         extra["driver_name"] = attrs["driver"].full_name
     return extra
-
-
-class _Probe:
-    """Рейс, которого ещё нет: без pk, не исключается из выборки."""
-
-    pk = None
-    vehicle = trailer = driver = None
