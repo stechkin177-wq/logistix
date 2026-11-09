@@ -15,8 +15,8 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { VehicleDocuments } from './VehicleDocuments'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
 import { ChildTab, type FieldDef } from './ChildTab'
-import { useFuelStats, useMileageCheck, useSaveVehicle } from './hooks'
-import { VEHICLE_KINDS, VEHICLE_STATUSES, type Vehicle, type VehicleKind, type VehicleStatus } from './types'
+import { useFuelStats, useMileageCheck, useReminders, useSaveVehicle } from './hooks'
+import { VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle, type VehicleKind, type VehicleStatus } from './types'
 
 type TabKey = 'main' | 'documents' | 'insurance' | 'service' | 'fuel' | 'history'
 const TAB_KEYS: TabKey[] = ['main', 'documents', 'insurance', 'service', 'fuel', 'history']
@@ -55,12 +55,45 @@ const initial = (v: Vehicle | null): FormState => ({
 })
 
 /** Единая карточка техники: основное, документы, страхование, обслуживание, заправки, пробег. */
+const TAB_OF: Record<Reminder['type'], TabKey> = { document: 'documents', insurance: 'insurance', service: 'service' }
+
+/** Предупреждения этой техники (ТО, документы, страховки) над вкладками; клик ведёт на нужную вкладку. */
+function VehicleWarnings({ vehicle, onOpen }: { vehicle: Vehicle; onOpen: (tab: TabKey) => void }) {
+  const { t } = useTranslation()
+  const items = (useReminders().data?.results ?? []).filter((r) => r.vehicle === vehicle.id)
+  if (items.length === 0) return null
+  return (
+    <section aria-label={t('fleet.warnings')} className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm dark:border-amber-700 dark:bg-amber-950">
+      <ul className="space-y-0.5">
+        {items.map((r, i) => (
+          <li key={`${r.type}-${String(i)}`}>
+            <button type="button" className="text-left hover:underline" onClick={() => { onOpen(TAB_OF[r.type]) }}>
+              {r.title}
+              {r.due_date ? ` · ${t('fleet.until')} ${r.due_date}` : ''}
+              {r.due_km != null ? ` · ${String(r.due_km)} ${t('fleet.km')}` : ''}
+            </button>{' '}
+            <Badge tone={r.state === 'overdue' ? 'danger' : 'warning'}>{r.state === 'overdue' ? t('fleet.overdue') : t('fleet.dueSoon')}</Badge>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Единая карточка техники: предупреждения сверху, основное, документы, страхование, обслуживание, заправки, пробег. */
 export function VehicleDrawer({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () => void }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState<TabKey>('main')
-  const tabs = TAB_KEYS.map((key) => ({ key, label: t(`fleet.tabs.${key}`), disabled: vehicle === null && key !== 'main' }))
+  const reminders = useReminders().data?.results ?? []
+  const count = (key: TabKey) => (vehicle ? reminders.filter((r) => r.vehicle === vehicle.id && TAB_OF[r.type] === key).length : 0)
+  const tabs = TAB_KEYS.map((key) => ({
+    key,
+    label: `${t(`fleet.tabs.${key}`)}${count(key) > 0 ? ` (${String(count(key))})` : ''}`,
+    disabled: vehicle === null && key !== 'main',
+  }))
   return (
     <Drawer open title={vehicle ? vehicle.plate : t('fleet.new')} onClose={onClose} width="max-w-2xl">
+      {vehicle ? <VehicleWarnings vehicle={vehicle} onOpen={setTab} /> : null}
       <Tabs label={t('fleet.tabsLabel')} tabs={tabs} active={tab} onChange={(k) => { setTab(k as TabKey) }} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-3">
         {tab === 'main' ? <MainTab vehicle={vehicle} onClose={onClose} /> : null}

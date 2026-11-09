@@ -29,6 +29,7 @@ const SCHEMA = {
   status: codecs.id(),
   carrier: codecs.id(),
   consolidated: codecs.flag(),
+  open: codecs.id(), // карточка рейса открывается сразу (переход после «Создать рейс»)
   page: codecs.positiveInt(1),
   pageSize: codecs.choiceInt(PAGE_SIZES, 50),
 }
@@ -42,7 +43,7 @@ export function TripsPage() {
   const statuses = useHandbookValues('trip_status')
   const { codeOf } = useCurrencies()
   const carrier = usePartyOption('carriers', state.carrier)
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [openId, setOpenId] = useState<number | null>(state.open)
   const filtered = state.q !== '' || state.order !== null || state.status !== null || state.carrier !== null || state.consolidated
   const reset = () => { setState({ q: '', order: null, status: null, carrier: null, consolidated: false }) }
 

@@ -442,7 +442,9 @@
     "segmentCovered": "рейс",
     "segmentUncovered": "Рейс тағайындалмаған",
     "moreFilters": "Қосымша сүзгілер",
-    "blockExtra": "Қосымша: шарт, байланыс, төлем және жеткізу талаптары"
+    "blockExtra": "Қосымша: шарт, байланыс, төлем және жеткізу талаптары",
+    "createTrip": "Рейс құру",
+    "createTripNoCargo": "Жүк жоқ: алдымен тапсырысқа жүк қосыңыз"
   },
   "consignments": {
     "createTrip": "Рейс құру",
@@ -919,7 +921,9 @@
         "priorBasePayments": "Бұрынғы базалық валютада: {{count}}",
         "noBaseRatePayments": "Базалық бағамсыз: {{count}}"
       }
-    }
+    },
+    "summaryTitle": "Жиынтық",
+    "summaryPartial": "Айлық есеп толық емес: деректердің бір бөлігі жиынтықтан шығарылған"
   },
   "roles": {
     "viewTitle": "«{{name}}» рөлі",

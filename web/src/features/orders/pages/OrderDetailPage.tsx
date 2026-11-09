@@ -12,6 +12,7 @@ import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
+import { CreateTripButton } from '../components/CreateTripButton'
 import { CargoTab } from '../components/CargoTab'
 import { FinanceTab } from '../components/FinanceTab'
 import { HistoryTab } from '../components/HistoryTab'
@@ -72,6 +73,7 @@ export function OrderDetailPage() {
           {order.client_name}
         </Link>
         <span className="ml-auto flex flex-wrap gap-2">
+          <CreateTripButton order={order} />
           <IssueDocumentButton kind="order_request" source={{ order: order.id }} label={t('documents.kind.order_request')} />
         </span>
         {hasPermission('orders.delete') ? (

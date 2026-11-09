@@ -25,6 +25,19 @@ describe('Финансы: оболочка', () => {
     expect(await screen.findByRole('tab', { name: 'Курсы' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('на первом экране - сводка: прибыль месяца, долги клиентов, просрочка, долг перевозчикам', async () => {
+    loggedIn([
+      ['GET', '/api/finance/summary/', { body: { currency: 'KZT', client_debt_kzt: '1500000.00', overdue_kzt: '200000.00', payable_kzt: '900000.00', month_profit_kzt: '350000.00', month_margin_pct: '12.50', fx_difference_kzt: '0.00', unconverted: 0 } }],
+      ratesRoute(), ...common,
+    ])
+    renderApp('/finance')
+    const summary = await screen.findByRole('region', { name: 'Сводка' })
+    expect(within(summary).getByText(/350\s000,00/)).toBeInTheDocument()
+    expect(within(summary).getByText(/12,50 %/)).toBeInTheDocument()
+    expect(within(summary).getByRole('link', { name: /Долг клиентов/ })).toHaveAttribute('href', '/finance?tab=debts')
+    expect(screen.getByRole('tab', { name: 'Курсы' })).toBeInTheDocument() // вкладки на месте под сводкой
+  })
+
   it('без права finance.view страница недоступна', async () => {
     loggedIn([ratesRoute(), ...common], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.view') } })
     renderApp('/finance')

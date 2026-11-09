@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Tabs } from '../../shared/ui/Tabs'
+import { FinanceSummaryCards } from './FinanceSummaryCards'
 import { DebtsTab } from './DebtsTab'
 import { ExpensesTab } from './ExpensesTab'
 import { IncomesTab } from './IncomesTab'
@@ -38,6 +39,7 @@ export function FinancePage() {
   return (
     <div className="space-y-3">
       <h1 className="text-base font-semibold">{t('nav.finance')}</h1>
+      <FinanceSummaryCards />
       <Tabs
         label={t('finance.tabsLabel')}
         active={active}

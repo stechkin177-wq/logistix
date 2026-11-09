@@ -16,6 +16,35 @@ const common = [
 
 const LINES = page([makeLine(), makeLine({ id: 101, title: 'Фрахт', is_base: false, income: '0.00', expense: '100000.00' })])
 
+describe('Карточка заказа: рейс одной кнопкой', () => {
+  it('«Создать рейс» отправляет POST /trips/ со всеми грузами заказа и открывает карточку рейса', async () => {
+    const m = loggedIn([
+      ['GET', '/api/orders/5/', { body: makeOrder() }],
+      ['POST', '/api/trips/', { status: 201, body: { id: 90, number: 'ORD-2026-00005-1' } }],
+      ['GET', /^\/api\/trips\//, { body: page([]) }],
+      ['GET', '/api/handbooks/?code=trip_status', { body: handbookBody('trip_status', []) }],
+      ...common,
+    ])
+    const { router } = renderApp('/orders/5')
+    await userEvent.click(await screen.findByRole('button', { name: 'Создать рейс' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/' && c.method === 'POST')?.body).toMatchObject({ consignments: [makeOrder().consignments[0]!.id] }) })
+    await waitFor(() => { expect(router.state.location.pathname + router.state.location.search).toBe('/trips?open=90') })
+  })
+
+  it('без права trips.create кнопки «Создать рейс» нет', async () => {
+    loggedIn([['GET', '/api/orders/5/', { body: makeOrder() }], ...common], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'trips.create') } })
+    renderApp('/orders/5')
+    await screen.findByRole('heading', { name: 'ORD-2026-00005' })
+    expect(screen.queryByRole('button', { name: 'Создать рейс' })).not.toBeInTheDocument()
+  })
+
+  it('заказ без грузов: кнопка отключена', async () => {
+    loggedIn([['GET', '/api/orders/5/', { body: makeOrder({ consignments: [] }) }], ...common])
+    renderApp('/orders/5')
+    expect(await screen.findByRole('button', { name: 'Создать рейс' })).toBeDisabled()
+  })
+})
+
 describe('Карточка заказа', () => {
   it('шапка: номер, статус, клиент; обзор с полями', async () => {
     loggedIn([['GET', '/api/orders/5/', { body: makeOrder() }], ...common])

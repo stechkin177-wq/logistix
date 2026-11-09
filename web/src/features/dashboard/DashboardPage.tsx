@@ -9,27 +9,11 @@ import { Button } from '../../shared/ui/Button'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Spinner } from '../../shared/ui/Spinner'
+import { Stat } from '../../shared/ui/Stat'
 import { useSession } from '../../shared/auth/useSession'
 import { DebtsExcludedHint } from '../finance/DebtsExcludedHint'
 import { useFinanceSummary } from '../finance/hooks'
 import { useDashboardSummary } from './hooks'
-
-function Stat({ label, value, to }: { label: string; value: string; to?: string }) {
-  const body = (
-    <>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
-    </>
-  )
-  const cls = 'rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900'
-  return to ? (
-    <Link to={to} className={`${cls} block hover:border-brand-400`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  )
-}
 
 function StatusBars({ data }: { data: DashboardSummary }) {
   const { t } = useTranslation()

@@ -442,7 +442,9 @@
     "segmentCovered": "рейс",
     "segmentUncovered": "Рейс не назначен",
     "moreFilters": "Дополнительные фильтры",
-    "blockExtra": "Дополнительно: договор, контакт, условия оплаты и доставки"
+    "blockExtra": "Дополнительно: договор, контакт, условия оплаты и доставки",
+    "createTrip": "Создать рейс",
+    "createTripNoCargo": "Нет грузов: сначала добавьте груз в заказ"
   },
   "consignments": {
     "createTrip": "Создать рейс",
@@ -919,7 +921,9 @@
         "priorBasePayments": "В прежней базовой валюте: {{count}}",
         "noBaseRatePayments": "Без базового курса: {{count}}"
       }
-    }
+    },
+    "summaryTitle": "Сводка",
+    "summaryPartial": "Расчёт за месяц неполный: часть данных исключена из сводки"
   },
   "roles": {
     "viewTitle": "Роль «{{name}}»",
