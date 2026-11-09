@@ -23,7 +23,7 @@ function loginErrorKey(error: unknown): string {
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const { login } = useAuth()
+  const { login, context, hasTokens } = useAuth()
   const { status } = useSession()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -35,6 +35,7 @@ export function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
   const target = safeRedirect(params.get('next'))
+  if (hasTokens && context === 'platform' && !busy) return <Navigate to="/platform" replace />
   if (status === 'authenticated' && !busy) return <Navigate to={target} replace />
 
   const submit = async (event: SyntheticEvent) => {
@@ -43,8 +44,9 @@ export function LoginPage() {
     setFormError(null)
     setFieldErrors({})
     try {
-      await login(loginValue.trim(), password)
-      void navigate(target, { replace: true })
+      const entered = await login(loginValue.trim(), password)
+      // платформенная роль -> Центр управления; остальные -> компания (или страница из ?next=)
+      void navigate(entered === 'platform' ? '/platform' : target, { replace: true })
     } catch (error) {
       // subscription_blocked обрабатывает AuthProvider (экран «Доступ приостановлен»)
       if (error instanceof ApiError && error.code === 'subscription_blocked') return

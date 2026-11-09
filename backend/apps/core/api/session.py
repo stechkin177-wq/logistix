@@ -39,7 +39,7 @@ class SessionView(APIView):
                     "email": user.email,
                     "phone": user.phone,
                     "full_name": user.full_name,
-                    "is_platform_admin": user.is_platform_admin,
+                    "platform_role": user.platform_role,  # только для переключателя контекста
                 },
                 "company": {
                     "id": company.pk,

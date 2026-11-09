@@ -284,12 +284,6 @@ def test_state_function_edges():
 # --- API администратора ---
 
 
-@pytest.fixture
-def platform_api(admin_client, admin_user):
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    return admin_client
-
-
 def test_platform_api_preview_change_renew(platform_api, company):
     api = platform_api
     target = new_plan("api-target", price="50", free_period_days=3)

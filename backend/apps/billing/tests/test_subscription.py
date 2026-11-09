@@ -272,7 +272,7 @@ def test_no_subscription_is_blocked(client_a, company_a):
 
 
 def test_platform_admin_is_not_exempt(api_client):
-    admin = make_user("pa@x.kz", is_platform_admin=True)
+    admin = make_user("pa@x.kz", platform_role="owner")
     company = create_company_with_defaults("PA", admin, ["forwarding"])
     set_sub(company, status="blocked")
     client = client_for(api_client, admin, company)

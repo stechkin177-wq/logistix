@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory
 from apps.billing import features, plans
 from apps.billing.models import Plan
 from apps.billing.plans import PlanError
-from apps.core.models import ActivityProfile, User
+from apps.core.models import ActivityProfile
 from apps.core.module_services import (
     apply_profile,
     disable_module,
@@ -208,12 +208,6 @@ def test_session_exposes_company_features(make_company):
 
 
 # --- API администратора платформы ---
-
-
-@pytest.fixture
-def platform_api(admin_client, admin_user):
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    return admin_client
 
 
 def test_admin_api_sets_modules_and_features_and_serves_catalog(platform_api):

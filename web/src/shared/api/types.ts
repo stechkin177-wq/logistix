@@ -2,8 +2,17 @@ export type Module = 'logistics' | 'forwarding' | 'fleet' | 'drivers'
 export type SubscriptionState = 'trial' | 'active' | 'grace' | 'readonly' | 'blocked'
 export type Theme = 'light' | 'dark' | 'system'
 
+export type PlatformRole = 'owner' | 'admin'
+
+export interface PlatformSession {
+  context: 'platform'
+  user: { id: number; email: string | null; phone: string | null; full_name: string; platform_role: PlatformRole }
+  permissions: string[]
+  companies: { id: number; name: string }[]
+}
+
 export interface Session {
-  user: { id: number; email: string | null; phone: string | null; full_name: string; is_platform_admin: boolean }
+  user: { id: number; email: string | null; phone: string | null; full_name: string; platform_role: PlatformRole | '' }
   company: { id: number; name: string; timezone: string; language: string }
   companies: { id: number; name: string }[]
   role: { id: number; name: string } | null
@@ -23,6 +32,8 @@ export interface LoginResponse {
   access: string
   refresh: string
   companies: { id: number; name: string }[]
+  context: 'company' | 'platform'
+  platform_role?: PlatformRole
 }
 
 export interface Branding {

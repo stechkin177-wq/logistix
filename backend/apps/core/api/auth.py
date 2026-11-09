@@ -17,7 +17,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.billing.models import Subscription
 from apps.billing.permissions import SubscriptionBlocked
 from apps.billing.services import company_status
-from apps.core import audit
+from apps.core import audit, platform
 from apps.core.models import Membership
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
@@ -30,9 +30,14 @@ def memberships_of(user):
     return Membership.objects.filter(user=user, is_active=True).select_related("company")
 
 
-def issue_tokens(user, company_id):
+def issue_tokens(user, company_id=None):
+    """Токены контекста компании (company_id) или платформы (company_id=None, ctx=platform)."""
     refresh = RefreshToken.for_user(user)
-    refresh["company_id"] = company_id
+    if company_id is None:
+        refresh["ctx"] = platform.CTX_PLATFORM
+    else:
+        refresh["company_id"] = company_id
+        refresh["ctx"] = platform.CTX_COMPANY
     return {"access": str(refresh.access_token), "refresh": str(refresh)}
 
 
@@ -99,8 +104,26 @@ class LoginView(APIView):
             check_password(password, _DUMMY_HASH)  # выравниваем время ответа
             raise AuthenticationFailed(LOGIN_ERROR)
         if not user.check_password(password) or not user.is_active:
+            if user.is_platform_admin:
+                # исключение откатило бы транзакцию запроса вместе с записью в журнал,
+                # поэтому отказ возвращается ответом (формат тот же, что у обработчика ошибок)
+                _platform_auth_event(request, user, "login_failed")
+                body = {"detail": LOGIN_ERROR, "code": "authentication_failed"}
+                return Response(body, status=401)
             raise AuthenticationFailed(LOGIN_ERROR)
         memberships = list(memberships_of(user).order_by("id"))
+        if user.is_platform_admin:
+            # платформенный аккаунт входит в Центр управления, даже без членства в компаниях;
+            # в компанию - переключением контекста (членство и подписка проверяются там)
+            _platform_auth_event(request, user, "login")
+            return Response(
+                {
+                    **issue_tokens(user),
+                    "context": platform.CTX_PLATFORM,
+                    "platform_role": user.platform_role,
+                    "companies": companies_payload(memberships),
+                }
+            )
         if not memberships:
             raise PermissionDenied("Нет доступа ни к одной компании")
         # токен выдаётся на первую компанию, чья подписка не заблокирована
@@ -111,13 +134,34 @@ class LoginView(APIView):
         return Response(
             {
                 **issue_tokens(user, usable[0].company_id),
+                "context": platform.CTX_COMPANY,
                 "companies": companies_payload(memberships),
             }
         )
 
 
+def _platform_auth_event(request, user, action, extra=None):
+    """Запись о входе/смене контекста платформенного аккаунта в платформенный журнал."""
+    from apps.billing import events
+    from apps.billing.models import BillingEvent
+
+    events.record(
+        BillingEvent.AUTH,
+        user.pk,
+        action,
+        {"ip": audit.client_ip(request), "role": user.platform_role, **(extra or {})},
+        user=user,
+    )
+
+
 class SwitchCompanySerializer(serializers.Serializer):
-    company_id = serializers.IntegerField()
+    company_id = serializers.IntegerField(required=False)
+    context = serializers.ChoiceField(choices=[platform.CTX_PLATFORM], required=False)
+
+    def validate(self, attrs):
+        if ("company_id" in attrs) == ("context" in attrs):
+            raise serializers.ValidationError("Укажите company_id или context=platform")
+        return attrs
 
 
 class SwitchCompanyView(APIView):
@@ -127,19 +171,42 @@ class SwitchCompanyView(APIView):
     def post(self, request):
         ser = SwitchCompanySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        company_id = ser.validated_data["company_id"]
         memberships = list(memberships_of(request.user).order_by("id"))
+        if ser.validated_data.get("context") == platform.CTX_PLATFORM:
+            # роль проверяется по БД: токен компании не даёт права на переключение сам по себе
+            if not request.user.is_platform_admin:
+                raise PermissionDenied("Нет платформенного доступа")
+            _platform_auth_event(request, request.user, "switch_to_platform")
+            return Response(
+                {
+                    **issue_tokens(request.user),
+                    "context": platform.CTX_PLATFORM,
+                    "platform_role": request.user.platform_role,
+                    "companies": companies_payload(memberships),
+                }
+            )
+        company_id = ser.validated_data["company_id"]
         if company_id not in {m.company_id for m in memberships}:
             raise PermissionDenied("Нет доступа к этой компании")
         if company_status(company_id) == Subscription.BLOCKED:
             raise SubscriptionBlocked()
         audit.log_login(request, request.user, company_id, {"switched_to": company_id})
+        if request.user.is_platform_admin:
+            _platform_auth_event(
+                request, request.user, "switch_to_company", {"company_id": company_id}
+            )
         return Response(
-            {**issue_tokens(request.user, company_id), "companies": companies_payload(memberships)}
+            {
+                **issue_tokens(request.user, company_id),
+                "context": platform.CTX_COMPANY,
+                "companies": companies_payload(memberships),
+            }
         )
 
 
 class MeView(APIView):
+    permission_classes = [IsAuthenticated]  # доступно и в платформенном контексте
+
     def get(self, request):
         user = request.user
         return Response(
@@ -148,7 +215,8 @@ class MeView(APIView):
                 "email": user.email,
                 "phone": user.phone,
                 "full_name": user.full_name,
-                "company_id": request.auth["company_id"],
+                "context": request.auth.get("ctx") or platform.CTX_COMPANY,
+                "company_id": request.auth.get("company_id"),
                 "context_company_id": get_current_company_id(),
             }
         )
@@ -171,6 +239,7 @@ class PasswordChangeView(APIView):
     логируются и не попадают в аудит (там только маска).
     """
 
+    permission_classes = [IsAuthenticated]  # доступно и в платформенном контексте
     throttle_classes = [PasswordChangeThrottle]
 
     def post(self, request):

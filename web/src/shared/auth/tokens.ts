@@ -9,6 +9,9 @@
  * Токены не логируются и не попадают в URL.
  */
 const REFRESH_KEY = 'logistix.refresh'
+const CONTEXT_KEY = 'logistix.context'
+
+export type AuthContextKind = 'company' | 'platform'
 
 let access: string | null = null
 /**
@@ -34,14 +37,20 @@ export function getRefresh(): string | null {
   return storage()?.getItem(REFRESH_KEY) ?? null
 }
 
+/** Контекст работы (компания / Центр управления платформы); по умолчанию - компания. */
+export function getContext(): AuthContextKind {
+  return storage()?.getItem(CONTEXT_KEY) === 'platform' ? 'platform' : 'company'
+}
+
 export function getEpoch(): number {
   return epoch
 }
 
 /** Явная установка токенов (вход, смена компании): начинает новую эпоху. */
-export function setTokens(tokens: { access: string; refresh?: string }): void {
+export function setTokens(tokens: { access: string; refresh?: string; context?: AuthContextKind }): void {
   epoch++
   access = tokens.access
+  if (tokens.context) storage()?.setItem(CONTEXT_KEY, tokens.context)
   if (tokens.refresh) storage()?.setItem(REFRESH_KEY, tokens.refresh)
 }
 
@@ -57,6 +66,7 @@ export function clearTokens(): void {
   epoch++
   access = null
   storage()?.removeItem(REFRESH_KEY)
+  storage()?.removeItem(CONTEXT_KEY)
 }
 
 export function hasTokens(): boolean {

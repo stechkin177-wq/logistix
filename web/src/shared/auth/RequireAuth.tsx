@@ -4,12 +4,17 @@ import { Banner } from '../ui/Banner'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Spinner'
 import { loginPath } from './redirect'
+import { useAuth } from './useAuth'
 import { useSession } from './useSession'
 
 export function RequireAuth() {
   const { t } = useTranslation()
   const location = useLocation()
   const { status, refetch } = useSession()
+  const { context, hasTokens } = useAuth()
+
+  // платформенный контекст не открывает страницы компании
+  if (hasTokens && context === 'platform') return <Navigate to="/platform" replace />
 
   if (status === 'loading') {
     return (

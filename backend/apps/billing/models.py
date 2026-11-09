@@ -140,7 +140,14 @@ class BillingEvent(models.Model):
 
     PLAN = "plan"
     SUBSCRIPTION = "subscription"
-    KINDS = [(PLAN, "Тариф"), (SUBSCRIPTION, "Подписка компании")]
+    AUTH = "auth"  # вход и смена контекста платформенных аккаунтов; key - id пользователя
+    COMPANY = "company"  # действия платформы над компанией (блокировка/возврат); key - id компании
+    KINDS = [
+        (PLAN, "Тариф"),
+        (SUBSCRIPTION, "Подписка компании"),
+        (AUTH, "Вход"),
+        (COMPANY, "Компания"),
+    ]
 
     kind = models.CharField(max_length=16, choices=KINDS)
     key = models.CharField(max_length=64)  # код тарифа или id компании

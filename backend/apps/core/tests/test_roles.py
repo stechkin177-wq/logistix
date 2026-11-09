@@ -487,7 +487,7 @@ def test_foreign_role_or_department_rejected(admin_client, company_a, company_b)
     assert m.role.company_id == company_a.id and m.department_id is None
 
 
-def test_is_platform_admin_not_settable(admin_client, company_a):
+def test_platform_role_not_settable(admin_client, company_a):
     role = role_of(company_a, "Менеджер")
     r = admin_client.post(
         "/api/users/",
@@ -495,17 +495,17 @@ def test_is_platform_admin_not_settable(admin_client, company_a):
             "login": "pa@x.kz",
             "password": "very-long-pass-1",
             "role": role.id,
-            "is_platform_admin": True,
+            "platform_role": "owner",
         },
         format="json",
     )
     assert r.status_code == 400
     assert not User.objects.filter(email="pa@x.kz").exists()
     m = add_member(company_a, "Менеджер")
-    r = admin_client.patch(f"/api/users/{m.id}/", {"is_platform_admin": True}, format="json")
+    r = admin_client.patch(f"/api/users/{m.id}/", {"platform_role": "owner"}, format="json")
     assert r.status_code == 400
     m.user.refresh_from_db()
-    assert m.user.is_platform_admin is False
+    assert m.user.platform_role == ""
 
 
 def test_update_role_department_active(admin_client, company_a):

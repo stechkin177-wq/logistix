@@ -88,7 +88,7 @@ function CompanySwitcher() {
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { t, i18n } = useTranslation()
   const { session } = useSession()
-  const { logout } = useAuth()
+  const { logout, switchToPlatform } = useAuth()
   const [changingPassword, setChangingPassword] = useState(false)
   const branding = useBranding()
   const items = session ? visibleNav(session) : []
@@ -110,6 +110,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       <div className="space-y-2 border-t border-slate-200 p-2 dark:border-slate-800">
         <CompanySwitcher />
+        {session?.user.platform_role ? (
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              switchToPlatform().catch((error: unknown) => {
+                pushToast('error', errorMessage(error, t))
+              })
+            }}
+          >
+            {t('platformShell.toCenter')}
+          </Button>
+        ) : null}
         <select
           aria-label={t('common.language')}
           className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"

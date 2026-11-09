@@ -65,6 +65,10 @@ def enforce_subscription(request):
     user = request.user
     if not (user and user.is_authenticated):
         return
+    if getattr(request, "platform_role", None) is not None:
+        from apps.core.platform import CompanyContextRequired
+
+        raise CompanyContextRequired()  # платформенный токен не открывает данные компаний
     if _company_id(request) is None:
         raise SubscriptionBlocked()
     _, state = subscription_state(request)

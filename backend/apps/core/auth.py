@@ -16,6 +16,13 @@ class CompanyJWTAuthentication(JWTAuthentication):
         if result is None:
             return None
         user, token = result
+        if token.get("ctx") == "platform":
+            # платформенный контекст: без компании и без tenant-доступа; роль берётся из БД
+            role = user.platform_role if user.is_platform_admin else None
+            if role is None:
+                raise AuthenticationFailed("Платформенный доступ закрыт")
+            request.platform_role = role
+            return user, token
         company_id = token.get("company_id")
         if company_id is None:
             raise AuthenticationFailed("В токене нет компании")

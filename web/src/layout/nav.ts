@@ -10,8 +10,6 @@ export interface NavItem {
   permission?: string
   /** Модуль, который должен быть включён (иначе пункт скрыт). */
   module?: string
-  /** Только для администратора платформы. */
-  platformOnly?: boolean
   children?: NavItem[]
 }
 
@@ -37,15 +35,6 @@ export const NAV: NavItem[] = [
   { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents' },
   { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
   {
-    key: 'platform',
-    labelKey: 'nav.platform',
-    children: [
-      { key: 'platformplans', labelKey: 'nav.platformPlans', path: '/platform/plans', platformOnly: true },
-      { key: 'platformcompanies', labelKey: 'nav.platformCompanies', path: '/platform/companies', platformOnly: true },
-      { key: 'platformhistory', labelKey: 'nav.platformHistory', path: '/platform/history', platformOnly: true },
-    ],
-  },
-  {
     key: 'settings',
     labelKey: 'nav.settings',
     children: [
@@ -62,10 +51,9 @@ export const NAV: NavItem[] = [
   },
 ]
 
-type Access = Pick<Session, 'permissions' | 'modules'> & { user?: Pick<Session['user'], 'is_platform_admin'> }
+type Access = Pick<Session, 'permissions' | 'modules'>
 
 export function isAllowed(item: NavItem, access: Access): boolean {
-  if (item.platformOnly && access.user?.is_platform_admin !== true) return false
   if (item.permission && !access.permissions.includes(item.permission)) return false
   if (item.module && !access.modules.includes(item.module)) return false
   return true

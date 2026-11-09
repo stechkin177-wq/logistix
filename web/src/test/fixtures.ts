@@ -3,7 +3,7 @@ import type { Session } from '../shared/api/types'
 
 export function makeSession(overrides: Partial<Session> = {}): Session {
   return {
-    user: { id: 1, email: 'admin@example.kz', phone: null, full_name: 'Админ Админов', is_platform_admin: false },
+    user: { id: 1, email: 'admin@example.kz', phone: null, full_name: 'Админ Админов', platform_role: '' },
     company: { id: 10, name: 'Альфа', timezone: 'Asia/Almaty', language: 'ru' },
     companies: [{ id: 10, name: 'Альфа' }],
     role: { id: 1, name: 'Администратор' },

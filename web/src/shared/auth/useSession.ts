@@ -18,8 +18,8 @@ export interface UseSession {
 }
 
 export function useSession(): UseSession {
-  const { hasTokens, blocked } = useAuth()
-  const query = useQuery({ ...sessionQuery, enabled: hasTokens && !blocked })
+  const { hasTokens, blocked, context } = useAuth()
+  const query = useQuery({ ...sessionQuery, enabled: hasTokens && !blocked && context === 'company' })
   const session = query.data
 
   let status: SessionStatus

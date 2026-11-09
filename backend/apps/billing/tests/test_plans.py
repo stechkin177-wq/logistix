@@ -186,12 +186,6 @@ def test_public_list_hides_drafts_and_archived_and_follows_order(admin_client):
 # --- API администратора платформы ---
 
 
-@pytest.fixture
-def platform_api(admin_client, admin_user):
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    return admin_client
-
-
 def test_admin_api_requires_platform_admin(admin_client):
     for method, url in (("get", ADMIN), ("post", ADMIN), ("get", f"{ADMIN}start/")):
         assert getattr(admin_client, method)(url).status_code == 403, url

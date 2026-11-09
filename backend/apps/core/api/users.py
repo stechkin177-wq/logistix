@@ -19,7 +19,7 @@ from apps.core.tenancy import get_current_company_id
 
 User = get_user_model()
 ATTACH_ERROR = "Пользователь уже зарегистрирован; для добавления нужен его действующий пароль"
-FORBIDDEN_FIELDS = ("is_platform_admin", "is_staff", "is_superuser")
+FORBIDDEN_FIELDS = ("platform_role", "is_platform_admin", "is_staff", "is_superuser")
 
 
 class MemberAttachThrottle(UserRateThrottle):

@@ -196,3 +196,29 @@ def renew(company, *, periods: int = 1, user=None) -> Subscription:
          "price": str(sub.plan.price * periods)}, user,
     )  # fmt: skip
     return sub
+
+
+@transaction.atomic
+def set_blocked(company, blocked: bool, *, reason: str, user=None) -> Subscription:
+    """Ручная блокировка/возврат компании платформой (T5-A). Причина обязательна и пишется в
+    платформенный журнал. Данные компании не затрагиваются: блокируется только доступ."""
+    reason = (reason or "").strip() if isinstance(reason, str) else ""
+    if not reason:
+        raise PlanError("reason_required", "Укажите причину", http.HTTP_400_BAD_REQUEST)
+    sub = Subscription.objects.select_for_update().get(company=company)
+    was = sub.status == Subscription.BLOCKED
+    if was == blocked:
+        raise PlanError(
+            "already_blocked" if blocked else "not_blocked",
+            "Компания уже заблокирована" if blocked else "Компания не заблокирована вручную",
+        )
+    before = sub.status
+    sub.status = Subscription.BLOCKED if blocked else (
+        Subscription.TRIAL if sub.is_free_period else Subscription.ACTIVE
+    )
+    sub.save(update_fields=["status"])
+    events.record(
+        events.BillingEvent.COMPANY, company.pk, "block" if blocked else "unblock",
+        {"status": [before, sub.status], "reason": reason}, user,
+    )  # fmt: skip
+    return sub

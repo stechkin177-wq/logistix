@@ -11,12 +11,6 @@ pytestmark = pytest.mark.django_db
 ADMIN = "/api/platform/plans/"
 
 
-@pytest.fixture
-def platform_api(admin_client, admin_user):
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    return admin_client
-
-
 def events_of(kind=None, key=None):
     qs = BillingEvent.objects.all()
     if kind:
@@ -43,7 +37,8 @@ def test_every_plan_change_is_logged_with_diff_and_actor(platform_api, admin_use
     assert [a for a, _ in got] == [
         "create", "update", "publish", "unpublish", "archive", "restore", "delete",
     ]  # fmt: skip
-    assert all(actor == admin_user.email for _, actor in got)
+    owner = User.objects.get(platform_role="owner").email
+    assert all(actor == owner for _, actor in got)
     update = events_of("plan", "hist")[1]
     assert update.changes["price"] == ["10.00", "20.00"]
     assert update.changes["modules"] == [[], ["logistics"]]
@@ -99,7 +94,7 @@ def test_companies_list_search_and_status(platform_api, make_company, company):
     assert api.get("/api/platform/companies/").json()["count"] >= 3
 
 
-def test_session_exposes_platform_admin_flag(admin_client, admin_user):
-    assert admin_client.get("/api/session/").json()["user"]["is_platform_admin"] is False
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    assert admin_client.get("/api/session/").json()["user"]["is_platform_admin"] is True
+def test_session_exposes_platform_role(admin_client, admin_user):
+    assert admin_client.get("/api/session/").json()["user"]["platform_role"] == ""
+    User.objects.filter(pk=admin_user.pk).update(platform_role="admin")
+    assert admin_client.get("/api/session/").json()["user"]["platform_role"] == "admin"

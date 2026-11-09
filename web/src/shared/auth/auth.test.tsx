@@ -67,6 +67,21 @@ describe('вход', () => {
     expect(await screen.findByRole('heading', { name: 'Рейсы' })).toBeInTheDocument()
   })
 
+  it('владелец платформы без компании входит в Центр управления (ответ context=platform)', async () => {
+    mockFetch([
+      ...common,
+      ['POST', '/api/auth/login/', { body: { access: 'acc', refresh: 'ref', context: 'platform', platform_role: 'owner', companies: [] } }],
+      ['GET', '/api/platform/session/', { body: { context: 'platform', user: { id: 1, email: 'o@x.kz', phone: null, full_name: '', platform_role: 'owner' }, permissions: ['platform.read'], companies: [] } }],
+      ['GET', '/api/platform/plans/', { body: [] }],
+      ['GET', '/api/platform/catalog/', { body: { modules: [], features: [], limits: [] } }],
+    ])
+    const { router } = renderApp('/login')
+    await submitLogin('o@x.kz', 'pass')
+    await screen.findByRole('navigation', { name: 'Центр управления' })
+    expect(router.state.location.pathname).toBe('/platform/plans')
+    expect(window.sessionStorage.getItem('logistix.context')).toBe('platform')
+  })
+
   it('сбой загрузки сессии после входа не оставляет токены', async () => {
     mockFetch([
       ...common,

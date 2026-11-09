@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { Navigate, createBrowserRouter, type RouteObject } from 'react-router'
 import { CarriersPage } from '../features/carriers/CarriersPage'
 import { CompaniesPage } from '../features/platform/CompaniesPage'
 import { HistoryPage } from '../features/platform/HistoryPage'
@@ -34,6 +34,8 @@ import { TransfersPage } from '../features/tracking/pages/TransfersPage'
 import { TripsPage } from '../features/trips/pages/TripsPage'
 import { AppLayout } from '../layout/AppLayout'
 import { NAV, flattenNav, type NavItem } from '../layout/nav'
+import { PlatformLayout } from '../features/platform/PlatformLayout'
+import { RequirePlatform } from '../shared/auth/RequirePlatform'
 import { RequireAuth } from '../shared/auth/RequireAuth'
 import { RootRoute } from './RootRoute'
 
@@ -47,9 +49,6 @@ const PAGES: Record<string, () => ReactElement> = {
   '/transfers': TransfersPage,
   '/vehicles': VehiclesPage,
   '/drivers': DriversPage,
-  '/platform/plans': PlansPage,
-  '/platform/companies': CompaniesPage,
-  '/platform/history': HistoryPage,
   '/finance': FinancePage,
   '/documents': DocumentsPage,
   '/trash': TrashPage,
@@ -98,6 +97,23 @@ export function createRoutes(): RouteObject[] {
       element: <RootRoute />,
       children: [
         { path: '/login', element: <LoginPage /> },
+        {
+          // Центр управления платформы: отдельный контекст, свои маршруты и оболочка
+          path: '/platform',
+          element: <RequirePlatform />,
+          children: [
+            {
+              element: <PlatformLayout />,
+              children: [
+                { index: true, element: <Navigate to="/platform/plans" replace /> },
+                { path: 'plans', element: <PlansPage /> },
+                { path: 'companies', element: <CompaniesPage /> },
+                { path: 'history', element: <HistoryPage /> },
+                { path: '*', element: <NotFoundPage /> },
+              ],
+            },
+          ],
+        },
         {
           element: <RequireAuth />,
           children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...financePages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],

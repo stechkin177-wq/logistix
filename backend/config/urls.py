@@ -30,6 +30,7 @@ from apps.core.api.modules import (
     ModuleDisableView,
     ModuleEnableView,
 )
+from apps.core.api.platform_session import PlatformSessionView
 from apps.core.api.roles import DepartmentViewSet, RoleViewSet
 from apps.core.api.session import SessionView
 from apps.core.api.trash import TrashListView, TrashRestoreView
@@ -158,6 +159,7 @@ urlpatterns = [
     path("api/auth/me/", MeView.as_view()),
     path("api/auth/password/", PasswordChangeView.as_view()),
     path("api/session/", SessionView.as_view()),
+    path("api/platform/session/", PlatformSessionView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
     path("api/billing/usage/", UsageView.as_view()),

@@ -1,11 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { page } from '../../test/fixtures'
-import { loggedIn, type MockRoutes } from '../../test/harness'
+import { makeSession, page } from '../../test/fixtures'
+import { loggedIn, platformLoggedIn, type MockRoutes } from '../../test/harness'
 import { renderApp } from '../../test/renderApp'
 
-const SESSION = { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'Админ', is_platform_admin: true } }
 const PLAN = (over = {}) => ({
   code: 'start', name: 'Старт', description: '', billing_type: 'monthly', price: '0.00', currency: 'KZT', sort_order: 10,
   status: 'active', is_default: true, limits: { max_vehicles: 5 }, modules: ['logistics', 'fleet'], features: {},
@@ -32,30 +31,66 @@ const base: MockRoutes = [
 ]
 
 describe('Панель платформы', () => {
-  it('раздел «Платформа» скрыт у обычного пользователя', async () => {
+  it('в меню компании нет платформенных разделов', async () => {
     loggedIn([...base])
     renderApp('/')
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
     expect(within(nav).queryByText('Подписки компаний')).not.toBeInTheDocument()
     expect(within(nav).queryByText('История изменений')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Центр управления' })).not.toBeInTheDocument()
   })
 
-  it('раздел «Платформа» виден администратору платформы', async () => {
-    loggedIn([...base], { session: SESSION })
+  it('у платформенной роли в меню компании есть переход в Центр управления', async () => {
+    loggedIn([...base], { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner' } } })
     renderApp('/')
-    const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
+    expect(await screen.findByRole('button', { name: 'Центр управления' })).toBeInTheDocument()
+  })
+
+  it('Центр управления: свой интерфейс с разделами платформы, без меню компании', async () => {
+    platformLoggedIn([...base])
+    renderApp('/platform')
+    const nav = await screen.findByRole('navigation', { name: 'Центр управления' })
+    expect(within(nav).getByText('Тарифы')).toBeInTheDocument()
     expect(within(nav).getByText('Подписки компаний')).toBeInTheDocument()
     expect(within(nav).getByText('История изменений')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Владелец · Владелец платформы')).toBeInTheDocument()
   })
 
-  it('обычному пользователю страница тарифов недоступна', async () => {
-    loggedIn([...base])
-    renderApp('/platform/plans')
-    expect(await screen.findByText(/нет доступа|Доступ запрещён|403/i)).toBeInTheDocument()
+  it('платформенный контекст не открывает страницы компании', async () => {
+    platformLoggedIn([...base])
+    const { router } = renderApp('/orders')
+    await screen.findByRole('navigation', { name: 'Центр управления' })
+    expect(router.state.location.pathname).toBe('/platform/plans')
+  })
+
+  it('пользователь компании не попадает в Центр управления', async () => {
+    const m = loggedIn([...base])
+    const { router } = renderApp('/platform/plans')
+    await screen.findByRole('navigation', { name: 'Основное меню' })
+    expect(router.state.location.pathname).toBe('/')
+    expect(m.calls.some((c) => c.path === '/api/platform/plans/')).toBe(false)
+  })
+
+  it('переход в компанию из Центра управления и обратно меняет контекст', async () => {
+    const m = platformLoggedIn(
+      [
+        ...base,
+        ['POST', '/api/auth/switch-company/', { body: { access: 'c', refresh: 'cr', context: 'company', companies: [] } }],
+        ['GET', '/api/session/', { body: makeSession() }],
+      ],
+      { companies: [{ id: 10, name: 'Альфа' }] },
+    )
+    const { router } = renderApp('/platform/plans')
+    const select = await screen.findByLabelText('Открыть компанию…')
+    await userEvent.selectOptions(select, '10')
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/') })
+    expect(m.calls.find((c) => c.path === '/api/auth/switch-company/')!.body).toEqual({ company_id: 10 })
+    expect(await screen.findByRole('navigation', { name: 'Основное меню' })).toBeInTheDocument()
   })
 
   it('список тарифов: статусы, по умолчанию, действия и смена порядка', async () => {
-    const m = loggedIn([...base, ['POST', '/api/platform/plans/reorder/', { body: [] }], ['POST', '/api/platform/plans/pro/publish/', { body: PLAN() }]], { session: SESSION })
+    const m = platformLoggedIn([...base, ['POST', '/api/platform/plans/reorder/', { body: [] }], ['POST', '/api/platform/plans/pro/publish/', { body: PLAN() }]])
     renderApp('/platform/plans')
     const table = await screen.findByRole('table')
     expect(await within(table).findByText('Старт')).toBeInTheDocument()
@@ -71,7 +106,7 @@ describe('Панель платформы', () => {
   })
 
   it('создание тарифа: модули тянут зависимости, лимиты и функции уходят одним запросом', async () => {
-    const m = loggedIn([...base, ['POST', '/api/platform/plans/', { status: 201, body: PLAN({ code: 'gold' }) }]], { session: SESSION })
+    const m = platformLoggedIn([...base, ['POST', '/api/platform/plans/', { status: 201, body: PLAN({ code: 'gold' }) }]])
     renderApp('/platform/plans')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Новый тариф' }))[0]!)
     const drawer = await screen.findByRole('dialog')
@@ -92,7 +127,7 @@ describe('Панель платформы', () => {
   })
 
   it('снятие модуля убирает зависящие от него модули', async () => {
-    loggedIn([...base], { session: SESSION })
+    platformLoggedIn([...base])
     renderApp('/platform/plans')
     await userEvent.click(await screen.findByRole('button', { name: 'Старт (start)' }))
     const drawer = await screen.findByRole('dialog')
@@ -104,7 +139,7 @@ describe('Панель платформы', () => {
   })
 
   it('ошибка сервера при сохранении показывается в панели', async () => {
-    loggedIn([...base, ['PATCH', '/api/platform/plans/start/', { status: 400, body: { detail: 'В тариф нужно добавить зависимости: finance -> logistics', code: 'plan_modules_incomplete' } }]], { session: SESSION })
+    platformLoggedIn([...base, ['PATCH', '/api/platform/plans/start/', { status: 400, body: { detail: 'В тариф нужно добавить зависимости: finance -> logistics', code: 'plan_modules_incomplete' } }]])
     renderApp('/platform/plans')
     await userEvent.click(await screen.findByRole('button', { name: 'Старт (start)' }))
     const drawer = await screen.findByRole('dialog')
@@ -118,13 +153,13 @@ describe('Панель платформы', () => {
       periods: [{ plan: 'start', reason: 'start', starts_at: '2026-01-01T00:00:00Z', ends_at: '2027-01-01T00:00:00Z', price: '0.00', currency: 'KZT' }] }
     const PREVIEW = { from_plan: 'start', to_plan: 'pro', price: { current_period: '0.00', new: '500.00', currency: 'KZT' }, lost_modules: ['fleet'], gained_modules: ['finance'],
       lost_features: [], gained_features: [], limits_exceeded: [{ code: 'max_vehicles', name: 'Техника', usage: 4, old_limit: 5, new_limit: 2 }], limits_tightened: [] }
-    const m = loggedIn([
+    const m = platformLoggedIn([
       ['GET', /^\/api\/platform\/companies\/\?/, { body: page([{ id: 7, name: 'ТОО Альфа', plan: 'start', plan_name: 'Старт', status: 'active', is_free_period: true, ends_at: '2027-01-01T00:00:00Z' }]) }],
       ['GET', '/api/platform/subscriptions/7/', { body: SUB }],
       ['GET', /^\/api\/platform\/subscriptions\/7\/change-plan\/preview\//, { body: PREVIEW }],
       ['POST', '/api/platform/subscriptions/7/change-plan/', { body: SUB }],
       ...base,
-    ], { session: SESSION })
+    ])
     renderApp('/platform/companies')
     await userEvent.click(await screen.findByRole('button', { name: 'ТОО Альфа' }))
     const drawer = await screen.findByRole('dialog')
@@ -139,9 +174,9 @@ describe('Панель платформы', () => {
   })
 
   it('журнал изменений: кто, когда и что изменено (было → стало)', async () => {
-    loggedIn([
+    platformLoggedIn([
       ['GET', /^\/api\/platform\/history\//, { body: page([{ id: 1, kind: 'plan', key: 'start', action: 'update', actor: 'admin@x.kz', created_at: '2026-11-09T07:00:00Z', changes: { price: ['0.00', '500.00'] } }]) }],
-    ], { session: SESSION })
+    ])
     renderApp('/platform/history')
     expect(await screen.findByText('admin@x.kz')).toBeInTheDocument()
     expect(screen.getByText('Тариф: start')).toBeInTheDocument()

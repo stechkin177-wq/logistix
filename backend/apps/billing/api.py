@@ -3,10 +3,11 @@ from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
+
+from apps.core.platform import COMPANIES, PLANS, SUBSCRIPTIONS, PlatformAccess
 
 from . import features, limits, plans, subscriptions
 from .models import BillingEvent, Plan
@@ -52,16 +53,7 @@ class SubscriptionView(APIView):
         )
 
 
-# --- управление тарифами (администратор платформы) ---------------------------------------------
-
-
-class IsPlatformAdmin(BasePermission):
-    """Только администратор платформы. Шлюз подписки компании не применяется: управление
-    тарифами не должно зависеть от состояния подписки компании самого администратора."""
-
-    def has_permission(self, request, view):
-        user = request.user
-        return bool(user and user.is_authenticated and user.is_platform_admin)
+# --- управление тарифами (платформенный контекст; права по роли: apps.core.platform) ---
 
 
 class AdminPlanSerializer(serializers.ModelSerializer):
@@ -86,7 +78,8 @@ class AdminPlanViewSet(ViewSet):
     """Тарифы платформы: список (все состояния), создание, правка, публикация, архив, удаление,
     тариф по умолчанию, порядок. Модули, функции и лимиты тарифа настраиваются на этапах T2-T3."""
 
-    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [PlatformAccess]
+    platform_write = PLANS
     lookup_field = "code"
 
     @staticmethod
@@ -156,7 +149,7 @@ class AdminPlanViewSet(ViewSet):
 class PlatformCatalogView(APIView):
     """Что можно включать в тариф: модули (с зависимостями) и функции (с видами и уровнями)."""
 
-    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [PlatformAccess]
 
     def get(self, request):
         from apps.core import module_catalog
@@ -232,7 +225,9 @@ class PlatformSubscriptionViewSet(ViewSet):
     Платёжных интеграций нет: продление фиксирует период и цену, оплату подтверждает администратор.
     """
 
-    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [PlatformAccess]
+    platform_write = SUBSCRIPTIONS
+    platform_actions = {"block": COMPANIES, "unblock": COMPANIES}  # только владелец платформы
     lookup_field = "company_id"
     lookup_value_regex = r"\d+"
 
@@ -262,6 +257,24 @@ class PlatformSubscriptionViewSet(ViewSet):
         return Response(_sub_payload(company))
 
     @action(detail=True, methods=["post"])
+    def block(self, request, company_id=None):
+        company = _company(company_id)
+        subscriptions.set_blocked(
+            company, True, reason=request.data.get("reason"), user=request.user
+        )
+        company.subscription.refresh_from_db()
+        return Response(_sub_payload(company))
+
+    @action(detail=True, methods=["post"])
+    def unblock(self, request, company_id=None):
+        company = _company(company_id)
+        subscriptions.set_blocked(
+            company, False, reason=request.data.get("reason"), user=request.user
+        )
+        company.subscription.refresh_from_db()
+        return Response(_sub_payload(company))
+
+    @action(detail=True, methods=["post"])
     def renew(self, request, company_id=None):
         company = _company(company_id)
         subscriptions.renew(company, periods=request.data.get("periods", 1), user=request.user)
@@ -272,7 +285,7 @@ class PlatformSubscriptionViewSet(ViewSet):
 class PlatformCompaniesView(APIView):
     """Компании платформы с их подписками (поиск по названию) - для управления подписками."""
 
-    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [PlatformAccess]
 
     def get(self, request):
         from apps.core.models import Company
@@ -299,7 +312,7 @@ class PlatformCompaniesView(APIView):
 class PlatformHistoryView(APIView):
     """Журнал изменений тарифов и подписок: фильтры kind (plan|subscription) и key."""
 
-    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [PlatformAccess]
 
     def get(self, request):
         from apps.core.pagination import StandardPagination
@@ -308,7 +321,7 @@ class PlatformHistoryView(APIView):
         kind = request.query_params.get("kind")
         if kind:
             if kind not in dict(BillingEvent.KINDS):
-                raise ValidationError({"kind": "Допустимо: plan, subscription"})
+                raise ValidationError({"kind": "Допустимо: plan, subscription, auth, company"})
             qs = qs.filter(kind=kind)
         if key := request.query_params.get("key"):
             qs = qs.filter(key=key)

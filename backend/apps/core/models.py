@@ -11,6 +11,13 @@ from .managers import AllObjectsManager, SoftDeleteManager, TenantManager
 from .phone import normalize_phone
 from .tenancy import NoTenantContext, TenantMismatch, get_current_company_id
 
+PLATFORM_OWNER = "owner"
+PLATFORM_ADMIN = "admin"
+PLATFORM_ROLES = [
+    (PLATFORM_OWNER, "Владелец платформы"),
+    (PLATFORM_ADMIN, "Администратор платформы"),
+]
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -25,7 +32,6 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email=None, password=None, phone=None, **extra):
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
-        extra.setdefault("is_platform_admin", True)
         return self.create_user(email, password, phone, **extra)
 
     def get_by_natural_key(self, username):
@@ -44,9 +50,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    is_platform_admin = models.BooleanField(default=False)
+    # роль на уровне платформы (не связана с членством в компаниях и с is_superuser):
+    # "" - нет, "owner" - владелец платформы, "admin" - администратор платформы (ограниченные права)
+    platform_role = models.CharField(
+        max_length=16, blank=True, default="", choices=PLATFORM_ROLES
+    )
 
     objects = UserManager()
+
+    @property
+    def is_platform_admin(self) -> bool:
+        """Есть любая платформенная роль (владелец или администратор платформы)."""
+        return self.platform_role in (PLATFORM_OWNER, PLATFORM_ADMIN)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []

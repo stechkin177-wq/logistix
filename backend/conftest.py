@@ -55,3 +55,26 @@ def admin_user(_default_company):
 @pytest.fixture
 def admin_client(_default_company):
     return _default_company[2]
+
+
+@pytest.fixture
+def make_platform_client(db):
+    """Фабрика: (клиент с ПЛАТФОРМЕННЫМ токеном, пользователь). Аккаунт без членства в компаниях."""
+
+    def factory(role="owner"):
+        n = next(_counter)
+        user = User.objects.create_user(
+            email=f"platform{n}@fixture.kz", password=TEST_PASSWORD, platform_role=role
+        )
+        client = APIClient()
+        tokens = issue_tokens(user)
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+        return client, user
+
+    return factory
+
+
+@pytest.fixture
+def platform_api(make_platform_client, _default_company):
+    """Клиент владельца платформы (платформенный контекст)."""
+    return make_platform_client("owner")[0]

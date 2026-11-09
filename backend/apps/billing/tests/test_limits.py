@@ -5,7 +5,6 @@ import pytest
 from apps.billing import limits, plans
 from apps.billing.models import Plan
 from apps.billing.plans import PlanError
-from apps.core.models import User
 from apps.core.tenancy import tenant_context
 from apps.drivers.models import Driver
 from apps.fleet.models import Vehicle
@@ -191,12 +190,6 @@ def test_no_subscription_or_unmeasured_limit_does_not_block_creation(co):
 
 
 # --- API ---
-
-
-@pytest.fixture
-def platform_api(admin_client, admin_user):
-    User.objects.filter(pk=admin_user.pk).update(is_platform_admin=True)
-    return admin_client
 
 
 def test_admin_api_manages_limits_and_serves_catalog(platform_api):
