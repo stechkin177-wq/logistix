@@ -63,7 +63,7 @@ def test_create_is_draft_goes_to_end_and_validates():
         {"code": "ok3", "name": "x", "price": "1.234"},
         {"code": "ok4", "name": "x", "currency": "тенге"},
         {"code": "ok5", "name": "x", "billing_type": "weekly"},
-        {"code": "ok6", "name": "x", "limits": {"a": 1}},  # лимиты - этап T3, не здесь
+        {"code": "ok6", "name": "x", "limits": {"a": 1}},  # неизвестный лимит
     ):
         with pytest.raises(PlanError) as e:
             plans.create_plan(**bad)

@@ -8,17 +8,25 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
-from . import features, plans
+from . import features, limits, plans
 from .models import Plan
 from .services import days_left, effective_status, get_subscription
 
 
 class PlanSerializer(serializers.ModelSerializer):
+    # options - устаревшее поле (до T2): оставлено для совместимости клиентов, только чтение и
+    # выводится из features; новые клиенты используют features
+    options = serializers.SerializerMethodField()
+
+    def get_options(self, plan):
+        features = plan.features or {}
+        return {key: features.get(key) is True for key in ("white_label", "custom_domain")}
+
     class Meta:
         model = Plan
         fields = [
             "code", "name", "description", "billing_type", "price", "currency",
-            "limits", "modules", "features",
+            "limits", "modules", "features", "options",
         ]  # fmt: skip
 
 
@@ -161,4 +169,18 @@ class PlatformCatalogView(APIView):
             for m in module_catalog.MODULES
             if not m["is_core"]
         ]  # fmt: skip
-        return Response({"modules": modules, "features": features.FEATURES})
+        catalog_limits = [
+            {"code": s["code"], "name": s["name"], "unit": s["unit"],
+             "scope": s.get("scope", limits.TOTAL), "enforced": s.get("enforced", True)}
+            for s in limits.LIMITS
+        ]  # fmt: skip
+        return Response(
+            {"modules": modules, "features": features.FEATURES, "limits": catalog_limits}
+        )
+
+
+class UsageView(APIView):
+    """Использование лимитов тарифа компанией: лимит, использование, превышение (для интерфейса)."""
+
+    def get(self, request):
+        return Response({"results": limits.company_usage(request.membership.company_id)})

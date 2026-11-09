@@ -7,11 +7,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from apps.billing.services import check_limit
+from apps.billing import limits
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit import snapshot
 from apps.core.audit.mixins import AuditedMixin
-from apps.core.models import Company, Department, Membership, Role
+from apps.core.models import Department, Membership, Role
 from apps.core.permission_guard import ensure_can_grant
 from apps.core.permissions_catalog import ADMIN_ROLE_NAME
 from apps.core.phone import normalize_phone
@@ -98,9 +98,7 @@ class MembershipUpdateSerializer(serializers.Serializer):
 
 def enforce_user_limit(company_id):
     """Лимит max_users по активным членствам; блокировка компании против гонок."""
-    company = Company.objects.select_for_update().get(pk=company_id)
-    active = Membership.objects.filter(company_id=company_id, is_active=True).count()
-    check_limit(company, "max_users", active)
+    limits.check(company_id, "max_users")  # +1 к использованию против лимита тарифа
 
 
 def _is_admin(membership):

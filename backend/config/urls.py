@@ -9,6 +9,7 @@ from apps.billing.api import (
     PlanListView,
     PlatformCatalogView,
     SubscriptionView,
+    UsageView,
 )
 from apps.core.api.auth import (
     LoginView,
@@ -151,6 +152,7 @@ urlpatterns = [
     path("api/session/", SessionView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
+    path("api/billing/usage/", UsageView.as_view()),
     path("api/platform/catalog/", PlatformCatalogView.as_view()),
     path("api/company/modules/apply-profile/", ApplyProfileView.as_view()),
     path("api/company/modules/<slug:code>/enable/", ModuleEnableView.as_view()),

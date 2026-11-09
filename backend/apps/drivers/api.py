@@ -4,12 +4,9 @@ from rest_framework import serializers, viewsets
 from rest_framework.exceptions import ValidationError
 
 from apps.billing.permissions import ModuleRequired
-from apps.billing.services import check_limit
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
-from apps.core.models import Company
 from apps.core.pagination import StandardPagination
-from apps.core.tenancy import get_current_company_id
 
 from .models import Driver, DriverDocument
 from .serializers import DriverDocumentSerializer, DriverSerializer
@@ -45,15 +42,9 @@ class DriverViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet)
         expr = expr.desc(nulls_last=True) if ordering.startswith("-") else expr.asc(nulls_last=True)
         return qs.order_by(expr, "id")
 
-    def _enforce_limit(self):
-        """Лимит max_drivers: блокировка компании против гонок, считаются неудалённые водители."""
-        company = Company.objects.select_for_update().get(pk=get_current_company_id())
-        check_limit(company, "max_drivers", Driver.objects.count())
-
     def create(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
-                self._enforce_limit()
                 return super().create(request, *args, **kwargs)
         except IntegrityError as exc:
             self._duplicate_or_raise(exc)

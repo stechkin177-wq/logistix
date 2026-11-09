@@ -16,12 +16,13 @@ from rest_framework.exceptions import APIException
 from apps.core import module_catalog
 
 from . import features as feature_catalog
+from . import limits as limit_catalog
 from .models import Plan
 
 CODE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,49}$")
 CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 EDITABLE = ("name", "description", "billing_type", "price", "currency", "sort_order")
-CONTENT = ("modules", "features")  # состав тарифа (T2); лимиты - T3
+CONTENT = ("modules", "features", "limits")  # состав тарифа: модули, функции (T2), лимиты (T3)
 ORDER_STEP = 10
 
 
@@ -98,6 +99,13 @@ def clean_modules(modules) -> list[str]:
     return result
 
 
+def clean_limits(limits) -> dict:
+    try:
+        return limit_catalog.normalize(limits)
+    except limit_catalog.LimitError as exc:
+        raise _bad("limits", str(exc)) from None
+
+
 def clean_features(features, modules) -> dict:
     try:
         return feature_catalog.normalize(features, modules)
@@ -125,8 +133,9 @@ def create_plan(*, code: str, **data) -> Plan:
         raise _bad("fields", f"неизвестные поля: {', '.join(sorted(unknown))}")
     modules = clean_modules(content.get("modules", []))
     features = clean_features(content.get("features", {}), modules)
+    limits = clean_limits(content.get("limits", {}))
     return Plan.objects.create(
-        code=code, is_active=False, modules=modules, features=features, **data
+        code=code, is_active=False, modules=modules, features=features, limits=limits, **data
     )
 
 
@@ -140,6 +149,9 @@ def update_plan(plan: Plan, **data) -> Plan:
     content = {k: data[k] for k in CONTENT if k in data}
     for key, value in _clean({k: v for k, v in data.items() if k in EDITABLE}).items():
         setattr(locked, key, value)
+    if "limits" in content:
+        locked.limits = clean_limits(content["limits"])  # новые лимиты действуют сразу и без
+        # удаления данных: сверх лимита блокируется только создание новых объектов
     if "modules" in content:
         locked.modules = clean_modules(content["modules"])
     if "modules" in content or "features" in content:

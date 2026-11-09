@@ -7,12 +7,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.billing.permissions import ModuleRequired
-from apps.billing.services import check_limit
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
-from apps.core.models import Company
 from apps.core.pagination import StandardPagination
-from apps.core.tenancy import get_current_company_id
 
 from . import services
 from .models import FuelFill, Insurance, MileageReading, ServiceRecord, Vehicle, VehicleDocument
@@ -86,15 +83,9 @@ class VehicleViewSet(AuditedMixin, _FleetPermissions, viewsets.ModelViewSet):
         ]
         return Response(stats)
 
-    def _enforce_limit(self):
-        """Лимит max_vehicles: блокировка компании против гонок, считается неудалённая техника."""
-        company = Company.objects.select_for_update().get(pk=get_current_company_id())
-        check_limit(company, "max_vehicles", Vehicle.objects.count())
-
     def create(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
-                self._enforce_limit()
                 return super().create(request, *args, **kwargs)
         except IntegrityError as exc:
             self._duplicate_or_raise(exc)

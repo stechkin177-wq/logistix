@@ -10,19 +10,18 @@ from .models import Plan, Subscription
 GRACE_DAYS = 14
 READONLY_DAYS = 30
 
-LIMIT_KEYS = (
-    "max_users",
-    "max_vehicles",
-    "max_drivers",
-    "max_orders_per_month",
-    "max_ocr_per_month",
-)
 
 
 class LimitExceeded(APIException):
     status_code = http.HTTP_402_PAYMENT_REQUIRED
     default_detail = "Достигнут лимит тарифа"
     default_code = "limit_exceeded"
+
+    def __init__(self, payload: dict | None = None):
+        """payload - тело ответа как есть (числа остаются числами): detail, code, limit_code,
+        limit, usage."""
+        super().__init__(detail=payload["detail"] if payload else None)
+        self.payload = payload
 
 
 def effective_status(sub: Subscription, now: datetime) -> str:
@@ -74,7 +73,9 @@ def check_limit(company, key: str, current: int) -> None:
 
     Нет подписки = как blocked (отказ). null в лимите = без ограничений.
     """
-    if key not in LIMIT_KEYS:
+    from .limits import BY_CODE
+
+    if key not in BY_CODE:
         raise ValueError(f"Неизвестный лимит: {key!r}")
     sub = get_subscription(company.pk)
     if sub is None:
