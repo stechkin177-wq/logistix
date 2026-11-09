@@ -204,7 +204,9 @@ class SwitchCompanyView(APIView):
         )
 
 
-class MeView(APIView):
+class PlatformAwareGate:
+    """Шлюз подписки для токена компании; платформенному токену (нет подписки) - только вход."""
+
     def get_permissions(self):
         # платформенный токен не имеет подписки компании - шлюз к нему не применим
         auth = getattr(self.request, "auth", None)
@@ -212,6 +214,8 @@ class MeView(APIView):
             return [IsAuthenticated()]
         return super().get_permissions()
 
+
+class MeView(PlatformAwareGate, APIView):
     def get(self, request):
         user = request.user
         return Response(
@@ -236,7 +240,7 @@ class PasswordChangeSerializer(serializers.Serializer):
     new_password = serializers.CharField(trim_whitespace=False, write_only=True)
 
 
-class PasswordChangeView(APIView):
+class PasswordChangeView(PlatformAwareGate, APIView):
     """Смена собственного пароля: POST {old_password, new_password} -> 204.
 
     ВНИМАНИЕ: выданные refresh-токены остаются действительными до истечения срока
@@ -244,8 +248,8 @@ class PasswordChangeView(APIView):
     логируются и не попадают в аудит (там только маска).
     """
 
-    permission_classes = [IsAuthenticated]  # доступно и в платформенном контексте
     throttle_classes = [PasswordChangeThrottle]
+
 
     def post(self, request):
         ser = PasswordChangeSerializer(data=request.data)
