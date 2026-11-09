@@ -4,6 +4,7 @@ import { CarriersPage } from '../features/carriers/CarriersPage'
 import { CompaniesPage } from '../features/platform/CompaniesPage'
 import { HistoryPage } from '../features/platform/HistoryPage'
 import { PlansPage } from '../features/platform/PlansPage'
+import { DocumentTypesPage } from '../features/doctypes/DocumentTypesPage'
 import { DriversPage } from '../features/drivers/DriversPage'
 import { VehiclesPage } from '../features/fleet/VehiclesPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
@@ -59,6 +60,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/handbooks': HandbooksPage,
   '/settings/finance': FinanceSettingsPage,
   '/settings/modules': ModulesPage,
+  '/settings/document-types': DocumentTypesPage,
   '/settings/numbering': NumberingPage,
   '/settings/document-templates': TemplatesPage,
 }

@@ -11,10 +11,10 @@ import { Select } from '../../shared/ui/Select'
 import { TextArea, TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
+import { TypedDocumentForm, documentSummary } from '../doctypes/TypedDocumentForm'
 import { useAddDriverDocument, useDeleteDriverDocument, useSaveDriver } from './hooks'
-import { DRIVER_STATUSES, type Driver, type DriverDocument, type DriverStatus } from './types'
+import { DRIVER_STATUSES, type Driver, type DriverStatus } from './types'
 
-const KINDS = ['license', 'passport', 'medical', 'other'] as const
 const IIN_RE = /^\d{12}$/
 
 interface FormState {
@@ -130,19 +130,6 @@ function DocumentsBlock({ driver }: { driver: Driver }) {
   const { t } = useTranslation()
   const add = useAddDriverDocument()
   const remove = useDeleteDriverDocument()
-  const [draft, setDraft] = useState<{ kind: DriverDocument['kind']; number: string; expires_at: string }>({ kind: 'license', number: '', expires_at: '' })
-  const [error, setError] = useState<string>()
-
-  const submit = () => {
-    setError(undefined)
-    add.mutate(
-      { driver: driver.id, kind: draft.kind, number: draft.number.trim(), expires_at: draft.expires_at || null },
-      {
-        onSuccess: () => { setDraft({ kind: 'license', number: '', expires_at: '' }) },
-        onError: (e) => { setError(serverErrors(e, t).banner ?? Object.values(serverErrors(e, t).fields).join(' ')) },
-      },
-    )
-  }
 
   return (
     <div className="mt-2 space-y-2">
@@ -150,25 +137,14 @@ function DocumentsBlock({ driver }: { driver: Driver }) {
       <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
         {driver.documents.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-2 py-1.5">
-            <span>
-              {t(`drivers.docKind.${d.kind}`)} {d.number}
-              {d.expires_at ? ` · ${t('drivers.until')} ${d.expires_at}` : ''}
-            </span>
+            <span>{documentSummary(d, t(`drivers.docKind.${d.kind}`), t('drivers.until'))}</span>
             <WriteButton permission="drivers.update" variant="ghost" aria-label={t('drivers.deleteDocument')} onClick={() => { remove.mutate(d.id) }}>
               {t('common.delete')}
             </WriteButton>
           </li>
         ))}
       </ul>
-      <div className="grid grid-cols-2 gap-2">
-        <Select label={t('drivers.docType')} value={draft.kind} options={KINDS.map((k) => ({ value: k, label: t(`drivers.docKind.${k}`) }))} onChange={(v) => { setDraft((d) => ({ ...d, kind: v as DriverDocument['kind'] })) }} />
-        <TextField label={t('drivers.docNumber')} value={draft.number} onChange={(e) => { setDraft((d) => ({ ...d, number: e.target.value })) }} />
-        <DateInput label={t('drivers.docExpires')} value={draft.expires_at} onChange={(v) => { setDraft((d) => ({ ...d, expires_at: v })) }} />
-        <div className="flex items-end">
-          <WriteButton permission="drivers.update" onClick={submit} disabled={add.isPending}>{t('drivers.addDocument')}</WriteButton>
-        </div>
-      </div>
-      {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+      <TypedDocumentForm subject="driver" issuedKey="issued_at" permission="drivers.update" owner={{ driver: driver.id }} create={add} addLabel={t('drivers.addDocument')} />
     </div>
   )
 }

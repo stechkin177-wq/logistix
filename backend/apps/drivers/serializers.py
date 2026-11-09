@@ -2,7 +2,8 @@ import re
 
 from rest_framework import serializers
 
-from apps.core.models import Membership
+from apps.core.document_types import validate_with_type
+from apps.core.models import DocumentType, Membership
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
 
@@ -16,19 +17,29 @@ class _DriverField(serializers.PrimaryKeyRelatedField):
         return Driver.objects.all()
 
 
+class _DocTypeField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):  # менеджер компании вычисляется на запросе
+        return DocumentType.objects.all()
+
+
 class DriverDocumentSerializer(serializers.ModelSerializer):
     driver = _DriverField()
+    doc_type = _DocTypeField(required=False, allow_null=True)
+    doc_type_name = serializers.CharField(source="doc_type.name", read_only=True, default="")
 
     class Meta:
         model = DriverDocument
-        fields = ["id", "driver", "kind", "number", "issued_at", "expires_at", "notes"]
+        fields = [
+            "id", "driver", "doc_type", "doc_type_name", "kind", "number", "issued_by",
+            "issued_at", "expires_at", "notes", "extra",
+        ]  # fmt: skip
 
     def validate(self, attrs):
         issued = attrs.get("issued_at", getattr(self.instance, "issued_at", None))
         expires = attrs.get("expires_at", getattr(self.instance, "expires_at", None))
         if issued and expires and expires < issued:
             raise serializers.ValidationError({"expires_at": "Срок действия раньше даты выдачи"})
-        return attrs
+        return validate_with_type(attrs, self.instance, DocumentType.DRIVER, "issued_at")
 
 
 class DriverSerializer(serializers.ModelSerializer):

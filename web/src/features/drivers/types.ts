@@ -4,8 +4,12 @@ export const DRIVER_STATUSES: readonly DriverStatus[] = ['active', 'on_leave', '
 export interface DriverDocument {
   id: number
   driver: number
+  doc_type: number | null
+  doc_type_name: string
   kind: 'license' | 'passport' | 'medical' | 'other'
   number: string
+  issued_by: string
+  extra: Record<string, string>
   issued_at: string | null
   expires_at: string | null
   notes: string

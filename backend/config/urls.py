@@ -23,6 +23,7 @@ from apps.core.api.auth import (
 )
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
+from apps.core.api.document_types import DocumentTypeViewSet
 from apps.core.api.modules import (
     ActivityProfilesView,
     ApplyProfileView,
@@ -42,7 +43,7 @@ from apps.core.views import health
 from apps.documents.api.capabilities import CapabilitiesView, KindsView
 from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
-from apps.drivers.api import DriverDocumentViewSet, DriverViewSet
+from apps.drivers.api import DriverDocumentViewSet, DriverRemindersView, DriverViewSet
 from apps.finance.api.admin import (
     CarrierExpenseView,
     EngineView,
@@ -109,6 +110,7 @@ router.register(
     PlatformSubscriptionViewSet,
     basename="platform-subscription",
 )
+router.register("document-types", DocumentTypeViewSet, basename="document-type")
 router.register("drivers", DriverViewSet, basename="driver")
 router.register("driver-documents", DriverDocumentViewSet, basename="driver-document")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
@@ -128,6 +130,7 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 urlpatterns = [
     path("api/health/", health),
     path("api/fleet/reminders/", RemindersView.as_view()),
+    path("api/drivers/reminders/", DriverRemindersView.as_view()),
     path("api/fleet/settings/", FleetSettingsView.as_view()),
     path("api/documents/capabilities/", CapabilitiesView.as_view()),
     path("api/documents/kinds/", KindsView.as_view()),

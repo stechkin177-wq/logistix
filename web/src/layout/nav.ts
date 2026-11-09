@@ -10,6 +10,10 @@ export interface NavItem {
   permission?: string
   /** Модуль, который должен быть включён (иначе пункт скрыт). */
   module?: string
+  /** Достаточно любого из модулей (пункт скрыт, если не включён ни один). */
+  anyModule?: string[]
+  /** Достаточно любого из прав. */
+  anyPermission?: string[]
   children?: NavItem[]
 }
 
@@ -45,6 +49,7 @@ export const NAV: NavItem[] = [
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
       { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance' },
       { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules' },
+      { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'] },
       { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view' },
       { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'documents' },
     ],
@@ -56,6 +61,8 @@ type Access = Pick<Session, 'permissions' | 'modules'>
 export function isAllowed(item: NavItem, access: Access): boolean {
   if (item.permission && !access.permissions.includes(item.permission)) return false
   if (item.module && !access.modules.includes(item.module)) return false
+  if (item.anyPermission && !item.anyPermission.some((p) => access.permissions.includes(p))) return false
+  if (item.anyModule && !item.anyModule.some((m) => access.modules.includes(m))) return false
   return true
 }
 

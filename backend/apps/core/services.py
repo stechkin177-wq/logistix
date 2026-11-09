@@ -4,6 +4,7 @@ from django.db import transaction
 from apps.billing.plans import default_plan
 from apps.billing.subscriptions import start_subscription
 
+from .document_types import seed_document_types
 from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
 from .module_services import (
@@ -50,6 +51,8 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
         user=owner, company=company, role=roles[ADMIN_ROLE_NAME], is_active=True
     )
     seed_handbooks(company)
+    with tenant_context(company.id):
+        seed_document_types(company)
     seed_numbering(company)
     start_subscription(company, start_plan)  # срок бесплатного периода и цена - данные тарифа
     company_created.send(sender=Company, company=company)

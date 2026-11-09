@@ -38,7 +38,7 @@ class VehicleViewSet(AuditedMixin, _FleetPermissions, viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_queryset(self):
-        qs = Vehicle.objects.prefetch_related("documents", "insurances")
+        qs = Vehicle.objects.prefetch_related("documents__doc_type", "insurances")
         if self.action != "list":
             return qs
         p = self.request.query_params

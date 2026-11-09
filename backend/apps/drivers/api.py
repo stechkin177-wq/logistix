@@ -2,12 +2,15 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from rest_framework import serializers, viewsets
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.billing.permissions import ModuleRequired
-from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.api_permissions import SectionPermissionMixin, permission_required
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
 
+from . import reminders
 from .models import Driver, DriverDocument
 from .serializers import DriverDocumentSerializer, DriverSerializer
 
@@ -24,7 +27,7 @@ class DriverViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet)
         return [ModuleRequired("drivers")(), *super().get_permissions()]
 
     def get_queryset(self):
-        qs = Driver.objects.prefetch_related("documents")
+        qs = Driver.objects.prefetch_related("documents__doc_type")
         if self.action != "list":
             return qs
         p = self.request.query_params
@@ -80,3 +83,14 @@ class DriverDocumentViewSet(AuditedMixin, SectionPermissionMixin, viewsets.Model
                 raise ValidationError({"driver": "Ожидается числовой id"})
             qs = qs.filter(driver_id=int(driver))
         return qs.order_by("id")
+
+
+class DriverRemindersView(APIView):
+    """Просроченные и приближающиеся документы водителей (по настройкам типов документов)."""
+
+    def get_permissions(self):
+        return [ModuleRequired("drivers")(), permission_required("drivers.view")()]
+
+    def get(self, request):
+        items = reminders.reminders()
+        return Response({"count": len(items), "results": items})

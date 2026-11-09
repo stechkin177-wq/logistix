@@ -47,6 +47,7 @@ describe('Водители', () => {
     const m = loggedIn(
       [
         ['GET', /^\/api\/drivers\/\?/, { body: page([DRIVER]) }],
+        ['GET', /^\/api\/document-types\//, { body: [{ id: 3, subject: 'driver', name: 'Водительское удостоверение', fields: ['number', 'issued_by', 'issued_at', 'expires_at', 'comment'], required: [], extra: [], remind: true, remind_days: [30], is_active: true, archived_at: null, sort_order: 0 }] }],
         ['POST', '/api/driver-documents/', { status: 201, body: { id: 10 } }],
         ['POST', '/api/documents/issued/', { status: 201, body: { id: 77, kind: 'letter', number: '', issue_date: '2026-11-08', language: 'ru', client: null, order: null, trip: null, invoice: null } }],
       ],
@@ -59,7 +60,7 @@ describe('Водители', () => {
     await userEvent.type(within(drawer).getByLabelText('Номер'), 'L-5')
     await userEvent.click(within(drawer).getByRole('button', { name: 'Добавить документ' }))
     await waitFor(() => { expect(m.calls.some((c) => c.path === '/api/driver-documents/' && c.method === 'POST') ).toBe(true) })
-    expect(m.calls.find((c) => c.path === '/api/driver-documents/')!.body).toMatchObject({ driver: 5, kind: 'license', number: 'L-5' })
+    expect(m.calls.find((c) => c.path === '/api/driver-documents/')!.body).toMatchObject({ driver: 5, doc_type: 3, number: 'L-5' })
     await userEvent.click(within(drawer).getByRole('button', { name: 'Справка о водителе' }))
     await waitFor(() => { expect(m.calls.some((c) => c.path === '/api/documents/issued/') ).toBe(true) })
     expect(m.calls.find((c) => c.path === '/api/documents/issued/')!.body).toMatchObject({ kind: 'letter', subject_type: 'drivers.driver', subject_id: 5 })

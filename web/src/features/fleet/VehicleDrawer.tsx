@@ -12,6 +12,7 @@ import { Select } from '../../shared/ui/Select'
 import { Tabs } from '../../shared/ui/Tabs'
 import { TextArea, TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
+import { VehicleDocuments } from './VehicleDocuments'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
 import { ChildTab, type FieldDef } from './ChildTab'
 import { useFuelStats, useMileageCheck, useSaveVehicle } from './hooks'
@@ -165,21 +166,7 @@ function VehicleTab({ tab, vehicle }: { tab: Exclude<TabKey, 'main'>; vehicle: V
   const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
   const date = (label: string, key: string): FieldDef => ({ key, label, type: 'date' })
 
-  if (tab === 'documents') {
-    return (
-      <ChildTab
-        path="vehicle-documents"
-        vehicle={vehicle.id}
-        emptyText={t('fleet.noDocuments')}
-        fields={[
-          { key: 'kind', label: t('fleet.docType'), type: 'select', options: sel('fleet.docKind', ['registration', 'inspection', 'permit', 'other']) },
-          { key: 'number', label: t('fleet.number'), type: 'text' },
-          date(t('fleet.expiresAt'), 'expires_at'),
-        ]}
-        summary={(r) => `${t(`fleet.docKind.${str(r.kind)}`)} ${str(r.number)}${r.expires_at ? ` · ${t('fleet.until')} ${str(r.expires_at)}` : ''}`}
-      />
-    )
-  }
+  if (tab === 'documents') return <VehicleDocuments vehicle={vehicle} />
   if (tab === 'insurance') {
     return (
       <ChildTab

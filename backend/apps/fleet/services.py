@@ -269,8 +269,8 @@ def reminders(days: int = 30, km_margin: int = 1000, vehicle_id: int | None = No
     for vehicle in vehicles.order_by("plate"):
         current = latest_odometer(vehicle.pk)
 
-        def add(kind, title, due_date, due_km, vehicle=vehicle, current=current):
-            state = _state(due_date, due_km, current, today, days, km_margin)
+        def add(kind, title, due_date, due_km, vehicle=vehicle, current=current, window=None):
+            state = _state(due_date, due_km, current, today, window or days, km_margin)
             if state:
                 out.append(
                     {
@@ -298,8 +298,16 @@ def reminders(days: int = 30, km_margin: int = 1000, vehicle_id: int | None = No
                 continue
             seen.add(rec.kind)
             add("service", rec.title, rec.next_due_date, rec.next_due_km)
-        for doc in VehicleDocument.objects.filter(vehicle=vehicle, expires_at__isnull=False):
-            add("document", doc.get_kind_display(), doc.expires_at, None)
+        docs = VehicleDocument.objects.filter(vehicle=vehicle, expires_at__isnull=False)
+        for doc in docs.select_related("doc_type"):
+            if doc.doc_type is None:  # старая запись без типа: общий порог
+                add("document", doc.get_kind_display(), doc.expires_at, None)
+            elif doc.doc_type.remind and doc.doc_type.remind_days:
+                # напоминания и сроки предупреждений задаёт компания для каждого типа
+                add(
+                    "document", doc.doc_type.name, doc.expires_at, None,
+                    window=max(doc.doc_type.remind_days),
+                )  # fmt: skip
         for ins in Insurance.objects.filter(vehicle=vehicle, expires_at__isnull=False):
             add("insurance", ins.get_kind_display(), ins.expires_at, None)
     out.sort(key=lambda r: (r["state"] != "overdue", r["due_date"] or date.max, r["plate"]))

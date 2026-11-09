@@ -100,9 +100,15 @@ class VehicleDocument(_Dated):
         (OTHER, "Другое"),
     ]
 
-    audit_masked_fields = ("number", "notes")
+    audit_masked_fields = ("number", "notes", "issued_by", "extra")
 
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="documents")
+    # тип настраивает компания (core.DocumentType); kind - прежнее значение старых записей
+    doc_type = models.ForeignKey(
+        "core.DocumentType", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    issued_by = models.CharField(max_length=255, blank=True)
+    extra = models.JSONField(default=dict, blank=True)  # дополнительные текстовые поля типа
     kind = models.CharField(max_length=16, choices=KINDS, default=OTHER)
     number = models.CharField(max_length=64, blank=True)
     starts_at = models.DateField(null=True, blank=True)

@@ -94,6 +94,7 @@ if STEP == "M6":
         "finance_fxrevaluation",
         "finance_fxrevaluationline",
         "core_companymodule",
+        "core_documenttype",  # типы документов техники и водителей
         "drivers_driver",  # этап 2.1
         "drivers_driverdocument",
         "fleet_vehicle",  # этап 2.2

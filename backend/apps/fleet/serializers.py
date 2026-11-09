@@ -2,6 +2,9 @@ import re
 
 from rest_framework import serializers
 
+from apps.core.document_types import validate_with_type, vehicle_subject
+from apps.core.models import DocumentType
+
 from .models import FuelFill, Insurance, MileageReading, ServiceRecord, Vehicle, VehicleDocument
 
 # госномер: латиница/кириллица/цифры без пробелов и дефисов в нормализованном виде
@@ -22,12 +25,27 @@ class _DatedValidationMixin:
         return attrs
 
 
+class _DocTypeField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):  # менеджер компании вычисляется на запросе
+        return DocumentType.objects.all()
+
+
 class VehicleDocumentSerializer(_DatedValidationMixin, serializers.ModelSerializer):
     vehicle = _VehicleField()
+    doc_type = _DocTypeField(required=False, allow_null=True)
+    doc_type_name = serializers.CharField(source="doc_type.name", read_only=True, default="")
 
     class Meta:
         model = VehicleDocument
-        fields = ["id", "vehicle", "kind", "number", "starts_at", "expires_at", "notes"]
+        fields = [
+            "id", "vehicle", "doc_type", "doc_type_name", "kind", "number", "issued_by",
+            "starts_at", "expires_at", "notes", "extra",
+        ]  # fmt: skip
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        vehicle = attrs.get("vehicle") or getattr(self.instance, "vehicle", None)
+        return validate_with_type(attrs, self.instance, vehicle_subject(vehicle), "starts_at")
 
 
 class InsuranceSerializer(_DatedValidationMixin, serializers.ModelSerializer):

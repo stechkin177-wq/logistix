@@ -371,3 +371,51 @@ class CompanyModule(TenantModel):
 
     def __str__(self):
         return f"{self.module_code}={'on' if self.enabled else 'off'}"
+
+
+class DocumentType(TenantModel):
+    """Тип документа техники/водителя, настраиваемый компанией (первая версия: только текст).
+
+    subject: tractor (тягачи и прочая техника), trailer (полуприцепы), driver (водители).
+    fields: какие стандартные поля показываются (number, issued_by, issued_at, expires_at,
+    comment); required - какие из них обязательны (по умолчанию ни одно); extra - дополнительные
+    текстовые поля [{key, label, required}]. Напоминания: remind и remind_days (за сколько дней
+    предупреждать, например [30, 7]). Отключённый тип не предлагается для новых записей;
+    архивный скрыт из списков. Записи и история при этом сохраняются (FK PROTECT).
+    """
+
+    TRACTOR = "tractor"
+    TRAILER = "trailer"
+    DRIVER = "driver"
+    SUBJECTS = [(TRACTOR, "Тягачи"), (TRAILER, "Полуприцепы"), (DRIVER, "Водители")]
+    STANDARD_FIELDS = ("number", "issued_by", "issued_at", "expires_at", "comment")
+
+    subject = models.CharField(max_length=16, choices=SUBJECTS)
+    name = models.CharField(max_length=100)
+    fields = models.JSONField(default=list, blank=True)
+    required = models.JSONField(default=list, blank=True)
+    extra = models.JSONField(default=list, blank=True)
+    remind = models.BooleanField(default=False)
+    remind_days = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        indexes = [models.Index(fields=["company", "subject"], name="doctype_company_subject_idx")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "subject", "name"],
+                condition=Q(archived_at__isnull=True),
+                name="doctype_company_subject_name_uniq",
+            ),
+            models.CheckConstraint(
+                condition=Q(subject__in=["tractor", "trailer", "driver"]),
+                name="doctype_subject_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
