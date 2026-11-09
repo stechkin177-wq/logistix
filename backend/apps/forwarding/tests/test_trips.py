@@ -1492,9 +1492,9 @@ def test_new_audit_writes_carrier_price_old_key_is_labelled_too(admin_client, co
         trip = Trip.objects.get(pk=d["id"])
         old = log("update", trip, None, {"price": ["1.00", "2.00"]})
     assert old.changes == {"price": ["1.00", "2.00"]}
-    assert changes_labels("forwarding.trip", old.changes) == {"price": "Стоимость перевозчика"}
+    assert changes_labels("forwarding.trip", old.changes) == {"price": "К оплате перевозчику"}
     assert changes_labels("forwarding.trip", created.changes)["carrier_price"] == (
-        "Стоимость перевозчика"
+        "К оплате перевозчику"
     )
     assert changes_labels("forwarding.client", {"price": 1}) == {}
 
@@ -1505,4 +1505,4 @@ def test_audit_api_exposes_labels(admin_client, company):
     r = admin_client.get("/api/audit/", {"object_type": "forwarding.trip", "action": "create"})
     assert r.status_code == 200
     row = r.data["results"][0]
-    assert row["changes_labels"]["carrier_price"] == "Стоимость перевозчика"
+    assert row["changes_labels"]["carrier_price"] == "К оплате перевозчику"

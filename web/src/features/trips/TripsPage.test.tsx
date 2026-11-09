@@ -123,7 +123,7 @@ describe('Рейс: карточка', () => {
     expect(body).not.toHaveProperty('price') // устаревший алиас не отправляем
   })
 
-  it('поле «Стоимость перевозчика» берёт carrier_price, а не устаревший price', async () => {
+  it('поле «К оплате перевозчику» берёт carrier_price, а не устаревший price', async () => {
     const priced = makeTrip({ carrier_price: '250000.00', price: '1.00' })
     loggedIn([['GET', '/api/trips/90/', { body: priced }], ...base([priced])])
     renderApp('/trips')
@@ -131,7 +131,7 @@ describe('Рейс: карточка', () => {
     expect(within(row).getByText(/^250\s000,00\sKZT$/)).toBeInTheDocument()
     await userEvent.click(within(row).getByRole('button', { name: 'ORD-2026-00005-1' }))
     const dialog = await screen.findByRole('dialog')
-    expect(await within(dialog).findByLabelText('Стоимость перевозчика')).toHaveValue('250000.00')
+    expect(await within(dialog).findByLabelText('К оплате перевозчику')).toHaveValue('250000.00')
   })
 
   it('в карточке показано время завершения', async () => {

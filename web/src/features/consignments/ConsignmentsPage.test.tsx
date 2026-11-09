@@ -87,7 +87,7 @@ describe('Грузы', () => {
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Создать' }))
     expect(await within(dialog).findByText('Цена не может быть отрицательной')).toBeInTheDocument()
-    expect(within(dialog).getByLabelText('Стоимость перевозчика')).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dialog).getByLabelText('К оплате перевозчику')).toHaveAttribute('aria-invalid', 'true')
 
     reply = { status: 409, body: { detail: 'Номер рейса уже занят', code: 'number_conflict' } }
     await userEvent.click(within(dialog).getByRole('button', { name: 'Создать' }))

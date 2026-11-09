@@ -175,10 +175,10 @@ def _build_blocks() -> dict[str, list[tuple]]:
                 "Стоимость рейса прописью (устарело, используйте carrier_price_words)",
                 _words(Decimal("900000.00")),
             ),
-            ("trip.carrier_price", "Стоимость перевозчика", _const("900000.00")),
+            ("trip.carrier_price", "К оплате перевозчику", _const("900000.00")),
             (
                 "trip.carrier_price_words",
-                "Стоимость перевозчика прописью",
+                "К оплате перевозчику прописью",
                 _words(Decimal("900000.00")),
             ),
             ("trip.currency", "Валюта рейса", _const("KZT")),

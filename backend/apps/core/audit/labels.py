@@ -11,8 +11,8 @@ FIELD_LABELS: dict[str, dict[str, str]] = {
         "reason": "Причина",
     },
     "forwarding.trip": {
-        "price": "Стоимость перевозчика",
-        "carrier_price": "Стоимость перевозчика",
+        "price": "К оплате перевозчику",
+        "carrier_price": "К оплате перевозчику",
         "completed_at": "Дата завершения",
         "status_id": "Статус",
         "reason": "Причина",
