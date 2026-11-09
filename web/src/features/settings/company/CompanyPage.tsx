@@ -16,6 +16,7 @@ import { TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { BrandingBlock } from './BrandingBlock'
+import { useSession } from '../../../shared/auth/useSession'
 import { UsageBlock } from '../../billing/UsageBlock'
 import { SubscriptionBlock } from './SubscriptionBlock'
 import { timeZones } from './timezones'
@@ -81,6 +82,8 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
 /** Компания: общие настройки, оформление и лицензия. */
 export function CompanyPage() {
   const { t } = useTranslation()
+  const { hasPermission } = useSession()
+  const canSeeLicense = hasPermission('company.manage_modules')
   const query = useQuery({ queryKey: ['company', 'settings'], queryFn: ({ signal }) => api.get<CompanySettings>('/company/settings/', undefined, { signal }) })
   return (
     <div className="max-w-3xl space-y-4">
@@ -95,8 +98,9 @@ export function CompanyPage() {
         ) : query.data ? <CompanyForm settings={query.data} /> : <Spinner label={t('table.loading')} />}
       </section>
       <BrandingBlock />
-      <SubscriptionBlock />
-      <UsageBlock />
+      {/* тариф, срок и лимиты видны только тем, кто управляет модулями (администратору компании) */}
+      {canSeeLicense ? <SubscriptionBlock /> : null}
+      {canSeeLicense ? <UsageBlock /> : null}
     </div>
   )
 }

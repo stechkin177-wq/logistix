@@ -31,6 +31,14 @@ describe('Настройки компании', () => {
     expect(within(license).getByText('Бесплатный период')).toBeInTheDocument()
   })
 
+  it('тариф и лимиты скрыты у пользователя без управления модулями, администратору видны', async () => {
+    loggedIn(base, { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'company.manage_modules') } })
+    renderApp('/settings/company')
+    await screen.findByRole('heading', { name: 'Компания' })
+    expect(screen.queryByRole('heading', { name: 'Лицензия' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Лимиты/ })).not.toBeInTheDocument()
+  })
+
   it('ошибка часового пояса сервера ложится на поле', async () => {
     loggedIn([
       ['PATCH', '/api/company/settings/', { status: 400, body: { timezone: ['Неизвестный часовой пояс (IANA, например Asia/Almaty)'] } }],

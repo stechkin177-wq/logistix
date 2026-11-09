@@ -14,6 +14,8 @@ export interface NavItem {
   anyModule?: string[]
   /** Достаточно любого из прав. */
   anyPermission?: string[]
+  /** Группа сворачивается (меню «Ещё»); открыта, если внутри текущая страница. */
+  collapsible?: boolean
   children?: NavItem[]
 }
 
@@ -37,7 +39,15 @@ export const NAV: NavItem[] = [
   { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers' },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },
   { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents' },
-  { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
+  {
+    key: 'more',
+    labelKey: 'nav.more',
+    collapsible: true,
+    children: [
+      { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
+      { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
+    ],
+  },
   {
     key: 'settings',
     labelKey: 'nav.settings',
@@ -46,7 +56,6 @@ export const NAV: NavItem[] = [
       { key: 'users', labelKey: 'nav.users', path: '/settings/users', permission: 'users.view' },
       { key: 'departments', labelKey: 'nav.departments', path: '/settings/departments', permission: 'users.view' },
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view' },
-      { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
       { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance' },
       { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules' },
       { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'] },

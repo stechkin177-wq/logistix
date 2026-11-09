@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { selectableValues, useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { DateInput } from '../../../shared/ui/DateInput'
@@ -45,21 +46,44 @@ interface PointFieldsProps {
   base: string
   err: (path: string) => string | undefined
   patch: (change: Partial<PointForm>) => void
+  /** Простой режим: дата, город и адрес; остальное - в раскрываемом «Подробнее». */
+  compact?: boolean
 }
 
+const DETAIL_KEYS = ['window_to', 'country', 'method', 'contact', 'postal_code', 'lat', 'lng', 'note'] as const
+
 /** Поля одной точки маршрута (окно, адрес, способ, контакт, координаты). */
-function PointFields({ point, base, err, patch }: PointFieldsProps) {
+function PointFields({ point, base, err, patch, compact }: PointFieldsProps) {
   const { t } = useTranslation()
   const countries = useHandbookValues('country')
   const methods = useHandbookValues('loading_method')
+  const [open, setOpen] = useState(false)
+  // подробности открыты сами, если в них уже есть значения или ошибки проверки
+  const showDetails = !compact || open || DETAIL_KEYS.some((k) => point[k] !== '' || err(`${base}${k}`))
   return (
     <div className="grid grid-cols-2 gap-2">
       <DateInput withTime label={t('orders.windowFrom')} required value={point.window_from} error={err(`${base}window_from`)} onChange={(v) => { patch({ window_from: v }) }} />
-      <DateInput withTime label={t('orders.windowTo')} value={point.window_to} error={err(`${base}window_to`)} onChange={(v) => { patch({ window_to: v }) }} />
-      <Select label={t('orders.country')} value={point.country} placeholder={t('common.none')} options={handbookOptions(countries.all, point.country)} error={err(`${base}country`)} onChange={(v) => { patch({ country: v }) }} />
       <TextField label={t('orders.city')} required value={point.city} error={err(`${base}city`)} onChange={(e) => { patch({ city: e.target.value }) }} />
       <TextField fieldClassName="col-span-2" label={t('orders.street')} value={point.street} error={err(`${base}street`)} onChange={(e) => { patch({ street: e.target.value }) }} />
-      <Select label={t('orders.method')} value={point.method} placeholder={t('common.none')} options={handbookOptions(methods.all, point.method)} error={err(`${base}method`)} onChange={(v) => { patch({ method: v }) }} />
+      {compact ? (
+        <div className="col-span-2">
+          <Button variant="ghost" aria-expanded={showDetails} onClick={() => { setOpen(!showDetails) }}>
+            {showDetails ? '▾' : '▸'} {t('orders.pointDetails')}
+          </Button>
+        </div>
+      ) : null}
+      {showDetails ? <PointDetails point={point} base={base} err={err} patch={patch} countries={countries.all} methods={methods.all} /> : null}
+    </div>
+  )
+}
+
+function PointDetails({ point, base, err, patch, countries, methods }: Omit<PointFieldsProps, 'compact'> & { countries: HandbookValue[]; methods: HandbookValue[] }) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <DateInput withTime label={t('orders.windowTo')} value={point.window_to} error={err(`${base}window_to`)} onChange={(v) => { patch({ window_to: v }) }} />
+      <Select label={t('orders.country')} value={point.country} placeholder={t('common.none')} options={handbookOptions(countries, point.country)} error={err(`${base}country`)} onChange={(v) => { patch({ country: v }) }} />
+      <Select label={t('orders.method')} value={point.method} placeholder={t('common.none')} options={handbookOptions(methods, point.method)} error={err(`${base}method`)} onChange={(v) => { patch({ method: v }) }} />
       <TextField label={t('orders.pointContact')} value={point.contact} error={err(`${base}contact`)} onChange={(e) => { patch({ contact: e.target.value }) }} />
       <TextField label={t('orders.postalCode')} value={point.postal_code} error={err(`${base}postal_code`)} onChange={(e) => { patch({ postal_code: e.target.value }) }} />
       <div className="grid grid-cols-2 gap-2">
@@ -67,7 +91,7 @@ function PointFields({ point, base, err, patch }: PointFieldsProps) {
         <TextField label={t('orders.lng')} inputMode="decimal" value={point.lng} error={err(`${base}lng`)} onChange={(e) => { patch({ lng: e.target.value }) }} />
       </div>
       <TextArea fieldClassName="col-span-2" label={t('orders.pointNote')} value={point.note} error={err(`${base}note`)} onChange={(e) => { patch({ note: e.target.value }) }} />
-    </div>
+    </>
   )
 }
 
@@ -174,7 +198,7 @@ export function RouteFields({ value, onChange, prefix, errors, disabled }: Props
           return (
             <section key={index} aria-label={title} className="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700">
               <h4 className="text-xs font-semibold uppercase text-slate-500">{title}</h4>
-              <PointFields point={point} base={base} err={err} patch={(change) => { patchPoint(index, change) }} />
+              <PointFields compact point={point} base={base} err={err} patch={(change) => { patchPoint(index, change) }} />
             </section>
           )
         })}

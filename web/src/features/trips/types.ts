@@ -45,6 +45,10 @@ export interface Trip {
   number: string
   carrier: number | null
   carrier_name: string | null
+  /** Ссылки на технику и водителя (модули fleet/drivers); текст ниже сервер заполняет по ним. */
+  vehicle?: number | null
+  trailer?: number | null
+  driver?: number | null
   vehicle_plate: string
   driver_name: string
   /** Стоимость перевозчика: денежная строка API. */
@@ -81,8 +85,11 @@ export interface TripCreatePayload {
   consignments: number[]
   legs?: TripLegInput[]
   carrier: number | null
-  vehicle_plate: string
-  driver_name: string
+  vehicle?: number | null
+  trailer?: number | null
+  driver?: number | null
+  vehicle_plate?: string
+  driver_name?: string
   carrier_price: string
   currency?: number
 }
@@ -90,8 +97,11 @@ export interface TripCreatePayload {
 /** PATCH рейса: ТОЛЬКО эти поля (номер, статус, грузы и признак сборного меняются другими путями). */
 export interface TripPatchPayload {
   carrier: number | null
-  vehicle_plate: string
-  driver_name: string
+  vehicle?: number | null
+  trailer?: number | null
+  driver?: number | null
+  vehicle_plate?: string
+  driver_name?: string
   carrier_price: string
   currency?: number
 }

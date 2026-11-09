@@ -3,10 +3,14 @@ import type { HandbookValue } from '../../../shared/api/types'
 import { Combobox, type ComboOption } from '../../../shared/ui/Combobox'
 import { Select } from '../../../shared/ui/Select'
 import { TextField } from '../../../shared/ui/TextField'
-import { searchActiveCarriers } from '../api'
+import { useSession } from '../../../shared/auth/useSession'
+import { searchActiveCarriers, searchDrivers, searchVehicles } from '../api'
 
 export interface TripFormState {
   carrier: ComboOption | null
+  vehicle: ComboOption | null
+  trailer: ComboOption | null
+  driver: ComboOption | null
   vehicle_plate: string
   driver_name: string
   carrier_price: string
@@ -30,6 +34,10 @@ export function TripFields({ form, errors, currencies, disabled, onChange }: {
   onChange: <K extends keyof TripFormState>(key: K, value: TripFormState[K]) => void
 }) {
   const { t } = useTranslation()
+  const { hasModule, hasPermission } = useSession()
+  // справочники техники и водителей - если модули включены и есть право просмотра; иначе только текст
+  const fleet = hasModule('fleet') && hasPermission('fleet.view')
+  const drivers = hasModule('drivers') && hasPermission('drivers.view')
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <Combobox
@@ -42,8 +50,22 @@ export function TripFields({ form, errors, currencies, disabled, onChange }: {
         fieldClassName="sm:col-span-2"
         onChange={(option) => { onChange('carrier', option) }}
       />
-      <TextField label={t('trips.vehiclePlate')} value={form.vehicle_plate} disabled={disabled} error={errors.vehicle_plate} maxLength={32} onChange={(e) => { onChange('vehicle_plate', e.target.value) }} />
-      <TextField label={t('trips.driverName')} value={form.driver_name} disabled={disabled} error={errors.driver_name} maxLength={255} onChange={(e) => { onChange('driver_name', e.target.value) }} />
+      {fleet ? (
+        <>
+          <Combobox label={t('trips.vehicle')} queryKey={['vehicles', 'search-trip']} fetchOptions={(q, signal) => searchVehicles(q, signal)} value={form.vehicle} disabled={disabled} error={errors.vehicle} onChange={(o) => { onChange('vehicle', o) }} />
+          <Combobox label={t('trips.trailer')} queryKey={['vehicles', 'search-trailer']} fetchOptions={(q, signal) => searchVehicles(q, signal, 'trailer')} value={form.trailer} disabled={disabled} error={errors.trailer} onChange={(o) => { onChange('trailer', o) }} />
+        </>
+      ) : null}
+      {/* выбранная техника/водитель заполняют текст на сервере: свободное поле тогда не нужно */}
+      {form.vehicle === null ? (
+        <TextField label={t('trips.vehiclePlate')} value={form.vehicle_plate} disabled={disabled} error={errors.vehicle_plate} maxLength={32} onChange={(e) => { onChange('vehicle_plate', e.target.value) }} />
+      ) : null}
+      {drivers ? (
+        <Combobox label={t('trips.driver')} queryKey={['drivers', 'search-trip']} fetchOptions={searchDrivers} value={form.driver} disabled={disabled} error={errors.driver} onChange={(o) => { onChange('driver', o) }} />
+      ) : null}
+      {form.driver === null ? (
+        <TextField label={t('trips.driverName')} value={form.driver_name} disabled={disabled} error={errors.driver_name} maxLength={255} onChange={(e) => { onChange('driver_name', e.target.value) }} />
+      ) : null}
       <TextField label={t('trips.carrierPrice')} inputMode="decimal" value={form.carrier_price} disabled={disabled} error={errors.carrier_price} onChange={(e) => { onChange('carrier_price', e.target.value) }} />
       <Select
         label={t('trips.currency')}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router'
+import { NavLink, matchPath, useLocation } from 'react-router'
 import { useBranding } from '../shared/branding/useBranding'
 import { useAuth } from '../shared/auth/useAuth'
 import { useSession } from '../shared/auth/useSession'
@@ -11,9 +11,42 @@ import { errorMessage } from '../shared/api/errors'
 import { ChangePasswordDialog } from '../features/account/ChangePasswordDialog'
 import { visibleNav, type NavItem } from './nav'
 
+function containsPath(item: NavItem, pathname: string): boolean {
+  return (item.children ?? []).some((c) => (c.path !== undefined && matchPath({ path: c.path, end: false }, pathname) !== null) || containsPath(c, pathname))
+}
+
+/** Сворачиваемая группа «Ещё»: редкие разделы убраны с основного меню, открыта на своих страницах. */
+function CollapsibleGroup({ item }: { item: NavItem }) {
+  const { t } = useTranslation()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(false)
+  const shown = open || containsPath(item, pathname)
+  return (
+    <li>
+      <button
+        type="button"
+        aria-expanded={shown}
+        onClick={() => { setOpen(!shown) }}
+        className="flex w-full items-center justify-between px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+      >
+        {t(item.labelKey)}
+        <span aria-hidden="true">{shown ? '▾' : '▸'}</span>
+      </button>
+      {shown ? (
+        <ul>
+          {(item.children ?? []).map((child) => (
+            <NavEntry key={child.key} item={child} depth={1} />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  )
+}
+
 function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   const { t } = useTranslation()
   const pad = depth > 0 ? 'pl-6' : 'pl-3'
+  if (item.collapsible) return <CollapsibleGroup item={item} />
   return (
     <li>
       {item.path === undefined ? (

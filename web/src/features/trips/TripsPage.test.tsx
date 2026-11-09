@@ -208,3 +208,42 @@ describe('Рейсы: следующий шаг одной кнопкой', () =
     expect(screen.queryByRole('button', { name: /^→/ })).not.toBeInTheDocument()
   })
 })
+
+describe('Рейсы: техника и водитель из справочников', () => {
+  const withFleet = { modules: ['logistics', 'forwarding', 'fleet', 'drivers'] }
+
+  it('без модулей fleet/drivers - только текстовые поля', async () => {
+    loggedIn(base())
+    renderApp('/trips')
+    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('combobox', { name: /Тягач/ })).not.toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Госномер')).toBeInTheDocument()
+  })
+
+  it('выбранный тягач и водитель скрывают текстовые поля и уходят ссылками', async () => {
+    const m = loggedIn(
+      [
+        ['GET', /^\/api\/vehicles\//, { body: page([{ id: 3, plate: '777AAA01', make: 'Volvo', model: 'FH' }]) }],
+        ['GET', /^\/api\/drivers\//, { body: page([{ id: 5, full_name: 'Сериков Ерлан' }]) }],
+        ['PATCH', '/api/trips/90/', { body: makeTrip() }],
+        ...base(),
+      ],
+      { session: withFleet },
+    )
+    renderApp('/trips')
+    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Госномер')).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('combobox', { name: /Тягач/ }))
+    await userEvent.click(await screen.findByRole('option', { name: /777AAA01/ }))
+    await userEvent.click(within(dialog).getByRole('combobox', { name: /Водитель/ }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Сериков Ерлан' }))
+    expect(within(dialog).queryByLabelText('Госномер')).not.toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/90/' && c.method === 'PATCH')?.body).toMatchObject({ vehicle: 3, driver: 5 }) })
+    const body = m.calls.find((c) => c.method === 'PATCH')!.body as Record<string, unknown>
+    expect(body).not.toHaveProperty('vehicle_plate')
+    expect(body).not.toHaveProperty('driver_name')
+  })
+})

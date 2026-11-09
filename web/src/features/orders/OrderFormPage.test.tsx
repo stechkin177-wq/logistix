@@ -169,6 +169,20 @@ describe('Новый заказ', () => {
     await waitFor(() => { expect(within(contact).getByRole('option', { name: 'Иван Петров' })).toBeInTheDocument() })
   })
 
+  it('маршрут: простой режим - дата, город, адрес; подробности и остановки раскрываются по кнопке', async () => {
+    loggedIn(base)
+    renderApp('/orders/new')
+    await screen.findByRole('region', { name: 'Контакты' })
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить груз' }))
+    const load = await screen.findByRole('region', { name: 'Погрузка' })
+    expect(within(load).getByLabelText(/Город/)).toBeInTheDocument()
+    expect(within(load).queryByLabelText('Страна')).not.toBeInTheDocument()
+    await userEvent.click(within(load).getByRole('button', { name: /Подробнее/ }))
+    expect(within(load).getByLabelText('Страна')).toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole('button', { name: 'Несколько остановок' })[0]!)
+    expect(await screen.findByRole('region', { name: 'Остановка 1' })).toBeInTheDocument()
+  })
+
   it('без orders.create - страница 403', async () => {
     loggedIn(base, { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'orders.create') } })
     renderApp('/orders/new')

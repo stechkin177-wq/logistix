@@ -47,3 +47,15 @@ export async function searchActiveCarriers(q: string, signal: AbortSignal): Prom
   const page = await api.get<Paginated<Party>>('/carriers/', { q, status: 'active', page_size: 20, ordering: 'name' }, { signal })
   return page.results.map((p) => ({ id: p.id, label: p.name }))
 }
+
+/** Активная техника для выбора в рейсе (kind - вид, например trailer для прицепа). */
+export async function searchVehicles(q: string, signal: AbortSignal, kind = ''): Promise<ComboOption[]> {
+  const page = await api.get<Paginated<{ id: number; plate: string; make: string; model: string }>>('/vehicles/', { q, status: 'active', kind: kind || undefined, page_size: 20, ordering: 'plate' }, { signal })
+  return page.results.map((v) => ({ id: v.id, label: [v.plate, v.make, v.model].filter(Boolean).join(' ') }))
+}
+
+/** Работающие водители для выбора в рейсе. */
+export async function searchDrivers(q: string, signal: AbortSignal): Promise<ComboOption[]> {
+  const page = await api.get<Paginated<{ id: number; full_name: string }>>('/drivers/', { q, status: 'active', page_size: 20, ordering: 'full_name' }, { signal })
+  return page.results.map((d) => ({ id: d.id, label: d.full_name }))
+}

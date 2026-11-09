@@ -27,6 +27,25 @@ describe('Sidebar', () => {
     expect(within(nav).queryByText('Пользователи')).not.toBeInTheDocument()
   })
 
+  it('«Ещё»: корзина и справочники свёрнуты, открываются по клику и открыты на своей странице', async () => {
+    setTokens({ access: 'a', refresh: 'r' })
+    mockFetch([...base(), ['GET', /^\/api\/trash\//, { body: { count: 0, next: null, previous: null, results: [] } }]])
+    renderApp('/')
+    const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
+    expect(within(nav).queryByRole('link', { name: 'Корзина' })).not.toBeInTheDocument()
+    await userEvent.click(within(nav).getByRole('button', { name: /Ещё/ }))
+    expect(within(nav).getByRole('link', { name: 'Корзина' })).toHaveAttribute('href', '/trash')
+    expect(within(nav).getByRole('link', { name: 'Справочники' })).toHaveAttribute('href', '/settings/handbooks')
+  })
+
+  it('на странице корзины группа «Ещё» открыта сама', async () => {
+    setTokens({ access: 'a', refresh: 'r' })
+    mockFetch([...base(), ['GET', /^\/api\/trash\//, { body: { count: 0, next: null, previous: null, results: [] } }]])
+    renderApp('/trash')
+    const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
+    expect(await within(nav).findByRole('link', { name: 'Корзина' })).toBeInTheDocument()
+  })
+
   it('без модуля logistics прячет клиентов и заказы', async () => {
     setTokens({ access: 'a', refresh: 'r' })
     mockFetch(base(makeSession({ modules: ['fleet', 'finance'] })))
