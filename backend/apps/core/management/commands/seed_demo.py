@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
+import secrets
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -38,7 +40,9 @@ class Seeder:
     """Вызовы API от имени пользователя компании (в процессе, без сети)."""
 
     def __init__(self, user, company, stdout):
-        self.client = APIClient()
+        self.client = APIClient(
+            HTTP_HOST="localhost"
+        )  # в демо-режиме (DEBUG=false) 'testserver' не разрешён
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {issue_tokens(user, company.id, mfa=True)['access']}"
         )
@@ -83,10 +87,30 @@ class Command(BaseCommand):
         parser.add_argument(
             "--password", default="Demo-pass-2026!", help="Учебный пароль всех аккаунтов"
         )
+        parser.add_argument(
+            "--remote-demo",
+            action="store_true",
+            help="Демо на внешней бесплатной БД: владелец без пароля и TOTP (одноразовая ссылка), "
+            "остальные аккаунты - случайные пароли; требует DEMO_SEED_ALLOW_REF и DEMO_BASE_URL",
+        )
 
-    def handle(self, *args, password, **options):
+    def _check_remote(self):
+        """Демо-режим на внешней бесплатной БД: только с явным ключом и подтверждением базы."""
+        ref = os.environ.get("DEMO_SEED_ALLOW_REF", "")
+        user = connection.settings_dict.get("USER") or ""
+        if not ref or not user.endswith(f".{ref}"):
+            raise CommandError(
+                "--remote-demo разрешён только для базы, явно названной в DEMO_SEED_ALLOW_REF "
+                "(имя пользователя подключения должно заканчиваться на .<ref>)"
+            )
+        if not os.environ.get("DEMO_BASE_URL", "").startswith("https://"):
+            raise CommandError("Для --remote-demo задайте DEMO_BASE_URL=https://<адрес интерфейса>")
+
+    def handle(self, *args, password, remote_demo=False, **options):
         host = connection.settings_dict.get("HOST") or ""
-        if not settings.DEBUG or host not in LOCAL_HOSTS:
+        if remote_demo:
+            self._check_remote()
+        elif not settings.DEBUG or host not in LOCAL_HOSTS:
             raise CommandError(
                 "seed_demo работает только с DJANGO_DEBUG=true и локальной БД (127.0.0.1/localhost)"
             )
@@ -95,18 +119,32 @@ class Command(BaseCommand):
                 "В базе уже есть данные. Для чистого старта пересоздайте БД "
                 "(docs/ops/LOCAL.md, раздел «Начать заново»)"
             )
+        self.remote = remote_demo
+        self.generated: dict[str, str] = {}  # логин -> случайный пароль (демо-режим)
         with transaction.atomic():  # при любой ошибке в базе не остаётся полуготовых данных
             secret = self._build(password)
-        self._print(password, secret)
+        if remote_demo:
+            self._print_remote()
+        else:
+            self._print(password, secret)
 
     def _build(self, password):
         secret = totp.new_secret()
-        owner = User.objects.create_user(
-            email=OWNER_EMAIL, password=password, full_name="Демо Владелец",
-            platform_role="owner", totp_secret=secret, totp_enabled=True,
-        )  # fmt: skip
+        if self.remote:
+            # владелец сам задаёт пароль по одноразовой ссылке и сам подключает TOTP при первом входе
+            owner = User.objects.create_user(
+                email=OWNER_EMAIL, password=None, full_name="Демо Владелец", platform_role="owner"
+            )
+            secret = ""
+        else:
+            owner = User.objects.create_user(
+                email=OWNER_EMAIL, password=password, full_name="Демо Владелец",
+                platform_role="owner", totp_secret=secret, totp_enabled=True,
+            )  # fmt: skip
         admin_b = User.objects.create_user(
-            email=f"admin@b.{DEMO_DOMAIN}", password=password, full_name="Демо Админ Б"
+            email=f"admin@b.{DEMO_DOMAIN}",
+            password=self._pw(f"admin@b.{DEMO_DOMAIN}", password),
+            full_name="Демо Админ Б",
         )
         company_a = create_company_with_defaults(COMPANY_A, owner, modules_of("forwarder_carrier"))
         company_b = create_company_with_defaults(
@@ -119,12 +157,21 @@ class Command(BaseCommand):
 
     # --- сотрудники -------------------------------------------------------------------------
 
+    def _pw(self, email, default):
+        """Пароль аккаунта: в демо-режиме случайный (печатается один раз), иначе учебный."""
+        if not self.remote:
+            return default
+        self.generated[email] = secrets.token_urlsafe(12) + "aZ9!"
+        return self.generated[email]
+
     def _staff(self, company, password):
         for email, name, role_name in (
             (f"manager@{DEMO_DOMAIN}", "Демо Менеджер", "Менеджер"),
             (f"accountant@{DEMO_DOMAIN}", "Демо Бухгалтер", "Бухгалтер"),
         ):
-            user = User.objects.create_user(email=email, password=password, full_name=name)
+            user = User.objects.create_user(
+                email=email, password=self._pw(email, password), full_name=name
+            )
             with tenant_context(company.id):
                 role = Role.objects.get(name=role_name)
             Membership.objects.create(user=user, company=company, role=role, is_active=True)
@@ -307,3 +354,13 @@ class Command(BaseCommand):
             f"Ключ TOTP владельца (для приложения-аутентификатора): {secret}\n"
             "Текущий код без телефона (только локально): python local/run.py totp  (или python manage.py demo_totp в backend/)"
         )
+
+    def _print_remote(self):
+        from apps.core import password_setup
+
+        owner = User.objects.get(email=OWNER_EMAIL)
+        link = password_setup.setup_url(owner, os.environ["DEMO_BASE_URL"])
+        self.stdout.write(self.style.SUCCESS("ДЕМО-БАЗА СОЗДАНА (все данные вымышленные)"))
+        self.stdout.write(f"OWNER_LINK={link}")
+        for email, pw in self.generated.items():
+            self.stdout.write(f"ACCOUNT {email} {pw}")

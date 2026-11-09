@@ -53,3 +53,35 @@ def test_demo_totp_is_debug_only(settings, capsys):
     settings.DEBUG = False
     with pytest.raises(CommandError):
         call_command("demo_totp")
+
+
+def test_remote_demo_mode_needs_explicit_ref_and_has_no_preset_secrets(
+    settings, monkeypatch, capsys
+):
+    """Демо на внешней БД: нужны ключ и ref; владелец без пароля и TOTP, прочие - случайные пароли."""
+    from django.db import connection
+
+    settings.DEBUG = False
+    with pytest.raises(CommandError, match="DEMO_SEED_ALLOW_REF"):
+        call_command("seed_demo", "--remote-demo")
+    monkeypatch.setenv("DEMO_SEED_ALLOW_REF", "abcref")
+    monkeypatch.setenv("DEMO_BASE_URL", "https://demo.example.app")
+    with pytest.raises(
+        CommandError, match="DEMO_SEED_ALLOW_REF"
+    ):  # пользователь подключения без .ref
+        call_command("seed_demo", "--remote-demo")
+    monkeypatch.setitem(
+        connection.settings_dict, "USER", f"{connection.settings_dict['USER']}.abcref"
+    )
+    call_command("seed_demo", "--remote-demo")
+    out = capsys.readouterr().out
+    owner = User.objects.get(email="owner@demo.local")
+    assert owner.platform_role == "owner" and not owner.has_usable_password()
+    assert owner.totp_enabled is False and owner.totp_secret == ""
+    assert "OWNER_LINK=https://demo.example.app/setup-password?uid=" in out
+    accounts = dict(line.split()[1:3] for line in out.splitlines() if line.startswith("ACCOUNT "))
+    assert set(accounts) == {"manager@demo.local", "accountant@demo.local", "admin@b.demo.local"}
+    assert all(len(p) >= 16 for p in accounts.values()) and len(set(accounts.values())) == 3
+    assert "Demo-pass-2026!" not in out
+    for email, pw in accounts.items():
+        assert User.objects.get(email=email).check_password(pw)

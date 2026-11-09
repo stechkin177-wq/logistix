@@ -102,7 +102,15 @@ def main() -> int:
 
     login = os.environ.get("DEMO_OWNER_LOGIN")
     password = os.environ.get("DEMO_OWNER_PW")
-    if login and password:
+    if os.environ.get("DEMO_SEED") == "1":
+        # демо с вымышленными данными: владелец без пароля (одноразовая ссылка), остальные -
+        # случайные пароли; печатаются в лог этой сборки (доступен только команде проекта Vercel)
+        run_manage(
+            ["seed_demo", "--remote-demo"],
+            app_url,
+            extra_env={"DJANGO_ALLOWED_HOSTS": "localhost", "DEMO_SEED_ALLOW_REF": ref},
+        )
+    elif login and password:
         run_manage(
             [
                 "bootstrap_company",
