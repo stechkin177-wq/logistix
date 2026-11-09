@@ -58,7 +58,7 @@ def test_demo_totp_is_debug_only(settings, capsys):
 def test_remote_demo_mode_needs_explicit_ref_and_has_no_preset_secrets(
     settings, monkeypatch, capsys
 ):
-    """Демо на внешней БД: нужны ключ и ref; владелец без пароля и TOTP, прочие - случайные пароли."""
+    """Демо на внешней БД: нужны ключ и ref; владелец без пароля и TOTP, прочие - случайные."""
     from django.db import connection
 
     settings.DEBUG = False
