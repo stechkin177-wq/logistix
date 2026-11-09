@@ -390,14 +390,14 @@ def test_switch_to_platform_needs_mfa_token_and_fresh_code_for_owner(make_compan
     no_code = strong.post(url, {"context": "platform"}, format="json")
     assert no_code.status_code == 403 and no_code.json()["code"] == "totp_required"
     wrong = strong.post(url, {"context": "platform", "code": "000000"}, format="json")
-    assert wrong.status_code == 401 and wrong.json()["code"] == "totp_invalid"
+    assert wrong.status_code == 400 and wrong.json()["code"] == "totp_invalid"
     assert BillingEvent.objects.filter(action="totp_failed", changes__at="switch").exists()
     code = fresh_code(admin)
     ok = strong.post(url, {"context": "platform", "code": code}, format="json")
     assert ok.status_code == 200 and ok.json()["context"] == "platform"
     # тот же код повторно не принимается
     again = strong.post(url, {"context": "platform", "code": code}, format="json")
-    assert again.status_code == 401
+    assert again.status_code == 400
 
 
 def test_admin_role_totp_is_optional_until_enabled(make_platform_client):

@@ -208,7 +208,8 @@ class SwitchCompanyView(APIView):
                 step = totp.verify(request.user.totp_secret, code, request.user.totp_last_step)
                 if step is None:
                     _platform_auth_event(request, request.user, "totp_failed", {"at": "switch"})
-                    return Response({"detail": "Неверный код", "code": "totp_invalid"}, status=401)
+                    # 400, а не 401: у клиента 401 означает «сессия истекла» и запускает выход
+                    return Response({"detail": "Неверный код", "code": "totp_invalid"}, status=400)
                 request.user.totp_last_step = step
                 request.user.save(update_fields=["totp_last_step"])
             _platform_auth_event(request, request.user, "switch_to_platform")
