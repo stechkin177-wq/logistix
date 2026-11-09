@@ -7,6 +7,7 @@ from rest_framework.exceptions import APIException
 
 from apps.billing.models import Plan, Subscription
 from apps.billing.permissions import ModuleRequired, SubscriptionGate
+from apps.billing.plans import PlanError
 from apps.billing.services import LimitExceeded, check_limit, effective_status
 from apps.core.api.auth import issue_tokens
 from apps.core.models import Company, Membership, Role, User
@@ -169,9 +170,9 @@ def test_create_company_creates_free_year_subscription(owner_a):
 
 
 def test_create_company_subscription_is_in_same_transaction(owner_a):
-    Plan.objects.filter(code="start").delete()
+    Plan.objects.filter(is_default=True).update(is_default=False)  # нет тарифа по умолчанию
     before = Company.objects.count()
-    with pytest.raises(Plan.DoesNotExist):
+    with pytest.raises(PlanError):
         create_company_with_defaults("New", owner_a, ["forwarding"])
     assert Company.objects.count() == before
     assert not Membership.objects.filter(user=owner_a).exists()
@@ -493,7 +494,10 @@ def test_subscription_endpoint(client_a, company_a):
     assert r.status_code == 200
     data = r.json()
     assert data["plan"]["code"] == "start"
-    assert set(data["plan"]) == {"code", "name", "billing_type", "limits", "modules", "options"}
+    assert set(data["plan"]) == {
+        "code", "name", "description", "billing_type", "price", "currency",
+        "limits", "modules", "options",
+    }  # fmt: skip
     assert data["plan"]["limits"]["max_users"] == 5
     assert data["status"] == "active"
     assert data["is_free_period"] is True
@@ -538,7 +542,10 @@ def test_plans_endpoint_lists_active_without_prices(client_a):
     data = r.json()
     assert [p["code"] for p in data] == ["start", "lifetime"]
     for p in data:
-        assert set(p) == {"code", "name", "billing_type", "limits", "modules", "options"}
+        assert set(p) == {
+        "code", "name", "description", "billing_type", "price", "currency",
+        "limits", "modules", "options",
+    }  # fmt: skip
 
 
 def test_billing_requires_auth(api_client):

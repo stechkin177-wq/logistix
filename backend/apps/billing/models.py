@@ -2,23 +2,62 @@ from django.db import models
 
 
 class Plan(models.Model):
-    """Тариф. Цены намеренно не хранятся (задаются вне кода). Лимиты: null = без ограничений."""
+    """Тариф. Всё содержимое (название, цена, валюта, период, порядок, модули, лимиты) хранится
+    в данных и меняется администратором платформы без изменения кода; ни названия, ни число
+    тарифов, ни их порядок в коде не зашиты.
+
+    Состояние: черновик (``is_active`` = False, ``archived_at`` пусто) - не предлагается;
+    активный (``is_active``) - предлагается для новых подписок; архивный (``archived_at``) - не
+    предлагается, действующие подписки продолжают работать. ``is_default`` - тариф, который
+    получают новые компании (не более одного). Лимиты: null = без ограничений.
+    """
 
     MONTHLY = "monthly"
     YEARLY = "yearly"
     LIFETIME = "lifetime"
     BILLING_TYPES = [(MONTHLY, "Помесячно"), (YEARLY, "Ежегодно"), (LIFETIME, "Бессрочно")]
 
-    code = models.SlugField(unique=True)
+    DRAFT = "draft"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+    code = models.SlugField(unique=True)  # неизменяем после создания: на него ссылаются отчёты
     name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
     billing_type = models.CharField(max_length=16, choices=BILLING_TYPES)
+    price = models.DecimalField(max_digits=14, decimal_places=2, default=0)  # 0 - бесплатный
+    currency = models.CharField(max_length=3, default="KZT")
+    sort_order = models.PositiveIntegerField(default=0)
     limits = models.JSONField(default=dict, blank=True)
     modules = models.JSONField(default=list, blank=True)
     options = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["id"]
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(price__gte=0), name="plan_price_gte_0"),
+            models.CheckConstraint(
+                condition=models.Q(archived_at__isnull=True) | models.Q(is_active=False),
+                name="plan_archived_not_active",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(is_default=False)
+                | (models.Q(is_active=True) & models.Q(archived_at__isnull=True)),
+                name="plan_default_must_be_active",
+            ),
+            models.UniqueConstraint(
+                fields=["is_default"], condition=models.Q(is_default=True), name="plan_one_default"
+            ),
+        ]
+
+    @property
+    def status(self) -> str:
+        if self.archived_at is not None:
+            return self.ARCHIVED
+        return self.ACTIVE if self.is_active else self.DRAFT
 
     def __str__(self):
         return self.code

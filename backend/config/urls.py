@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 
-from apps.billing.api import PlanListView, SubscriptionView
+from apps.billing.api import AdminPlanViewSet, PlanListView, SubscriptionView
 from apps.core.api.auth import (
     LoginView,
     MeView,
@@ -93,6 +93,7 @@ router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
 router.register("transfers", TransferViewSet, basename="transfer")
+router.register("platform/plans", AdminPlanViewSet, basename="platform-plan")
 router.register("drivers", DriverViewSet, basename="driver")
 router.register("driver-documents", DriverDocumentViewSet, basename="driver-document")
 router.register("vehicles", VehicleViewSet, basename="vehicle")

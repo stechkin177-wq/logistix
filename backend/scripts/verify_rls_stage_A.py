@@ -265,7 +265,11 @@ def main() -> int:
         manage(owner_url, "migrate", "forwarding", "--noinput")
         manage(owner_url, "migrate", "finance", "--noinput")
         manage(owner_url, "migrate", "documents", "0002", "--noinput")
+        # создание компаний идёт кодом приложения (тариф по умолчанию читается из данных тарифа),
+        # поэтому схема тарифов на время посева последняя; затем возврат к состоянию «до этапа»
+        manage(owner_url, "migrate", "billing", "--noinput")
         out = manage(owner_url, "shell", stdin=SEED)
+        manage(owner_url, "migrate", "billing", "0002", "--noinput")
         ids = json.loads(out.split("IDS=")[1].splitlines()[0])
         initial = {
             ids["A"]["company"]: ids["A"]["modules"],

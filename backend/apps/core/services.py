@@ -3,7 +3,8 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from apps.billing.models import Plan, Subscription
+from apps.billing.models import Subscription
+from apps.billing.plans import default_plan
 
 from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
@@ -32,9 +33,9 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     modules = list(modules)
     if not modules or not set(modules) <= VALID_MODULES:
         raise ValueError(f"modules должен быть непустым подмножеством {sorted(VALID_MODULES)}")
-    start_plan = Plan.objects.filter(code="start").first()  # стартовый тариф компании
+    start_plan = default_plan()  # тариф по умолчанию задаёт администратор платформы (данные)
     modules = with_default_companions(
-        modules, allowed=set(start_plan.modules or []) if start_plan else None
+        modules, allowed=set(start_plan.modules or [])
     )  # logistics/forwarding включают finance и documents, если они есть в тарифе
     unmet = unmet_requirements(modules)
     if unmet:
@@ -57,7 +58,7 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     now = timezone.now()
     Subscription.objects.create(
         company=company,
-        plan=Plan.objects.get(code="start"),
+        plan=start_plan,
         status=Subscription.ACTIVE,
         is_free_period=True,
         starts_at=now,
