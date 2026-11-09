@@ -189,7 +189,7 @@ def test_trip_link_must_belong_to_the_order_and_be_an_expense(company, admin_cli
     assert income.status_code == 400 and "trip" in income.json()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_concurrent_and_repeated_presses_create_exactly_one_expense(
     company, admin_client, scenario
 ):
