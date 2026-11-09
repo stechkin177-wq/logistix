@@ -41,7 +41,8 @@ class UserManager(BaseUserManager):
             values = {
                 "password": make_password(password), "email": email.strip().lower(),
                 "full_name": "", "is_active": True, "is_staff": False, "is_superuser": False,
-                "is_platform_admin": False, "platform_role": "",
+                "is_platform_admin": False, "platform_role": "", "totp_secret": "",
+                "totp_enabled": False, "totp_last_step": 0,
             }  # fmt: skip
             values = {k: v for k, v in values.items() if k in cols}
             names = ", ".join(values)
@@ -76,7 +77,27 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=16, blank=True, default="", choices=PLATFORM_ROLES
     )
 
+    # TOTP (обязателен для владельца платформы): секрет, признак подтверждения и последний
+    # принятый шаг (защита от повторного использования кода)
+    totp_secret = models.CharField(max_length=64, blank=True, default="")
+    totp_enabled = models.BooleanField(default=False)
+    totp_last_step = models.BigIntegerField(default=0)
+    # токены, выданные раньше этого момента, недействительны (выход, смена пароля)
+    tokens_valid_after = models.DateTimeField(null=True, blank=True)
+
     objects = UserManager()
+
+    def set_password(self, raw_password):
+        """Любая смена пароля (форма, changepassword, админка) отзывает прежние токены."""
+        super().set_password(raw_password)
+        self.tokens_valid_after = timezone.now()
+
+    def tokens_revoked(self, token) -> bool:
+        """Токен выдан до отзыва (iat раньше tokens_valid_after) либо без метки времени."""
+        if self.tokens_valid_after is None:
+            return False
+        iat = token.get("iat")
+        return iat is None or iat < int(self.tokens_valid_after.timestamp())
 
     @property
     def is_platform_admin(self) -> bool:

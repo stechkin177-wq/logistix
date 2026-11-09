@@ -154,11 +154,16 @@ REST_FRAMEWORK = {
         "document_pdf": env("DOCUMENT_PDF_THROTTLE_RATE", "30/min"),
         # вход: по нормализованному логину, а не по IP (за внешним прокси IP общий)
         "login": env("THROTTLE_LOGIN", "10/minute"),
+        "totp": env("THROTTLE_TOTP", "5/minute"),
+        "password_setup": env("THROTTLE_PASSWORD_SETUP", "10/minute"),
     },
 }
 # Продакшен/serverless: только JSON (BrowsableAPI тянет статику и шаблоны, которых там нет).
 if SERVERLESS or not DEBUG:
     REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = ["rest_framework.renderers.JSONRenderer"]
+
+# срок одноразовой ссылки первоначальной установки пароля (секунды); по умолчанию 2 часа
+PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_SETUP_TIMEOUT_SECONDS", "7200"))
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("JWT_ACCESS_MINUTES", "30"))),

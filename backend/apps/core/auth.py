@@ -3,6 +3,7 @@ from django.db.models import OuterRef
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from . import platform
 from .models import CompanyModule, Membership
 from .tenancy import set_current_company, tenant_context
 
@@ -16,11 +17,15 @@ class CompanyJWTAuthentication(JWTAuthentication):
         if result is None:
             return None
         user, token = result
+        if user.tokens_revoked(token):  # выход или смена пароля отозвали выданные ранее токены
+            raise AuthenticationFailed("Сессия завершена: войдите снова")
         if token.get("ctx") == "platform":
             # платформенный контекст: без компании и без tenant-доступа; роль берётся из БД
             role = user.platform_role if user.is_platform_admin else None
             if role is None:
                 raise AuthenticationFailed("Платформенный доступ закрыт")
+            if platform.requires_totp(user) and not token.get("mfa"):
+                raise AuthenticationFailed("Требуется подтверждение TOTP")
             request.platform_role = role
             return user, token
         company_id = token.get("company_id")

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { getAccess } from '../../shared/auth/tokens'
 import { loggedIn } from '../../test/harness'
 import { renderApp } from '../../test/renderApp'
 
@@ -29,7 +30,7 @@ describe('Смена пароля', () => {
   })
 
   it('успех: POST с двумя паролями, окно закрыто, показан тост', async () => {
-    const m = loggedIn([['POST', '/api/auth/password/', { status: 204 }]])
+    const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
     renderApp('/')
     const dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42')
@@ -37,6 +38,7 @@ describe('Смена пароля', () => {
     await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
     expect(m.calls.find((c) => c.path === '/api/auth/password/')?.body).toEqual({ old_password: 'old-password-1', new_password: 'Brand-new-pass-42' })
     expect(await screen.findByText('Пароль изменён')).toBeInTheDocument()
+    expect(getAccess()).toBe('new-a') // прежние токены отозваны сервером, сессия продолжается на новых
   })
 
   it('неверный текущий пароль ложится на поле', async () => {
@@ -61,7 +63,7 @@ describe('Смена пароля', () => {
   })
 
   it('несовпадение подтверждения и совпадение со старым ловятся без запроса', async () => {
-    const m = loggedIn([['POST', '/api/auth/password/', { status: 204 }]])
+    const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
     renderApp('/')
     const dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42', 'other')
@@ -75,7 +77,7 @@ describe('Смена пароля', () => {
   })
 
   it('пароли не попадают в хранилище и URL, поля пусты при повторном открытии', async () => {
-    const m = loggedIn([['POST', '/api/auth/password/', { status: 204 }]])
+    const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
     const { router } = renderApp('/')
     let dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42')

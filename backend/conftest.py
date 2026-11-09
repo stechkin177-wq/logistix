@@ -67,7 +67,7 @@ def make_platform_client(db):
             email=f"platform{n}@fixture.kz", password=TEST_PASSWORD, platform_role=role
         )
         client = APIClient()
-        tokens = issue_tokens(user)
+        tokens = issue_tokens(user, mfa=True)  # как после входа с TOTP
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
         return client, user
 

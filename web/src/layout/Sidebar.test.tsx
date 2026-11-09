@@ -112,12 +112,14 @@ describe('Sidebar', () => {
 
   it('выход очищает токены и ведёт на /login', async () => {
     setTokens({ access: 'a', refresh: 'r' })
-    mockFetch(base())
+    const m = mockFetch([...base(), ['POST', '/api/auth/logout/', { status: 204 }]])
     const { router } = renderApp('/')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Выйти' }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')
     })
+    // сервер отзывает токены (с токеном выходящего пользователя), затем они удаляются локально
+    await waitFor(() => { expect(m.calls.some((c) => c.path === '/api/auth/logout/' && c.method === 'POST')).toBe(true) })
     expect(getAccess()).toBeNull()
     expect(window.sessionStorage.getItem('logistix.refresh')).toBeNull()
   })

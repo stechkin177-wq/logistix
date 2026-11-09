@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../shared/api/client'
+import { setTokens } from '../../shared/auth/tokens'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../shared/forms/useFocusInvalid'
 import { Button } from '../../shared/ui/Button'
@@ -26,8 +27,10 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
   useFocusInvalid(formRef, errors)
 
   const save = useMutation({
-    mutationFn: () => api.post<undefined>('/auth/password/', { old_password: oldPassword, new_password: newPassword }),
-    onSuccess: () => {
+    mutationFn: () => api.post<{ access: string; refresh: string }>('/auth/password/', { old_password: oldPassword, new_password: newPassword }),
+    onSuccess: (tokens) => {
+      // сервер отозвал прежние токены: продолжаем на новых (контекст сохраняется)
+      setTokens(tokens)
       pushToast('info', t('account.passwordChanged'))
       onClose()
     },

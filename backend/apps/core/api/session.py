@@ -12,6 +12,7 @@ from apps.billing.features import available_features
 from apps.billing.permissions import subscription_state
 from apps.billing.services import days_left, grace_days_left
 from apps.core import branding as branding_rules
+from apps.core import platform
 from apps.core.models import CompanyBranding
 from apps.core.module_services import effective_module_codes
 
@@ -40,6 +41,7 @@ class SessionView(APIView):
                     "phone": user.phone,
                     "full_name": user.full_name,
                     "platform_role": user.platform_role,  # только для переключателя контекста
+                    "platform_totp": platform.requires_totp(user),  # при переходе нужен код TOTP
                 },
                 "company": {
                     "id": company.pk,

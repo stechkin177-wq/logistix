@@ -12,6 +12,7 @@ import { OrderDetailPage } from '../features/orders/pages/OrderDetailPage'
 import { OrderFormPage } from '../features/orders/pages/OrderFormPage'
 import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { SetupPasswordPage } from '../features/auth/SetupPasswordPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
@@ -99,6 +100,7 @@ export function createRoutes(): RouteObject[] {
       element: <RootRoute />,
       children: [
         { path: '/login', element: <LoginPage /> },
+        { path: '/setup-password', element: <SetupPasswordPage /> },
         {
           // Центр управления платформы: отдельный контекст, свои маршруты и оболочка
           path: '/platform',

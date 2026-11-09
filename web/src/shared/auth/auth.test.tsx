@@ -82,6 +82,44 @@ describe('вход', () => {
     expect(window.sessionStorage.getItem('logistix.context')).toBe('platform')
   })
 
+  it('владелец платформы: пароль не даёт токенов, второй шаг - код TOTP', async () => {
+    const m = mockFetch([
+      ...common,
+      ['POST', '/api/auth/login/', { body: { totp_required: true, totp_setup_required: false, challenge: 'signed-challenge' } }],
+      ['POST', '/api/auth/totp/', { body: { access: 'acc', refresh: 'ref', context: 'platform', platform_role: 'owner', companies: [] } }],
+      ['GET', '/api/platform/session/', { body: { context: 'platform', user: { id: 1, email: 'o@x.kz', phone: null, full_name: '', platform_role: 'owner' }, permissions: ['platform.read'], companies: [] } }],
+      ['GET', '/api/platform/plans/', { body: [] }],
+      ['GET', '/api/platform/catalog/', { body: { modules: [], features: [], limits: [] } }],
+    ])
+    const { router } = renderApp('/login')
+    await submitLogin('o@x.kz', 'pass')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('Код из приложения'), '123456')
+    expect(getAccess()).toBeNull() // до кода токенов нет
+    expect(getRefresh()).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
+    await screen.findByRole('navigation', { name: 'Центр управления' })
+    expect(router.state.location.pathname).toBe('/platform/plans')
+    expect(m.calls.find((c) => c.path === '/api/auth/totp/')?.body).toEqual({ challenge: 'signed-challenge', code: '123456' })
+  })
+
+  it('первое подключение TOTP показывает ключ; неверный код - сообщение', async () => {
+    mockFetch([
+      ...common,
+      ['POST', '/api/auth/login/', { body: { totp_required: false, totp_setup_required: true, challenge: 'c1' } }],
+      ['POST', '/api/auth/totp/setup/', { body: { secret: 'JBSWY3DPEHPK3PXP', otpauth_uri: 'otpauth://totp/LogistiX:o?secret=JBSWY3DPEHPK3PXP' } }],
+      ['POST', '/api/auth/totp/', { status: 401, body: { detail: 'Неверный код', code: 'totp_invalid' } }],
+    ])
+    renderApp('/login')
+    await submitLogin('o@x.kz', 'pass')
+    expect(await screen.findByTestId('totp-secret')).toHaveTextContent('JBSWY3DPEHPK3PXP')
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Код из приложения'), '000000')
+    await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
+    expect(await screen.findByText('Неверный код')).toBeInTheDocument()
+    expect(getAccess()).toBeNull()
+  })
+
   it('сбой загрузки сессии после входа не оставляет токены', async () => {
     mockFetch([
       ...common,

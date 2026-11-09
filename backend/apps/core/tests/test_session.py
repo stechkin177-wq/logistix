@@ -29,6 +29,7 @@ def test_admin_session_shape(make_company):
         "phone": admin.phone,
         "full_name": admin.full_name,
         "platform_role": "",
+        "platform_totp": False,
     }
     assert data["company"] == {
         "id": company.id,

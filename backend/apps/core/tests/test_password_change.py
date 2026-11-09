@@ -64,13 +64,13 @@ def test_missing_fields(admin_client):
 
 def test_success_switches_password(admin_client, admin_user):
     r = change(admin_client)
-    assert r.status_code == 204 and not r.content
+    assert r.status_code == 200 and {"access", "refresh"} <= set(r.json())
     assert login(admin_user.email, TEST_PASSWORD).status_code == 401
     assert login(admin_user.email, NEW).status_code == 200
 
 
 def test_success_audit_is_masked(admin_client, admin_user):
-    assert change(admin_client).status_code == 204
+    assert change(admin_client).status_code == 200
     row = AuditLog.all_objects.filter(object_type="core.user", action="update").latest("id")
     assert row.changes == {"password": "***"} and row.user_id == admin_user.pk
     dump = " ".join(str(a.changes) + a.object_repr for a in AuditLog.all_objects.all())

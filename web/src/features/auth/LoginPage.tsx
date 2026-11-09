@@ -9,6 +9,7 @@ import { useBranding } from '../../shared/branding/useBranding'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { Input } from '../../shared/ui/Input'
+import { TotpStep } from './TotpStep'
 
 function loginErrorKey(error: unknown): string {
   if (error instanceof ApiError) {
@@ -23,7 +24,7 @@ function loginErrorKey(error: unknown): string {
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const { login, context, hasTokens } = useAuth()
+  const { login, completeTotp, context, hasTokens } = useAuth()
   const { status } = useSession()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -33,6 +34,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+  const [totp, setTotp] = useState<{ challenge: string; setup: boolean } | null>(null)
 
   const target = safeRedirect(params.get('next'))
   if (hasTokens && context === 'platform' && !busy) return <Navigate to="/platform" replace />
@@ -44,9 +46,14 @@ export function LoginPage() {
     setFormError(null)
     setFieldErrors({})
     try {
-      const entered = await login(loginValue.trim(), password)
+      const result = await login(loginValue.trim(), password)
+      if (result.kind === 'totp') {
+        setPassword('') // пароль больше не нужен; дальше только код
+        setTotp({ challenge: result.challenge, setup: result.setup })
+        return
+      }
       // платформенная роль -> Центр управления; остальные -> компания (или страница из ?next=)
-      void navigate(entered === 'platform' ? '/platform' : target, { replace: true })
+      void navigate(result.context === 'platform' ? '/platform' : target, { replace: true })
     } catch (error) {
       // subscription_blocked обрабатывает AuthProvider (экран «Доступ приостановлен»)
       if (error instanceof ApiError && error.code === 'subscription_blocked') return
@@ -60,47 +67,61 @@ export function LoginPage() {
     }
   }
 
+  const header = (
+    <div className="flex items-center gap-2">
+      {branding.logo_url ? <img src={branding.logo_url} alt="" className="size-8 rounded object-contain" /> : null}
+      <h1 className="text-lg font-semibold">{branding.app_name}</h1>
+    </div>
+  )
+  const card = 'w-full max-w-sm space-y-3 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900'
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="w-full max-w-sm space-y-3 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-        noValidate
-      >
-        <div className="flex items-center gap-2">
-          {branding.logo_url ? (
-            <img src={branding.logo_url} alt="" className="size-8 rounded object-contain" />
-          ) : null}
-          <h1 className="text-lg font-semibold">{branding.app_name}</h1>
+      {totp ? (
+        <div className={card}>
+          {header}
+          <TotpStep
+            challenge={totp.challenge}
+            setup={totp.setup}
+            onSubmit={async (code) => {
+              await completeTotp(totp.challenge, code)
+              void navigate('/platform', { replace: true })
+            }}
+            onExpired={() => { setTotp(null); setFormError(t('auth.totpExpired')) }}
+          />
         </div>
-        <p className="text-sm text-slate-500">{t('auth.title')}</p>
-        {formError ? <Banner kind="error">{formError}</Banner> : null}
-        <Input
-          label={t('auth.login')}
-          name="login"
-          autoComplete="username"
-          autoFocus
-          value={loginValue}
-          error={fieldErrors.login?.join(' ')}
-          onChange={(event) => {
-            setLoginValue(event.target.value)
-          }}
-        />
-        <Input
-          label={t('auth.password')}
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          error={fieldErrors.password?.join(' ')}
-          onChange={(event) => {
-            setPassword(event.target.value)
-          }}
-        />
-        <Button type="submit" variant="primary" className="w-full" disabled={busy || !loginValue || !password}>
-          {busy ? t('common.loading') : t('auth.submit')}
-        </Button>
-      </form>
+      ) : (
+        <form onSubmit={(event) => void submit(event)} className={card} noValidate>
+          {header}
+          <p className="text-sm text-slate-500">{t('auth.title')}</p>
+          {formError ? <Banner kind="error">{formError}</Banner> : null}
+          <Input
+            label={t('auth.login')}
+            name="login"
+            autoComplete="username"
+            autoFocus
+            value={loginValue}
+            error={fieldErrors.login?.join(' ')}
+            onChange={(event) => {
+              setLoginValue(event.target.value)
+            }}
+          />
+          <Input
+            label={t('auth.password')}
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            error={fieldErrors.password?.join(' ')}
+            onChange={(event) => {
+              setPassword(event.target.value)
+            }}
+          />
+          <Button type="submit" variant="primary" className="w-full" disabled={busy || !loginValue || !password}>
+            {busy ? t('common.loading') : t('auth.submit')}
+          </Button>
+        </form>
+      )}
     </div>
   )
 }

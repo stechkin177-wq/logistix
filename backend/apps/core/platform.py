@@ -39,6 +39,11 @@ class CompanyContextRequired(PermissionDenied):
     default_code = "company_context_required"
 
 
+def requires_totp(user) -> bool:
+    """Владельцу платформы второй фактор обязателен; администратору - если он его включил."""
+    return user.platform_role == PLATFORM_OWNER or (user.is_platform_admin and user.totp_enabled)
+
+
 def is_platform_request(request) -> bool:
     return getattr(request, "platform_role", None) is not None
 

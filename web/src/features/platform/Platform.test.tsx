@@ -46,6 +46,25 @@ describe('Панель платформы', () => {
     expect(await screen.findByRole('button', { name: 'Центр управления' })).toBeInTheDocument()
   })
 
+  it('владельцу переход в Центр управления требует свежий код TOTP и отправляет его', async () => {
+    const m = loggedIn(
+      [
+        ['POST', '/api/auth/switch-company/', { body: { access: 'p', refresh: 'pr', context: 'platform', platform_role: 'owner', companies: [] } }],
+        ['GET', '/api/platform/session/', { body: { context: 'platform', user: { id: 1, email: 'o@x.kz', phone: null, full_name: '', platform_role: 'owner' }, permissions: ['platform.read'], companies: [] } }],
+        ...base,
+      ],
+      { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner', platform_totp: true } } },
+    )
+    const { router } = renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Центр управления' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(m.calls.some((c) => c.path === '/api/auth/switch-company/')).toBe(false) // без кода запроса нет
+    await userEvent.type(within(dialog).getByLabelText('Код из приложения'), '123456')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/auth/switch-company/')?.body).toEqual({ context: 'platform', code: '123456' }) })
+    await waitFor(() => { expect(router.state.location.pathname).toMatch(/^\/platform/) })
+  })
+
   it('Центр управления: свой интерфейс с разделами платформы, без меню компании', async () => {
     platformLoggedIn([...base])
     renderApp('/platform')

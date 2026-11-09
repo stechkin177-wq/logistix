@@ -16,10 +16,14 @@ from apps.billing.api import (
 )
 from apps.core.api.auth import (
     LoginView,
+    LogoutView,
     MeView,
     PasswordChangeView,
+    PasswordSetupView,
     RefreshView,
     SwitchCompanyView,
+    TotpSetupView,
+    TotpView,
 )
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
@@ -160,6 +164,10 @@ urlpatterns = [
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/switch-company/", SwitchCompanyView.as_view()),
     path("api/auth/me/", MeView.as_view()),
+    path("api/auth/logout/", LogoutView.as_view()),
+    path("api/auth/password-setup/", PasswordSetupView.as_view()),
+    path("api/auth/totp/", TotpView.as_view()),
+    path("api/auth/totp/setup/", TotpSetupView.as_view()),
     path("api/auth/password/", PasswordChangeView.as_view()),
     path("api/session/", SessionView.as_view()),
     path("api/platform/session/", PlatformSessionView.as_view()),

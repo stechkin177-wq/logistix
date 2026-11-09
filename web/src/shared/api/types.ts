@@ -12,7 +12,7 @@ export interface PlatformSession {
 }
 
 export interface Session {
-  user: { id: number; email: string | null; phone: string | null; full_name: string; platform_role: PlatformRole | '' }
+  user: { id: number; email: string | null; phone: string | null; full_name: string; platform_role: PlatformRole | ''; platform_totp?: boolean }
   company: { id: number; name: string; timezone: string; language: string }
   companies: { id: number; name: string }[]
   role: { id: number; name: string } | null
@@ -26,6 +26,13 @@ export interface Session {
     grace_days_left: number | null
     is_free_period: boolean
   }
+}
+
+/** Пароль верен, но для платформенного аккаунта нужен второй шаг (TOTP): токенов ещё нет. */
+export interface TotpChallenge {
+  totp_required: boolean
+  totp_setup_required: boolean
+  challenge: string
 }
 
 export interface LoginResponse {
