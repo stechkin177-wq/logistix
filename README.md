@@ -12,6 +12,9 @@ SaaS для экспедиторов и перевозчиков Казахст�
 - `docker-compose.yml` - PostgreSQL 16 и Redis 7 для разработки
 - `.github/workflows/` - CI (`ci.yml`) и деплой (`deploy.yml`)
 
+## Быстрый локальный запуск с тестовыми данными
+Одна команда `python local/run.py start` - см. `docs/ops/LOCAL.md` (вымышленные данные, вход владельца платформы и администратора компании одним аккаунтом).
+
 ## Запуск для разработки
 ```bash
 docker compose up -d                      # postgres + redis
