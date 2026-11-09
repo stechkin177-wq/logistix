@@ -222,7 +222,7 @@ def test_usage_endpoint_for_company(co):
     rows = {r["code"]: r for r in api.get("/api/billing/usage/").json()["results"]}
     assert rows["max_vehicles"] == {
         "code": "max_vehicles", "name": "Техника", "unit": "ед.", "scope": "total",
-        "limit": 2, "usage": 1, "enforced": True, "exceeded": False,
+        "limit": 2, "usage": 1, "enforced": True, "exceeded": False, "state": "ok",
     }  # fmt: skip
     assert rows["max_ocr_per_month"]["usage"] is None
 

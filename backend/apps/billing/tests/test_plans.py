@@ -150,7 +150,7 @@ def test_reorder_is_data_and_unlisted_go_after():
 
 
 def test_new_company_gets_default_plan_not_a_hardcoded_code(admin_user):
-    free = plans.publish(make_plan("free"))
+    free = plans.publish(make_plan("free", free_period_days=365))  # срок — данные тарифа
     Plan.objects.filter(pk=free.pk).update(modules=["logistics", "finance", "documents"])
     plans.set_default(free)
     user = User.objects.create_user(email="owner@t1.kz", password="x")
