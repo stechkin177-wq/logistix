@@ -61,7 +61,7 @@ def _legacy_modules(company, modules, **kwargs):
 core_services.set_company_modules = _legacy_modules
 out = {}
 for key in %(keys)r:
-    user = User.objects.create_user(email=f"{key}@upgrade141.kz", password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=f"{key}@upgrade141.kz", password="s3cret-pass-1")
     out[key] = create_company_with_defaults(key, user, ["forwarding"]).id
 print("IDS=" + json.dumps(out))
 """
@@ -347,7 +347,7 @@ from apps.core.models import Role, User
 from apps.core.services import create_company_with_defaults
 from apps.core.tenancy import tenant_context
 from apps.finance.models import CompanyFinancialSettings
-user = User.objects.create_user(email="fresh@upgrade141.kz", password="s3cret-pass-1")
+user = User.objects.create_user_schema_agnostic(email="fresh@upgrade141.kz", password="s3cret-pass-1")
 company = create_company_with_defaults("Fresh", user, ["forwarding"])
 with tenant_context(company.id):
     s = CompanyFinancialSettings.objects.get()

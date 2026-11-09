@@ -205,7 +205,12 @@ class SwitchCompanyView(APIView):
 
 
 class MeView(APIView):
-    permission_classes = [IsAuthenticated]  # доступно и в платформенном контексте
+    def get_permissions(self):
+        # платформенный токен не имеет подписки компании - шлюз к нему не применим
+        auth = getattr(self.request, "auth", None)
+        if auth is not None and auth.get("ctx") == platform.CTX_PLATFORM:
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get(self, request):
         user = request.user

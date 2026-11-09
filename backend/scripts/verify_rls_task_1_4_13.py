@@ -45,7 +45,7 @@ from apps.core.signals import company_created
 company_created.receivers = []
 out = {}
 for key in ("A", "B"):
-    user = User.objects.create_user(email=f"{key.lower()}@rls1413.kz", password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=f"{key.lower()}@rls1413.kz", password="s3cret-pass-1")
     out[key] = {"company": create_company_with_defaults(f"Компания {key}", user, ["forwarding"]).id}
 print("IDS=" + json.dumps(out))
 """

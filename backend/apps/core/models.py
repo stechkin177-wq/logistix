@@ -29,6 +29,26 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
+    def create_user_schema_agnostic(self, email, password):
+        """Пользователь прямым SQL по колонкам, которые есть в БД СЕЙЧАС (для скриптов проверки
+        миграций: они создают данные при промежуточной схеме, где новых колонок модели ещё нет)."""
+        from django.contrib.auth.hashers import make_password
+        from django.db import connection
+
+        table = self.model._meta.db_table
+        with connection.cursor() as cur:
+            cols = {c.name for c in connection.introspection.get_table_description(cur, table)}
+            values = {
+                "password": make_password(password), "email": email.strip().lower(),
+                "full_name": "", "is_active": True, "is_staff": False, "is_superuser": False,
+                "is_platform_admin": False, "platform_role": "",
+            }  # fmt: skip
+            values = {k: v for k, v in values.items() if k in cols}
+            names = ", ".join(values)
+            marks = ", ".join(["%s"] * len(values))
+            cur.execute(f"INSERT INTO {table} ({names}) VALUES ({marks})", list(values.values()))  # noqa: S608
+        return self.only("id", "email").get(email=email.strip().lower())
+
     def create_superuser(self, email=None, password=None, phone=None, **extra):
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)

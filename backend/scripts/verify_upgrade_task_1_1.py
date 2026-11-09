@@ -67,7 +67,7 @@ def _legacy_modules(company, modules, **kwargs):
 core_services.set_company_modules = _legacy_modules
 out = {}
 for key, email in (("standard", "std@upgrade.kz"), ("renamed", "ren@upgrade.kz")):
-    user = User.objects.create_user(email=email, password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=email, password="s3cret-pass-1")
     out[key] = create_company_with_defaults(key, user, ["forwarding"]).id
 print("IDS=" + json.dumps(out))
 """

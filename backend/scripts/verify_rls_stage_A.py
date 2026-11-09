@@ -59,7 +59,7 @@ KINDS = {  # вид -> какая связь заполнена
 }
 out = {}
 for key in ("A", "B"):
-    user = User.objects.create_user(email=f"{key.lower()}@stagea.kz", password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=f"{key.lower()}@stagea.kz", password="s3cret-pass-1")
     company = create_company_with_defaults(f"Компания {key}", user, ["forwarding"])
     Company.objects.filter(pk=company.pk).update(modules=LEGACY[key])
     with tenant_context(company.id):

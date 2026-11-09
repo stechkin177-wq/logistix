@@ -47,7 +47,7 @@ from django.db import connection
 
 out = {}
 for key in ("A", "B"):
-    user = User.objects.create_user(email=f"{key.lower()}@rls1414.kz", password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=f"{key.lower()}@rls1414.kz", password="s3cret-pass-1")
     company = create_company_with_defaults(f"Компания {key}", user, ["forwarding"])
     with tenant_context(company.id):
         get = lambda h, c: HandbookValue.objects.get(handbook__code=h, code=c)

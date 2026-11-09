@@ -46,7 +46,7 @@ def cargo(name, kinds=("load", "unload")):
     return {"name": name, "weight_kg": 1000, "volume_m3": 10, "pallets": 5, "stops": stops(kinds)}
 out = {}
 for key in ("A", "B"):
-    user = User.objects.create_user(email=f"{key.lower()}@stagede.kz", password="s3cret-pass-1")
+    user = User.objects.create_user_schema_agnostic(email=f"{key.lower()}@stagede.kz", password="s3cret-pass-1")
     company = create_company_with_defaults(f"Компания {key}", user, ["forwarding"])
     with tenant_context(company.id):
         get = lambda h, c: HandbookValue.objects.get(handbook__code=h, code=c)
