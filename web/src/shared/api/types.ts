@@ -3,7 +3,7 @@ export type SubscriptionState = 'trial' | 'active' | 'grace' | 'readonly' | 'blo
 export type Theme = 'light' | 'dark' | 'system'
 
 export interface Session {
-  user: { id: number; email: string | null; phone: string | null; full_name: string }
+  user: { id: number; email: string | null; phone: string | null; full_name: string; is_platform_admin: boolean }
   company: { id: number; name: string; timezone: string; language: string }
   companies: { id: number; name: string }[]
   role: { id: number; name: string } | null

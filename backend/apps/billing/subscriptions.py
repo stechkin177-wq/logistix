@@ -27,6 +27,7 @@ from rest_framework import status as http
 from apps.core.audit import services as audit
 from apps.core.tenancy import tenant_context
 
+from . import events
 from . import features as feature_catalog
 from . import limits as limit_catalog
 from .models import Plan, Subscription, SubscriptionPeriod
@@ -154,6 +155,12 @@ def change_plan(company, new_plan: Plan, *, period: str = KEEP, user=None) -> Su
              "lost_modules": impact["lost_modules"]},
             object_type="billing.subscription", object_id=sub.pk,
         )  # fmt: skip
+    events.record(
+        events.BillingEvent.SUBSCRIPTION, company.pk, "change_plan",
+        {"plan": [before["plan"], new_plan.code], "period": period,
+         "limits_exceeded": [r["code"] for r in impact["limits_exceeded"]],
+         "lost_modules": impact["lost_modules"]}, user,
+    )  # fmt: skip
     return sub
 
 
@@ -183,4 +190,9 @@ def renew(company, *, periods: int = 1, user=None) -> Subscription:
              "price": str(sub.plan.price * periods)},
             object_type="billing.subscription", object_id=sub.pk,
         )  # fmt: skip
+    events.record(
+        events.BillingEvent.SUBSCRIPTION, company.pk, "renew",
+        {"ends_at": [str(before["ends_at"]), str(end)], "periods": periods,
+         "price": str(sub.plan.price * periods)}, user,
+    )  # fmt: skip
     return sub

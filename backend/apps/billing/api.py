@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
 from . import features, limits, plans, subscriptions
-from .models import Plan
+from .models import BillingEvent, Plan
 from .services import days_left, effective_status, get_subscription
 
 
@@ -108,21 +108,21 @@ class AdminPlanViewSet(ViewSet):
 
     def create(self, request):
         data = {k: v for k, v in request.data.items() if k != "code"}
-        plan = plans.create_plan(code=request.data.get("code", ""), **data)
+        plan = plans.create_plan(code=request.data.get("code", ""), by=request.user, **data)
         response = self._out(plan)
         response.status_code = 201
         return response
 
     def partial_update(self, request, code=None):
-        plan = plans.update_plan(self._plan(code), **dict(request.data.items()))
+        plan = plans.update_plan(self._plan(code), by=request.user, **dict(request.data.items()))
         return self._out(plan)
 
     def destroy(self, request, code=None):
-        plans.delete_plan(self._plan(code))
+        plans.delete_plan(self._plan(code), by=request.user)
         return Response(status=204)
 
     def _act(self, code, func):
-        return self._out(func(self._plan(code)))
+        return self._out(func(self._plan(code), by=self.request.user))
 
     @action(detail=True, methods=["post"])
     def publish(self, request, code=None):
@@ -149,7 +149,7 @@ class AdminPlanViewSet(ViewSet):
         codes = request.data.get("codes") if hasattr(request.data, "get") else None
         if not isinstance(codes, list) or not all(isinstance(c, str) for c in codes):
             raise ValidationError({"codes": "Ожидается список кодов тарифов"})
-        plans.reorder(codes)
+        plans.reorder(codes, by=request.user)
         return self.list(request)
 
 
@@ -267,3 +267,56 @@ class PlatformSubscriptionViewSet(ViewSet):
         subscriptions.renew(company, periods=request.data.get("periods", 1), user=request.user)
         company.subscription.refresh_from_db()
         return Response(_sub_payload(company))
+
+
+class PlatformCompaniesView(APIView):
+    """Компании платформы с их подписками (поиск по названию) - для управления подписками."""
+
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+
+    def get(self, request):
+        from apps.core.models import Company
+        from apps.core.pagination import StandardPagination
+
+        qs = Company.objects.select_related("subscription__plan").filter(subscription__isnull=False)
+        if q := (request.query_params.get("q") or "").strip():
+            qs = qs.filter(name__icontains=q)
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(qs.order_by("name", "id"), request)
+        now = timezone.now()
+        rows = [
+            {
+                "id": c.pk, "name": c.name, "plan": c.subscription.plan.code,
+                "plan_name": c.subscription.plan.name,
+                "status": effective_status(c.subscription, now),
+                "is_free_period": c.subscription.is_free_period, "ends_at": c.subscription.ends_at,
+            }
+            for c in page
+        ]  # fmt: skip
+        return paginator.get_paginated_response(rows)
+
+
+class PlatformHistoryView(APIView):
+    """Журнал изменений тарифов и подписок: фильтры kind (plan|subscription) и key."""
+
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+
+    def get(self, request):
+        from apps.core.pagination import StandardPagination
+
+        qs = BillingEvent.objects.all()
+        kind = request.query_params.get("kind")
+        if kind:
+            if kind not in dict(BillingEvent.KINDS):
+                raise ValidationError({"kind": "Допустимо: plan, subscription"})
+            qs = qs.filter(kind=kind)
+        if key := request.query_params.get("key"):
+            qs = qs.filter(key=key)
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(qs, request)
+        rows = [
+            {"id": e.pk, "kind": e.kind, "key": e.key, "action": e.action, "changes": e.changes,
+             "actor": e.actor, "created_at": e.created_at}
+            for e in page
+        ]  # fmt: skip
+        return paginator.get_paginated_response(rows)

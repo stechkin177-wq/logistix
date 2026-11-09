@@ -1,6 +1,9 @@
 import type { ReactElement } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { CarriersPage } from '../features/carriers/CarriersPage'
+import { CompaniesPage } from '../features/platform/CompaniesPage'
+import { HistoryPage } from '../features/platform/HistoryPage'
+import { PlansPage } from '../features/platform/PlansPage'
 import { DriversPage } from '../features/drivers/DriversPage'
 import { VehiclesPage } from '../features/fleet/VehiclesPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
@@ -44,6 +47,9 @@ const PAGES: Record<string, () => ReactElement> = {
   '/transfers': TransfersPage,
   '/vehicles': VehiclesPage,
   '/drivers': DriversPage,
+  '/platform/plans': PlansPage,
+  '/platform/companies': CompaniesPage,
+  '/platform/history': HistoryPage,
   '/finance': FinancePage,
   '/documents': DocumentsPage,
   '/trash': TrashPage,

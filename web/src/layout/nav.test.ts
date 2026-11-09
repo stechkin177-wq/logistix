@@ -5,10 +5,18 @@ import { NAV, flattenNav, visibleNav, type NavItem } from './nav'
 const keys = (items: NavItem[]) => flattenNav(items).map((i) => i.key)
 const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers']
 const admin = { permissions: ALL_PERMISSIONS, modules: ALL_MODULES }
+const platformAdmin = { ...admin, user: { is_platform_admin: true } }
 
 describe('visibleNav', () => {
-  it('показывает всё администратору со всеми модулями', () => {
-    expect(keys(visibleNav(admin))).toEqual(keys(NAV))
+  it('показывает всё администратору платформы со всеми модулями', () => {
+    expect(keys(visibleNav(platformAdmin))).toEqual(keys(NAV))
+  })
+
+  it('администратору компании раздел «Платформа» не показывается', () => {
+    const shown = keys(visibleNav(admin))
+    expect(shown).not.toContain('platform')
+    expect(shown).not.toContain('platformplans')
+    expect(shown).toContain('orders')
   })
 
   it('прячет пункты модуля, если модуль не включён', () => {

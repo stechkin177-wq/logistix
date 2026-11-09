@@ -129,3 +129,29 @@ class SubscriptionPeriod(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(price__gte=0), name="period_price_gte_0"),
         ]
+
+
+class BillingEvent(models.Model):
+    """Журнал изменений тарифов и подписок компаний (платформенный, без привязки к компании).
+
+    Пишется при каждом изменении администратором платформы: что изменено ({поле: [было, стало]}),
+    кем и когда. Записи не редактируются и не удаляются.
+    """
+
+    PLAN = "plan"
+    SUBSCRIPTION = "subscription"
+    KINDS = [(PLAN, "Тариф"), (SUBSCRIPTION, "Подписка компании")]
+
+    kind = models.CharField(max_length=16, choices=KINDS)
+    key = models.CharField(max_length=64)  # код тарифа или id компании
+    action = models.CharField(max_length=40)
+    changes = models.JSONField(default=dict, blank=True)
+    user = models.ForeignKey(
+        "core.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    actor = models.CharField(max_length=255, blank=True)  # снимок email на момент действия
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+        indexes = [models.Index(fields=["kind", "key"], name="billingevent_kind_key_idx")]

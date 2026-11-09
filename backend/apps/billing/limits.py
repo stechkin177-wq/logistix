@@ -103,7 +103,7 @@ def usage(company_id: int, code: str) -> int | None:
         return qs.count()
 
 
-def check(company_id: int, code: str, adding: int = 1) -> None:
+def check(company_id: int, code: str, adding: int = 1, *, restore: bool = False) -> None:
     """Бросает LimitExceeded, если создание ``adding`` объектов превысит лимит тарифа компании.
 
     Лимит не задан (None) - без проверки. Нет подписки - проверка пропускается. Внутри транзакции
@@ -128,9 +128,17 @@ def check(company_id: int, code: str, adding: int = 1) -> None:
         Company.objects.select_for_update().filter(pk=company_id).first()
     used = usage(company_id, code)
     if used + adding > limit:
+        what = spec["name"].lower()
+        detail = (
+            f"Восстановление невозможно: достигнут лимит тарифа ({what} - {limit}). "
+            "Освободите место или перейдите на тариф с большим лимитом."
+            if restore
+            else f"Достигнут лимит тарифа: {what} - {limit}"
+        )
         raise LimitExceeded(
             {
-                "detail": f"Достигнут лимит тарифа: {spec['name'].lower()} - {limit}",
+                "detail": detail,
+                "action": "restore" if restore else "create",
                 "code": "limit_exceeded",
                 "limit_code": code,
                 "limit": limit,
@@ -180,6 +188,38 @@ def company_usage(company_id: int) -> list[dict]:
             }
         )
     return rows
+
+
+def _codes_for(instance) -> list[dict]:
+    """Лимиты каталога, которые учитывают данный объект (по модели и фильтру)."""
+    label = instance._meta.label
+    return [
+        spec
+        for spec in LIMITS
+        if spec.get("enforced", True) is not False
+        and spec["model"] == label
+        and all(
+            getattr(instance, key, None) == value for key, value in spec.get("filter", {}).items()
+        )
+    ]
+
+
+def check_restore(instance) -> None:
+    """Восстановление из корзины проверяется по лимитам так же, как создание.
+
+    Иначе лимит обходился бы «удалить в корзину и вернуть». Объект месячного лимита, созданный
+    в прошлых месяцах, в текущий месяц не попадает и лимит не занимает. Просмотр корзины не
+    ограничивается. Нет подписки - проверка пропускается.
+    """
+    company_id = getattr(instance, "company_id", None)
+    if company_id is None:
+        return
+    for spec in _codes_for(instance):
+        if spec["scope"] == MONTH:
+            created = getattr(instance, spec["date_field"], None)
+            if created is not None and created < _month_start(company_id):
+                continue
+        check(company_id, spec["code"], restore=True)
 
 
 def _handler(code: str, match: dict):

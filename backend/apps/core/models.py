@@ -233,6 +233,9 @@ class SoftDeleteModel(models.Model):
         return super().delete(using=using, keep_parents=keep_parents)
 
     def restore(self):
+        from apps.billing.limits import check_restore
+
+        check_restore(self)  # возврат из корзины не должен обходить лимиты тарифа
         self.deleted_at = None
         self.save(update_fields=["deleted_at"])
 

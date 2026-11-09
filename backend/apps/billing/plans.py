@@ -15,6 +15,7 @@ from rest_framework.exceptions import APIException
 
 from apps.core import module_catalog
 
+from . import events
 from . import features as feature_catalog
 from . import limits as limit_catalog
 from .models import Plan
@@ -38,6 +39,10 @@ class PlanError(APIException):
         super().__init__(detail={"detail": detail, "code": code}, code=code)
         if status_code is not None:
             self.status_code = status_code
+
+
+def _log(plan, action, changes, by):
+    events.record(events.BillingEvent.PLAN, plan.code, action, changes, by)
 
 
 def _bad(field: str, detail: str) -> PlanError:
@@ -122,7 +127,7 @@ def clean_features(features, modules) -> dict:
 
 
 @transaction.atomic
-def create_plan(*, code: str, **data) -> Plan:
+def create_plan(*, code: str, by=None, **data) -> Plan:
     """Новый тариф: черновик (не предлагается, пока его не опубликуют); порядок - в конец."""
     code = str(code).strip().lower()
     if not CODE_RE.match(code):
@@ -142,18 +147,21 @@ def create_plan(*, code: str, **data) -> Plan:
     modules = clean_modules(content.get("modules", []))
     features = clean_features(content.get("features", {}), modules)
     limits = clean_limits(content.get("limits", {}))
-    return Plan.objects.create(
+    plan = Plan.objects.create(
         code=code, is_active=False, modules=modules, features=features, limits=limits, **data
     )
+    events.record(events.BillingEvent.PLAN, plan.code, "create", events.plan_state(plan), by)
+    return plan
 
 
 @transaction.atomic
-def update_plan(plan: Plan, **data) -> Plan:
+def update_plan(plan: Plan, *, by=None, **data) -> Plan:
     """Правка содержимого тарифа; код не меняется. Действующие подписки не затрагиваются."""
     unknown = set(data) - set(EDITABLE) - set(CONTENT)
     if unknown:
         raise _bad("fields", f"нельзя менять: {', '.join(sorted(unknown))}")
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
+    before = events.plan_state(locked)
     content = {k: data[k] for k in CONTENT if k in data}
     for key, value in _clean({k: v for k, v in data.items() if k in EDITABLE}).items():
         setattr(locked, key, value)
@@ -173,32 +181,36 @@ def update_plan(plan: Plan, **data) -> Plan:
             }
         locked.features = clean_features(raw, locked.modules)
     locked.save()
+    if changes := events.diff(before, events.plan_state(locked)):
+        events.record(events.BillingEvent.PLAN, locked.code, "update", changes, by)
     return locked
 
 
 @transaction.atomic
-def publish(plan: Plan) -> Plan:
+def publish(plan: Plan, by=None) -> Plan:
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     if locked.archived_at is not None:
         raise PlanError("plan_archived", "Архивный тариф сначала верните из архива")
     locked.is_active = True
     locked.save(update_fields=["is_active"])
+    _log(locked, "publish", {"status": ["draft", "active"]}, by)
     return locked
 
 
 @transaction.atomic
-def unpublish(plan: Plan) -> Plan:
+def unpublish(plan: Plan, by=None) -> Plan:
     """Снять с предложения (в черновик). Тариф по умолчанию снять нельзя."""
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     if locked.is_default:
         raise PlanError("plan_is_default", "Сначала назначьте тарифом по умолчанию другой тариф")
     locked.is_active = False
     locked.save(update_fields=["is_active"])
+    _log(locked, "unpublish", {"status": ["active", "draft"]}, by)
     return locked
 
 
 @transaction.atomic
-def archive(plan: Plan) -> Plan:
+def archive(plan: Plan, by=None) -> Plan:
     """В архив: не предлагается новым компаниям; действующие подписки продолжают работать."""
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     if locked.is_default:
@@ -206,20 +218,22 @@ def archive(plan: Plan) -> Plan:
     locked.is_active = False
     locked.archived_at = locked.archived_at or timezone.now()
     locked.save(update_fields=["is_active", "archived_at"])
+    _log(locked, "archive", {"status": ["active", "archived"]}, by)
     return locked
 
 
 @transaction.atomic
-def restore(plan: Plan) -> Plan:
+def restore(plan: Plan, by=None) -> Plan:
     """Из архива в черновик (публикуется отдельным действием)."""
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     locked.archived_at = None
     locked.save(update_fields=["archived_at"])
+    _log(locked, "restore", {"status": ["archived", "draft"]}, by)
     return locked
 
 
 @transaction.atomic
-def set_default(plan: Plan) -> Plan:
+def set_default(plan: Plan, by=None) -> Plan:
     """Тариф для новых компаний: только опубликованный и не архивный; прежний снимается."""
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     if locked.archived_at is not None or not locked.is_active:
@@ -227,11 +241,12 @@ def set_default(plan: Plan) -> Plan:
     Plan.objects.exclude(pk=locked.pk).filter(is_default=True).update(is_default=False)
     locked.is_default = True
     locked.save(update_fields=["is_default"])
+    _log(locked, "set_default", {"is_default": [False, True]}, by)
     return locked
 
 
 @transaction.atomic
-def delete_plan(plan: Plan) -> None:
+def delete_plan(plan: Plan, by=None) -> None:
     """Удаление возможно, только если нет подписок и тариф не по умолчанию; иначе - в архив."""
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
     if locked.is_default:
@@ -241,11 +256,12 @@ def delete_plan(plan: Plan) -> None:
             "plan_has_subscriptions",
             "У тарифа есть подписки: отправьте его в архив, он останется у подключённых компаний",
         )
+    events.record(events.BillingEvent.PLAN, locked.code, "delete", events.plan_state(locked), by)
     locked.delete()
 
 
 @transaction.atomic
-def reorder(codes: list[str]) -> list[Plan]:
+def reorder(codes: list[str], by=None) -> list[Plan]:
     """Порядок показа: тарифы списка получают 10, 20, ... по порядку, остальные идут после них."""
     plans = {p.code: p for p in Plan.objects.select_for_update()}
     if len(set(codes)) != len(codes) or not set(codes) <= set(plans):
@@ -254,6 +270,8 @@ def reorder(codes: list[str]) -> list[Plan]:
     for index, plan in enumerate(ordered, start=1):
         plan.sort_order = index * ORDER_STEP
     Plan.objects.bulk_update(ordered, ["sort_order"])
+    order = [p.code for p in ordered]
+    events.record(events.BillingEvent.PLAN, "*", "reorder", {"order": order}, by)
     return ordered
 
 

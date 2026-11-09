@@ -39,6 +39,7 @@ class SessionView(APIView):
                     "email": user.email,
                     "phone": user.phone,
                     "full_name": user.full_name,
+                    "is_platform_admin": user.is_platform_admin,
                 },
                 "company": {
                     "id": company.pk,
