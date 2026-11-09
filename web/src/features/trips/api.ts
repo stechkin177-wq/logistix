@@ -27,8 +27,15 @@ export const createTrip = (body: TripCreatePayload) => api.post<Trip>('/trips/',
 export const patchTrip = (id: number, body: TripPatchPayload) => api.patch<Trip>(`/trips/${String(id)}/`, body)
 
 /** reason - причина выхода из «Завершён» (нужна только для такого перехода). */
-export const changeTripStatus = (id: number, status: number, reason?: string) =>
-  api.post<Trip>(`/trips/${String(id)}/status/`, reason === undefined ? { status } : { status, reason })
+export interface TripStatusExtra {
+  reason?: string
+  /** Официальный пробег (необязательно): только при выезде в рейс и при завершении. */
+  vehicle_km?: number
+  trailer_km?: number
+}
+
+export const changeTripStatus = (id: number, status: number, extra: TripStatusExtra = {}) =>
+  api.post<Trip>(`/trips/${String(id)}/status/`, { status, ...extra })
 
 export const reassignTrip = (id: number, consignmentIds: number[]) =>
   api.post<Trip>(`/trips/${String(id)}/reassign/`, { consignment_ids: consignmentIds })

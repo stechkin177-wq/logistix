@@ -181,3 +181,30 @@ describe('Рейс: карточка', () => {
     expect(within(dialog).getByRole('button', { name: 'Удалить рейс' })).toBeDisabled()
   })
 })
+
+describe('Рейсы: следующий шаг одной кнопкой', () => {
+  it('«→ В пути» открывает ввод пробега (необязательно) и отправляет статус вместе с пробегом', async () => {
+    const m = loggedIn([...base(), ['POST', '/api/trips/90/status/', { body: makeTrip({ status: 22, status_name: 'В пути' }) }]])
+    renderApp('/trips')
+    await userEvent.click(await screen.findByRole('button', { name: '→ В пути' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Пробег тягача, км'), '120500')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Продолжить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/90/status/')?.body).toEqual({ status: 22, vehicle_km: 120500 }) })
+  })
+
+  it('пробег можно пропустить: уходит только статус', async () => {
+    const m = loggedIn([...base(), ['POST', '/api/trips/90/status/', { body: makeTrip({ status: 22, status_name: 'В пути' }) }]])
+    renderApp('/trips')
+    await userEvent.click(await screen.findByRole('button', { name: '→ В пути' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Продолжить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/90/status/')?.body).toEqual({ status: 22 }) })
+  })
+
+  it('на последнем шаге («Завершён») кнопки следующего шага нет', async () => {
+    loggedIn(base([makeTrip({ status: 23, status_name: 'Завершён' })]))
+    renderApp('/trips')
+    await screen.findByRole('combobox', { name: 'Статус рейса ORD-2026-00005-1' })
+    expect(screen.queryByRole('button', { name: /^→/ })).not.toBeInTheDocument()
+  })
+})

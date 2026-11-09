@@ -440,7 +440,9 @@
     "routeUnassigned": "Не назначено отрезков: {{count}}",
     "routeLane": "Маршрут с назначением рейсов",
     "segmentCovered": "рейс",
-    "segmentUncovered": "Рейс не назначен"
+    "segmentUncovered": "Рейс не назначен",
+    "moreFilters": "Дополнительные фильтры",
+    "blockExtra": "Дополнительно: договор, контакт, условия оплаты и доставки"
   },
   "consignments": {
     "createTrip": "Создать рейс",
@@ -524,7 +526,14 @@
     "legVolume": "Объём, м³",
     "legPallets": "Паллет",
     "legsSection": "Участки грузов",
-    "legStopLabel": "{{seq}}. {{city}} ({{kind}})"
+    "legStopLabel": "{{seq}}. {{city}} ({{kind}})",
+    "nextStep": "→ {{status}}",
+    "odometerTitle": "Перевести в статус «{{status}}»",
+    "odometerHint": "Официальный пробег можно внести сейчас или позже (необязательно).",
+    "vehicleKm": "Пробег тягача, км",
+    "trailerKm": "Пробег прицепа, км",
+    "odometerConfirm": "Продолжить",
+    "odometerInvalid": "Пробег - целое неотрицательное число"
   },
   "trash": {
     "types": {

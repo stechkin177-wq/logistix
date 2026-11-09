@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { changeTripStatus, createTrip, deleteTrip, getTrip, listTrips, patchTrip, reassignTrip } from './api'
+import { changeTripStatus, createTrip, deleteTrip, getTrip, listTrips, patchTrip, reassignTrip, type TripStatusExtra } from './api'
 import type { TripCreatePayload, TripListParams, TripPatchPayload } from './types'
 
 export function useTripList(params: TripListParams) {
@@ -42,7 +42,7 @@ export function usePatchTrip() {
 
 export function useChangeTripStatus() {
   const invalidate = useInvalidateTrips()
-  return useMutation({ mutationFn: ({ id, status, reason }: { id: number; status: number; reason?: string }) => changeTripStatus(id, status, reason), onSuccess: invalidate })
+  return useMutation({ mutationFn: ({ id, status, ...extra }: { id: number; status: number } & TripStatusExtra) => changeTripStatus(id, status, extra), onSuccess: invalidate })
 }
 
 export function useReassignTrip() {

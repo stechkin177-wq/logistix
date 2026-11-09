@@ -8,7 +8,7 @@ import { Badge } from '../../../shared/ui/Badge'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { Dialog } from '../../../shared/ui/Dialog'
-import { TextArea } from '../../../shared/ui/TextField'
+import { TextArea, TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
 import { useChangeTripStatus } from '../hooks'
 import type { Trip } from '../types'
@@ -16,6 +16,10 @@ import type { Trip } from '../types'
 /** Системный код статуса «Завершён»: выход из него требует права и причины. */
 const COMPLETED = 'COMPLETED'
 const REVERT_PERMISSION = 'trips.revert_completed'
+/** Обычный путь рейса: одна кнопка следующего шага по коду статуса (остальные переходы - в списке). */
+const FLOW = ['PLANNED', 'ASSIGNED', 'IN_PROGRESS', 'UNLOADING', 'COMPLETED']
+/** Шаги, при которых можно сразу внести официальный пробег (выезд и завершение). */
+const ODOMETER_STEPS = ['IN_PROGRESS', 'COMPLETED']
 
 /**
  * Статус рейса: с правом trips.update - выпадающий список (POST /trips/{id}/status/), иначе значок.
@@ -30,11 +34,38 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
   const [pending, setPending] = useState<number | null>(null)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | undefined>()
+  const [odo, setOdo] = useState<{ status: number; code: string } | null>(null)
+  const [vehicleKm, setVehicleKm] = useState('')
+  const [trailerKm, setTrailerKm] = useState('')
   if (!canUpdate || statuses.all.length === 0) return <Badge tone="info">{trip.status_name}</Badge>
 
   const current = statuses.all.find((s) => s.id === trip.status)
   const leavingLocked = current?.code === COMPLETED && !hasPermission(REVERT_PERMISSION)
   const target = pending === null ? undefined : statuses.all.find((s) => s.id === pending)
+  // следующий шаг: ближайший по обычному пути статус, который есть в справочнике компании
+  const flowIndex = FLOW.indexOf(current?.code ?? '')
+  const nextStatus = flowIndex < 0 ? undefined : FLOW.slice(flowIndex + 1)
+    .map((code) => statuses.all.find((s) => s.code === code && s.is_active))
+    .find((s) => s !== undefined)
+  const closeOdo = () => { setOdo(null); setVehicleKm(''); setTrailerKm(''); setError(undefined); change.reset() }
+  const submitOdo = () => {
+    if (!odo) return
+    const km = (v: string) => (v.trim() === '' ? undefined : Number(v))
+    const values = { vehicle_km: km(vehicleKm), trailer_km: km(trailerKm) }
+    if (Object.values(values).some((v) => v !== undefined && (!Number.isInteger(v) || v < 0))) { setError(t('trips.odometerInvalid')); return }
+    change.mutate(
+      { id: trip.id, status: odo.status, ...(values.vehicle_km !== undefined ? { vehicle_km: values.vehicle_km } : {}), ...(values.trailer_km !== undefined ? { trailer_km: values.trailer_km } : {}) },
+      { onSuccess: closeOdo, onError: (e) => { setError(errorMessage(e, t)) } },
+    )
+  }
+  const stepForward = () => {
+    if (!nextStatus) return
+    if (ODOMETER_STEPS.includes(nextStatus.code) && !(nextStatus.code === 'IN_PROGRESS' && current?.code === 'UNLOADING')) {
+      setOdo({ status: nextStatus.id, code: nextStatus.code })
+      return
+    }
+    change.mutate({ id: trip.id, status: nextStatus.id }, { onError: (e) => { pushToast('error', errorMessage(e, t)) } })
+  }
   const close = () => { setPending(null); setReason(''); setError(undefined); change.reset() }
 
   const submitRevert = () => {
@@ -48,6 +79,11 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
 
   return (
     <>
+      {nextStatus ? (
+        <Button variant="primary" onClick={stepForward} disabled={change.isPending}>
+          {t('trips.nextStep', { status: nextStatus.name })}
+        </Button>
+      ) : null}
       <select
         aria-label={t('trips.statusOf', { number: trip.number })}
         value={trip.status}
@@ -67,6 +103,25 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           <option key={s.id} value={s.id} disabled={leavingLocked && s.id !== trip.status}>{s.name}</option>
         ))}
       </select>
+      <Dialog
+        open={odo !== null}
+        title={t('trips.odometerTitle', { status: statuses.all.find((x) => x.id === odo?.status)?.name ?? '' })}
+        onClose={closeOdo}
+        busy={change.isPending}
+        footer={
+          <>
+            <Button onClick={closeOdo} disabled={change.isPending}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={submitOdo} disabled={change.isPending}>{t('trips.odometerConfirm')}</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {error ? <Banner kind="error">{error}</Banner> : null}
+          <p className="text-sm text-slate-600 dark:text-slate-300">{t('trips.odometerHint')}</p>
+          <TextField label={t('trips.vehicleKm')} inputMode="numeric" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value) }} />
+          <TextField label={t('trips.trailerKm')} inputMode="numeric" value={trailerKm} onChange={(e) => { setTrailerKm(e.target.value) }} />
+        </div>
+      </Dialog>
       <Dialog
         open={pending !== null}
         title={t('trips.revertTitle')}

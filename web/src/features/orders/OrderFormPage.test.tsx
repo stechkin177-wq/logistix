@@ -159,6 +159,10 @@ describe('Новый заказ', () => {
     loggedIn(base)
     renderApp('/orders/new')
     await screen.findByRole('region', { name: 'Контакты' })
+    // необязательные поля свёрнуты в «Дополнительно» и раскрываются по кнопке
+    expect(screen.queryByLabelText('Контакт клиента')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Номер договора')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Дополнительно/ }))
     expect(screen.getByLabelText('Контакт клиента')).toBeDisabled()
     await pickClient()
     const contact = screen.getByLabelText('Контакт клиента')

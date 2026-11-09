@@ -440,7 +440,9 @@
     "routeUnassigned": "Тағайындалмаған бөлікше: {{count}}",
     "routeLane": "Рейстер тағайындалған маршрут",
     "segmentCovered": "рейс",
-    "segmentUncovered": "Рейс тағайындалмаған"
+    "segmentUncovered": "Рейс тағайындалмаған",
+    "moreFilters": "Қосымша сүзгілер",
+    "blockExtra": "Қосымша: шарт, байланыс, төлем және жеткізу талаптары"
   },
   "consignments": {
     "createTrip": "Рейс құру",
@@ -524,7 +526,14 @@
     "legVolume": "Көлемі, м³",
     "legPallets": "Паллет",
     "legsSection": "Жүк учаскелері",
-    "legStopLabel": "{{seq}}. {{city}} ({{kind}})"
+    "legStopLabel": "{{seq}}. {{city}} ({{kind}})",
+    "nextStep": "→ {{status}}",
+    "odometerTitle": "«{{status}}» күйіне ауыстыру",
+    "odometerHint": "Ресми жүрісті қазір немесе кейін енгізуге болады (міндетті емес).",
+    "vehicleKm": "Тартқыш жүрісі, км",
+    "trailerKm": "Тіркеме жүрісі, км",
+    "odometerConfirm": "Жалғастыру",
+    "odometerInvalid": "Жүріс - теріс емес бүтін сан"
   },
   "trash": {
     "types": {

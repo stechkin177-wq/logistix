@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../../shared/ui/Button'
 import { Combobox } from '../../../shared/ui/Combobox'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { FilterBar, FilterItem } from '../../../shared/ui/FilterBar'
@@ -17,6 +19,12 @@ export function hasFilters(f: OrderListFilters): boolean {
   return JSON.stringify({ ...f }) !== JSON.stringify(EMPTY_FILTERS)
 }
 
+/** Сколько дополнительных (скрытых по умолчанию) фильтров заполнено. */
+export function extraFiltersCount(f: OrderListFilters): number {
+  const keys = ['carrier', 'loading_from', 'loading_to', 'created_from', 'created_to', 'completed_from', 'completed_to'] as const
+  return keys.filter((k) => f[k] !== EMPTY_FILTERS[k]).length + (f.unassigned ? 1 : 0)
+}
+
 interface Props {
   value: OrderListFilters
   onChange: (patch: Partial<OrderListFilters>, opts?: { replace?: boolean }) => void
@@ -29,6 +37,9 @@ export function OrderFilters({ value, onChange, actions }: Props) {
   const { statuses } = useOrderStatuses()
   const client = usePartyOption('clients', value.client)
   const carrier = usePartyOption('carriers', value.carrier)
+  const extraCount = extraFiltersCount(value)
+  const [more, setMore] = useState(false)
+  const showMore = more || extraCount > 0
 
   return (
     <FilterBar
@@ -65,6 +76,15 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       <FilterItem className="w-44">
         <Combobox label={t('orders.client')} queryKey={['clients', 'search']} fetchOptions={searchClients} value={client} onChange={(o) => { onChange({ client: o?.id ?? null }) }} />
       </FilterItem>
+      <Button
+        variant="ghost"
+        aria-expanded={showMore}
+        onClick={() => { setMore(!showMore) }}
+      >
+        {t('orders.moreFilters')}{extraCount ? ` (${String(extraCount)})` : ''}
+      </Button>
+      {showMore ? (
+        <>
       <FilterItem className="w-44">
         <Combobox label={t('orders.carrier')} queryKey={['carriers', 'search']} fetchOptions={searchCarriers} value={carrier} onChange={(o) => { onChange({ carrier: o?.id ?? null }) }} />
       </FilterItem>
@@ -78,6 +98,8 @@ export function OrderFilters({ value, onChange, actions }: Props) {
         <input type="checkbox" checked={value.unassigned} onChange={(event) => { onChange({ unassigned: event.target.checked }) }} />
         {t('orders.unassigned')}
       </label>
+        </>
+      ) : null}
     </FilterBar>
   )
 }

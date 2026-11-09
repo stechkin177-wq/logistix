@@ -76,10 +76,19 @@ describe('Заказы: список', () => {
     const m = loggedIn([ordersRoute(), ...common])
     const { router } = renderApp('/orders?page=3')
     await screen.findByRole('link', { name: 'ORD-2026-00005' })
+    expect(screen.queryByRole('checkbox', { name: 'Без перевозчика' })).not.toBeInTheDocument()  // доп. фильтры скрыты
+    await userEvent.click(screen.getByRole('button', { name: 'Дополнительные фильтры' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Без перевозчика' }))
     await waitFor(() => { expect(router.state.location.search).toContain('unassigned=1') })
     expect(router.state.location.search).not.toContain('page=')
     await waitFor(() => { expect(m.calls.some((c) => c.path.includes('unassigned=1'))).toBe(true) })
+  })
+
+  it('дополнительные фильтры открыты сами, если по ним уже есть выборка, и показывают их число', async () => {
+    loggedIn([ordersRoute(), ...common])
+    renderApp('/orders?unassigned=1&loading_from=2026-01-01')
+    expect(await screen.findByRole('button', { name: 'Дополнительные фильтры (2)' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Без перевозчика' })).toBeChecked()
   })
 
   it('пустой список без фильтров - состояние с кнопкой «Новый заказ»', async () => {

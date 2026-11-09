@@ -53,12 +53,19 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
     initialOrderState(order, { manager: session?.user.id, currency: undefined }),
   )
   const [local, setLocal] = useState<Record<string, string>>({})
+  const [extraOpen, setExtraOpen] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const server: FormErrors = serverErrors(error, t, (path) => ORDER_KNOWN_PATH.test(path))
   const errors = { ...server.fields, ...local }
   useFocusInvalid(formRef, local)
   useFocusInvalid(formRef, error)
 
+  const EXTRA_KEYS = ['contract_number', 'client_ref', 'contact', 'forwarder', 'extra_managers', 'transport_condition', 'delivery_days', 'payment_delay_days', 'payment_delay_condition'] as const
+  // дополнительные поля открыты сами, если в них уже есть значения (правка заказа) или ошибки проверки
+  const showExtra =
+    extraOpen ||
+    EXTRA_KEYS.some((k) => (k === 'extra_managers' ? form.extra_managers.length > 0 : Boolean(form[k]))) ||
+    EXTRA_KEYS.some((k) => errors[k])
   const clientId = form.client?.id ?? null
   const clientDetail = useQuery({
     queryKey: ['clients', 'detail', clientId],
@@ -114,6 +121,32 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
               setLocal((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== 'client')))
             }}
           />
+          {users.allowed ? (
+            <>
+              <Select label={t('orders.manager')} value={form.manager} options={userOptions} error={errors.manager} onChange={(v) => { set('manager', v) }} />
+            </>
+          ) : (
+            <p className="text-xs text-slate-500 md:col-span-3">{t('orders.managerSelf')}</p>
+          )}
+        </div>
+      </Block>
+
+      <Block title={t('orders.blockPrice')}>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <TextField label={t('orders.clientRate')} inputMode="decimal" required value={form.client_rate} error={errors.client_rate} onChange={(e) => { set('client_rate', e.target.value) }} />
+          {currency.allowed ? (
+            <Select label={t('orders.currency')} value={currencyValue} options={selectableValues(currency.all, order?.currency).map((v) => ({ value: String(v.id), label: v.code || v.name }))} error={errors.currency} onChange={(v) => { set('currency', v) }} />
+          ) : null}
+          <TextArea fieldClassName="col-span-2 md:col-span-4" label={t('common.comment')} value={form.comment} error={errors.comment} onChange={(e) => { set('comment', e.target.value) }} />
+        </div>
+      </Block>
+
+      <section aria-label={t('orders.blockExtra')} className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <Button variant="ghost" aria-expanded={showExtra} onClick={() => { setExtraOpen(!showExtra) }}>
+          {showExtra ? '▾' : '▸'} {t('orders.blockExtra')}
+        </Button>
+        {showExtra ? (
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <TextField label={t('orders.contractNumber')} value={form.contract_number} error={errors.contract_number} onChange={(e) => { set('contract_number', e.target.value) }} />
           <TextField label={t('orders.clientRef')} value={form.client_ref} error={errors.client_ref} onChange={(e) => { set('client_ref', e.target.value) }} />
           <Select
@@ -127,7 +160,6 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
           />
           {users.allowed ? (
             <>
-              <Select label={t('orders.manager')} value={form.manager} options={userOptions} error={errors.manager} onChange={(v) => { set('manager', v) }} />
               <Select label={t('orders.forwarder')} value={form.forwarder} placeholder={t('common.none')} options={userOptions} error={errors.forwarder} onChange={(v) => { set('forwarder', v) }} />
               <fieldset className="md:col-span-3">
                 <legend className="mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">{t('orders.extraManagers')}</legend>
@@ -148,17 +180,6 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
                 {errors.extra_managers ? <p className="text-xs text-red-600">{errors.extra_managers}</p> : null}
               </fieldset>
             </>
-          ) : (
-            <p className="text-xs text-slate-500 md:col-span-3">{t('orders.managerSelf')}</p>
-          )}
-        </div>
-      </Block>
-
-      <Block title={t('orders.blockPrice')}>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <TextField label={t('orders.clientRate')} inputMode="decimal" required value={form.client_rate} error={errors.client_rate} onChange={(e) => { set('client_rate', e.target.value) }} />
-          {currency.allowed ? (
-            <Select label={t('orders.currency')} value={currencyValue} options={selectableValues(currency.all, order?.currency).map((v) => ({ value: String(v.id), label: v.code || v.name }))} error={errors.currency} onChange={(v) => { set('currency', v) }} />
           ) : null}
           {transport.allowed ? (
             <Select label={t('orders.transportCondition')} value={form.transport_condition} placeholder={t('common.none')} options={selectableValues(transport.all, order?.transport_condition).map((v) => ({ value: String(v.id), label: v.name }))} error={errors.transport_condition} onChange={(v) => { set('transport_condition', v) }} />
@@ -168,9 +189,9 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
           {delay.allowed ? (
             <Select label={t('orders.paymentDelayCondition')} value={form.payment_delay_condition} placeholder={t('common.none')} options={selectableValues(delay.all, order?.payment_delay_condition).map((v) => ({ value: String(v.id), label: v.name }))} error={errors.payment_delay_condition} onChange={(v) => { set('payment_delay_condition', v) }} />
           ) : null}
-          <TextArea fieldClassName="col-span-2 md:col-span-4" label={t('common.comment')} value={form.comment} error={errors.comment} onChange={(e) => { set('comment', e.target.value) }} />
-        </div>
-      </Block>
+          </div>
+        ) : null}
+      </section>
 
       {mode === 'create' ? (
         <>
