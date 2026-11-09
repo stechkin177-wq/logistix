@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
-from apps.billing.models import Subscription
+from apps.billing.models import Plan, Subscription
 from apps.core import trash
 from apps.core.audit.models import AuditLog
 from apps.core.handbooks.models import HandbookValue
@@ -672,6 +672,7 @@ def test_service_validates_status_itself(company):
 
 
 def test_status_change_requires_orders_update(company, admin_client):
+    Plan.objects.filter(is_default=True).update(limits={})  # тест создаёт сотрудников всех ролей
     d = new_order(admin_client, make_client(company))
     work = status_id(company, "В работе")
     for role in ("Наблюдатель", "Механик", "Бухгалтер"):

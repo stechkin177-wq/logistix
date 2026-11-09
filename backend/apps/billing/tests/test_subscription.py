@@ -496,7 +496,7 @@ def test_subscription_endpoint(client_a, company_a):
     assert data["plan"]["code"] == "start"
     assert set(data["plan"]) == {
         "code", "name", "description", "billing_type", "price", "currency",
-        "limits", "modules", "features",
+        "limits", "modules", "features", "options",
     }  # fmt: skip
     assert data["plan"]["limits"]["max_users"] == 5
     assert data["status"] == "active"
@@ -544,7 +544,7 @@ def test_plans_endpoint_lists_active_without_prices(client_a):
     for p in data:
         assert set(p) == {
         "code", "name", "description", "billing_type", "price", "currency",
-        "limits", "modules", "features",
+        "limits", "modules", "features", "options",
     }  # fmt: skip
 
 

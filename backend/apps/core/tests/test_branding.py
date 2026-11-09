@@ -12,7 +12,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.billing.models import Subscription
+from apps.billing.models import Plan, Subscription
 from apps.core import rls
 from apps.core.api.auth import issue_tokens
 from apps.core.api.branding import BrandingThrottle
@@ -147,6 +147,7 @@ def test_plan_without_white_label_can_still_brand(admin_client, company):
 
 
 def test_permissions(company, admin_client):
+    Plan.objects.filter(is_default=True).update(limits={})  # тест создаёт сотрудников всех ролей
     for role in ("Менеджер", "Диспетчер", "Механик", "Водитель", "Бухгалтер"):
         api = api_with_role(company, role)
         assert api.patch(URL, {"theme": "dark"}, format="json").status_code == 403, role
