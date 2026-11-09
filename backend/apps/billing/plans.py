@@ -13,11 +13,15 @@ from django.utils import timezone
 from rest_framework import status as http
 from rest_framework.exceptions import APIException
 
+from apps.core import module_catalog
+
+from . import features as feature_catalog
 from .models import Plan
 
 CODE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,49}$")
 CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 EDITABLE = ("name", "description", "billing_type", "price", "currency", "sort_order")
+CONTENT = ("modules", "features")  # состав тарифа (T2); лимиты - T3
 ORDER_STEP = 10
 
 
@@ -67,6 +71,40 @@ def _clean(data: dict) -> dict:
     return out
 
 
+def clean_modules(modules) -> list[str]:
+    """Модули тарифа: известные не-core коды без повторов; жёсткие зависимости обязаны входить в
+    тариф (иначе модуль включить нельзя). Профиль компании здесь не участвует."""
+    if not isinstance(modules, list) or not all(isinstance(m, str) for m in modules):
+        raise _bad("modules", "ожидается список кодов модулей")
+    known = {m["code"]: m for m in module_catalog.MODULES if not m["is_core"]}
+    unknown = sorted(set(modules) - set(known))
+    if unknown:
+        raise _bad("modules", f"неизвестные модули: {', '.join(unknown)}")
+    result = list(dict.fromkeys(modules))
+    missing = sorted(
+        {
+            f"{code} -> {dep}"
+            for code in result
+            for dep in known[code]["requires"]
+            if dep != module_catalog.CORE and dep not in result
+        }
+    )
+    if missing:
+        raise PlanError(
+            "plan_modules_incomplete",
+            f"В тариф нужно добавить зависимости: {', '.join(missing)}",
+            http.HTTP_400_BAD_REQUEST,
+        )
+    return result
+
+
+def clean_features(features, modules) -> dict:
+    try:
+        return feature_catalog.normalize(features, modules)
+    except feature_catalog.FeatureError as exc:
+        raise _bad("features", str(exc)) from None
+
+
 @transaction.atomic
 def create_plan(*, code: str, **data) -> Plan:
     """Новый тариф: черновик (не предлагается, пока его не опубликуют); порядок - в конец."""
@@ -75,6 +113,7 @@ def create_plan(*, code: str, **data) -> Plan:
         raise _bad("code", "латиница, цифры, «-» и «_», до 50 символов")
     if Plan.objects.filter(code=code).exists():
         raise PlanError("plan_code_taken", "Тариф с таким кодом уже есть")
+    content = {k: data.pop(k) for k in CONTENT if k in data}
     data = _clean({"billing_type": Plan.MONTHLY, "currency": "KZT", "price": 0, **data})
     if "name" not in data:
         raise _bad("name", "укажите название")
@@ -84,18 +123,35 @@ def create_plan(*, code: str, **data) -> Plan:
     unknown = set(data) - set(EDITABLE)
     if unknown:
         raise _bad("fields", f"неизвестные поля: {', '.join(sorted(unknown))}")
-    return Plan.objects.create(code=code, is_active=False, **data)
+    modules = clean_modules(content.get("modules", []))
+    features = clean_features(content.get("features", {}), modules)
+    return Plan.objects.create(
+        code=code, is_active=False, modules=modules, features=features, **data
+    )
 
 
 @transaction.atomic
 def update_plan(plan: Plan, **data) -> Plan:
     """Правка содержимого тарифа; код не меняется. Действующие подписки не затрагиваются."""
-    unknown = set(data) - set(EDITABLE)
+    unknown = set(data) - set(EDITABLE) - set(CONTENT)
     if unknown:
         raise _bad("fields", f"нельзя менять: {', '.join(sorted(unknown))}")
     locked = Plan.objects.select_for_update().get(pk=plan.pk)
-    for key, value in _clean(data).items():
+    content = {k: data[k] for k in CONTENT if k in data}
+    for key, value in _clean({k: v for k, v in data.items() if k in EDITABLE}).items():
         setattr(locked, key, value)
+    if "modules" in content:
+        locked.modules = clean_modules(content["modules"])
+    if "modules" in content or "features" in content:
+        # функции проверяются по итоговому набору модулей; убранный модуль убирает свои функции
+        raw = content.get("features", locked.features)
+        if "features" not in content:
+            raw = {
+                k: v
+                for k, v in (locked.features or {}).items()
+                if feature_catalog.BY_CODE[k]["module"] in ("core", *locked.modules)
+            }
+        locked.features = clean_features(raw, locked.modules)
     locked.save()
     return locked
 

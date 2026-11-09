@@ -30,7 +30,9 @@ class Plan(models.Model):
     sort_order = models.PositiveIntegerField(default=0)
     limits = models.JSONField(default=dict, blank=True)
     modules = models.JSONField(default=list, blank=True)
-    options = models.JSONField(default=dict, blank=True)
+    # функции внутри модулей {код: True | уровень}; каталог - apps/billing/features.py
+    features = models.JSONField(default=dict, blank=True)
+    options = models.JSONField(default=dict, blank=True)  # служебные метки миграций
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)

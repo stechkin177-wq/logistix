@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
-from . import plans
+from . import features, plans
 from .models import Plan
 from .services import days_left, effective_status, get_subscription
 
@@ -18,15 +18,8 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             "code", "name", "description", "billing_type", "price", "currency",
-            "limits", "modules", "options",
+            "limits", "modules", "features",
         ]  # fmt: skip
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        # служебные метки миграций (ключи с «_») наружу не отдаются
-        options = data["options"] or {}
-        data["options"] = {k: v for k, v in options.items() if not k.startswith("_")}
-        return data
 
 
 class PlanListView(ListAPIView):
@@ -71,7 +64,7 @@ class AdminPlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             "code", "name", "description", "billing_type", "price", "currency", "sort_order",
-            "status", "is_default", "limits", "modules", "options", "archived_at",
+            "status", "is_default", "limits", "modules", "features", "archived_at",
             "subscriptions_count",
         ]  # fmt: skip
         read_only_fields = fields
@@ -149,3 +142,23 @@ class AdminPlanViewSet(ViewSet):
             raise ValidationError({"codes": "Ожидается список кодов тарифов"})
         plans.reorder(codes)
         return self.list(request)
+
+
+class PlatformCatalogView(APIView):
+    """Что можно включать в тариф: модули (с зависимостями) и функции (с видами и уровнями)."""
+
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+
+    def get(self, request):
+        from apps.core import module_catalog
+
+        modules = [
+            {
+                "code": m["code"], "name": m["name"], "description": m["description"],
+                "requires": [r for r in m["requires"] if r != module_catalog.CORE],
+                "status": m["status"],
+            }
+            for m in module_catalog.MODULES
+            if not m["is_core"]
+        ]  # fmt: skip
+        return Response({"modules": modules, "features": features.FEATURES})

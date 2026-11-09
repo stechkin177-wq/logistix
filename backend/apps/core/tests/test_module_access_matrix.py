@@ -102,6 +102,7 @@ def test_session_modules_are_effective_list_and_format_unchanged(make_company):
         "companies",
         "role",
         "modules",
+        "features",
         "permissions",
         "branding",
         "subscription",

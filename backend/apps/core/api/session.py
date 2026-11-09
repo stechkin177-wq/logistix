@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.billing.features import available_features
 from apps.billing.permissions import subscription_state
 from apps.billing.services import days_left, grace_days_left
 from apps.core import branding as branding_rules
@@ -30,6 +31,7 @@ class SessionView(APIView):
         now = timezone.now()
         # оформление без права company.view (его нет у большинства ролей); строку не создаём
         branding = CompanyBranding.objects.filter(company_id=company.pk).first()
+        modules = effective_modules(company, sub.plan)
         return Response(
             {
                 "user": {
@@ -46,7 +48,8 @@ class SessionView(APIView):
                 },
                 "companies": companies_payload(memberships_of(user).order_by("id")),
                 "role": {"id": role.pk, "name": role.name} if role else None,
-                "modules": effective_modules(company, sub.plan),
+                "modules": modules,
+                "features": available_features(sub.plan, modules),  # функции тарифа и модулей
                 "permissions": list(role.permissions) if role else [],
                 "branding": branding_rules.branding_payload(branding or CompanyBranding(), request),
                 "subscription": {

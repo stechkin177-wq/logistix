@@ -153,9 +153,9 @@ def test_default_plans_seeded():
         expected = ["forwarding", "fleet", "finance", "documents", "logistics", "drivers"]
         assert plan.modules == expected
         assert plan.is_active
-    assert _public(plans["start"].options) == {"white_label": False, "custom_domain": False}
-    assert _public(plans["business"].options) == {"white_label": True, "custom_domain": True}
-    assert _public(plans["lifetime"].options) == {"white_label": True, "custom_domain": True}
+    assert plans["start"].features == {}
+    assert plans["business"].features == {"white_label": True, "custom_domain": True}
+    assert plans["lifetime"].features == {"white_label": True, "custom_domain": True}
 
 
 def test_create_company_creates_free_year_subscription(owner_a):
@@ -496,7 +496,7 @@ def test_subscription_endpoint(client_a, company_a):
     assert data["plan"]["code"] == "start"
     assert set(data["plan"]) == {
         "code", "name", "description", "billing_type", "price", "currency",
-        "limits", "modules", "options",
+        "limits", "modules", "features",
     }  # fmt: skip
     assert data["plan"]["limits"]["max_users"] == 5
     assert data["status"] == "active"
@@ -544,7 +544,7 @@ def test_plans_endpoint_lists_active_without_prices(client_a):
     for p in data:
         assert set(p) == {
         "code", "name", "description", "billing_type", "price", "currency",
-        "limits", "modules", "options",
+        "limits", "modules", "features",
     }  # fmt: skip
 
 
