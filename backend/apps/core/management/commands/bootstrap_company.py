@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core.validators import validate_email
 from django.db import transaction
 
-from apps.core.models import Membership, User
+from apps.core.models import ActivityProfile, Membership, User
 from apps.core.phone import normalize_phone
 from apps.core.services import VALID_MODULES, create_company_with_defaults
 
@@ -40,8 +40,15 @@ class Command(BaseCommand):
         parser.add_argument("--owner-name", default="", help="ФИО владельца")
         parser.add_argument(
             "--modules",
-            default="logistics,forwarding",
-            help="Модули через запятую: logistics[,forwarding,fleet,drivers] (+ finance, docs)",
+            default=None,
+            help="Модули через запятую: logistics[,forwarding,fleet,drivers] (+ finance, docs); "
+            "по умолчанию logistics,forwarding",
+        )
+        parser.add_argument(
+            "--profile",
+            default="",
+            help="Код профиля деятельности (GET /api/activity-profiles/): стартовый набор модулей; "
+            "вместо --modules, далее набор правится вручную",
         )
         parser.add_argument(
             "--allow-existing-user",
@@ -70,6 +77,7 @@ class Command(BaseCommand):
         owner_login,
         owner_name,
         modules,
+        profile,
         password_env,
         allow_existing_user,
         **options,
@@ -77,6 +85,16 @@ class Command(BaseCommand):
         name = name.strip()
         if not name:
             raise CommandError("--name не может быть пустым")
+        if profile and modules is not None:
+            raise CommandError("Укажите либо --profile, либо --modules")
+        if profile:
+            found = ActivityProfile.objects.filter(code=profile).first()
+            if found is None:
+                known = ", ".join(ActivityProfile.objects.values_list("code", flat=True))
+                raise CommandError(f"Профиль {profile!r} не найден; доступны: {known}")
+            modules = ",".join(c for c in found.modules if c in VALID_MODULES)
+        if modules is None:
+            modules = "logistics,forwarding"
         module_list = [m.strip() for m in modules.split(",") if m.strip()]
         if not module_list or not set(module_list) <= VALID_MODULES:
             raise CommandError(f"--modules: непустое подмножество {sorted(VALID_MODULES)}")

@@ -109,3 +109,22 @@ def test_interactive_password_mismatch(monkeypatch):
     monkeypatch.setattr("getpass.getpass", lambda prompt="": next(answers))
     with pytest.raises(CommandError, match="не совпадают"):
         call_command("bootstrap_company", "--name", "X", "--owner-login", "x@x.kz")
+
+
+@pytest.mark.django_db
+def test_profile_sets_starting_modules(monkeypatch, capsys):
+    from apps.core.models import ActivityProfile
+
+    profile = ActivityProfile.objects.get(code="carrier")
+    run(monkeypatch, capsys, "--profile", "carrier")
+    company = Company.objects.get(name="ТОО Альфа")
+    assert set(profile.modules) - {"core"} <= set(company.modules)
+
+
+@pytest.mark.django_db
+def test_profile_unknown_or_with_modules_is_rejected(monkeypatch, capsys):
+    with pytest.raises(CommandError, match="не найден"):
+        run(monkeypatch, capsys, "--profile", "nope")
+    with pytest.raises(CommandError, match="либо"):
+        run(monkeypatch, capsys, "--profile", "carrier", "--modules", "fleet")
+    assert not Company.objects.filter(name="ТОО Альфа").exists()
