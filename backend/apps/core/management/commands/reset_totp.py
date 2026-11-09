@@ -1,9 +1,8 @@
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 
 from apps.billing import events
 from apps.billing.models import BillingEvent
-from apps.core.models import User
+from apps.core.models import User, token_clock
 from apps.core.phone import normalize_phone
 
 
@@ -24,7 +23,7 @@ class Command(BaseCommand):
         if user is None or not user.is_platform_admin:
             raise CommandError("Платформенный аккаунт не найден")
         user.totp_secret, user.totp_enabled, user.totp_last_step = "", False, 0
-        user.tokens_valid_after = timezone.now()
+        user.tokens_valid_after = token_clock()
         user.save(
             update_fields=["totp_secret", "totp_enabled", "totp_last_step", "tokens_valid_after"]
         )

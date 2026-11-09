@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.core.exceptions import ValidationError
@@ -10,6 +12,12 @@ from . import branding
 from .managers import AllObjectsManager, SoftDeleteManager, TenantManager
 from .phone import normalize_phone
 from .tenancy import NoTenantContext, TenantMismatch, get_current_company_id
+
+
+def token_clock():
+    """Реальные часы, как у simplejwt для iat (не зависят от подмены timezone.now)."""
+    return datetime.datetime.now(datetime.UTC)
+
 
 PLATFORM_OWNER = "owner"
 PLATFORM_ADMIN = "admin"
@@ -90,7 +98,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     def set_password(self, raw_password):
         """Любая смена пароля (форма, changepassword, админка) отзывает прежние токены."""
         super().set_password(raw_password)
-        self.tokens_valid_after = timezone.now()
+        if self.pk is not None:  # у нового пользователя токенов ещё нет
+            self.tokens_valid_after = token_clock()
 
     def tokens_revoked(self, token) -> bool:
         """Токен выдан до отзыва (iat раньше tokens_valid_after) либо без метки времени."""

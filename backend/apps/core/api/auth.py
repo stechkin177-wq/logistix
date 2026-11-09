@@ -6,7 +6,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -22,7 +21,7 @@ from apps.billing.models import Subscription
 from apps.billing.permissions import SubscriptionBlocked
 from apps.billing.services import company_status
 from apps.core import audit, password_setup, platform, totp
-from apps.core.models import Membership
+from apps.core.models import Membership, token_clock
 from apps.core.phone import normalize_phone
 from apps.core.tenancy import get_current_company_id
 
@@ -303,7 +302,7 @@ class PasswordChangeView(PlatformAwareGate, APIView):
             raise serializers.ValidationError({"new_password": list(exc.messages)}) from None
         with transaction.atomic():
             user.set_password(new)
-            user.tokens_valid_after = timezone.now()  # прежние токены (и других устройств) отозваны
+            user.tokens_valid_after = token_clock()  # прежние токены (и других устройств) отозваны
             user.save(update_fields=["password", "tokens_valid_after"])
             audit.log("update", user, user, {"password": "***"}, ip=audit.client_ip(request))
         # текущая сессия продолжается на новых токенах того же контекста
@@ -341,7 +340,7 @@ class LogoutView(APIView):
 
     def post(self, request):
         user = request.user
-        user.tokens_valid_after = timezone.now()
+        user.tokens_valid_after = token_clock()
         user.save(update_fields=["tokens_valid_after"])
         if user.is_platform_admin:
             _platform_auth_event(request, user, "logout")
