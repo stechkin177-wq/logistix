@@ -16,6 +16,7 @@ export interface Vehicle {
   volume_m3: string | null
   status: VehicleStatus
   gps_check: boolean
+  initial_odometer_km: number | null
   notes: string
 }
 
@@ -44,7 +45,10 @@ export interface Reminder {
 export interface MileageCheck {
   enabled: boolean
   official_km?: number | null
+  official_source?: 'trip' | 'initial' | null
   gps_km?: number | null
+  /** Время последнего полученного значения GPS (насколько оно актуально). */
+  gps_received_at?: string | null
   gps_available?: boolean
   difference_km?: number | null
   threshold_km?: number
@@ -56,7 +60,7 @@ export interface OfficialMileage {
   trip: number | null
   recorded_at: string
   odometer_km: number
-  source: 'trip_start' | 'trip_end' | 'manual'
+  source: 'trip_start' | 'trip_end'
 }
 
 export interface FuelStats {

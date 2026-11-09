@@ -8,7 +8,7 @@ import { renderApp } from '../../test/renderApp'
 const MODULES = ['logistics', 'fleet', 'documents']
 const VEHICLE = {
   id: 3, kind: 'tractor', plate: '777AAA01', vin: '', make: 'Volvo', model: 'FH', year: 2020, body_type: '', capacity_kg: null,
-  volume_m3: null, status: 'active', gps_check: true, notes: '', documents: [], insurances: [],
+  volume_m3: null, status: 'active', gps_check: true, initial_odometer_km: 500, notes: '', documents: [], insurances: [],
 }
 const REMINDERS = {
   count: 2,
@@ -55,7 +55,7 @@ describe('Техника', () => {
     loggedIn(
       [
         ...base,
-        ['GET', '/api/vehicles/3/mileage-check/', { body: { enabled: true, official_km: 1000, gps_km: 1300, gps_available: true, difference_km: 300, threshold_km: 100, warning: true } }],
+        ['GET', '/api/vehicles/3/mileage-check/', { body: { enabled: true, official_km: 1000, gps_km: 1300, gps_received_at: '2026-06-02T09:30:00Z', gps_available: true, difference_km: 300, threshold_km: 100, warning: true } }],
       ],
       { session: { modules: MODULES } },
     )
@@ -63,6 +63,24 @@ describe('Техника', () => {
     await userEvent.click(await screen.findByRole('button', { name: '777AAA01' }))
     const check = await screen.findByRole('region', { name: 'Сверка пробега' })
     expect(await within(check).findByText('Расхождение больше 100 км')).toBeInTheDocument()
+    expect(within(check).getByText('Данные GPS получены: 2026-06-02 09:30')).toBeInTheDocument()
+  })
+
+  it('начальный пробег — отдельное поле карточки и уходит в сохранение', async () => {
+    const m = loggedIn(
+      [...base, ['GET', '/api/vehicles/3/mileage-check/', { body: { enabled: false } }], ['PATCH', '/api/vehicles/3/', { body: VEHICLE }]],
+      { session: { modules: MODULES } },
+    )
+    renderApp('/vehicles')
+    await userEvent.click(await screen.findByRole('button', { name: '777AAA01' }))
+    const drawer = await screen.findByRole('dialog')
+    const initial = within(drawer).getByLabelText('Начальный пробег, км')
+    expect(initial).toHaveValue('500')
+    await userEvent.clear(initial)
+    await userEvent.type(initial, '800')
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => { expect(m.calls.some((c) => c.method === 'PATCH')).toBe(true) })
+    expect(m.calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ initial_odometer_km: 800 })
   })
 
   it('вкладка заправок: средний расход и добавление записи с привязкой к технике', async () => {

@@ -19,7 +19,7 @@ import { VEHICLE_KINDS, VEHICLE_STATUSES, type Vehicle, type VehicleKind, type V
 
 type TabKey = 'main' | 'documents' | 'insurance' | 'service' | 'fuel' | 'history'
 const TAB_KEYS: TabKey[] = ['main', 'documents', 'insurance', 'service', 'fuel', 'history']
-const KNOWN = /^(kind|plate|vin|make|model|year|body_type|capacity_kg|volume_m3|status|gps_check|notes)$/
+const KNOWN = /^(kind|plate|vin|make|model|year|body_type|capacity_kg|volume_m3|status|gps_check|initial_odometer_km|notes)$/
 
 interface FormState {
   kind: VehicleKind
@@ -33,6 +33,7 @@ interface FormState {
   volume_m3: string
   status: VehicleStatus
   gps_check: boolean
+  initial_odometer_km: string
   notes: string
 }
 
@@ -48,6 +49,7 @@ const initial = (v: Vehicle | null): FormState => ({
   volume_m3: v?.volume_m3 ?? '',
   status: v?.status ?? 'active',
   gps_check: v?.gps_check ?? false,
+  initial_odometer_km: v?.initial_odometer_km != null ? String(v.initial_odometer_km) : '',
   notes: v?.notes ?? '',
 })
 
@@ -90,6 +92,7 @@ function MainTab({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () =>
           year: form.year ? Number(form.year) : null,
           capacity_kg: form.capacity_kg ? Number(form.capacity_kg) : null,
           volume_m3: form.volume_m3 || null,
+          initial_odometer_km: form.initial_odometer_km ? Number(form.initial_odometer_km) : null,
         },
       },
       { onSuccess: onClose, onError: (e) => { setErrors(serverErrors(e, t, (p) => KNOWN.test(p))) } },
@@ -111,6 +114,7 @@ function MainTab({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () =>
         <TextField label={t('fleet.capacityKg')} inputMode="numeric" value={form.capacity_kg} error={f.capacity_kg} onChange={(e) => { set('capacity_kg', e.target.value) }} />
         <TextField label={t('fleet.volumeM3')} inputMode="decimal" value={form.volume_m3} error={f.volume_m3} onChange={(e) => { set('volume_m3', e.target.value) }} />
         <Select label={t('common.status')} value={form.status} options={VEHICLE_STATUSES.map((s) => ({ value: s, label: t(`fleet.status.${s}`) }))} onChange={(v) => { set('status', v as VehicleStatus) }} />
+        <TextField label={t('fleet.initialKm')} hint={t('fleet.initialKmHint')} inputMode="numeric" value={form.initial_odometer_km} error={f.initial_odometer_km} onChange={(e) => { set('initial_odometer_km', e.target.value) }} />
         <Checkbox label={t('fleet.gpsCheck')} checked={form.gps_check} onChange={(e) => { set('gps_check', e.target.checked) }} />
         <TextArea fieldClassName="col-span-2" label={t('common.comment')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
       </div>
@@ -137,10 +141,14 @@ function MileageCheckBlock({ id }: { id: number }) {
   return (
     <section aria-label={t('fleet.mileageCheck')} className="rounded border border-slate-200 p-2 text-sm dark:border-slate-700">
       <div className="font-medium">{t('fleet.mileageCheck')}</div>
-      <div>{t('fleet.officialKm')}: {d.official_km ?? '—'}</div>
+      <div>
+        {t('fleet.officialKm')}: {d.official_km ?? '—'}
+        {d.official_source === 'initial' ? ` (${t('fleet.initialShort')})` : ''}
+      </div>
       {d.gps_available ? (
         <>
           <div>{t('fleet.gpsKm')}: {d.gps_km}</div>
+          <div className="text-slate-500">{t('fleet.gpsReceivedAt')}: {d.gps_received_at ? d.gps_received_at.slice(0, 16).replace('T', ' ') : '—'}</div>
           <div>{t('fleet.differenceKm')}: {d.difference_km ?? '—'}</div>
           {d.warning ? <Badge tone="danger">{t('fleet.mileageMismatch', { km: d.threshold_km })}</Badge> : null}
         </>

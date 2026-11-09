@@ -1,5 +1,7 @@
 """Официальный пробег: только выезд и завершение рейса; справочный пробег; сверка с GPS."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from apps.core.tenancy import tenant_context
@@ -125,7 +127,7 @@ def test_gps_unavailable_when_no_source(co):
             vehicle=v, odometer_km=1000, source="trip_end", recorded_at="2026-06-01T10:00:00Z"
         )
     data = api.get(f"/api/vehicles/{v.pk}/mileage-check/").json()
-    assert data["enabled"] and data["gps_available"] is False
+    assert data["enabled"] and data["gps_available"] is False and data["gps_received_at"] is None
     assert data["official_km"] == 1000 and data["gps_km"] is None and data["warning"] is False
 
 
@@ -136,11 +138,16 @@ def test_gps_difference_warning_threshold_and_no_side_effects(co):
         MileageReading.objects.create(
             vehicle=v, odometer_km=10000, source="trip_end", recorded_at="2026-06-01T10:00:00Z"
         )
-    source = lambda vehicle, at: 10080  # noqa: E731
+    received = datetime(2026, 6, 2, 9, 30, tzinfo=UTC)
+
+    def source(vehicle, now):
+        return 10080, received
+
     services.register_gps_source(source)
     try:
         data = api.get(f"/api/vehicles/{v.pk}/mileage-check/").json()
         assert (data["official_km"], data["gps_km"], data["difference_km"]) == (10000, 10080, 80)
+        assert data["gps_received_at"].startswith("2026-06-02T09:30:00")  # актуальность данных
         assert data["warning"] is False  # порог по умолчанию 100 км
         lowered = api.patch("/api/fleet/settings/", {"gps_mismatch_km": 50}, format="json")
         assert lowered.status_code == 200
@@ -165,3 +172,61 @@ def test_fleet_settings_validation_and_rights(co):
     for bad in (-1, "x", True, 10**7, None):
         r = api.patch("/api/fleet/settings/", {"gps_mismatch_km": bad}, format="json")
         assert r.status_code == 400, bad
+
+
+# --- начальный пробег ---
+
+
+def test_initial_odometer_is_separate_value_floor_and_fallback(co):
+    company, _, api = co
+    v = veh(company, gps_check=True, initial_odometer_km=50000)
+    # до первого рейса официальный пробег - начальный (это не запись истории)
+    data = api.get(f"/api/vehicles/{v.pk}/mileage-check/").json()
+    assert data["official_km"] == 50000 and data["official_source"] == "initial"
+    assert official(company, v) == []
+    _, ids = make_cargos(company)
+    trip = new_trip(api, ids, vehicle=v.pk)
+    assert status(api, company, trip["id"], "IN_PROGRESS", vehicle_km=49000).status_code == 400
+    assert status(api, company, trip["id"], "IN_PROGRESS", vehicle_km=50100).status_code == 200
+    data = api.get(f"/api/vehicles/{v.pk}/mileage-check/").json()
+    assert data["official_km"] == 50100 and data["official_source"] == "trip"
+    # начальный пробег нельзя поднять выше первого показания по рейсу
+    bad = api.patch(f"/api/vehicles/{v.pk}/", {"initial_odometer_km": 60000}, format="json")
+    assert bad.status_code == 400
+    ok = api.patch(f"/api/vehicles/{v.pk}/", {"initial_odometer_km": 40000}, format="json")
+    assert ok.status_code == 200 and ok.json()["initial_odometer_km"] == 40000
+
+
+def test_manual_readings_migration_moves_earliest_to_initial_and_drops_rest(co):
+    import importlib
+    from types import SimpleNamespace
+
+    from django.apps import apps as global_apps
+    from django.db import connection
+
+    company, _, _ = co
+    v = veh(company, "M1")
+    other = veh(company, "M2", initial_odometer_km=7)
+    with tenant_context(company.id):
+        with connection.cursor() as cursor:  # состояние «до 0004»: ограничение источника снято
+            cursor.execute("ALTER TABLE fleet_mileagereading DROP CONSTRAINT mileage_source_valid")
+        for vehicle, km, at in (
+            (v, 1000, "2026-05-01T10:00:00Z"),
+            (v, 2000, "2026-06-01T10:00:00Z"),
+            (other, 5, "2026-05-01T10:00:00Z"),
+        ):
+            MileageReading.objects.create(
+                vehicle=vehicle, odometer_km=km, source="manual", recorded_at=at
+            )
+        MileageReading.objects.create(
+            vehicle=v, odometer_km=3000, source="trip_end", recorded_at="2026-07-01T10:00:00Z"
+        )
+    migration = importlib.import_module("apps.fleet.migrations.0004_initial_odometer")
+    migration.manual_to_initial(global_apps, SimpleNamespace(connection=connection))
+    with tenant_context(company.id):
+        v.refresh_from_db()
+        other.refresh_from_db()
+        assert v.initial_odometer_km == 1000  # самое раннее ручное показание
+        assert other.initial_odometer_km == 7  # уже заданный начальный пробег не затирается
+        remaining = list(MileageReading.objects.values_list("source", "odometer_km"))
+        assert remaining == [("trip_end", 3000)]  # ручные удалены, показания рейсов сохранены

@@ -43,6 +43,9 @@ class Vehicle(TenantModel, SoftDeleteModel):
     # «Сверять пробег по GPS»: только показывает расхождение, официальный пробег не меняет.
     # Независимо от подключения GPS для отслеживания местоположения.
     gps_check = models.BooleanField(default=False)
+    # Начальный пробег при подключении техники к системе: отдельное значение, не запись истории.
+    # Официальный пробег затем формируется только показаниями рейсов (выезд и завершение).
+    initial_odometer_km = models.PositiveIntegerField(null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -158,17 +161,13 @@ class MileageReading(TenantModel):
     Фиксируется только при выезде в рейс (``trip_start``) и после его завершения по отчёту
     водителя (``trip_end``). Пробег, указанный в заправках, обслуживании, страховках и других
     записях, - справочная информация и сюда не попадает. GPS показания не создаёт и не меняет.
-    ``manual`` - только прежние записи, новые не создаются. Показания не убывают во времени.
+    Произвольных ручных записей нет; начальный пробег - ``Vehicle.initial_odometer_km``.
+    Показания не убывают во времени.
     """
 
     TRIP_START = "trip_start"
     TRIP_END = "trip_end"
-    MANUAL = "manual"
-    SOURCES = [
-        (TRIP_START, "Выезд в рейс"),
-        (TRIP_END, "Завершение рейса"),
-        (MANUAL, "Прежняя запись"),
-    ]
+    SOURCES = [(TRIP_START, "Выезд в рейс"), (TRIP_END, "Завершение рейса")]
 
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="mileage")
     # рейс-источник; рейс не удаляется физически (корзина), SET_NULL - на случай жёсткой очистки
@@ -187,7 +186,7 @@ class MileageReading(TenantModel):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(source__in=["trip_start", "trip_end", "manual"]),
+                condition=Q(source__in=["trip_start", "trip_end"]),
                 name="mileage_source_valid",
             ),
             models.UniqueConstraint(

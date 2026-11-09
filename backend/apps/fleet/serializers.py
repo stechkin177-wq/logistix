@@ -66,6 +66,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             "volume_m3",
             "status",
             "gps_check",
+            "initial_odometer_km",
             "notes",
             "documents",
             "insurances",
@@ -83,6 +84,16 @@ class VehicleSerializer(serializers.ModelSerializer):
     def validate_year(self, value):
         if value is not None and not 1950 <= value <= 2100:
             raise serializers.ValidationError("Некорректный год выпуска")
+        return value
+
+    def validate_initial_odometer_km(self, value):
+        """Начальный пробег не больше первого показания по рейсу (иначе пробег «убывал» бы)."""
+        if value is not None and self.instance is not None:
+            first = self.instance.mileage.order_by("recorded_at", "id").first()
+            if first is not None and value > first.odometer_km:
+                raise serializers.ValidationError(
+                    f"Начальный пробег больше первого показания по рейсу ({first.odometer_km} км)"
+                )
         return value
 
     def validate_volume_m3(self, value):

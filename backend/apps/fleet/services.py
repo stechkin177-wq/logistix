@@ -49,6 +49,11 @@ def check_odometer(vehicle: Vehicle, km: int, at: datetime, *, exclude_id=None) 
         raise ValidationError(
             {"odometer_km": f"Пробег меньше предыдущего показания ({before.odometer_km} км)"}
         )
+    initial = vehicle.initial_odometer_km
+    if before is None and initial is not None and km < initial:
+        raise ValidationError(
+            {"odometer_km": f"Пробег меньше начального ({initial} км)"}
+        )
     if after is not None and km > after.odometer_km:
         raise ValidationError(
             {"odometer_km": f"Пробег больше следующего показания ({after.odometer_km} км)"}
@@ -91,8 +96,13 @@ def latest_official(vehicle_id: int) -> MileageReading | None:
 
 
 def latest_odometer(vehicle_id: int) -> int | None:
+    """Текущий официальный пробег: последнее показание по рейсам, иначе начальный пробег."""
     reading = latest_official(vehicle_id)
-    return reading.odometer_km if reading else None
+    if reading is not None:
+        return reading.odometer_km
+    return (
+        Vehicle.objects.filter(pk=vehicle_id).values_list("initial_odometer_km", flat=True).first()
+    )
 
 
 def fleet_settings() -> FleetSettings:
@@ -104,28 +114,34 @@ def fleet_settings() -> FleetSettings:
 def mileage_check(vehicle: Vehicle) -> dict:
     """Сверка официального пробега с GPS (только показ; ничего не меняет и не записывает).
 
+    Официальный пробег - последнее показание по рейсам, а до первого рейса - начальный пробег.
     GPS-модуль регистрирует источник через ``register_gps_source``; пока источника нет или он не
-    отдаёт данные, ``gps_available`` = False (данные недоступны).
+    отдаёт данные, ``gps_available`` = False (данные недоступны). ``gps_received_at`` - время
+    последнего полученного GPS-значения (чтобы понимать, насколько показатель актуален).
     """
     if not vehicle.gps_check:
         return {"enabled": False}
     threshold = fleet_settings().gps_mismatch_km
     official = latest_official(vehicle.pk)
+    official_km = official.odometer_km if official else vehicle.initial_odometer_km
     result = {
         "enabled": True,
-        "official_km": official.odometer_km if official else None,
+        "official_km": official_km,
         "official_at": official.recorded_at if official else None,
+        "official_source": "trip" if official else ("initial" if official_km is not None else None),
         "gps_km": None,
+        "gps_received_at": None,
         "gps_available": False,
         "difference_km": None,
         "threshold_km": threshold,
         "warning": False,
     }
-    gps = gps_mileage(vehicle, official.recorded_at if official else timezone.now())
+    gps = gps_mileage(vehicle, timezone.now())
     if gps is not None:
-        result["gps_km"], result["gps_available"] = gps, True
-        if official is not None:
-            diff = gps - official.odometer_km
+        result["gps_km"], result["gps_received_at"] = gps
+        result["gps_available"] = True
+        if official_km is not None:
+            diff = gps[0] - official_km
             result["difference_km"] = diff
             result["warning"] = abs(diff) > threshold
     return result
@@ -135,7 +151,10 @@ _GPS_SOURCES = []
 
 
 def register_gps_source(source) -> None:
-    """Источник GPS-пробега: ``source(vehicle, at) -> км | None`` (регистрирует модуль gps)."""
+    """Источник GPS-пробега: ``source(vehicle, now) -> (км, время получения) | None``.
+
+    Регистрирует модуль gps. Время получения - момент, когда пришло последнее значение счётчика.
+    """
     if source not in _GPS_SOURCES:
         _GPS_SOURCES.append(source)
 
@@ -145,9 +164,9 @@ def unregister_gps_source(source) -> None:
         _GPS_SOURCES.remove(source)
 
 
-def gps_mileage(vehicle: Vehicle, at: datetime) -> int | None:
+def gps_mileage(vehicle: Vehicle, now: datetime) -> tuple[int, datetime] | None:
     for source in _GPS_SOURCES:
-        value = source(vehicle, at)
+        value = source(vehicle, now)
         if value is not None:
             return value
     return None
