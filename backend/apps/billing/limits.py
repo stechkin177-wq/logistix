@@ -139,11 +139,29 @@ def check(company_id: int, code: str, adding: int = 1) -> None:
         )
 
 
+OK, NEAR, REACHED, EXCEEDED = "ok", "near", "reached", "exceeded"
+
+
+def state_of(limit, used, warn_percent) -> str:
+    """ok / near (приближается: от порога warn_percent) / reached (достигнут, новое создавать
+    нельзя) / exceeded (использование выше лимита после понижения тарифа; данные сохраняются)."""
+    if limit is None or used is None:
+        return OK
+    if used > limit:
+        return EXCEEDED
+    if used >= limit:
+        return REACHED
+    if warn_percent and limit > 0 and used * 100 >= limit * warn_percent:
+        return NEAR
+    return OK
+
+
 def company_usage(company_id: int) -> list[dict]:
     """Использование и лимиты компании по всем типам (для интерфейса и предупреждений)."""
     from .services import get_subscription
 
     sub = get_subscription(company_id)
+    warn = sub.plan.limit_warn_percent if sub else 0
     rows = []
     for spec in LIMITS:
         limit = plan_limit(sub.plan, spec["code"]) if sub else None
@@ -158,6 +176,7 @@ def company_usage(company_id: int) -> list[dict]:
                 "usage": used,
                 "enforced": spec.get("enforced", True),
                 "exceeded": limit is not None and used is not None and used > limit,
+                "state": state_of(limit, used, warn),
             }
         )
     return rows

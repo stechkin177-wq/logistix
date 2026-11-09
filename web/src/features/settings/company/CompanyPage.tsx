@@ -16,6 +16,7 @@ import { TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { BrandingBlock } from './BrandingBlock'
+import { UsageBlock } from '../../billing/UsageBlock'
 import { SubscriptionBlock } from './SubscriptionBlock'
 import { timeZones } from './timezones'
 
@@ -95,6 +96,7 @@ export function CompanyPage() {
       </section>
       <BrandingBlock />
       <SubscriptionBlock />
+      <UsageBlock />
     </div>
   )
 }

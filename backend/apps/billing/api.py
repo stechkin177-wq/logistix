@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
-from . import features, limits, plans
+from . import features, limits, plans, subscriptions
 from .models import Plan
 from .services import days_left, effective_status, get_subscription
 
@@ -73,6 +73,7 @@ class AdminPlanSerializer(serializers.ModelSerializer):
         fields = [
             "code", "name", "description", "billing_type", "price", "currency", "sort_order",
             "status", "is_default", "limits", "modules", "features", "archived_at",
+            "free_period_days", "limit_warn_percent",
             "subscriptions_count",
         ]  # fmt: skip
         read_only_fields = fields
@@ -183,4 +184,86 @@ class UsageView(APIView):
     """Использование лимитов тарифа компанией: лимит, использование, превышение (для интерфейса)."""
 
     def get(self, request):
-        return Response({"results": limits.company_usage(request.membership.company_id)})
+        rows = limits.company_usage(request.membership.company_id)
+        warnings = [r for r in rows if r["state"] != limits.OK]  # владельцу: что требует внимания
+        return Response({"results": rows, "warnings": warnings})
+
+
+# --- подписки компаний (администратор платформы) -----------------------------------------------
+
+
+def _company(company_id):
+    from apps.core.models import Company
+
+    company = Company.objects.filter(pk=company_id).first()
+    if company is None or not hasattr(company, "subscription"):
+        raise NotFound()
+    return company
+
+
+def _sub_payload(company):
+    sub = company.subscription
+    period = subscriptions.current_period(sub)
+    return {
+        "company": company.pk,
+        "plan": sub.plan.code,
+        "status": effective_status(sub, timezone.now()),
+        "is_free_period": sub.is_free_period,
+        "starts_at": sub.starts_at,
+        "ends_at": sub.ends_at,
+        "current_period": None
+        if period is None
+        else {
+            "plan": period.plan_code, "reason": period.reason, "starts_at": period.starts_at,
+            "ends_at": period.ends_at, "price": str(period.price), "currency": period.currency,
+            "is_free": period.is_free,
+        },
+        "periods": [
+            {"plan": p.plan_code, "reason": p.reason, "starts_at": p.starts_at,
+             "ends_at": p.ends_at, "price": str(p.price), "currency": p.currency}
+            for p in sub.periods.all()
+        ],
+    }  # fmt: skip
+
+
+class PlatformSubscriptionViewSet(ViewSet):
+    """Подписка компании для администратора платформы: просмотр, анализ и смена тарифа, продление.
+
+    Платёжных интеграций нет: продление фиксирует период и цену, оплату подтверждает администратор.
+    """
+
+    permission_classes = [IsAuthenticated, IsPlatformAdmin]
+    lookup_field = "company_id"
+    lookup_value_regex = r"\d+"
+
+    def retrieve(self, request, company_id=None):
+        return Response(_sub_payload(_company(company_id)))
+
+    @staticmethod
+    def _plan(code):
+        plan = Plan.objects.filter(code=code).first() if isinstance(code, str) else None
+        if plan is None:
+            raise ValidationError({"plan": "Укажите существующий тариф"})
+        return plan
+
+    @action(detail=True, methods=["get"], url_path="change-plan/preview")
+    def preview(self, request, company_id=None):
+        plan = self._plan(request.query_params.get("plan"))
+        return Response(subscriptions.preview_change(_company(company_id), plan))
+
+    @action(detail=True, methods=["post"], url_path="change-plan")
+    def change_plan(self, request, company_id=None):
+        company = _company(company_id)
+        plan = self._plan(request.data.get("plan"))
+        subscriptions.change_plan(
+            company, plan, period=request.data.get("period", subscriptions.KEEP), user=request.user
+        )
+        company.subscription.refresh_from_db()
+        return Response(_sub_payload(company))
+
+    @action(detail=True, methods=["post"])
+    def renew(self, request, company_id=None):
+        company = _company(company_id)
+        subscriptions.renew(company, periods=request.data.get("periods", 1), user=request.user)
+        company.subscription.refresh_from_db()
+        return Response(_sub_payload(company))

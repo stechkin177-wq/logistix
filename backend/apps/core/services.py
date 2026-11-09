@@ -1,10 +1,8 @@
-from datetime import timedelta
 
 from django.db import transaction
-from django.utils import timezone
 
-from apps.billing.models import Subscription
 from apps.billing.plans import default_plan
+from apps.billing.subscriptions import start_subscription
 
 from .handbooks.services import seed_handbooks
 from .models import Company, LegalEntity, Membership, Role
@@ -18,8 +16,6 @@ from .numbering.services import seed_numbering
 from .permissions_catalog import ADMIN_ROLE_NAME, SYSTEM_ROLES
 from .signals import company_created
 from .tenancy import tenant_context
-
-FREE_PERIOD_DAYS = 365
 
 
 @transaction.atomic
@@ -55,14 +51,6 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     )
     seed_handbooks(company)
     seed_numbering(company)
-    now = timezone.now()
-    Subscription.objects.create(
-        company=company,
-        plan=start_plan,
-        status=Subscription.ACTIVE,
-        is_free_period=True,
-        starts_at=now,
-        ends_at=now + timedelta(days=FREE_PERIOD_DAYS),
-    )
+    start_subscription(company, start_plan)  # срок бесплатного периода и цена - данные тарифа
     company_created.send(sender=Company, company=company)
     return company

@@ -16,6 +16,7 @@ export function loggedIn(routes: Routes = [], opts: { session?: Partial<Session>
     ...routes,
     ['GET', /^\/api\/branding\//, { body: BRANDING }],
     ['GET', '/api/session/', { body: makeSession(opts.session) }],
+    ['GET', '/api/billing/usage/', { body: { results: [], warnings: [] } }],
     ['GET', /^\/api\/handbooks\/\?code=/, { body: { code: 'x', name: 'x', group: 'x', values: [] } }],
   ])
 }

@@ -8,6 +8,7 @@ from apps.billing.api import (
     AdminPlanViewSet,
     PlanListView,
     PlatformCatalogView,
+    PlatformSubscriptionViewSet,
     SubscriptionView,
     UsageView,
 )
@@ -100,6 +101,11 @@ router.register("consignments", ConsignmentViewSet, basename="consignment")
 router.register("trips", TripViewSet, basename="trip")
 router.register("transfers", TransferViewSet, basename="transfer")
 router.register("platform/plans", AdminPlanViewSet, basename="platform-plan")
+router.register(
+    "platform/subscriptions",
+    PlatformSubscriptionViewSet,
+    basename="platform-subscription",
+)
 router.register("drivers", DriverViewSet, basename="driver")
 router.register("driver-documents", DriverDocumentViewSet, basename="driver-document")
 router.register("vehicles", VehicleViewSet, basename="vehicle")

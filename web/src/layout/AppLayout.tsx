@@ -5,6 +5,7 @@ import { useSession } from '../shared/auth/useSession'
 import { useBranding } from '../shared/branding/useBranding'
 import { Button } from '../shared/ui/Button'
 import { Toaster } from '../shared/ui/Toaster'
+import { LimitBanner } from './LimitBanner'
 import { ReadonlyBanner } from './ReadonlyBanner'
 import { Sidebar } from './Sidebar'
 
@@ -50,6 +51,7 @@ export function AppLayout() {
           <span className="truncate text-sm font-semibold">{branding.app_name}</span>
         </header>
         <ReadonlyBanner />
+        <LimitBanner />
         <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-4">
           {/* key: при смене компании страницы монтируются заново и не держат чужие данные */}
           <Outlet key={session?.company.id} />

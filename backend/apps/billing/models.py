@@ -28,6 +28,10 @@ class Plan(models.Model):
     price = models.DecimalField(max_digits=14, decimal_places=2, default=0)  # 0 - бесплатный
     currency = models.CharField(max_length=3, default="KZT")
     sort_order = models.PositiveIntegerField(default=0)
+    # бесплатный период новой компании на этом тарифе, дней (0 - нет); задаёт администратор
+    free_period_days = models.PositiveIntegerField(default=0)
+    # с какого процента использования лимита предупреждать владельца (0 - не предупреждать заранее)
+    limit_warn_percent = models.PositiveSmallIntegerField(default=80)
     limits = models.JSONField(default=dict, blank=True)
     modules = models.JSONField(default=list, blank=True)
     # функции внутри модулей {код: True | уровень}; каталог - apps/billing/features.py
@@ -41,6 +45,9 @@ class Plan(models.Model):
         ordering = ["sort_order", "id"]
         constraints = [
             models.CheckConstraint(condition=models.Q(price__gte=0), name="plan_price_gte_0"),
+            models.CheckConstraint(
+                condition=models.Q(limit_warn_percent__lte=100), name="plan_warn_percent_lte_100"
+            ),
             models.CheckConstraint(
                 condition=models.Q(archived_at__isnull=True) | models.Q(is_active=False),
                 name="plan_archived_not_active",
@@ -90,6 +97,35 @@ class Subscription(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
     is_free_period = models.BooleanField(default=False)
-
     def __str__(self):
         return f"{self.company_id}:{self.plan_id}:{self.status}"
+
+
+class SubscriptionPeriod(models.Model):
+    """Неизменяемая запись об оплаченном (или бесплатном) периоде подписки.
+
+    Цена и валюта периода фиксируются в момент его начала: последующее изменение цены тарифа
+    записанные периоды не трогает; новая цена применяется только к новым периодам (продление,
+    смена тарифа с новым периодом). Платежей нет: подтверждение оплаты вне системы.
+    """
+
+    START = "start"
+    RENEWAL = "renewal"
+    PLAN_CHANGE = "plan_change"
+    REASONS = [(START, "Начало"), (RENEWAL, "Продление"), (PLAN_CHANGE, "Смена тарифа")]
+
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="periods")
+    plan_code = models.CharField(max_length=50)  # тариф на момент периода (снимок)
+    reason = models.CharField(max_length=16, choices=REASONS)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField(null=True, blank=True)  # null - бессрочный
+    price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default="KZT")
+    is_free = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["starts_at", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(price__gte=0), name="period_price_gte_0"),
+        ]

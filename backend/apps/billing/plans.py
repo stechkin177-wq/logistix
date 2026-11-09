@@ -21,7 +21,10 @@ from .models import Plan
 
 CODE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,49}$")
 CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
-EDITABLE = ("name", "description", "billing_type", "price", "currency", "sort_order")
+EDITABLE = (
+    "name", "description", "billing_type", "price", "currency", "sort_order",
+    "free_period_days", "limit_warn_percent",
+)  # fmt: skip
 CONTENT = ("modules", "features", "limits")  # состав тарифа: модули, функции (T2), лимиты (T3)
 ORDER_STEP = 10
 
@@ -67,6 +70,11 @@ def _clean(data: dict) -> dict:
         value = out["sort_order"]
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1_000_000:
             raise _bad("sort_order", "целое число от 0 до 1000000")
+    for key, top in (("free_period_days", 3650), ("limit_warn_percent", 100)):
+        if key in out:
+            value = out[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= top:
+                raise _bad(key, f"целое число от 0 до {top}")
     if "description" in out:
         out["description"] = str(out["description"]).strip()
     return out
