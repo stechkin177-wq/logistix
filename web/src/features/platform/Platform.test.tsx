@@ -37,13 +37,15 @@ describe('Панель платформы', () => {
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
     expect(within(nav).queryByText('Подписки компаний')).not.toBeInTheDocument()
     expect(within(nav).queryByText('История изменений')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Центр управления' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Рабочее пространство' })).not.toBeInTheDocument()
   })
 
   it('у платформенной роли в меню компании есть переход в Центр управления', async () => {
     loggedIn([...base], { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner' } } })
     renderApp('/')
-    expect(await screen.findByRole('button', { name: 'Центр управления' })).toBeInTheDocument()
+    const switcher = await screen.findByRole('group', { name: 'Рабочее пространство' })
+    expect(within(switcher).getByRole('button', { name: 'Администратор компании' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(switcher).getByRole('button', { name: 'Владелец платформы' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('владельцу переход в Центр управления требует свежий код TOTP и отправляет его', async () => {
@@ -56,7 +58,7 @@ describe('Панель платформы', () => {
       { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner', platform_totp: true } } },
     )
     const { router } = renderApp('/')
-    await userEvent.click(await screen.findByRole('button', { name: 'Центр управления' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Владелец платформы' }))
     const dialog = await screen.findByRole('dialog')
     expect(m.calls.some((c) => c.path === '/api/auth/switch-company/')).toBe(false) // без кода запроса нет
     await userEvent.type(within(dialog).getByLabelText('Код из приложения'), '123456')
@@ -74,6 +76,21 @@ describe('Панель платформы', () => {
     expect(within(nav).getByText('История изменений')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
     expect(await screen.findByText('Владелец · Владелец платформы')).toBeInTheDocument()
+  })
+
+  it('несколько компаний аккаунта: «Администратор компании» выбирается из списка', async () => {
+    platformLoggedIn([...base, ['POST', '/api/auth/switch-company/', { body: { access: 'c', refresh: 'cr', context: 'company', companies: [] } }], ['GET', '/api/session/', { body: makeSession() }]], { companies: [{ id: 10, name: 'Альфа' }, { id: 11, name: 'Бета' }] })
+    renderApp('/platform/plans')
+    const select = await screen.findByLabelText('Открыть компанию…')
+    await userEvent.selectOptions(select, '11')
+    await waitFor(() => { expect(screen.getByRole('navigation', { name: 'Основное меню' })).toBeInTheDocument() })
+  })
+
+  it('аккаунт владельца без компании: «Администратор компании» недоступен', async () => {
+    platformLoggedIn([...base], { companies: [] })
+    renderApp('/platform/plans')
+    const switcher = await screen.findByRole('group', { name: 'Рабочее пространство' })
+    expect(within(switcher).getByRole('button', { name: 'Администратор компании' })).toBeDisabled()
   })
 
   it('платформенный контекст не открывает страницы компании', async () => {
@@ -101,8 +118,9 @@ describe('Панель платформы', () => {
       { companies: [{ id: 10, name: 'Альфа' }] },
     )
     const { router } = renderApp('/platform/plans')
-    const select = await screen.findByLabelText('Открыть компанию…')
-    await userEvent.selectOptions(select, '10')
+    const switcher = await screen.findByRole('group', { name: 'Рабочее пространство' })
+    expect(within(switcher).getByRole('button', { name: 'Владелец платформы' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(within(switcher).getByRole('button', { name: 'Администратор компании' }))
     await waitFor(() => { expect(router.state.location.pathname).toBe('/') })
     expect(m.calls.find((c) => c.path === '/api/auth/switch-company/')!.body).toEqual({ company_id: 10 })
     expect(await screen.findByRole('navigation', { name: 'Основное меню' })).toBeInTheDocument()

@@ -140,6 +140,26 @@ describe('Карточка заказа', () => {
     expect(screen.queryByRole('button', { name: /Удалить строку/ })).not.toBeInTheDocument()
   })
 
+  it('строку можно отметить как оплату перевозчику по рейсу заказа: уходит trip, в списке бейдж рейса', async () => {
+    const m = loggedIn([
+      ['GET', '/api/orders/5/', { body: makeOrder() }],
+      ['GET', /^\/api\/order-lines\/\?order=5/, { body: page([makeLine({ id: 200, title: 'Оплата ИП', is_base: false, income: '0.00', expense: '180000.00', trip: 90, trip_number: 'ORD-2026-00005-1' })]) }],
+      ['GET', /^\/api\/trips\/\?/, { body: page([{ id: 90, number: 'ORD-2026-00005-1', carrier_name: null, status_name: 'Планируется', is_consolidated: false, vehicle_plate: '', driver_name: '', orders: [{ id: 5, number: 'ORD-2026-00005' }] }]) }],
+      ['POST', '/api/order-lines/', { status: 201, body: makeLine({ id: 201 }) }],
+      ...common,
+    ])
+    renderApp('/orders/5?tab=finance')
+    expect(await screen.findByText('Рейс ORD-2026-00005-1')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Добавить строку' }))
+    const drawer = await screen.findByRole('dialog')
+    await userEvent.type(within(drawer).getByLabelText(/Название/), 'Оплата перевозчику')
+    await userEvent.clear(within(drawer).getByLabelText('Расход'))
+    await userEvent.type(within(drawer).getByLabelText('Расход'), '180000')
+    await userEvent.selectOptions(await within(drawer).findByLabelText('Рейс (оплата перевозчику)'), '90')
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST' && c.path === '/api/order-lines/')?.body).toMatchObject({ order: 5, expense: '180000', trip: 90 }) })
+  })
+
   it('добавление строки: POST /order-lines/, ошибка поля income ложится на поле', async () => {
     const m = loggedIn([
       ['GET', '/api/orders/5/', { body: makeOrder() }],

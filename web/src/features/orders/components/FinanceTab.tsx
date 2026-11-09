@@ -19,21 +19,24 @@ import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Money } from '../../../shared/ui/Money'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
-import { useCurrencies, useDeleteOrderLine, useOrderLines, useSaveOrderLine } from '../hooks'
+import { Select } from '../../../shared/ui/Select'
+import { useCurrencies, useDeleteOrderLine, useOrderLines, useSaveOrderLine, useTripsOfOrder } from '../hooks'
 import { OrderFinanceBlock } from '../../finance/OrderFinanceBlock'
 import { useFinanceEngine } from '../../finance/ledgerHooks'
 import { OrderInvoicesBlock } from './OrderInvoicesBlock'
 import type { Order, OrderLine } from '../types'
 
 const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
-const KNOWN = /^(title|category|income|expense|date)$/
+const KNOWN = /^(title|category|income|expense|date|trip)$/
 
 function LineDrawer({ order, line, onClose }: { order: Order; line: OrderLine | null; onClose: () => void }) {
   const { t } = useTranslation()
-  const { session } = useSession()
+  const { session, hasPermission } = useSession()
+  // рейсы заказа: строку можно отметить как оплату перевозчику по рейсу (тогда её нельзя продублировать расходом рейса)
+  const trips = useTripsOfOrder(order, hasPermission('trips.view'))
   const today = toInputDateTime(new Date().toISOString(), session?.company.timezone).slice(0, 10)
   const [form, setForm] = useState({
-    title: line?.title ?? '', category: line?.category ?? '', income: line?.income ?? '0', expense: line?.expense ?? '0', date: line?.date ?? today,
+    title: line?.title ?? '', category: line?.category ?? '', income: line?.income ?? '0', expense: line?.expense ?? '0', date: line?.date ?? today, trip: line?.trip ? String(line.trip) : '',
   })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   const save = useSaveOrderLine()
@@ -53,7 +56,7 @@ function LineDrawer({ order, line, onClose }: { order: Order; line: OrderLine | 
     }
     setErrors(NO_ERRORS)
     save.mutate(
-      { id: line?.id ?? null, body: { order: order.id, title: form.title.trim(), category: form.category.trim(), income: form.income.trim(), expense: form.expense.trim(), date: form.date } },
+      { id: line?.id ?? null, body: { order: order.id, title: form.title.trim(), category: form.category.trim(), income: form.income.trim(), expense: form.expense.trim(), date: form.date, trip: form.trip ? Number(form.trip) : null } },
       { onSuccess: onClose, onError: (error) => { setErrors(serverErrors(error, t, (p) => KNOWN.test(p))) } },
     )
   }
@@ -83,6 +86,17 @@ function LineDrawer({ order, line, onClose }: { order: Order; line: OrderLine | 
           <TextField label={t('orders.expense')} inputMode="decimal" value={form.expense} error={f.expense} onChange={(e) => { set('expense', e.target.value) }} />
         </div>
         <DateInput label={t('orders.lineDate')} value={form.date} error={f.date} onChange={(v) => { set('date', v) }} />
+        {(trips.data?.length ?? 0) > 0 ? (
+          <Select
+            label={t('orders.lineTrip')}
+            hint={t('orders.lineTripHint')}
+            value={form.trip}
+            placeholder={t('common.none')}
+            options={(trips.data ?? []).map((tr) => ({ value: String(tr.id), label: tr.number }))}
+            error={f.trip}
+            onChange={(v) => { set('trip', v) }}
+          />
+        ) : null}
       </form>
     </Drawer>
   )
@@ -109,6 +123,7 @@ export function FinanceTab({ order }: { order: Order }) {
       cell: (l) => (
         <span className="flex items-center gap-1">
           {l.title}
+          {l.trip_number ? <Badge tone="neutral" title={t('orders.lineTripHint')}>{t('orders.lineTripBadge', { number: l.trip_number })}</Badge> : null}
           {l.is_base ? <Badge tone="info" title={t('orders.baseLineHint')}>{t('orders.baseLineLocked')}</Badge> : null}
         </span>
       ),

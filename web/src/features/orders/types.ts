@@ -176,6 +176,9 @@ export interface OrderLine {
   income: string
   expense: string
   date: string
+  /** Рейс, оплату перевозчику которого отражает строка (защита от двойного учёта). */
+  trip?: number | null
+  trip_number?: string | null
   is_base: boolean
   created_at: string
   updated_at: string
@@ -188,6 +191,7 @@ export interface OrderLinePayload {
   income: string
   expense: string
   date: string
+  trip?: number | null
 }
 
 export interface TripRef {

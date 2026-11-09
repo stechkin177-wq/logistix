@@ -5,14 +5,12 @@ import { useBranding } from '../shared/branding/useBranding'
 import { useAuth } from '../shared/auth/useAuth'
 import { useSession } from '../shared/auth/useSession'
 import { LANGUAGES, setLanguage, type Language } from '../shared/i18n'
-import { Banner } from '../shared/ui/Banner'
 import { Button } from '../shared/ui/Button'
-import { Dialog } from '../shared/ui/Dialog'
-import { TextField } from '../shared/ui/TextField'
 import { pushToast } from '../shared/ui/toast'
-import { ApiError, errorMessage } from '../shared/api/errors'
+import { errorMessage } from '../shared/api/errors'
 import { ChangePasswordDialog } from '../features/account/ChangePasswordDialog'
 import { visibleNav, type NavItem } from './nav'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
 function containsPath(item: NavItem, pathname: string): boolean {
   return (item.children ?? []).some((c) => (c.path !== undefined && matchPath({ path: c.path, end: false }, pathname) !== null) || containsPath(c, pathname))
@@ -82,52 +80,6 @@ function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   )
 }
 
-/** Переход в Центр управления; владельцу платформы нужен свежий код TOTP (ступенчатая проверка). */
-function PlatformSwitch({ needsCode }: { needsCode: boolean }) {
-  const { t } = useTranslation()
-  const { switchToPlatform } = useAuth()
-  const [asking, setAsking] = useState(false)
-  const [code, setCode] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  const go = (value?: string) => {
-    setBusy(true)
-    setError(undefined)
-    switchToPlatform(value)
-      .then(() => { setAsking(false) })
-      .catch((e: unknown) => {
-        if (needsCode) setError(e instanceof ApiError && e.code === 'totp_invalid' ? t('auth.totpInvalid') : errorMessage(e, t))
-        else pushToast('error', errorMessage(e, t))
-      })
-      .finally(() => { setBusy(false) })
-  }
-  return (
-    <>
-      <Button variant="ghost" className="w-full" disabled={busy} onClick={() => { if (needsCode) { setCode(''); setError(undefined); setAsking(true) } else go() }}>
-        {t('platformShell.toCenter')}
-      </Button>
-      <Dialog
-        open={asking}
-        title={t('platformShell.toCenter')}
-        onClose={() => { setAsking(false) }}
-        busy={busy}
-        footer={
-          <>
-            <Button onClick={() => { setAsking(false) }} disabled={busy}>{t('common.cancel')}</Button>
-            <Button variant="primary" disabled={busy || code.trim().length < 6} onClick={() => { go(code.trim()) }}>{t('auth.totpSubmit')}</Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {error ? <Banner kind="error">{error}</Banner> : null}
-          <p className="text-sm">{t('platformShell.codeHint')}</p>
-          <TextField label={t('auth.totpCode')} inputMode="numeric" autoComplete="one-time-code" maxLength={7} value={code} onChange={(e) => { setCode(e.target.value) }} />
-        </div>
-      </Dialog>
-    </>
-  )
-}
-
 function CompanySwitcher() {
   const { t } = useTranslation()
   const { session } = useSession()
@@ -192,7 +144,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       <div className="space-y-2 border-t border-slate-200 p-2 dark:border-slate-800">
         <CompanySwitcher />
-        {session?.user.platform_role ? <PlatformSwitch needsCode={session.user.platform_totp === true} /> : null}
+        {session?.user.platform_role ? <WorkspaceSwitcher mode="company" needsCode={session.user.platform_totp === true} companies={[]} /> : null}
         <select
           aria-label={t('common.language')}
           className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"

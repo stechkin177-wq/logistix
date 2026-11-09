@@ -59,6 +59,11 @@ class OrderService(TenantModel):
     )
     date = models.DateField(default=company_today)
     is_base = models.BooleanField(default=False)
+    # рейс, чью оплату перевозчику отражает строка (расход рейса или ручная строка с указанным
+    # рейсом); на один заказ - не более одной такой строки по рейсу (защита от двойного учёта)
+    trip = models.ForeignKey(
+        "forwarding.Trip", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -73,6 +78,11 @@ class OrderService(TenantModel):
             models.CheckConstraint(condition=Q(expense__gte=0), name="orderservice_expense_gte_0"),
             models.UniqueConstraint(
                 fields=["order"], condition=Q(is_base=True), name="orderservice_one_base_uniq"
+            ),
+            models.UniqueConstraint(
+                fields=["order", "trip"],
+                condition=Q(trip__isnull=False),
+                name="orderservice_order_trip_uniq",
             ),
         ]
 

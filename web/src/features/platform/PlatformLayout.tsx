@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet } from 'react-router'
-import { errorMessage } from '../../shared/api/errors'
 import { useAuth } from '../../shared/auth/useAuth'
 import { usePlatformSession } from '../../shared/auth/usePlatformSession'
 import { useBranding } from '../../shared/branding/useBranding'
 import { LANGUAGES, setLanguage, type Language } from '../../shared/i18n'
 import { Button } from '../../shared/ui/Button'
 import { Toaster } from '../../shared/ui/Toaster'
-import { pushToast } from '../../shared/ui/toast'
+import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
 
 const LINKS = [
@@ -21,9 +20,8 @@ const LINKS = [
 export function PlatformLayout() {
   const { t, i18n } = useTranslation()
   const { session } = usePlatformSession()
-  const { logout, switchCompany } = useAuth()
+  const { logout } = useAuth()
   const branding = useBranding()
-  const [busy, setBusy] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const companies = session?.companies ?? []
 
@@ -52,33 +50,7 @@ export function PlatformLayout() {
           ))}
         </nav>
         <div className="space-y-2 border-t border-slate-200 p-2 dark:border-slate-800">
-          {companies.length > 0 ? (
-            <select
-              aria-label={t('platformShell.openCompany')}
-              className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"
-              value=""
-              disabled={busy}
-              onChange={(event) => {
-                const id = Number(event.target.value)
-                if (!Number.isInteger(id) || id <= 0) return
-                setBusy(true)
-                switchCompany(id)
-                  .catch((error: unknown) => {
-                    pushToast('error', errorMessage(error, t))
-                  })
-                  .finally(() => {
-                    setBusy(false)
-                  })
-              }}
-            >
-              <option value="">{t('platformShell.openCompany')}</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
+          <WorkspaceSwitcher mode="platform" companies={companies} />
           <select
             aria-label={t('common.language')}
             className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"

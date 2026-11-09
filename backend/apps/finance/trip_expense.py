@@ -2,7 +2,8 @@
 
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 from apps.core.audit import services as audit
 from apps.forwarding.finance_lines.models import OrderService, company_today
@@ -36,18 +37,40 @@ def split_evenly(total: Decimal, count: int) -> list[Decimal]:
     return parts
 
 
+def _unlinked_carrier_lines(order_ids, amounts=None):
+    """Расходные строки заказов, похожие на оплату перевозчику и не связанные ни с каким рейсом:
+    категория «Перевозка» (любое название) либо сумма, равная создаваемому расходу заказа.
+    Название строки не учитывается."""
+    lines = []
+    for order_id in order_ids:
+        cond = Q(category__iexact=CATEGORY)
+        if amounts and amounts.get(order_id):
+            cond |= Q(expense=amounts[order_id])
+        lines += list(
+            OrderService.objects.filter(
+                cond, order_id=order_id, trip__isnull=True, is_base=False, expense__gt=0
+            )
+        )
+    return lines
+
+
+def suggestion_of(trip: Trip, orders) -> list[dict]:
+    parts = split_evenly(trip.carrier_price, len(orders)) if orders else []
+    return [{"order_id": o.pk, "amount": a} for o, a in zip(orders, parts, strict=False)]
+
+
 def trip_expense_lines(trip: Trip) -> dict:
     """Заказы рейса с уже существующими строками «Перевозка» и подсказкой деления поровну."""
     orders = _orders_of(trip)
     existing = {}
-    for line in OrderService.objects.filter(
-        order__in=orders, category=CATEGORY, title=_title(trip)
-    ):
+    for line in OrderService.objects.filter(trip=trip):  # связь по рейсу, а не по названию строки
         existing.setdefault(line.order_id, []).append(line)
-    suggestion = [
-        {"order_id": o.pk, "amount": a}
-        for o, a in zip(orders, split_evenly(trip.carrier_price, len(orders)) if orders else [])
+    amounts = {s["order_id"]: s["amount"] for s in suggestion_of(trip, orders)}
+    manual = [
+        {"order_id": ln.order_id, "id": ln.pk, "title": ln.title, "expense": ln.expense}
+        for ln in _unlinked_carrier_lines([o.pk for o in orders], amounts)
     ]
+    suggestion = suggestion_of(trip, orders)
     return {
         "trip": {
             "id": trip.pk,
@@ -67,6 +90,8 @@ def trip_expense_lines(trip: Trip) -> dict:
             for o in orders
         ],
         "suggestion": suggestion,
+        # ручные строки «Перевозка» без рейса: пока они не связаны с рейсом, расход блокируется
+        "manual_unlinked": manual,
     }
 
 
@@ -98,21 +123,31 @@ def create_trip_expense(
     total = sum((quantize_money(i["amount"]) for i in allocations), Decimal("0"))
     if total != quantize_money(trip.carrier_price):
         raise FinanceError("allocation_mismatch", "Сумма по заказам должна равняться цене рейса")
-    if (
-        OrderService.objects.select_for_update()
-        .filter(order_id__in=seen, category=CATEGORY, title=_title(trip))
-        .exists()
-    ):
+    # защита от двойного учёта: строка рейса определяется СВЯЗЬЮ с рейсом, а не названием
+    if OrderService.objects.select_for_update().filter(trip=trip).exists():
         raise FinanceError("expense_exists", "Расход по этому рейсу уже создан")
+    amounts = {i["order_id"]: quantize_money(i["amount"]) for i in allocations}
+    if _unlinked_carrier_lines(seen, amounts):
+        raise FinanceError(
+            "manual_carrier_expense_exists",
+            "В заказе уже есть расход, похожий на оплату перевозчику (категория «Перевозка» или "
+            "та же сумма) и не связанный с рейсом. Укажите для него этот рейс во вкладке «Финансы» "
+            "заказа или удалите его, иначе оплата перевозчика будет учтена дважды",
+        )
     lines = []
     for item in allocations:
-        line = OrderService.objects.create(
-            order=orders[item["order_id"]],
-            title=_title(trip),
-            category=CATEGORY,
-            income=Decimal("0"),
-            expense=quantize_money(item["amount"]),
-        )
+        try:
+            with transaction.atomic():  # точка сохранения: гонка не ломает внешнюю транзакцию
+                line = OrderService.objects.create(
+                    order=orders[item["order_id"]],
+                    trip=trip,
+                    title=_title(trip),
+                    category=CATEGORY,
+                    income=Decimal("0"),
+                    expense=quantize_money(item["amount"]),
+                )
+        except IntegrityError:  # уникальность (заказ, рейс) в БД: параллельный запрос успел раньше
+            raise FinanceError("expense_exists", "Расход по этому рейсу уже создан") from None
         changes = {"trip": trip.pk, "expense": str(line.expense)}
         if adjusted:
             changes.update(
