@@ -30,6 +30,7 @@ import { ModulesPage } from '../features/settings/modules/ModulesPage'
 import { NumberingPage } from '../features/settings/numbering/NumberingPage'
 import { RolesPage } from '../features/settings/roles/RolesPage'
 import { SettingsIndex } from '../features/settings/SettingsIndex'
+import { SettingsLayout } from '../features/settings/SettingsLayout'
 import { UsersPage } from '../features/settings/users/UsersPage'
 import { TrashPage } from '../features/trash/TrashPage'
 import { TransfersPage } from '../features/tracking/pages/TransfersPage'
@@ -73,12 +74,15 @@ function pageFor(item: NavItem) {
 
 /** Маршруты: каждый пункт меню с path получает страницу под проверкой доступа; /settings ведёт на первый доступный подраздел. */
 export function createRoutes(): RouteObject[] {
-  const pages: RouteObject[] = flattenNav(NAV)
+  const routed = flattenNav(NAV)
     .filter((item): item is NavItem & { path: string } => item.path !== undefined)
     .map((item) => ({
       path: item.path,
       element: <RequireAccess item={item}>{pageFor(item)}</RequireAccess>,
     }))
+  const pages: RouteObject[] = routed.filter((r) => !r.path.startsWith('/settings/'))
+  // страницы настроек живут внутри единой оболочки с боковой навигацией
+  const settingsPages: RouteObject = { element: <SettingsLayout />, children: routed.filter((r) => r.path.startsWith('/settings/')) }
   // страницы заказа живут под разделом «Заказы» и наследуют его проверку доступа
   const ordersItem = flattenNav(NAV).find((item) => item.key === 'orders')
   const orderPages: RouteObject[] = ordersItem
@@ -120,7 +124,7 @@ export function createRoutes(): RouteObject[] {
         },
         {
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...financePages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
+          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
         },
       ],
     },

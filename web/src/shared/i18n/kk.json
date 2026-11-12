@@ -67,7 +67,12 @@
     "platformCompanies": "Компаниялар жазылымдары",
     "platformHistory": "Өзгерістер тарихы",
     "docTypes": "Құжат түрлері",
-    "more": "Тағы"
+    "profile": "Профиль мәзірі",
+    "mobileLabel": "Жылдам навигация",
+    "sectionOrganization": "Ұйым",
+    "sectionData": "Деректер мен құжаттар",
+    "sectionFinance": "Қаржы",
+    "settingsLabel": "Баптау бөлімдері"
   },
   "auth": {
     "title": "Жүйеге кіру",

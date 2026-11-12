@@ -43,6 +43,7 @@ describe('Панель платформы', () => {
   it('у платформенной роли в меню компании есть переход в Центр управления', async () => {
     loggedIn([...base], { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner' } } })
     renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
     const switcher = await screen.findByRole('group', { name: 'Рабочее пространство' })
     expect(within(switcher).getByRole('button', { name: 'Администратор компании' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(switcher).getByRole('button', { name: 'Владелец платформы' })).toHaveAttribute('aria-pressed', 'false')
@@ -58,6 +59,7 @@ describe('Панель платформы', () => {
       { session: { user: { id: 1, email: 'a@x.kz', phone: null, full_name: 'А', platform_role: 'owner', platform_totp: true } } },
     )
     const { router } = renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Владелец платформы' }))
     const dialog = await screen.findByRole('dialog')
     expect(m.calls.some((c) => c.path === '/api/auth/switch-company/')).toBe(false) // без кода запроса нет

@@ -8,15 +8,13 @@ export function Stat({
   const color = tone === 'danger' ? 'text-red-600 dark:text-red-400' : tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
   const body = (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium text-muted">{label}</p>
-        {Icon ? <Icon className="size-4 shrink-0 text-muted" aria-hidden="true" /> : null}
-      </div>
+      {Icon ? <Icon className="absolute right-4 top-4 size-4 text-muted" aria-hidden="true" /> : null}
+      <p className="pr-6 text-xs font-medium text-muted">{label}</p>
       <p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
       {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
     </>
   )
-  const cls = 'rounded-card border border-line bg-surface-2 p-4 dark:bg-surface-2'
+  const cls = 'relative rounded-card border border-line bg-surface-2 p-4 dark:bg-surface-2'
   return to ? (
     <Link to={to} className={`${cls} block transition-colors hover:border-brand-400`}>
       {body}

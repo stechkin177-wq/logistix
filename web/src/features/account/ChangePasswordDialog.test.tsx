@@ -6,7 +6,8 @@ import { loggedIn } from '../../test/harness'
 import { renderApp } from '../../test/renderApp'
 
 const open = async () => {
-  await userEvent.click(await screen.findByRole('button', { name: 'Сменить пароль' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Сменить пароль' }))
   return screen.findByRole('dialog')
 }
 const fill = async (dialog: HTMLElement, old: string, next: string, confirm = next) => {

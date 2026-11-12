@@ -38,7 +38,7 @@ describe('Настройки финансов', () => {
   it('пункт меню и страница недоступны без finance.manage_settings', async () => {
     loggedIn([], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.manage_settings') } })
     renderApp('/settings/finance')
-    await screen.findByRole('navigation')
+    await screen.findByRole('navigation', { name: 'Основное меню' })
     expect(screen.queryByRole('link', { name: 'Настройки финансов' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Настройки финансов' })).not.toBeInTheDocument()
   })

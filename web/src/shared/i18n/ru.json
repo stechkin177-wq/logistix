@@ -67,7 +67,12 @@
     "platformCompanies": "Подписки компаний",
     "platformHistory": "История изменений",
     "docTypes": "Типы документов",
-    "more": "Ещё"
+    "profile": "Меню профиля",
+    "mobileLabel": "Быстрая навигация",
+    "sectionOrganization": "Организация",
+    "sectionData": "Данные и документы",
+    "sectionFinance": "Финансы",
+    "settingsLabel": "Разделы настроек"
   },
   "auth": {
     "title": "Вход в систему",

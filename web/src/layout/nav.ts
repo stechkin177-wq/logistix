@@ -1,4 +1,9 @@
 import type { Session } from '../shared/api/types'
+import {
+  Blocks, BookOpen, Boxes, Building, Building2, CarFront, FileCog, FileStack, FileText, Hash, LayoutDashboard, Network,
+  Package, Route, Settings, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet, ArrowLeftRight,
+  type LucideIcon,
+} from '../shared/ui/icons'
 
 export interface NavItem {
   key: string
@@ -14,53 +19,50 @@ export interface NavItem {
   anyModule?: string[]
   /** Достаточно любого из прав. */
   anyPermission?: string[]
-  /** Группа сворачивается (меню «Ещё»); открыта, если внутри текущая страница. */
-  collapsible?: boolean
+  /** Иконка пункта меню. */
+  icon?: LucideIcon
+  /** Раздел страницы настроек, в котором стоит пункт (для боковой навигации настроек). */
+  section?: 'organization' | 'data' | 'finance'
   children?: NavItem[]
 }
 
 export const NAV: NavItem[] = [
-  { key: 'dashboard', labelKey: 'nav.dashboard', path: '/', permission: 'orders.view' },
-  { key: 'clients', labelKey: 'nav.clients', path: '/clients', permission: 'clients.view', module: 'logistics' },
-  { key: 'carriers', labelKey: 'nav.carriers', path: '/carriers', permission: 'carriers.view', module: 'forwarding' },
+  { key: 'dashboard', labelKey: 'nav.dashboard', path: '/', permission: 'orders.view', icon: LayoutDashboard },
+  { key: 'clients', labelKey: 'nav.clients', path: '/clients', permission: 'clients.view', module: 'logistics', icon: Building2 },
+  { key: 'carriers', labelKey: 'nav.carriers', path: '/carriers', permission: 'carriers.view', module: 'forwarding', icon: Truck },
   {
     key: 'orders',
     labelKey: 'nav.orders',
     path: '/orders',
     permission: 'orders.view',
     module: 'logistics',
+    icon: Package,
     children: [
-      { key: 'consignments', labelKey: 'nav.consignments', path: '/consignments', permission: 'consignments.view', module: 'logistics' },
-      { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'logistics' },
-      { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'logistics' },
+      { key: 'consignments', labelKey: 'nav.consignments', path: '/consignments', permission: 'consignments.view', module: 'logistics', icon: Boxes },
+      { key: 'trips', labelKey: 'nav.trips', path: '/trips', permission: 'trips.view', module: 'logistics', icon: Route },
+      { key: 'transfers', labelKey: 'nav.transfers', path: '/transfers', permission: 'consignments.view', module: 'logistics', icon: ArrowLeftRight },
     ],
   },
-  { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'fleet.view', module: 'fleet' },
-  { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers' },
-  { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance' },
-  { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents' },
-  {
-    key: 'more',
-    labelKey: 'nav.more',
-    collapsible: true,
-    children: [
-      { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view' },
-      { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view' },
-    ],
-  },
+  { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'fleet.view', module: 'fleet', icon: CarFront },
+  { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers', icon: UserRound },
+  { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance', icon: Wallet },
+  { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents', icon: FileText },
+  { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view', icon: Trash2 },
   {
     key: 'settings',
     labelKey: 'nav.settings',
+    icon: Settings,
     children: [
-      { key: 'company', labelKey: 'nav.company', path: '/settings/company', permission: 'company.view' },
-      { key: 'users', labelKey: 'nav.users', path: '/settings/users', permission: 'users.view' },
-      { key: 'departments', labelKey: 'nav.departments', path: '/settings/departments', permission: 'users.view' },
-      { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view' },
-      { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance' },
-      { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules' },
-      { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'] },
-      { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view' },
-      { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'documents' },
+      { key: 'company', labelKey: 'nav.company', path: '/settings/company', permission: 'company.view', icon: Building, section: 'organization' },
+      { key: 'users', labelKey: 'nav.users', path: '/settings/users', permission: 'users.view', icon: Users, section: 'organization' },
+      { key: 'departments', labelKey: 'nav.departments', path: '/settings/departments', permission: 'users.view', icon: Network, section: 'organization' },
+      { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view', icon: ShieldCheck, section: 'organization' },
+      { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules', icon: Blocks, section: 'organization' },
+      { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view', icon: BookOpen, section: 'data' },
+      { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'], icon: FileCog, section: 'data' },
+      { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view', icon: Hash, section: 'data' },
+      { key: 'doctemplates', labelKey: 'nav.doctemplates', path: '/settings/document-templates', permission: 'documents.view', module: 'documents', icon: FileStack, section: 'data' },
+      { key: 'financesettings', labelKey: 'nav.financeSettings', path: '/settings/finance', permission: 'finance.manage_settings', module: 'finance', icon: SlidersHorizontal, section: 'finance' },
     ],
   },
 ]

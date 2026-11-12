@@ -1,42 +1,38 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, matchPath, useLocation } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 import { useBranding } from '../shared/branding/useBranding'
-import { useAuth } from '../shared/auth/useAuth'
 import { useSession } from '../shared/auth/useSession'
-import { LANGUAGES, setLanguage, type Language } from '../shared/i18n'
-import { Button } from '../shared/ui/Button'
-import { pushToast } from '../shared/ui/toast'
-import { errorMessage } from '../shared/api/errors'
-import { ChangePasswordDialog } from '../features/account/ChangePasswordDialog'
 import { visibleNav, type NavItem } from './nav'
-import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import { ProfileMenu } from './ProfileMenu'
 
-function containsPath(item: NavItem, pathname: string): boolean {
-  return (item.children ?? []).some((c) => (c.path !== undefined && matchPath({ path: c.path, end: false }, pathname) !== null) || containsPath(c, pathname))
-}
+const LINK = 'flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors'
+const ACTIVE = 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100'
+const IDLE = 'text-muted hover:bg-surface-2 hover:text-ink'
 
-/** Сворачиваемая группа «Ещё»: редкие разделы убраны с основного меню, открыта на своих страницах. */
-function CollapsibleGroup({ item }: { item: NavItem }) {
+function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const [open, setOpen] = useState(false)
-  const shown = open || containsPath(item, pathname)
+  const Icon = item.icon
+  const iconCls = child ? 'size-4' : 'size-[18px]'
+  // Группа настроек - одна строка меню: подразделы открываются слева на самой странице настроек
+  const isSettingsHub = item.path === undefined && item.key === 'settings'
+  const to = isSettingsHub ? '/settings' : item.path
+  if (to === undefined) return null
+  const hubActive = isSettingsHub && pathname.startsWith('/settings')
   return (
     <li>
-      <button
-        type="button"
-        aria-expanded={shown}
-        onClick={() => { setOpen(!shown) }}
-        className="flex w-full items-center justify-between px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+      <NavLink
+        to={to}
+        end={to === '/'}
+        className={({ isActive }) => `${LINK} ${child ? 'py-1.5 pl-9' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
-        {t(item.labelKey)}
-        <span aria-hidden="true">{shown ? '▾' : '▸'}</span>
-      </button>
-      {shown ? (
-        <ul>
-          {(item.children ?? []).map((child) => (
-            <NavEntry key={child.key} item={child} depth={1} />
+        {Icon && !child ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
+        <span className="truncate">{t(item.labelKey)}</span>
+      </NavLink>
+      {!isSettingsHub && item.children ? (
+        <ul className="mt-0.5 space-y-0.5">
+          {item.children.map((c) => (
+            <NavEntry key={c.key} item={c} child />
           ))}
         </ul>
       ) : null}
@@ -44,146 +40,35 @@ function CollapsibleGroup({ item }: { item: NavItem }) {
   )
 }
 
-function NavEntry({ item, depth = 0 }: { item: NavItem; depth?: number }) {
-  const { t } = useTranslation()
-  const pad = depth > 0 ? 'pl-6' : 'pl-3'
-  if (item.collapsible) return <CollapsibleGroup item={item} />
-  return (
-    <li>
-      {item.path === undefined ? (
-        <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          {t(item.labelKey)}
-        </p>
-      ) : (
-        <NavLink
-          to={item.path}
-          end={item.path === '/'}
-          className={({ isActive }) =>
-            `block rounded py-1 pr-3 text-sm ${pad} ${
-              isActive
-                ? 'bg-brand-100 font-medium text-slate-900 dark:bg-brand-900 dark:text-white'
-                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-            }`
-          }
-        >
-          {t(item.labelKey)}
-        </NavLink>
-      )}
-      {item.children ? (
-        <ul>
-          {item.children.map((child) => (
-            <NavEntry key={child.key} item={child} depth={depth + 1} />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  )
-}
-
-function CompanySwitcher() {
+/** Боковое меню: плавающая панель на компьютере, полноэкранная шторка на телефоне. */
+export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void; flat?: boolean }) {
   const { t } = useTranslation()
   const { session } = useSession()
-  const { switchCompany } = useAuth()
-  const [busy, setBusy] = useState(false)
-  if (!session) return null
-  const { company, companies } = session
-
-  if (companies.length < 2) {
-    return <p className="truncate text-sm font-medium">{company.name}</p>
-  }
-  return (
-    <select
-      aria-label={t('company.switch')}
-      className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"
-      value={company.id}
-      disabled={busy}
-      onChange={(event) => {
-        const id = Number(event.target.value)
-        if (!Number.isInteger(id) || id === company.id) return
-        setBusy(true)
-        switchCompany(id)
-          .catch((error: unknown) => {
-            pushToast('error', errorMessage(error, t))
-          })
-          .finally(() => {
-            setBusy(false)
-          })
-      }}
-    >
-      {companies.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-    </select>
-  )
-}
-
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { t, i18n } = useTranslation()
-  const { session } = useSession()
-  const { logout } = useAuth()
-  const [changingPassword, setChangingPassword] = useState(false)
   const branding = useBranding()
   const items = session ? visibleNav(session) : []
 
   return (
-    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex h-12 items-center gap-2 border-b border-slate-200 px-3 dark:border-slate-800">
+    <aside
+      className={`flex h-full w-60 shrink-0 flex-col bg-surface ${flat ? '' : 'rounded-card border border-line shadow-card'}`}
+    >
+      <div className="flex h-14 items-center gap-2.5 px-4">
         {branding.logo_url ? (
-          <img src={branding.logo_url} alt="" className="size-6 rounded object-contain" />
-        ) : null}
+          <img src={branding.logo_url} alt="" className="size-7 rounded-md object-contain" />
+        ) : (
+          <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-brand-fg">
+            {branding.app_name.charAt(0).toUpperCase()}
+          </span>
+        )}
         <span className="truncate text-sm font-semibold">{branding.app_name}</span>
       </div>
-      <nav aria-label={t('nav.label')} className="flex-1 overflow-y-auto p-2" onClick={onNavigate}>
+      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={onNavigate}>
         <ul className="space-y-0.5">
           {items.map((item) => (
             <NavEntry key={item.key} item={item} />
           ))}
         </ul>
       </nav>
-      <div className="space-y-2 border-t border-slate-200 p-2 dark:border-slate-800">
-        <CompanySwitcher />
-        {session?.user.platform_role ? <WorkspaceSwitcher mode="company" needsCode={session.user.platform_totp === true} companies={[]} /> : null}
-        <select
-          aria-label={t('common.language')}
-          className="h-8 w-full rounded border border-slate-300 bg-white px-1 text-sm dark:border-slate-600 dark:bg-slate-900"
-          value={i18n.resolvedLanguage}
-          onChange={(event) => {
-            setLanguage(event.target.value as Language)
-          }}
-        >
-          {LANGUAGES.map((lng) => (
-            <option key={lng} value={lng}>
-              {t(`languages.${lng}`)}
-            </option>
-          ))}
-        </select>
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-xs text-slate-500">
-            {session?.user.full_name || session?.user.email || session?.user.phone}
-          </span>
-          <Button variant="ghost" onClick={logout}>
-            {t('auth.logout')}
-          </Button>
-        </div>
-        <Button
-          variant="ghost"
-          className="w-full"
-          onClick={() => {
-            setChangingPassword(true)
-          }}
-        >
-          {t('account.changePassword')}
-        </Button>
-        {changingPassword ? (
-          <ChangePasswordDialog
-            onClose={() => {
-              setChangingPassword(false)
-            }}
-          />
-        ) : null}
-      </div>
+      <ProfileMenu />
     </aside>
   )
 }

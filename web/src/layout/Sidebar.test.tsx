@@ -16,34 +16,27 @@ const base = (session = makeSession()) =>
   ] as Parameters<typeof mockFetch>[0]
 
 describe('Sidebar', () => {
-  it('показывает меню по правам и модулям', async () => {
+  it('показывает меню по правам и модулям; настройки - одна строка, подразделы на странице настроек', async () => {
     setTokens({ access: 'a', refresh: 'r' })
     const perms = ALL_PERMISSIONS.filter((p) => p !== 'users.view')
-    mockFetch(base(makeSession({ permissions: perms })))
-    renderApp('/')
+    mockFetch([...base(makeSession({ permissions: perms })), ['GET', /^\/api\/company\//, { body: {} }]])
+    renderApp('/settings/company')
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
     expect(within(nav).getByText('Клиенты')).toBeInTheDocument()
-    expect(within(nav).getByText('Роли и права')).toBeInTheDocument()
-    expect(within(nav).queryByText('Пользователи')).not.toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Настройки' })).toHaveAttribute('href', '/settings')
+    expect(within(nav).queryByText('Роли и права')).not.toBeInTheDocument()
+    const settings = await screen.findByRole('navigation', { name: 'Разделы настроек' })
+    expect(within(settings).getByRole('link', { name: 'Роли и права' })).toHaveAttribute('href', '/settings/roles')
+    expect(within(settings).getByRole('link', { name: 'Справочники' })).toHaveAttribute('href', '/settings/handbooks')
+    expect(within(settings).queryByText('Пользователи')).not.toBeInTheDocument()
   })
 
-  it('«Ещё»: корзина и справочники свёрнуты, открываются по клику и открыты на своей странице', async () => {
+  it('корзина - обычный пункт меню', async () => {
     setTokens({ access: 'a', refresh: 'r' })
     mockFetch([...base(), ['GET', /^\/api\/trash\//, { body: { count: 0, next: null, previous: null, results: [] } }]])
     renderApp('/')
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
-    expect(within(nav).queryByRole('link', { name: 'Корзина' })).not.toBeInTheDocument()
-    await userEvent.click(within(nav).getByRole('button', { name: /Ещё/ }))
     expect(within(nav).getByRole('link', { name: 'Корзина' })).toHaveAttribute('href', '/trash')
-    expect(within(nav).getByRole('link', { name: 'Справочники' })).toHaveAttribute('href', '/settings/handbooks')
-  })
-
-  it('на странице корзины группа «Ещё» открыта сама', async () => {
-    setTokens({ access: 'a', refresh: 'r' })
-    mockFetch([...base(), ['GET', /^\/api\/trash\//, { body: { count: 0, next: null, previous: null, results: [] } }]])
-    renderApp('/trash')
-    const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
-    expect(await within(nav).findByRole('link', { name: 'Корзина' })).toBeInTheDocument()
   })
 
   it('без модуля logistics прячет клиентов и заказы', async () => {
@@ -88,6 +81,7 @@ describe('Sidebar', () => {
       return original(input, init)
     })
     renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
     const select = await screen.findByLabelText('Компания')
     await userEvent.setup().selectOptions(select, 'Бета')
     await waitFor(() => {
@@ -114,7 +108,9 @@ describe('Sidebar', () => {
     setTokens({ access: 'a', refresh: 'r' })
     const m = mockFetch([...base(), ['POST', '/api/auth/logout/', { status: 204 }]])
     const { router } = renderApp('/')
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Выйти' }))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Меню профиля' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Выйти' }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')
     })
