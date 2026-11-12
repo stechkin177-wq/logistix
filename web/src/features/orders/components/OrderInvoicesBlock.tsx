@@ -40,12 +40,12 @@ export function OrderInvoicesBlock({ order, currency }: { order: Order; currency
       {list.data ? (
         <>
           <dl className="grid grid-cols-3 gap-2 text-sm">
-            <div><dt className="text-xs text-slate-500">{t('finance.orderBlock.invoiced')}</dt><dd><Money value={sum(active.map((i) => i.totals.net))} currency={currency} /></dd></div>
-            <div><dt className="text-xs text-slate-500">{t('finance.orderBlock.income')}</dt><dd><Money value={order.revenue} currency={currency} /></dd></div>
-            <div><dt className="text-xs text-slate-500">{t('finance.orderBlock.paid')}</dt><dd><Money value={sum(active.map((i) => i.paid))} currency={currency} /></dd></div>
+            <div><dt className="text-xs text-muted">{t('finance.orderBlock.invoiced')}</dt><dd><Money value={sum(active.map((i) => i.totals.net))} currency={currency} /></dd></div>
+            <div><dt className="text-xs text-muted">{t('finance.orderBlock.income')}</dt><dd><Money value={order.revenue} currency={currency} /></dd></div>
+            <div><dt className="text-xs text-muted">{t('finance.orderBlock.paid')}</dt><dd><Money value={sum(active.map((i) => i.paid))} currency={currency} /></dd></div>
           </dl>
           {invoices.length === 0 ? (
-            <p className="text-sm text-slate-500">{t('finance.orderBlock.empty')}</p>
+            <p className="text-sm text-muted">{t('finance.orderBlock.empty')}</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {invoices.map((i) => (
@@ -53,7 +53,7 @@ export function OrderInvoicesBlock({ order, currency }: { order: Order; currency
                   <Link className="text-brand-700 underline dark:text-brand-300" to={`/finance/invoices/${String(i.id)}`}>{invoiceLabel(i, t)}</Link>
                   <StatusBadge status={i.display_status} />
                   <Money value={i.totals.gross} currency={currency} />
-                  <span className="text-xs text-slate-500">{t('finance.invoices.balance')}: <Money value={i.balance} currency={currency} /></span>
+                  <span className="text-xs text-muted">{t('finance.invoices.balance')}: <Money value={i.balance} currency={currency} /></span>
                 </li>
               ))}
             </ul>

@@ -15,6 +15,8 @@ import { FormBanner } from '../../../shared/ui/FormBanner'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useDepartments, type Department } from './useDepartments'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Network } from '../../../shared/ui/icons'
 
 function DepartmentDialog({ department, onClose }: { department: Department | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -97,10 +99,13 @@ export function DepartmentsPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.departments')}</h1>
-        <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ department: null, nonce: Date.now() }) }}>{t('departments.new')}</WriteButton>
-      </div>
+      <PageHeader icon={Network} title={t('nav.departments')}
+        actions={
+          <>
+            <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ department: null, nonce: Date.now() }) }}>{t('departments.new')}</WriteButton>
+          </>
+        }
+      />
       <DataTable
         caption={t('nav.departments')}
         columns={columns}

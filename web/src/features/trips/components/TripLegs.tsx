@@ -22,14 +22,14 @@ export function TripLegs({ legs }: { legs: TripLeg[] }) {
   return (
     <section aria-labelledby="trip-legs" className="mt-4 space-y-1">
       <h3 id="trip-legs" className="text-xs font-medium">{t('trips.legs')}</h3>
-      <ul className="divide-y divide-slate-100 rounded border border-slate-200 text-sm dark:divide-slate-800 dark:border-slate-700">
+      <ul className="divide-y divide-line rounded-control border border-line text-sm">
         {legs.map((leg) => (
           <li key={leg.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-2 py-1">
             <span className="min-w-0">
               <span className="font-medium">{leg.consignment_name}</span>{' '}
               <Link to={`/orders/${String(leg.order)}`} className="text-xs text-brand-700 hover:underline dark:text-brand-300">{leg.order_number}</Link>
               <br />
-              <span className="text-xs text-slate-600 dark:text-slate-300">
+              <span className="text-xs text-muted">
                 {leg.from_stop && leg.to_stop ? `${leg.from_stop.city} → ${leg.to_stop.city}` : t('trips.wholeRoute')}
                 {' · '}
                 {shares(leg, t)}

@@ -32,7 +32,7 @@ interface Props {
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-label={title} className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 className="text-sm font-semibold">{title}</h2>
       {children}
     </section>
@@ -126,7 +126,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
               <Select label={t('orders.manager')} value={form.manager} options={userOptions} error={errors.manager} onChange={(v) => { set('manager', v) }} />
             </>
           ) : (
-            <p className="text-xs text-slate-500 md:col-span-3">{t('orders.managerSelf')}</p>
+            <p className="text-xs text-muted md:col-span-3">{t('orders.managerSelf')}</p>
           )}
         </div>
       </Block>
@@ -141,7 +141,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
         </div>
       </Block>
 
-      <section aria-label={t('orders.blockExtra')} className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <section aria-label={t('orders.blockExtra')} className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
         <Button variant="ghost" aria-expanded={showExtra} onClick={() => { setExtraOpen(!showExtra) }}>
           {showExtra ? '▾' : '▸'} {t('orders.blockExtra')}
         </Button>
@@ -162,7 +162,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
             <>
               <Select label={t('orders.forwarder')} value={form.forwarder} placeholder={t('common.none')} options={userOptions} error={errors.forwarder} onChange={(v) => { set('forwarder', v) }} />
               <fieldset className="md:col-span-3">
-                <legend className="mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">{t('orders.extraManagers')}</legend>
+                <legend className="mb-1 text-xs font-medium text-muted">{t('orders.extraManagers')}</legend>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {activeUsers.map((u) => (
                     <label key={u.user_id} className="flex items-center gap-1 text-sm">
@@ -196,10 +196,10 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
       {mode === 'create' ? (
         <>
           <Block title={t('orders.blockCargo')}>
-            <p className="text-xs text-slate-500">{t('orders.cargoOptional')}</p>
+            <p className="text-xs text-muted">{t('orders.cargoOptional')}</p>
             {errors.consignments ? <p role="alert" className="text-xs text-red-600">{errors.consignments}</p> : null}
             {form.consignments.map((c, index) => (
-              <div key={c.key} className="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700">
+              <div key={c.key} className="space-y-2 rounded-control border border-line p-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium">{t('orders.cargoN', { n: index + 1 })}</h3>
                   <Button
@@ -216,7 +216,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
             <Button onClick={() => { set('consignments', [...form.consignments, emptyConsignment()]) }}>{t('orders.addCargo')}</Button>
           </Block>
           <Block title={t('orders.blockRoute')}>
-            {form.consignments.length === 0 ? <p className="text-xs text-slate-500">{t('orders.routeNeedsCargo')}</p> : null}
+            {form.consignments.length === 0 ? <p className="text-xs text-muted">{t('orders.routeNeedsCargo')}</p> : null}
             {form.consignments.map((c, index) => (
               <div key={c.key} className="space-y-2">
                 <h3 className="text-sm font-medium">{t('orders.cargoN', { n: index + 1 })}{c.name ? `: ${c.name}` : ''}</h3>

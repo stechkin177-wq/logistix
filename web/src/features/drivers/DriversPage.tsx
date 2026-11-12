@@ -17,6 +17,8 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { DriverDrawer } from './DriverDrawer'
 import { useDeleteDriver, useDriverList } from './hooks'
 import { DRIVER_STATUSES, type Driver } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { UserRound } from '../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -72,12 +74,15 @@ export function DriversPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.drivers')}</h1>
-        <WriteButton permission="drivers.create" variant="primary" onClick={() => { setEditor({ driver: null, nonce: Date.now() }) }}>
-          {t('drivers.new')}
-        </WriteButton>
-      </div>
+      <PageHeader icon={UserRound} title={t('nav.drivers')}
+        actions={
+          <>
+            <WriteButton permission="drivers.create" variant="primary" onClick={() => { setEditor({ driver: null, nonce: Date.now() }) }}>
+              {t('drivers.new')}
+            </WriteButton>
+          </>
+        }
+      />
       <FilterBar canReset={filtered} onReset={() => { setState({ q: '', status: '' }) }}>
         <FilterItem className="w-56">
           <TextField label={t('common.search')} type="search" placeholder={t('drivers.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />

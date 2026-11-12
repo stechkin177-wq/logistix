@@ -173,7 +173,7 @@ function MileageCheckBlock({ id }: { id: number }) {
   const d = check.data
   if (!d?.enabled) return null
   return (
-    <section aria-label={t('fleet.mileageCheck')} className="rounded border border-slate-200 p-2 text-sm dark:border-slate-700">
+    <section aria-label={t('fleet.mileageCheck')} className="rounded-control border border-line p-2 text-sm">
       <div className="font-medium">{t('fleet.mileageCheck')}</div>
       <div>
         {t('fleet.officialKm')}: {d.official_km ?? '—'}
@@ -182,12 +182,12 @@ function MileageCheckBlock({ id }: { id: number }) {
       {d.gps_available ? (
         <>
           <div>{t('fleet.gpsKm')}: {d.gps_km}</div>
-          <div className="text-slate-500">{t('fleet.gpsReceivedAt')}: {d.gps_received_at ? d.gps_received_at.slice(0, 16).replace('T', ' ') : '—'}</div>
+          <div className="text-muted">{t('fleet.gpsReceivedAt')}: {d.gps_received_at ? d.gps_received_at.slice(0, 16).replace('T', ' ') : '—'}</div>
           <div>{t('fleet.differenceKm')}: {d.difference_km ?? '—'}</div>
           {d.warning ? <Badge tone="danger">{t('fleet.mileageMismatch', { km: d.threshold_km })}</Badge> : null}
         </>
       ) : (
-        <div className="text-slate-500">{t('fleet.gpsUnavailable')}</div>
+        <div className="text-muted">{t('fleet.gpsUnavailable')}</div>
       )}
     </section>
   )
@@ -243,7 +243,7 @@ function VehicleTab({ tab, vehicle }: { tab: Exclude<TabKey, 'main'>; vehicle: V
       vehicle={vehicle.id}
       readOnly
       emptyText={t('fleet.noMileage')}
-      header={<p className="text-sm text-slate-500">{t('fleet.mileageHint')}</p>}
+      header={<p className="text-sm text-muted">{t('fleet.mileageHint')}</p>}
       fields={[]}
       summary={(r) => `${str(r.recorded_at).slice(0, 10)} · ${t(`fleet.mileageSource.${str(r.source)}`)} · ${str(r.odometer_km)} ${t('fleet.km')}`}
     />

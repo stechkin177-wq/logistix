@@ -16,6 +16,8 @@ import { useIssued } from './hooks'
 import { DownloadButtons, IssuedDialog } from './IssuedDialog'
 import { LetterDrawer } from './LetterDrawer'
 import { DOCUMENT_KINDS, type IssuedDocument, type IssuedFilters } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { FileText } from '../../shared/ui/icons'
 
 const KIND_VALUES = ['', ...DOCUMENT_KINDS] as const
 
@@ -71,12 +73,15 @@ export function DocumentsPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.documents')}</h1>
-        <WriteButton variant="primary" permission="documents.create" onClick={() => { setLetterOpen(true) }}>
-          {t('documents.letter.open')}
-        </WriteButton>
-      </div>
+      <PageHeader icon={FileText} title={t('nav.documents')}
+        actions={
+          <>
+            <WriteButton variant="primary" permission="documents.create" onClick={() => { setLetterOpen(true) }}>
+              {t('documents.letter.open')}
+            </WriteButton>
+          </>
+        }
+      />
       <div className="flex flex-wrap items-end gap-2">
         <Select
           label={t('documents.issued.kind')}

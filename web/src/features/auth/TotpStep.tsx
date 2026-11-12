@@ -48,12 +48,12 @@ export function TotpStep({ challenge, setup, onSubmit, onExpired }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-slate-500">{t(setup ? 'auth.totpSetupHint' : 'auth.totpHint')}</p>
+      <p className="text-sm text-muted">{t(setup ? 'auth.totpSetupHint' : 'auth.totpHint')}</p>
       {setup && key ? (
-        <div className="space-y-1 rounded border border-slate-200 p-2 text-sm dark:border-slate-700">
-          <p className="text-xs text-slate-500">{t('auth.totpKey')}</p>
+        <div className="space-y-1 rounded-control border border-line p-2 text-sm">
+          <p className="text-xs text-muted">{t('auth.totpKey')}</p>
           <p className="break-all font-mono" data-testid="totp-secret">{key.secret}</p>
-          <p className="break-all text-xs text-slate-500">{key.otpauth_uri}</p>
+          <p className="break-all text-xs text-muted">{key.otpauth_uri}</p>
         </div>
       ) : null}
       {error ? <Banner kind="error">{error}</Banner> : null}

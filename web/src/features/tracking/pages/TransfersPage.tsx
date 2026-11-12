@@ -16,6 +16,8 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { TransferStatusBadge } from '../components/TransferStatusBadge'
 import { useConfirmTransfer, useReverseTransfer, useTransferList } from '../hooks'
 import { TRANSFER_KINDS, type CargoTransfer } from '../types'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { ArrowLeftRight } from '../../../shared/ui/icons'
 
 const SCHEMA = {
   status: codecs.string(''),
@@ -62,7 +64,7 @@ export function TransfersPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold">{t('tracking.transfersTitle')}</h1>
+      <PageHeader icon={ArrowLeftRight} title={t('tracking.transfersTitle')} />
       <FilterBar>
         <FilterItem>
           <Select label={t('tracking.kind')} value={state.kind} placeholder={t('tracking.allKinds')} options={TRANSFER_KINDS.map((k) => ({ value: k, label: t(`tracking.kinds.${k}`) }))} onChange={(kind) => { setState({ kind, page: 1 }) }} />

@@ -17,6 +17,8 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { useDeleteVehicle, useReminders, useVehicleList } from './hooks'
 import { VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle } from './types'
 import { VehicleDrawer } from './VehicleDrawer'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { CarFront } from '../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -90,12 +92,15 @@ export function VehiclesPage() {
   const warnings = reminders.data?.results ?? []
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.vehicles')}</h1>
-        <WriteButton permission="fleet.create" variant="primary" onClick={() => { setEditor({ vehicle: null, nonce: Date.now() }) }}>
-          {t('fleet.new')}
-        </WriteButton>
-      </div>
+      <PageHeader icon={CarFront} title={t('nav.vehicles')}
+        actions={
+          <>
+            <WriteButton permission="fleet.create" variant="primary" onClick={() => { setEditor({ vehicle: null, nonce: Date.now() }) }}>
+              {t('fleet.new')}
+            </WriteButton>
+          </>
+        }
+      />
       {warnings.length > 0 ? (
         <section aria-label={t('fleet.warnings')} className="rounded border border-amber-300 bg-amber-50 p-2 text-sm dark:border-amber-700 dark:bg-amber-950">
           <div className="font-medium">{t('fleet.warnings')}</div>

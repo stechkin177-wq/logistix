@@ -90,8 +90,8 @@ export function OperationsTab() {
             ['expenseKzt', summary.expense_kzt],
             ['diffKzt', summary.diff_kzt],
           ] as const).map(([key, value]) => (
-            <div key={key} className="rounded border border-slate-200 p-2 dark:border-slate-700">
-              <p className="text-xs text-slate-500">{t(`finance.operations.${key}`, { currency: summary.currency ?? 'KZT' })}</p>
+            <div key={key} className="rounded-control border border-line p-2">
+              <p className="text-xs text-muted">{t(`finance.operations.${key}`, { currency: summary.currency ?? 'KZT' })}</p>
               <p className="text-lg font-semibold tabular-nums">{money(value)}</p>
             </div>
           ))}

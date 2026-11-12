@@ -167,7 +167,7 @@ export function InvoiceDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-base font-semibold">{invoiceLabel(invoice, t)}</h1>
           <StatusBadge status={invoice.display_status} />
-          <span className="text-xs text-slate-500">{t(`finance.direction.${invoice.direction}`)}</span>
+          <span className="text-xs text-muted">{t(`finance.direction.${invoice.direction}`)}</span>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link className="text-sm text-brand-700 underline dark:text-brand-300" to="/finance?tab=invoices">{t('finance.invoices.backToList')}</Link>
@@ -200,14 +200,14 @@ export function InvoiceDetailPage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
 
       <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-        <div><dt className="text-xs text-slate-500">{invoice.client ? t('finance.invoices.client') : t('finance.invoices.carrier')}</dt><dd>{invoice.client?.name ?? invoice.carrier?.name}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.order')}</dt><dd>{invoice.order ? <Link className="text-brand-700 underline dark:text-brand-300" to={`/orders/${String(invoice.order.id)}`}>{invoice.order.number}</Link> : '—'}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.trip')}</dt><dd>{invoice.trip?.number ?? '—'}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.externalNumber')}</dt><dd>{invoice.external_number || '—'}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.issueDate')}</dt><dd>{invoice.issue_date ? <DateTime value={invoice.issue_date} dateOnly /> : '—'}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.dueDate')}</dt><dd>{invoice.due_date ? <DateTime value={invoice.due_date} dateOnly /> : '—'}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.vatRate')}</dt><dd>{invoice.vat_rate.name}</dd></div>
-        <div><dt className="text-xs text-slate-500">{t('finance.invoices.rateToKzt')}</dt><dd>{invoice.rate_to_kzt ? Number(invoice.rate_to_kzt).toLocaleString('ru-RU', { maximumFractionDigits: 6 }) : '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{invoice.client ? t('finance.invoices.client') : t('finance.invoices.carrier')}</dt><dd>{invoice.client?.name ?? invoice.carrier?.name}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.order')}</dt><dd>{invoice.order ? <Link className="text-brand-700 underline dark:text-brand-300" to={`/orders/${String(invoice.order.id)}`}>{invoice.order.number}</Link> : '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.trip')}</dt><dd>{invoice.trip?.number ?? '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.externalNumber')}</dt><dd>{invoice.external_number || '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.issueDate')}</dt><dd>{invoice.issue_date ? <DateTime value={invoice.issue_date} dateOnly /> : '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.dueDate')}</dt><dd>{invoice.due_date ? <DateTime value={invoice.due_date} dateOnly /> : '—'}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.vatRate')}</dt><dd>{invoice.vat_rate.name}</dd></div>
+        <div><dt className="text-xs text-muted">{t('finance.invoices.rateToKzt')}</dt><dd>{invoice.rate_to_kzt ? Number(invoice.rate_to_kzt).toLocaleString('ru-RU', { maximumFractionDigits: 6 }) : '—'}</dd></div>
       </dl>
 
       <section className="space-y-2">
@@ -220,7 +220,7 @@ export function InvoiceDetailPage() {
           <dt>{t('finance.invoices.paid')}</dt><dd className="text-right"><Money value={invoice.paid} currency={code} /></dd>
           <dt>{t('finance.invoices.balance')}</dt><dd className="text-right"><Money value={invoice.balance} currency={code} /></dd>
         </dl>
-        {invoice.comment ? <p className="text-sm text-slate-600 dark:text-slate-300">{invoice.comment}</p> : null}
+        {invoice.comment ? <p className="text-sm text-muted">{invoice.comment}</p> : null}
       </section>
 
       {invoice.status !== 'draft' ? <PaymentsBlock invoice={invoice} /> : null}

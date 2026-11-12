@@ -11,6 +11,8 @@ import { EmptyState } from '../../../shared/ui/EmptyState'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useUsers } from '../../../shared/users/useUsers'
 import { RoleDrawer, type Role } from './RoleDrawer'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { ShieldCheck } from '../../../shared/ui/icons'
 
 export function useRoles(enabled = true) {
   return useQuery({ queryKey: ['roles', 'list'], queryFn: ({ signal }) => api.get<Role[]>('/roles/', undefined, { signal }), enabled })
@@ -63,10 +65,13 @@ export function RolesPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.roles')}</h1>
-        <WriteButton permission="roles.create" variant="primary" onClick={() => { setEditor({ role: null, nonce: Date.now() }) }}>{t('roles.new')}</WriteButton>
-      </div>
+      <PageHeader icon={ShieldCheck} title={t('nav.roles')}
+        actions={
+          <>
+            <WriteButton permission="roles.create" variant="primary" onClick={() => { setEditor({ role: null, nonce: Date.now() }) }}>{t('roles.new')}</WriteButton>
+          </>
+        }
+      />
       <DataTable
         caption={t('nav.roles')}
         columns={columns}

@@ -161,7 +161,7 @@ export function PlanDrawer({ plan, onClose }: { plan: AdminPlan | null; onClose:
         ) : null}
         {tab === 'limits' && catalog ? (
           <>
-            <p className="text-sm text-slate-500">{t('platform.plans.limitsHint')}</p>
+            <p className="text-sm text-muted">{t('platform.plans.limitsHint')}</p>
             <ul className="space-y-2">
               {catalog.limits.map((l) => (
                 <li key={l.code} className="flex items-center justify-between gap-2">

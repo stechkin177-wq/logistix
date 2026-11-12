@@ -28,7 +28,7 @@ export function CargoTracking({ consignmentId, stops }: { consignmentId: number;
   const canTransfer = hasPermission('consignments.update') || hasPermission('consignments.transfer')
 
   return (
-    <section aria-label={t('tracking.title')} className="space-y-2 rounded border border-slate-200 p-2 text-xs dark:border-slate-700">
+    <section aria-label={t('tracking.title')} className="space-y-2 rounded-control border border-line p-2 text-xs">
       <div className="flex flex-wrap items-end gap-2">
         {canTransfer ? (
           <Button onClick={() => { setDialog(true) }}>{t('tracking.transferButton')}</Button>
@@ -66,7 +66,7 @@ export function CargoTracking({ consignmentId, stops }: { consignmentId: number;
           ))}
         </ol>
       ) : (
-        <p className="text-slate-500">{t('tracking.noEvents')}</p>
+        <p className="text-muted">{t('tracking.noEvents')}</p>
       )}
       {transfers.data && transfers.data.length > 0 ? (
         <>

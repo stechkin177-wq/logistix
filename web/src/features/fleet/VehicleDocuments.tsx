@@ -18,8 +18,8 @@ export function VehicleDocuments({ vehicle }: { vehicle: Vehicle }) {
   return (
     <div className="space-y-3">
       {list.isError ? <p role="alert" className="text-sm text-red-600">{errorMessage(list.error, t)}</p> : null}
-      {list.data && list.data.results.length === 0 ? <p className="text-sm text-slate-500">{t('fleet.noDocuments')}</p> : null}
-      <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+      {list.data && list.data.results.length === 0 ? <p className="text-sm text-muted">{t('fleet.noDocuments')}</p> : null}
+      <ul className="divide-y divide-slate-200 text-sm">
         {list.data?.results.map((row) => (
           <li key={row.id} className="flex items-center justify-between gap-2 py-1.5">
             <span>{documentSummary(row, t(`fleet.docKind.${row.kind}`), t('fleet.until'))}</span>

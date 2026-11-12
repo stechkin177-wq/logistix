@@ -142,12 +142,12 @@ function BrandingForm({ branding }: { branding: Branding }) {
         </FormField>
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        {logoUrl ? <img src={logoUrl} alt={t('company.currentLogo')} className="h-10 max-w-40 object-contain" /> : <span className="text-xs text-slate-500">{t('company.noLogo')}</span>}
+        {logoUrl ? <img src={logoUrl} alt={t('company.currentLogo')} className="h-10 max-w-40 object-contain" /> : <span className="text-xs text-muted">{t('company.noLogo')}</span>}
         {logoUrl || logo ? (
           <WriteButton permission="company.update" onClick={() => { setLogo(null); setClearLogo(true); if (fileRef.current) fileRef.current.value = '' }}>{t('company.clearLogo')}</WriteButton>
         ) : null}
       </div>
-      <p className="text-xs text-slate-500">{t('company.previewNote')}</p>
+      <p className="text-xs text-muted">{t('company.previewNote')}</p>
       <div className="flex justify-end">
         <WriteButton permission="company.update" variant="primary" type="submit" disabled={save.isPending}>{save.isPending ? t('common.saving') : t('common.save')}</WriteButton>
       </div>
@@ -160,7 +160,7 @@ export function BrandingBlock() {
   const { t } = useTranslation()
   const query = useQuery({ queryKey: ['company', 'branding'], queryFn: ({ signal }) => api.get<Branding>('/company/branding/', undefined, { signal }) })
   return (
-    <section aria-labelledby="branding-title" className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="branding-title" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 id="branding-title" className="text-sm font-semibold">{t('company.branding')}</h2>
       {query.isError ? (
         <>

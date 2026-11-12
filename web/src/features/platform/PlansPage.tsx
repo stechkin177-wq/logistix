@@ -10,6 +10,8 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { PlanDrawer } from './PlanDrawer'
 import { useDeletePlan, usePlanAction, usePlans, useReorder } from './hooks'
 import type { AdminPlan, PlanStatus } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { CreditCard } from '../../shared/ui/icons'
 
 const TONE: Record<PlanStatus, 'neutral' | 'success' | 'warning'> = { draft: 'neutral', active: 'success', archived: 'warning' }
 
@@ -59,7 +61,7 @@ export function PlansPage() {
       header: t('platform.plans.name'),
       cell: (p) => (
         <button type="button" className="text-left font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setEditor({ plan: p, nonce: Date.now() }) }}>
-          {p.name} <span className="text-xs text-slate-500">({p.code})</span>
+          {p.name} <span className="text-xs text-muted">({p.code})</span>
         </button>
       ),
     },
@@ -94,11 +96,14 @@ export function PlansPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.platformPlans')}</h1>
-        <Button variant="primary" onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
-      </div>
-      <p className="text-sm text-slate-500">{t('platform.plans.intro')}</p>
+      <PageHeader icon={CreditCard} title={t('nav.platformPlans')}
+        actions={
+          <>
+            <Button variant="primary" onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
+          </>
+        }
+      />
+      <p className="text-sm text-muted">{t('platform.plans.intro')}</p>
       {error ? <Banner kind="error">{error}</Banner> : null}
       <DataTable
         caption={t('nav.platformPlans')}

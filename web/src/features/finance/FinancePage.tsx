@@ -11,6 +11,8 @@ import { InvoicesTab } from './InvoicesTab'
 import { OperationsTab } from './OperationsTab'
 import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { Wallet } from '../../shared/ui/icons'
 
 const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates', 'incomes', 'expenses'] as const
 /** Доходы и расходы показываются только при engine = new. */
@@ -38,7 +40,7 @@ export function FinancePage() {
   const active: TabKey = visible.includes(state.tab) ? state.tab : 'invoices'
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.finance')}</h1>
+      <PageHeader icon={Wallet} title={t('nav.finance')} />
       <FinanceSummaryCards />
       <Tabs
         label={t('finance.tabsLabel')}

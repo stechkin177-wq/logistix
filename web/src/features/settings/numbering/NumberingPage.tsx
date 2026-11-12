@@ -14,6 +14,8 @@ import { EmptyState } from '../../../shared/ui/EmptyState'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Hash } from '../../../shared/ui/icons'
 
 interface Rule { kind: string; name: string; description: string; template: string; digits: number; next_value: number; sample: string }
 
@@ -62,7 +64,7 @@ function RuleDrawer({ rule, onClose }: { rule: Rule; onClose: () => void }) {
     >
       <form ref={ref} noValidate className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (canSave) submit() }}>
         <FormBanner message={errors.banner} />
-        <p className="text-sm text-slate-600 dark:text-slate-300">{rule.description}</p>
+        <p className="text-sm text-muted">{rule.description}</p>
         <TextField label={t('numbering.template')} required value={form.template} error={f.template} hint={t('numbering.placeholders', { list: PLACEHOLDERS.join(' ') })} onChange={(e) => { setForm((s) => ({ ...s, template: e.target.value })) }} />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <TextField label={t('numbering.digits')} inputMode="numeric" value={form.digits} error={f.digits} hint={t('numbering.digitsHint')} onChange={(e) => { setForm((s) => ({ ...s, digits: e.target.value })) }} />
@@ -97,7 +99,7 @@ export function NumberingPage() {
   ]
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.numbering')}</h1>
+      <PageHeader icon={Hash} title={t('nav.numbering')} />
       <DataTable
         caption={t('nav.numbering')}
         columns={columns}

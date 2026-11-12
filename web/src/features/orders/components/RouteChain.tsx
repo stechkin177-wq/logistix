@@ -16,7 +16,7 @@ export function RouteChain({ stops }: Props) {
           {index > 0 ? <span aria-hidden="true" className="text-slate-400">→</span> : null}
           <span className={`rounded px-1.5 py-0.5 ${stop.status === 'done' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-slate-100 dark:bg-slate-800'}`}>
             <span className="font-medium">{stop.city}</span>
-            <span className="text-slate-500"> · {t(`orders.stopKinds.${stop.kind}`)}</span>
+            <span className="text-muted"> · {t(`orders.stopKinds.${stop.kind}`)}</span>
           </span>
         </li>
       ))}

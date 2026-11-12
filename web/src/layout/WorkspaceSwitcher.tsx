@@ -55,7 +55,7 @@ export function WorkspaceSwitcher({ mode, companies, needsCode = false }: Props)
 
   return (
     <div className="space-y-1">
-      <div role="group" aria-label={t('workspace.title')} className="flex gap-1 rounded border border-slate-300 p-0.5 dark:border-slate-600">
+      <div role="group" aria-label={t('workspace.title')} className="flex gap-1 rounded border border-slate-300 p-0.5">
         <button
           type="button"
           aria-pressed={mode === 'platform'}

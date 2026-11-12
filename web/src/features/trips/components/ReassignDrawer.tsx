@@ -67,7 +67,7 @@ export function ReassignDrawer({ trip, onClose }: { trip: Trip; onClose: () => v
         {error ? <Banner kind="error">{error}</Banner> : null}
         <section aria-labelledby="reassign-current">
           <h3 id="reassign-current" className="mb-1 text-xs font-medium">{t('trips.cargoInTrip', { count: chosen.size })}</h3>
-          <ul className="divide-y divide-slate-100 rounded border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+          <ul className="divide-y divide-line rounded-control border border-line">
             {listed.map((c) => (
               <li key={c.id} className="px-2">
                 <Checkbox checked={chosen.has(c.id)} label={`${c.name} (${c.order_number})`} onChange={() => { toggle(c) }} />
@@ -79,9 +79,9 @@ export function ReassignDrawer({ trip, onClose }: { trip: Trip; onClose: () => v
           <h3 id="reassign-search" className="text-xs font-medium">{t('trips.addCargo')}</h3>
           <TextField label={t('common.search')} type="search" placeholder={t('consignments.searchPlaceholder')} value={q} onChange={(e) => { setQ(e.target.value) }} />
           {search.isError ? <Banner kind="error">{errorMessage(search.error, t)}</Banner> : null}
-          <ul className="divide-y divide-slate-100 rounded border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+          <ul className="divide-y divide-line rounded-control border border-line">
             {found.length === 0 ? (
-              <li className="px-2 py-1 text-xs text-slate-500">{search.isFetching ? t('combobox.loading') : t('common.noResults')}</li>
+              <li className="px-2 py-1 text-xs text-muted">{search.isFetching ? t('combobox.loading') : t('common.noResults')}</li>
             ) : (
               found.map((c) => (
                 <li key={c.id} className="px-2">

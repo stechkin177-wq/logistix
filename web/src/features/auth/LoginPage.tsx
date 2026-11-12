@@ -73,7 +73,7 @@ export function LoginPage() {
       <h1 className="text-lg font-semibold">{branding.app_name}</h1>
     </div>
   )
-  const card = 'w-full max-w-sm space-y-3 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900'
+  const card = 'w-full max-w-sm space-y-3 rounded-card border border-line bg-surface p-6 shadow-card'
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
@@ -93,7 +93,7 @@ export function LoginPage() {
       ) : (
         <form onSubmit={(event) => void submit(event)} className={card} noValidate>
           {header}
-          <p className="text-sm text-slate-500">{t('auth.title')}</p>
+          <p className="text-sm text-muted">{t('auth.title')}</p>
           {formError ? <Banner kind="error">{formError}</Banner> : null}
           <Input
             label={t('auth.login')}

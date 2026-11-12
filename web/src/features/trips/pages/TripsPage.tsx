@@ -22,6 +22,8 @@ import { TripDrawer } from '../components/TripDrawer'
 import { TripStatusControl } from '../components/TripStatusControl'
 import { useTripList } from '../hooks'
 import type { Trip } from '../types'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Route } from '../../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -78,7 +80,7 @@ export function TripsPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.trips')}</h1>
+      <PageHeader icon={Route} title={t('nav.trips')} />
       <FilterBar canReset={filtered} onReset={reset}>
         <FilterItem className="w-48">
           <TextField label={t('common.search')} type="search" placeholder={t('trips.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />

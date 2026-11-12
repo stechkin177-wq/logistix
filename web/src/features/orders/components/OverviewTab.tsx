@@ -14,8 +14,8 @@ import { OrderForm } from './OrderForm'
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_1fr] gap-2 border-b border-slate-100 py-1 text-sm dark:border-slate-800">
-      <dt className="text-slate-500">{label}</dt>
+    <div className="grid grid-cols-[10rem_1fr] gap-2 border-b border-line py-1 text-sm">
+      <dt className="text-muted">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
   )

@@ -160,8 +160,8 @@ export function FinanceTab({ order }: { order: Order }) {
           ['orders.profit', <Money key="p" value={order.profit} currency={code} />],
           ['orders.margin', order.margin_pct === null ? '—' : <span key="m" className="tabular-nums">{money(order.margin_pct)} %</span>],
         ] as const).map(([label, value]) => (
-          <div key={label} className="rounded border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
-            <dt className="text-xs text-slate-500">{t(label)}</dt>
+          <div key={label} className="rounded-card border border-line bg-surface p-3 shadow-card">
+            <dt className="text-xs text-muted">{t(label)}</dt>
             <dd className="text-base font-semibold">{value}</dd>
           </div>
         ))}

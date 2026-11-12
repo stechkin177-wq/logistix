@@ -10,7 +10,7 @@ export function Stat({
     <>
       {Icon ? <Icon className="absolute right-4 top-4 size-4 text-muted" aria-hidden="true" /> : null}
       <p className="pr-6 text-xs font-medium text-muted">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
+      <p className={`mt-2 text-lg font-semibold tabular-nums sm:whitespace-nowrap sm:text-xl xl:text-2xl ${color}`}>{value}</p>
       {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
     </>
   )

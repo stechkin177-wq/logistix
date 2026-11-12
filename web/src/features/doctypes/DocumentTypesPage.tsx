@@ -13,6 +13,8 @@ import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { useArchiveDocumentType, useDocumentTypes, useSaveDocumentType } from './hooks'
 import { STD_FIELDS, type DocSubject, type DocumentType, type ExtraField, type StdField } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { FileCog } from '../../shared/ui/icons'
 
 const ACCESS: Record<DocSubject, { module: string; section: string }> = {
   tractor: { module: 'fleet', section: 'fleet' },
@@ -70,7 +72,7 @@ function TypeDrawer({ subject, type, onClose }: { subject: DocSubject; type: Doc
         <TextField label={t('doctypes.name')} required value={name} onChange={(e) => { setName(e.target.value) }} />
         <Checkbox label={t('doctypes.active')} checked={active} onChange={(e) => { setActive(e.target.checked) }} />
         <h3 className="text-sm font-semibold">{t('doctypes.fieldsTitle')}</h3>
-        <p className="text-xs text-slate-500">{t('doctypes.fieldsHint')}</p>
+        <p className="text-xs text-muted">{t('doctypes.fieldsHint')}</p>
         <ul className="space-y-1">
           {STD_FIELDS.map((f) => (
             <li key={f} className="flex items-center gap-4">
@@ -120,7 +122,7 @@ function SubjectTab({ subject }: { subject: DocSubject }) {
       </div>
       <FormBanner message={error} />
       {list.data && list.data.length === 0 ? <EmptyState title={t('doctypes.empty')} /> : null}
-      <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+      <ul className="divide-y divide-slate-200 text-sm">
         {list.data?.map((row) => (
           <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <div className="space-x-2">
@@ -161,8 +163,8 @@ export function DocumentTypesPage() {
   if (!active) return <EmptyState title={t('doctypes.noAccess')} />
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold">{t('doctypes.title')}</h1>
-      <p className="text-sm text-slate-500">{t('doctypes.intro')}</p>
+      <PageHeader icon={FileCog} title={t('doctypes.title')} />
+      <p className="text-sm text-muted">{t('doctypes.intro')}</p>
       <Tabs label={t('doctypes.title')} tabs={subjects.map((s) => ({ key: s, label: t(`doctypes.subjects.${s}`) }))} active={active} onChange={(k) => { setTab(k as DocSubject) }} />
       <SubjectTab key={active} subject={active} />
     </div>

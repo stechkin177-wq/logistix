@@ -15,13 +15,13 @@ export function UsageBlock() {
   const usage = useUsage()
   const rows = (usage.data?.results ?? []).filter((r) => r.enforced && r.limit !== null)
   return (
-    <section aria-labelledby="usage-title" className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="usage-title" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 id="usage-title" className="text-sm font-semibold">{t('billing.usage.title')}</h2>
       {usage.isError ? <Banner kind="error">{errorMessage(usage.error, t)}</Banner> : null}
       {!usage.data && !usage.isError ? <Spinner label={t('table.loading')} /> : null}
-      {usage.data && rows.length === 0 ? <p className="text-sm text-slate-500">{t('billing.usage.noLimits')}</p> : null}
+      {usage.data && rows.length === 0 ? <p className="text-sm text-muted">{t('billing.usage.noLimits')}</p> : null}
       {rows.length > 0 ? (
-        <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+        <ul className="divide-y divide-slate-200 text-sm">
           {rows.map((r) => (
             <li key={r.code} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
               <span>
@@ -36,7 +36,7 @@ export function UsageBlock() {
           ))}
         </ul>
       ) : null}
-      {rows.some((r) => r.state === 'exceeded') ? <p className="text-xs text-slate-500">{t('billing.usage.exceededHint')}</p> : null}
+      {rows.some((r) => r.state === 'exceeded') ? <p className="text-xs text-muted">{t('billing.usage.exceededHint')}</p> : null}
     </section>
   )
 }

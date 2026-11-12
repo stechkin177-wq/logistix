@@ -17,6 +17,8 @@ import {
   applyProfile, disableModule, enableModule, getModules, getProfiles,
   type ActivityProfile, type CompanyModuleInfo, type ModulesResponse, type ProfileResult,
 } from './api'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Blocks } from '../../../shared/ui/icons'
 
 const KEY = ['company', 'modules'] as const
 
@@ -115,12 +117,12 @@ function ModuleRow({
           {module.status === 'beta' ? <Badge tone="warning">{t('modules.beta')}</Badge> : null}
           {!module.available_in_plan ? <Badge tone="neutral">{t('modules.notInPlan')}</Badge> : null}
         </div>
-        <p className="text-xs text-slate-600 dark:text-slate-400">{t(`modules.catalog.${module.code}.description`, { defaultValue: module.description })}</p>
+        <p className="text-xs text-muted">{t(`modules.catalog.${module.code}.description`, { defaultValue: module.description })}</p>
         {module.requires.filter((c) => c !== 'core').length > 0 ? (
-          <p className="text-xs text-slate-500">{t('modules.requires')}: {module.requires.filter((c) => c !== 'core').map(nameOf).join(', ')}</p>
+          <p className="text-xs text-muted">{t('modules.requires')}: {module.requires.filter((c) => c !== 'core').map(nameOf).join(', ')}</p>
         ) : null}
         {module.enhances.length > 0 ? (
-          <p className="text-xs text-slate-500">{t('modules.enhances')}: {module.enhances.map(nameOf).join(', ')}</p>
+          <p className="text-xs text-muted">{t('modules.enhances')}: {module.enhances.map(nameOf).join(', ')}</p>
         ) : null}
         {hint ? <p className="text-xs text-amber-700 dark:text-amber-300">{hint}</p> : null}
       </div>
@@ -168,9 +170,9 @@ function ProfileBlock({ items }: { items: CompanyModuleInfo[] }) {
     apply.mutate()
   }
   return (
-    <section aria-labelledby="mod-profile" className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="mod-profile" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 id="mod-profile" className="text-sm font-semibold">{t('modules.profileTitle')}</h2>
-      <p className="text-xs text-slate-600 dark:text-slate-400">{t('modules.profileHint')}</p>
+      <p className="text-xs text-muted">{t('modules.profileHint')}</p>
       <div className="flex flex-wrap items-end gap-3">
         <Select
           label={t('modules.profile')}
@@ -183,7 +185,7 @@ function ProfileBlock({ items }: { items: CompanyModuleInfo[] }) {
         <Button variant="primary" disabled={!canWrite || !profile} onClick={() => { setError(undefined); setConfirm(true) }}>{t('modules.apply')}</Button>
       </div>
       {profile ? (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           {t('modules.profileModules')}: {profile.modules.map(nameOf).join(', ')}
           {profile.unavailable_modules.length > 0 ? ` - ${t('modules.profileUnavailable')}: ${profile.unavailable_modules.map(nameOf).join(', ')}` : ''}
         </p>
@@ -238,8 +240,8 @@ export function ModulesPage() {
   }
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-base font-semibold">{t('nav.modules')}</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400">{t('modules.intro')}</p>
+      <PageHeader icon={Blocks} title={t('nav.modules')} />
+      <p className="text-sm text-muted">{t('modules.intro')}</p>
       {query.isError ? (
         <>
           <Banner kind="error">{errorMessage(query.error, t)}</Banner>
@@ -249,9 +251,9 @@ export function ModulesPage() {
         <>
           {error ? <Banner kind="error">{error}</Banner> : null}
           <ProfileBlock items={items} />
-          <section aria-labelledby="mod-list" className="rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+          <section aria-labelledby="mod-list" className="rounded-card border border-line bg-surface p-4 shadow-card">
             <h2 id="mod-list" className="text-sm font-semibold">{t('modules.listTitle')}</h2>
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            <ul className="divide-y divide-line">
               {items.map((m) => (
                 <ModuleRow
                   key={m.code}

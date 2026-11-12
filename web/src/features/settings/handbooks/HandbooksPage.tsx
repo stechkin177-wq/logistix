@@ -22,6 +22,8 @@ import { TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { codecs, useUrlState } from '../../../shared/hooks/useUrlState'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { BookOpen } from '../../../shared/ui/icons'
 
 interface HandbookSummary { code: string; name: string; group: string; values_count: number }
 
@@ -192,7 +194,7 @@ function ValuesPanel({ code }: { code: string }) {
         <h2 className="text-sm font-semibold">{book.name}</h2>
         <WriteButton permission="handbooks.create" variant="primary" onClick={() => { setEditor({ value: null, nonce: Date.now() }) }}>{t('handbooks.addValue')}</WriteButton>
       </div>
-      {isStatus ? <p className="text-xs text-slate-500">{t('handbooks.statusNote')}</p> : null}
+      {isStatus ? <p className="text-xs text-muted">{t('handbooks.statusNote')}</p> : null}
       <DataTable caption={book.name} columns={columns} rows={book.values} rowKey={(v) => v.id} empty={<EmptyState title={t('handbooks.emptyValues')} />} />
       {editor ? <ValueDrawer key={editor.nonce} handbook={book} value={editor.value} onClose={() => { setEditor(null) }} /> : null}
       <ConfirmDialog
@@ -223,7 +225,7 @@ export function HandbooksPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.handbooks')}</h1>
+      <PageHeader icon={BookOpen} title={t('nav.handbooks')} />
       {list.isError ? (
         <>
           <Banner kind="error">{errorMessage(list.error, t)}</Banner>
@@ -233,10 +235,10 @@ export function HandbooksPage() {
         <Spinner label={t('table.loading')} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[16rem_1fr]">
-          <nav aria-label={t('handbooks.list')} className="space-y-2 rounded border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
+          <nav aria-label={t('handbooks.list')} className="space-y-2 rounded-card border border-line bg-surface p-3 shadow-card">
             {[...groups.entries()].map(([group, books]) => (
               <div key={group}>
-                <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{group}</p>
+                <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{group}</p>
                 <ul>
                   {books.map((b) => (
                     <li key={b.code}>
@@ -247,7 +249,7 @@ export function HandbooksPage() {
                         className={`flex min-h-8 w-full items-center justify-between gap-2 rounded px-2 text-left text-sm ${b.code === selected ? 'bg-brand-100 font-medium dark:bg-brand-900' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                       >
                         <span>{b.name}</span>
-                        <span className="text-xs text-slate-500">{b.values_count}</span>
+                        <span className="text-xs text-muted">{b.values_count}</span>
                       </button>
                     </li>
                   ))}

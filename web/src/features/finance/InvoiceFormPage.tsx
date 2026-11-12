@@ -204,12 +204,12 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold">{t('finance.invoices.lines')}</legend>
         {(isOut ? orderQuery.isError : tripQuery.isError) ? <Banner kind="error">{errorMessage(isOut ? orderQuery.error : tripQuery.error, t)}</Banner> : null}
-        {sourceOrders.length === 0 ? <p className="text-sm text-slate-500">{isOut ? t('finance.invoices.pickOrderFirst') : t('finance.invoices.pickTripFirst')}</p> : null}
+        {sourceOrders.length === 0 ? <p className="text-sm text-muted">{isOut ? t('finance.invoices.pickOrderFirst') : t('finance.invoices.pickTripFirst')}</p> : null}
         {linesLoading && sourceOrders.length > 0 ? <Spinner /> : null}
-        {sourceOrders.length > 0 && !linesLoading && rows.length === 0 && isOut ? <p className="text-sm text-slate-500">{t('finance.invoices.noLines')}</p> : null}
+        {sourceOrders.length > 0 && !linesLoading && rows.length === 0 && isOut ? <p className="text-sm text-muted">{t('finance.invoices.noLines')}</p> : null}
         {noExpense ? (
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-slate-600 dark:text-slate-300">{t('finance.invoices.noTripLines')}</p>
+            <p className="text-sm text-muted">{t('finance.invoices.noTripLines')}</p>
             <WriteButton permission="finance.create" onClick={() => { setExpenseOpen(true) }}>{t('finance.tripExpense.button')}</WriteButton>
           </div>
         ) : null}
@@ -217,7 +217,7 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
         {rows.map(({ line, orderNumber }) => {
           const pick = picks[line.id]
           return (
-            <div key={line.id} className="grid items-start gap-2 rounded border border-slate-200 p-2 md:grid-cols-[auto_1fr_10rem] dark:border-slate-700">
+            <div key={line.id} className="grid items-start gap-2 rounded-control border border-line p-2 md:grid-cols-[auto_1fr_10rem]">
               <Checkbox
                 label={t('finance.invoices.include', { name: line.title })}
                 hideLabel

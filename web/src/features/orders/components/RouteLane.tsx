@@ -44,7 +44,7 @@ export function RouteLane({ route }: { route: ConsignmentRoute }) {
               ) : null}
               <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">
                 <span className="font-medium">{stop.city}</span>
-                <span className="text-slate-500"> · {t(`orders.stopKinds.${stop.kind}`)}</span>
+                <span className="text-muted"> · {t(`orders.stopKinds.${stop.kind}`)}</span>
               </span>
             </li>
           )

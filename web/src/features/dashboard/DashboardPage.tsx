@@ -14,12 +14,14 @@ import { useSession } from '../../shared/auth/useSession'
 import { DebtsExcludedHint } from '../finance/DebtsExcludedHint'
 import { useFinanceSummary } from '../finance/hooks'
 import { useDashboardSummary } from './hooks'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { LayoutDashboard } from '../../shared/ui/icons'
 
 function StatusBars({ data }: { data: DashboardSummary }) {
   const { t } = useTranslation()
   const max = Math.max(0, ...data.orders_by_status.map((s) => s.count))
   return (
-    <section aria-labelledby="by-status" className="rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="by-status" className="rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 id="by-status" className="mb-2 text-sm font-semibold">
         {t('dashboard.byStatus')}
       </h2>
@@ -63,7 +65,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.dashboard')}</h1>
+      <PageHeader icon={LayoutDashboard} title={t('nav.dashboard')} />
       {query.isPending ? <Spinner label={t('common.loading')} /> : null}
       {query.isError ? (
         <div className="space-y-2">
@@ -111,7 +113,7 @@ export function DashboardPage() {
           {canFinance && finance?.fx_realized_partial ? <p className="text-xs text-amber-700 dark:text-amber-300">{t('finance.fx.realizedPartial')}</p> : null}
           {data.month_profit !== null && data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
           {data.month_profit !== null && !data.excluded && (data.excluded_orders ?? 0) > 0 ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted">
               {t('dashboard.excludedOrders', { count: data.excluded_orders ?? 0, currency: data.currency ?? '' })}
             </p>
           ) : null}

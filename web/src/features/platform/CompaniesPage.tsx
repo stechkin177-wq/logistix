@@ -12,6 +12,8 @@ import { TextField } from '../../shared/ui/TextField'
 import { useCompanies } from './hooks'
 import { SubscriptionDrawer } from './SubscriptionDrawer'
 import type { PlatformCompany } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { Landmark } from '../../shared/ui/icons'
 
 const SCHEMA = { q: codecs.string(''), page: codecs.positiveInt(1), pageSize: codecs.choiceInt(PAGE_SIZES, 50) }
 
@@ -48,7 +50,7 @@ export function CompaniesPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.platformCompanies')}</h1>
+      <PageHeader icon={Landmark} title={t('nav.platformCompanies')} />
       <FilterBar canReset={state.q !== ''} onReset={() => { setState({ q: '' }) }}>
         <FilterItem className="w-64">
           <TextField label={t('common.search')} type="search" placeholder={t('platform.companies.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />

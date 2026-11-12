@@ -7,7 +7,7 @@ export function BlockedPage({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-3 bg-slate-50 p-4 text-center dark:bg-slate-950">
       <h1 className="text-xl font-semibold">{t('blocked.title')}</h1>
-      <p className="max-w-md text-sm text-slate-600 dark:text-slate-300">{t('blocked.text')}</p>
+      <p className="max-w-md text-sm text-muted">{t('blocked.text')}</p>
       <Button variant="primary" onClick={onLogout}>
         {t('auth.logout')}
       </Button>

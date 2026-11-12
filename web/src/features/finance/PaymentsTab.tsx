@@ -85,8 +85,8 @@ export function PaymentsTab() {
         onChange={(value) => { setState({ direction: value as typeof state.direction }) }}
       />
       {summary ? (
-        <div role="group" aria-label={t('finance.fx.realizedTitle')} className="rounded border border-slate-200 p-2 dark:border-slate-700">
-          <p className="text-xs text-slate-500">{t('finance.fx.realizedTotal', { currency: summary.base_currency })}</p>
+        <div role="group" aria-label={t('finance.fx.realizedTitle')} className="rounded-control border border-line p-2">
+          <p className="text-xs text-muted">{t('finance.fx.realizedTotal', { currency: summary.base_currency })}</p>
           <p className="text-lg font-semibold tabular-nums"><Money value={summary.fx_realized_base} currency={summary.base_currency} /></p>
           <RealizedExcludedHint summary={summary} />
         </div>

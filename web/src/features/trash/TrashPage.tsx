@@ -13,6 +13,8 @@ import { PAGE_SIZES, Pagination, type Paginated } from '../../shared/ui/Paginati
 import { Select } from '../../shared/ui/Select'
 import { pushToast } from '../../shared/ui/toast'
 import { WriteButton } from '../../shared/ui/WriteButton'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { Trash2 } from '../../shared/ui/icons'
 
 export const TRASH_CODES = ['clients', 'carriers', 'orders', 'consignments', 'trips'] as const
 
@@ -88,7 +90,7 @@ export function TrashPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.trash')}</h1>
+      <PageHeader icon={Trash2} title={t('nav.trash')} />
       <FilterBar canReset={state.code !== ''} onReset={() => { setState({ code: '' }) }}>
         <FilterItem className="w-52">
           <Select

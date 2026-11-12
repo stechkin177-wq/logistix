@@ -22,6 +22,8 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { PartyDrawer } from '../components/PartyDrawer'
 import { useDeleteParty, usePartyList } from '../hooks'
 import type { Carrier, Client, Party, PartyKind } from '../types'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Building2, Truck } from '../../../shared/ui/icons'
 
 const ORDERINGS = {
   clients: ['name', '-name', 'created_at', '-created_at'],
@@ -121,12 +123,15 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t(`nav.${kind}`)}</h1>
-        <WriteButton permission={`${kind}.create`} variant="primary" onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
-          {t(`parties.${kind}.new`)}
-        </WriteButton>
-      </div>
+      <PageHeader icon={(kind === 'clients' ? Building2 : Truck)} title={t(`nav.${kind}`)}
+        actions={
+          <>
+            <WriteButton permission={`${kind}.create`} variant="primary" onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
+              {t(`parties.${kind}.new`)}
+            </WriteButton>
+          </>
+        }
+      />
       <FilterBar
         canReset={filtered}
         onReset={() => { setState({ q: '', type: null, status: '' }) }}

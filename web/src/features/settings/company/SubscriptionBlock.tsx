@@ -21,19 +21,19 @@ export function SubscriptionBlock() {
   const query = useQuery({ queryKey: ['billing', 'subscription'], queryFn: ({ signal }) => api.get<Subscription>('/billing/subscription/', undefined, { signal }) })
   const sub = query.data
   return (
-    <section aria-labelledby="license-title" className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="license-title" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <h2 id="license-title" className="text-sm font-semibold">{t('company.license')}</h2>
       {query.isError ? <Banner kind="error">{errorMessage(query.error, t)}</Banner> : null}
       {!sub && !query.isError ? <Spinner label={t('table.loading')} /> : null}
       {sub ? (
         <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
-          <div><dt className="text-xs text-slate-500">{t('company.plan')}</dt><dd>{sub.plan.name}</dd></div>
+          <div><dt className="text-xs text-muted">{t('company.plan')}</dt><dd>{sub.plan.name}</dd></div>
           <div>
-            <dt className="text-xs text-slate-500">{t('common.status')}</dt>
+            <dt className="text-xs text-muted">{t('common.status')}</dt>
             <dd><Badge tone={sub.status === 'blocked' || sub.status === 'readonly' ? 'danger' : sub.status === 'grace' ? 'warning' : 'success'}>{t(`company.statuses.${sub.status}`)}</Badge></dd>
           </div>
-          <div><dt className="text-xs text-slate-500">{t('company.endsAt')}</dt><dd>{sub.ends_at ? <DateTime value={sub.ends_at} dateOnly /> : t('company.unlimited')}</dd></div>
-          <div><dt className="text-xs text-slate-500">{t('company.daysLeft')}</dt><dd>{sub.days_left ?? '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('company.endsAt')}</dt><dd>{sub.ends_at ? <DateTime value={sub.ends_at} dateOnly /> : t('company.unlimited')}</dd></div>
+          <div><dt className="text-xs text-muted">{t('company.daysLeft')}</dt><dd>{sub.days_left ?? '—'}</dd></div>
           {sub.is_free_period ? <div className="sm:col-span-2"><Badge tone="info">{t('company.freePeriod')}</Badge></div> : null}
         </dl>
       ) : null}

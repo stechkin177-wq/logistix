@@ -86,8 +86,8 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
         {readOnlyRole ? <Banner kind="info">{t('roles.systemReadonly')}</Banner> : null}
         <TextField label={t('roles.name')} required value={name} disabled={readOnlyRole} error={errors.fields.name} onChange={(e) => { setName(e.target.value) }} />
         {errors.fields.permissions ? <p role="alert" className="text-xs text-red-600">{errors.fields.permissions}</p> : null}
-        <p className="text-xs text-slate-500">{t('roles.grantRule')}</p>
-        <div className="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
+        <p className="text-xs text-muted">{t('roles.grantRule')}</p>
+        <div className="overflow-x-auto rounded-control border border-line">
           <table className="w-full min-w-max text-sm">
             <caption className="sr-only">{t('roles.matrix')}</caption>
             <thead className="bg-slate-50 text-xs dark:bg-slate-800">
@@ -98,7 +98,7 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
             </thead>
             <tbody>
               {SECTIONS.map((section) => (
-                <tr key={section} className="border-t border-slate-100 dark:border-slate-800">
+                <tr key={section} className="border-t border-line">
                   <th scope="row" className="px-2 py-1 text-left font-normal">{t(`roles.sections.${section}`)}</th>
                   {ACTIONS.map((action) => {
                     const code = `${section}.${action}`

@@ -52,11 +52,11 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       </FilterItem>
       <FilterItem className="w-44">
         <details className="relative">
-          <summary className="flex h-8 cursor-pointer items-center rounded border border-slate-300 bg-white px-2 text-sm dark:border-slate-600 dark:bg-slate-900">
+          <summary className="flex h-9 cursor-pointer items-center rounded-control border border-line bg-surface px-3 text-sm">
             {t('orders.statusFilter')}
             {value.status.length ? ` (${String(value.status.length)})` : ''}
           </summary>
-          <fieldset className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded border border-slate-200 bg-white p-2 shadow dark:border-slate-700 dark:bg-slate-900">
+          <fieldset className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded-control border border-line bg-surface p-2 shadow-pop">
             <legend className="sr-only">{t('orders.statusFilter')}</legend>
             {statuses.map((s) => (
               <label key={s.id} className="flex items-center gap-2 py-0.5 text-sm">
@@ -94,7 +94,7 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       <FilterItem className="w-36"><DateInput label={t('orders.createdTo')} value={value.created_to} onChange={(v) => { onChange({ created_to: v }) }} /></FilterItem>
       <FilterItem className="w-36"><DateInput label={t('orders.completedFrom')} value={value.completed_from} onChange={(v) => { onChange({ completed_from: v }) }} /></FilterItem>
       <FilterItem className="w-36"><DateInput label={t('orders.completedTo')} value={value.completed_to} onChange={(v) => { onChange({ completed_to: v }) }} /></FilterItem>
-      <label className="flex h-8 items-center gap-1 text-sm">
+      <label className="flex h-9 items-center gap-1.5 text-sm">
         <input type="checkbox" checked={value.unassigned} onChange={(event) => { onChange({ unassigned: event.target.checked }) }} />
         {t('orders.unassigned')}
       </label>

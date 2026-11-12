@@ -21,31 +21,31 @@ export function OrderFinanceBlock({ orderId }: { orderId: number }) {
       {d.needs_review ? <Banner kind="warning">{t('finance.ledger.orderNeedsReview')}</Banner> : null}
       <div role="group" aria-label={t('finance.operations.summary')} className="grid gap-2 sm:grid-cols-4">
         {(['revenue', 'cost', 'profit'] as const).map((key) => (
-          <div key={key} className="rounded border border-slate-200 p-2 dark:border-slate-700">
-            <p className="text-xs text-slate-500">{t(`finance.ledger.totals.${key}`)}</p>
+          <div key={key} className="rounded-control border border-line p-2">
+            <p className="text-xs text-muted">{t(`finance.ledger.totals.${key}`)}</p>
             <p className="text-base font-semibold tabular-nums"><Money value={d.totals[key]} currency={cur} /></p>
           </div>
         ))}
-        <div className="rounded border border-slate-200 p-2 dark:border-slate-700">
-          <p className="text-xs text-slate-500">{t('finance.ledger.totals.margin')}</p>
+        <div className="rounded-control border border-line p-2">
+          <p className="text-xs text-muted">{t('finance.ledger.totals.margin')}</p>
           <p className="text-base font-semibold tabular-nums">{d.totals.margin_pct === null ? '—' : `${d.totals.margin_pct}%`}</p>
         </div>
       </div>
       <div>
         <h4 className="text-xs font-medium">{t('finance.tabs.incomes')}</h4>
-        <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+        <ul className="divide-y divide-line text-sm">
           {d.incomes.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
               <span>{i.title}</span>
               <span className="flex items-center gap-2"><IncomeStatusBadge status={i.status} /><Money value={i.amount} currency={i.currency?.code} /></span>
             </li>
           ))}
-          {d.incomes.length === 0 ? <li className="py-1 text-slate-500">{t('finance.ledger.noIncomes')}</li> : null}
+          {d.incomes.length === 0 ? <li className="py-1 text-muted">{t('finance.ledger.noIncomes')}</li> : null}
         </ul>
       </div>
       <div>
         <h4 className="text-xs font-medium">{t('finance.tabs.expenses')}</h4>
-        <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+        <ul className="divide-y divide-line text-sm">
           {d.expenses.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
               <span>{e.title}</span>
@@ -56,7 +56,7 @@ export function OrderFinanceBlock({ orderId }: { orderId: number }) {
               </span>
             </li>
           ))}
-          {d.expenses.length === 0 ? <li className="py-1 text-slate-500">{t('finance.ledger.noExpenses')}</li> : null}
+          {d.expenses.length === 0 ? <li className="py-1 text-muted">{t('finance.ledger.noExpenses')}</li> : null}
         </ul>
       </div>
       {d.invoices.length > 0 ? (

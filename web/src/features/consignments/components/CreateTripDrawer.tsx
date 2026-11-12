@@ -128,12 +128,12 @@ export function CreateTripDrawer({ selected, onClose, onCreated }: Props) {
           onChange={(key, value) => { setForm((f) => ({ ...f, [key]: value })) }}
         />
         <section aria-labelledby="trip-cargo-title">
-          <h3 id="trip-cargo-title" className="mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <h3 id="trip-cargo-title" className="mb-1 text-xs font-medium text-muted">
             {t('consignments.selectedCargo', { count: selected.length })}
           </h3>
           {errors.fields.consignments ? <p role="alert" className="mb-1 text-xs text-red-600">{errors.fields.consignments}</p> : null}
           {errors.fields.legs ? <p role="alert" className="mb-1 text-xs text-red-600">{errors.fields.legs}</p> : null}
-          <ul className="divide-y divide-slate-100 rounded border border-slate-200 text-sm dark:divide-slate-800 dark:border-slate-700">
+          <ul className="divide-y divide-line rounded-control border border-line text-sm">
             {selected.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-3 px-2 py-1">
                 <span className="font-medium">{c.name}</span>
@@ -163,7 +163,7 @@ function LegPicker({ cargo, pick, onChange }: { cargo: Consignment; pick: LegPic
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
           <Select label={t('trips.legFrom')} value={pick.from} options={options} onChange={(v) => { onChange({ from: v }) }} />
           <Select label={t('trips.legTo')} value={pick.to} options={options} onChange={(v) => { onChange({ to: v }) }} />
-          <p className="col-span-2 text-xs text-slate-500 md:col-span-3">{t('trips.legSharesHint')}</p>
+          <p className="col-span-2 text-xs text-muted md:col-span-3">{t('trips.legSharesHint')}</p>
           <TextField label={t('trips.legWeight')} inputMode="decimal" value={pick.weight} onChange={(e) => { onChange({ weight: e.target.value }) }} />
           <TextField label={t('trips.legVolume')} inputMode="decimal" value={pick.volume} onChange={(e) => { onChange({ volume: e.target.value }) }} />
           <TextField label={t('trips.legPallets')} inputMode="numeric" value={pick.pallets} onChange={(e) => { onChange({ pallets: e.target.value }) }} />

@@ -33,15 +33,15 @@ export function ContactsEditor({ rows, onChange, errors, disabled }: Props) {
   }
   return (
     <fieldset className="space-y-2" disabled={disabled}>
-      <legend className="text-xs font-semibold uppercase text-slate-500">{t('parties.contacts')}</legend>
+      <legend className="text-xs font-semibold uppercase text-muted">{t('parties.contacts')}</legend>
       {errors.contacts ? (
         <p role="alert" className="text-xs text-red-600 dark:text-red-400">
           {errors.contacts}
         </p>
       ) : null}
-      {rows.length === 0 ? <p className="text-xs text-slate-500">{t('parties.noContacts')}</p> : null}
+      {rows.length === 0 ? <p className="text-xs text-muted">{t('parties.noContacts')}</p> : null}
       {rows.map((row, index) => (
-        <div key={row.key} className="grid grid-cols-1 gap-2 rounded border border-slate-200 p-2 sm:grid-cols-2 dark:border-slate-700">
+        <div key={row.key} className="grid grid-cols-1 gap-2 rounded-control border border-line p-2 sm:grid-cols-2">
           <TextField
             label={t('parties.contactName')}
             required

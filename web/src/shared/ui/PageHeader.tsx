@@ -31,7 +31,7 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
             <ArrowLeft className="size-4" aria-hidden="true" />
           </Link>
         ) : Icon ? (
-          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-control bg-brand-50 text-brand-700 dark:bg-brand-900 dark:text-brand-200">
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200">
             <Icon className="size-[18px]" aria-hidden="true" />
           </span>
         ) : null}

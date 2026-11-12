@@ -12,6 +12,8 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { downloadTemplate, saveDownloaded } from './api'
 import { usePatchTemplate, usePlaceholders, useResetTemplate, useTemplates, useUploadVersion } from './hooks'
 import type { DocTemplate } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { FileStack } from '../../shared/ui/icons'
 
 function PlaceholdersDialog({ template, onClose }: { template: DocTemplate; onClose: () => void }) {
   const { t } = useTranslation()
@@ -30,14 +32,14 @@ function PlaceholdersDialog({ template, onClose }: { template: DocTemplate; onCl
         <table className="w-full text-sm">
           <caption className="sr-only">{t('documents.templates.placeholders')}</caption>
           <thead>
-            <tr className="text-left text-slate-500">
+            <tr className="text-left text-muted">
               <th scope="col" className="py-1 pr-3">{t('documents.templates.placeholderName')}</th>
               <th scope="col" className="py-1">{t('documents.templates.placeholderDescription')}</th>
             </tr>
           </thead>
           <tbody>
             {list.data.map((p) => (
-              <tr key={p.name} className="border-t border-slate-200 dark:border-slate-700">
+              <tr key={p.name} className="border-t border-line">
                 <td className="py-1 pr-3 align-top"><code className="text-xs">{`{{ ${p.name} }}`}</code></td>
                 <td className="py-1">{p.description}</td>
               </tr>
@@ -173,8 +175,8 @@ export function TemplatesPage() {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-base font-semibold">{t('nav.doctemplates')}</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-300">{t('documents.templates.hint')}</p>
+        <PageHeader icon={FileStack} title={t('nav.doctemplates')} />
+        <p className="text-sm text-muted">{t('documents.templates.hint')}</p>
       </div>
       {message ? <Banner kind="error">{message}</Banner> : null}
       {notice && !message ? <Banner kind="info">{notice}</Banner> : null}

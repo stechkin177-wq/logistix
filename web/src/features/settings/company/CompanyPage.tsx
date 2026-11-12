@@ -20,6 +20,8 @@ import { useSession } from '../../../shared/auth/useSession'
 import { UsageBlock } from '../../billing/UsageBlock'
 import { SubscriptionBlock } from './SubscriptionBlock'
 import { timeZones } from './timezones'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Building } from '../../../shared/ui/icons'
 
 interface CompanySettings {
   name: string
@@ -87,8 +89,8 @@ export function CompanyPage() {
   const query = useQuery({ queryKey: ['company', 'settings'], queryFn: ({ signal }) => api.get<CompanySettings>('/company/settings/', undefined, { signal }) })
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-base font-semibold">{t('nav.company')}</h1>
-      <section aria-labelledby="company-main" className="space-y-2 rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <PageHeader icon={Building} title={t('nav.company')} />
+      <section aria-labelledby="company-main" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
         <h2 id="company-main" className="text-sm font-semibold">{t('company.main')}</h2>
         {query.isError ? (
           <>

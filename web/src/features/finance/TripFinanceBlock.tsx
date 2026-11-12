@@ -41,7 +41,7 @@ export function TripFinanceBlock({ tripId }: { tripId: number }) {
           ) : null}
         </div>
       ) : (
-        <p className="text-sm text-slate-500">{t('finance.ledger.noCarrierExpense')}</p>
+        <p className="text-sm text-muted">{t('finance.ledger.noCarrierExpense')}</p>
       )}
       {d.can_create_expense ? (
         <WriteButton variant="primary" permission="finance.create" disabled={create.isPending} onClick={submit}>

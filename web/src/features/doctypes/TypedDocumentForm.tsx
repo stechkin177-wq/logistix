@@ -33,7 +33,7 @@ export function TypedDocumentForm({ subject, issuedKey, permission, owner, creat
   const [error, setError] = useState<string>()
   const type: DocumentType | undefined = options.find((x) => String(x.id) === (typeId || String(options[0]?.id ?? '')))
 
-  if (types.isSuccess && options.length === 0) return <p className="text-sm text-slate-500">{t('doctypes.noTypes')}</p>
+  if (types.isSuccess && options.length === 0) return <p className="text-sm text-muted">{t('doctypes.noTypes')}</p>
   if (!type) return null
 
   const label = (f: string) => t(`doctypes.fields.${f}`)

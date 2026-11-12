@@ -18,12 +18,14 @@ import {
   useReopenPeriod, useResolveIssue, useStatusMapping,
 } from './ledgerHooks'
 import type { FinanceSettings, MigrationIssue, PeriodRow } from './ledgerTypes'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { SlidersHorizontal } from '../../shared/ui/icons'
 
 const BASE_CODES = ['KZT', 'RUB', 'USD', 'EUR']
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="space-y-2 rounded border border-slate-200 p-3 dark:border-slate-700">
+    <section aria-labelledby={id} className="space-y-2 rounded-control border border-line p-3">
       <h2 id={id} className="text-sm font-semibold">{title}</h2>
       {children}
     </section>
@@ -49,7 +51,7 @@ function BaseCurrency({ settings }: { settings: FinanceSettings }) {
   return (
     <Section id="fs-currency" title={t('finance.settings.baseCurrency')}>
       <p className="text-sm">{t('finance.settings.currentBase')}: <b>{settings.base_currency?.code ?? '—'}</b></p>
-      <p className="text-xs text-slate-500">{t('finance.settings.baseCurrencyHint')}</p>
+      <p className="text-xs text-muted">{t('finance.settings.baseCurrencyHint')}</p>
       {error ? <Banner kind="error">{error}</Banner> : null}
       <div className="flex flex-wrap items-end gap-2">
         <Select label={t('finance.settings.newBase')} options={options} value={value} onChange={setValue} placeholder="—" />
@@ -118,7 +120,7 @@ function StatusMapping() {
   }
   return (
     <Section id="fs-status" title={t('finance.settings.statusMapping')}>
-      <p className="text-xs text-slate-500">{t('finance.settings.statusMappingHint')}</p>
+      <p className="text-xs text-muted">{t('finance.settings.statusMappingHint')}</p>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {d.switch_blocked ? (
         <Banner kind="warning">
@@ -166,13 +168,13 @@ function Periods() {
   return (
     <Section id="fs-periods" title={t('finance.settings.periods')}>
       <WriteButton permission="finance.close_period" onClick={() => { setTarget('close') }}>{t('finance.settings.closeMonth')}</WriteButton>
-      <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+      <ul className="divide-y divide-line text-sm">
         {query.data.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
             <span>{String(p.month).padStart(2, '0')}.{p.year}</span>
             <span className="flex items-center gap-2">
               <Badge tone={p.status === 'closed' ? 'warning' : 'success'}>{t(`finance.settings.period.${p.status}`)}</Badge>
-              {p.closed_at ? <span className="text-xs text-slate-500">{dateTime(p.closed_at)} {p.closed_by ?? ''}</span> : null}
+              {p.closed_at ? <span className="text-xs text-muted">{dateTime(p.closed_at)} {p.closed_by ?? ''}</span> : null}
               {p.status === 'closed' ? (
                 <WriteButton permission="finance.reopen_period" onClick={() => { setTarget(p) }}>{t('finance.settings.reopen')}</WriteButton>
               ) : null}
@@ -229,7 +231,7 @@ function Migration() {
           </li>
         ))}
       </ul>
-      <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+      <ul className="divide-y divide-line text-sm">
         {d.open_issues.map((i) => (
           <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
             <span>{i.message}</span>
@@ -272,7 +274,7 @@ export function FinanceSettingsPage() {
   const s = query.data
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.financeSettings')}</h1>
+      <PageHeader icon={SlidersHorizontal} title={t('nav.financeSettings')} />
       <p className="text-sm">
         {t('finance.settings.engine')}: <Badge tone={s.engine === 'new' ? 'success' : 'info'}>{t(`finance.settings.engines.${s.engine}`)}</Badge>
         {s.financial_writes_frozen ? <> <Badge tone="danger">{t('finance.settings.frozen')}</Badge></> : null}

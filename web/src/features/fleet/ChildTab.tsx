@@ -62,8 +62,8 @@ export function ChildTab({ path, vehicle, fields, summary, emptyText, header, re
     <div className="space-y-3">
       {header}
       {list.isError ? <p role="alert" className="text-sm text-red-600">{errorMessage(list.error, t)}</p> : null}
-      {list.data && list.data.results.length === 0 ? <p className="text-sm text-slate-500">{emptyText}</p> : null}
-      <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+      {list.data && list.data.results.length === 0 ? <p className="text-sm text-muted">{emptyText}</p> : null}
+      <ul className="divide-y divide-slate-200 text-sm">
         {list.data?.results.map((row) => (
           <li key={row.id} className="flex items-center justify-between gap-2 py-1.5">
             <span>{summary(row)}</span>

@@ -9,6 +9,8 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { userLabel, useUsersQuery, type CompanyUser } from '../../../shared/users/useUsers'
 import { useDepartments } from '../departments/useDepartments'
 import { MemberDrawer } from './MemberDrawer'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Users } from '../../../shared/ui/icons'
 
 /** Сотрудники компании: создание/присоединение, роль, отдел, активность (удаления нет). */
 export function UsersPage() {
@@ -39,10 +41,13 @@ export function UsersPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.users')}</h1>
-        <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ member: null, nonce: Date.now() }) }}>{t('users.new')}</WriteButton>
-      </div>
+      <PageHeader icon={Users} title={t('nav.users')}
+        actions={
+          <>
+            <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ member: null, nonce: Date.now() }) }}>{t('users.new')}</WriteButton>
+          </>
+        }
+      />
       <DataTable
         caption={t('nav.users')}
         columns={columns}

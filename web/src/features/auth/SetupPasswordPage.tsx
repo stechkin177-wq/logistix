@@ -41,7 +41,7 @@ export function SetupPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
-      <div className="w-full max-w-sm space-y-3 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="w-full max-w-sm space-y-3 rounded-card border border-line bg-surface p-6 shadow-card">
         <h1 className="text-lg font-semibold">{branding.app_name}</h1>
         {done ? (
           <>
@@ -52,7 +52,7 @@ export function SetupPasswordPage() {
           <Banner kind="error">{t('auth.setupInvalid')}</Banner>
         ) : (
           <form onSubmit={(event) => void submit(event)} className="space-y-3" noValidate>
-            <p className="text-sm text-slate-500">{t('auth.setupHint')}</p>
+            <p className="text-sm text-muted">{t('auth.setupHint')}</p>
             {error ? <Banner kind="error">{error}</Banner> : null}
             <Input label={t('account.newPassword')} name="new-password" type="password" autoComplete="new-password" autoFocus value={password} onChange={(e) => { setPassword(e.target.value) }} />
             <Input label={t('account.confirmPassword')} name="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => { setConfirm(e.target.value) }} />

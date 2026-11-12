@@ -95,7 +95,7 @@ export function CargoTab({ order }: { order: Order }) {
       ) : (
         <ul className="space-y-2">
           {order.consignments.map((c) => (
-            <li key={c.id} className="space-y-1 rounded border border-slate-200 bg-white p-2 text-sm dark:border-slate-800 dark:bg-slate-900">
+            <li key={c.id} className="space-y-1 rounded-control border border-line bg-surface p-2 text-sm dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{c.name} <Badge>{c.status_name}</Badge> <LocationBadge status={c.location_status} /></p>
                 <div className="flex gap-1">
@@ -111,7 +111,7 @@ export function CargoTab({ order }: { order: Order }) {
                   ) : null}
                 </div>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
+              <p className="text-xs text-muted">
                 {t('orders.cargoSummary', { weight: c.weight_kg, volume: c.volume_m3, pallets: c.pallets, packaging: c.packaging_name ?? '—' })}
               </p>
               {c.route ? <RouteLane route={c.route} /> : c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}

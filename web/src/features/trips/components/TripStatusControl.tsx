@@ -6,6 +6,7 @@ import { useSession } from '../../../shared/auth/useSession'
 import { selectableValues, useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { Badge } from '../../../shared/ui/Badge'
 import { Banner } from '../../../shared/ui/Banner'
+import { SelectBox } from '../../../shared/ui/SelectBox'
 import { Button } from '../../../shared/ui/Button'
 import { Dialog } from '../../../shared/ui/Dialog'
 import { TextArea, TextField } from '../../../shared/ui/TextField'
@@ -84,6 +85,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           {t('trips.nextStep', { status: nextStatus.name })}
         </Button>
       ) : null}
+      <SelectBox className="inline-block">
       <select
         aria-label={t('trips.statusOf', { number: trip.number })}
         value={trip.status}
@@ -97,12 +99,13 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           }
           change.mutate({ id: trip.id, status: next }, { onError: (e) => { pushToast('error', errorMessage(e, t)) } })
         }}
-        className="h-8 rounded border border-slate-300 bg-white px-1.5 text-xs dark:border-slate-600 dark:bg-slate-900"
+        className="h-9 appearance-none rounded-full border border-line bg-surface pl-3 pr-8 text-xs font-medium"
       >
         {selectableValues(statuses.all, trip.status).map((s) => (
           <option key={s.id} value={s.id} disabled={leavingLocked && s.id !== trip.status}>{s.name}</option>
         ))}
       </select>
+      </SelectBox>
       <Dialog
         open={odo !== null}
         title={t('trips.odometerTitle', { status: statuses.all.find((x) => x.id === odo?.status)?.name ?? '' })}
@@ -117,7 +120,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
       >
         <div className="space-y-3">
           {error ? <Banner kind="error">{error}</Banner> : null}
-          <p className="text-sm text-slate-600 dark:text-slate-300">{t('trips.odometerHint')}</p>
+          <p className="text-sm text-muted">{t('trips.odometerHint')}</p>
           <TextField label={t('trips.vehicleKm')} inputMode="numeric" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value) }} />
           <TextField label={t('trips.trailerKm')} inputMode="numeric" value={trailerKm} onChange={(e) => { setTrailerKm(e.target.value) }} />
         </div>

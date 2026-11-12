@@ -89,8 +89,8 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold">{trip.number}</span>
           <TripStatusControl trip={trip} />
-          {trip.completed_at ? <span className="text-xs text-slate-600 dark:text-slate-300">{t('trips.completedAt')}: {dateTime(trip.completed_at)}</span> : null}
-          {trip.is_consolidated ? <span className="text-xs text-slate-500">{t('trips.consolidated')}</span> : null}
+          {trip.completed_at ? <span className="text-xs text-muted">{t('trips.completedAt')}: {dateTime(trip.completed_at)}</span> : null}
+          {trip.is_consolidated ? <span className="text-xs text-muted">{t('trips.consolidated')}</span> : null}
         </div>
         <TripFields
           form={form}
@@ -110,7 +110,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
           <h3 id="trip-cargo" className="text-xs font-medium">{t('trips.cargo')}</h3>
           <WriteButton permission="trips.update" onClick={() => { setReassigning(true) }}>{t('trips.changeCargo')}</WriteButton>
         </div>
-        <ul className="divide-y divide-slate-100 rounded border border-slate-200 text-sm dark:divide-slate-800 dark:border-slate-700">
+        <ul className="divide-y divide-line rounded-control border border-line text-sm">
           {trip.consignments.map((c) => (
             <li key={c.id} className="flex flex-wrap justify-between gap-x-3 px-2 py-1">
               <span>{c.name}</span>
@@ -131,7 +131,7 @@ function TripForm({ trip, onClose }: { trip: Trip; onClose: () => void }) {
       </section>
       {engine === 'new' && hasPermission('finance.view') ? <TripFinanceBlock tripId={trip.id} /> : null}
       {hasPermission('trips.delete') ? (
-        <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700">
+        <div className="mt-4 border-t border-line pt-3">
           <WriteButton permission="trips.delete" variant="danger" onClick={() => { setDeleting(true) }}>{t('trips.delete')}</WriteButton>
         </div>
       ) : null}

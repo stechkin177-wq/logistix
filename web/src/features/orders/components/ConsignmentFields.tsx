@@ -133,9 +133,9 @@ function StopsEditor({ value, onChange, prefix, errors }: Props & { value: Consi
           const title = t('orders.stopN', { n: index + 1 })
           return (
             <li key={stop.key}>
-              <section aria-label={title} className="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700">
+              <section aria-label={title} className="space-y-2 rounded-control border border-line p-2">
                 <div className="flex flex-wrap items-end justify-between gap-2">
-                  <h4 className="text-xs font-semibold uppercase text-slate-500">{title}</h4>
+                  <h4 className="text-xs font-semibold uppercase text-muted">{title}</h4>
                   <div className="flex items-end gap-1">
                     <Select label={t('orders.stopKind')} value={stop.kind} options={kindOptions} error={err(`${base}kind`)} onChange={(v) => { patchStop(index, { kind: v as StopKind }) }} />
                     <Button variant="ghost" aria-label={t('orders.moveStopUp', { n: index + 1 })} disabled={index === 0} onClick={() => { move(index, -1) }}>↑</Button>
@@ -147,7 +147,7 @@ function StopsEditor({ value, onChange, prefix, errors }: Props & { value: Consi
                 </div>
                 <PointFields point={stop} base={base} err={err} patch={(change) => { patchStop(index, change) }} />
                 <fieldset className="grid grid-cols-3 gap-2">
-                  <legend className="text-xs text-slate-500">{t('orders.stopShares')} — {t('orders.stopSharesHint')}</legend>
+                  <legend className="text-xs text-muted">{t('orders.stopShares')} — {t('orders.stopSharesHint')}</legend>
                   <TextField label={t('orders.weightKg')} inputMode="decimal" value={stop.weight_kg} error={err(`${base}weight_kg`)} onChange={(e) => { patchStop(index, { weight_kg: e.target.value }) }} />
                   <TextField label={t('orders.volumeM3')} inputMode="decimal" value={stop.volume_m3} error={err(`${base}volume_m3`)} onChange={(e) => { patchStop(index, { volume_m3: e.target.value }) }} />
                   <TextField label={t('orders.pallets')} inputMode="numeric" value={stop.pallets} error={err(`${base}pallets`)} onChange={(e) => { patchStop(index, { pallets: e.target.value }) }} />
@@ -196,8 +196,8 @@ export function RouteFields({ value, onChange, prefix, errors, disabled }: Props
           const base = `points.${String(index)}.`
           const title = t(index === 0 ? 'orders.loadPoint' : 'orders.unloadPoint')
           return (
-            <section key={index} aria-label={title} className="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700">
-              <h4 className="text-xs font-semibold uppercase text-slate-500">{title}</h4>
+            <section key={index} aria-label={title} className="space-y-2 rounded-control border border-line p-2">
+              <h4 className="text-xs font-semibold uppercase text-muted">{title}</h4>
               <PointFields compact point={point} base={base} err={err} patch={(change) => { patchPoint(index, change) }} />
             </section>
           )

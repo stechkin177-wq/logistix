@@ -133,8 +133,8 @@ function DocumentsBlock({ driver }: { driver: Driver }) {
 
   return (
     <div className="mt-2 space-y-2">
-      {driver.documents.length === 0 ? <p className="text-sm text-slate-500">{t('drivers.noDocuments')}</p> : null}
-      <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+      {driver.documents.length === 0 ? <p className="text-sm text-muted">{t('drivers.noDocuments')}</p> : null}
+      <ul className="divide-y divide-slate-200 text-sm">
         {driver.documents.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-2 py-1.5">
             <span>{documentSummary(d, t(`drivers.docKind.${d.kind}`), t('drivers.until'))}</span>

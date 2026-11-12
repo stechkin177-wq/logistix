@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../../shared/api/errors'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
+import { SelectBox } from '../../../shared/ui/SelectBox'
 import { Badge } from '../../../shared/ui/Badge'
 import { pushToast } from '../../../shared/ui/toast'
 import { useChangeOrderStatus, useOrderStatuses } from '../hooks'
@@ -33,6 +34,7 @@ export function StatusControl({ orderId, number, statusId, statusName, compact }
   }
   const options = statuses.filter((s) => s.isActive || s.id === statusId)
   return (
+    <SelectBox className="inline-block">
     <select
       aria-label={t('orders.statusOf', { number })}
       value={statusId}
@@ -43,7 +45,7 @@ export function StatusControl({ orderId, number, statusId, statusName, compact }
           { onError: (error) => { pushToast('error', errorMessage(error, t)) } },
         )
       }}
-      className={`rounded border border-slate-300 bg-white text-xs dark:border-slate-600 dark:bg-slate-900 ${compact ? 'h-6 max-w-full px-1' : 'h-8 px-1.5'}`}
+      className={`appearance-none rounded-full border border-line bg-surface text-xs font-medium ${compact ? 'h-7 max-w-full pl-2.5 pr-7' : 'h-8 pl-3 pr-8'}`}
     >
       {options.map((s) => (
         <option key={s.id} value={s.id}>
@@ -51,5 +53,6 @@ export function StatusControl({ orderId, number, statusId, statusName, compact }
         </option>
       ))}
     </select>
+    </SelectBox>
   )
 }

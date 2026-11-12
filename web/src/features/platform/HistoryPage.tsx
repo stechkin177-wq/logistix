@@ -10,6 +10,8 @@ import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { useHistory } from './hooks'
 import type { HistoryRow } from './types'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { History } from '../../shared/ui/icons'
 
 const SCHEMA = {
   kind: codecs.oneOf(['', 'plan', 'subscription'] as const, ''),
@@ -52,7 +54,7 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-base font-semibold">{t('nav.platformHistory')}</h1>
+      <PageHeader icon={History} title={t('nav.platformHistory')} />
       <FilterBar canReset={state.kind !== '' || state.key !== ''} onReset={() => { setState({ kind: '', key: '' }) }}>
         <FilterItem>
           <Select

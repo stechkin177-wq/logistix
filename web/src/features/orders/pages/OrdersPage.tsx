@@ -13,6 +13,9 @@ import { EMPTY_FILTERS, OrderFilters, hasFilters } from '../components/OrderFilt
 import { OrdersBoard } from '../components/OrdersBoard'
 import { OrdersTable } from '../components/OrdersTable'
 import type { OrderListFilters, OrderListParams } from '../types'
+import { SegmentedControl } from '../../../shared/ui/SegmentedControl'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Package } from '../../../shared/ui/icons'
 
 const ORDERINGS = ['-created_at', 'created_at', 'number', '-number'] as const
 
@@ -63,28 +66,24 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.orders')}</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label={t('orders.view')} className="inline-flex overflow-hidden rounded border border-slate-300 dark:border-slate-600">
-            {(['list', 'board'] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                aria-pressed={state.view === view}
-                onClick={() => { setState({ view }, { replace: true }) }}
-                className={`h-8 px-3 text-sm ${state.view === view ? 'bg-brand-600 text-brand-fg' : 'bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200'}`}
-              >
-                {t(view === 'list' ? 'orders.viewList' : 'orders.viewBoard')}
-              </button>
-            ))}
-          </div>
-          <Button onClick={() => void download()} disabled={exporting}>
-            {exporting ? t('orders.exporting') : t('orders.excel')}
-          </Button>
-          <NewOrderLink />
-        </div>
-      </div>
+      <PageHeader icon={Package} title={t('nav.orders')}
+        actions={
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <SegmentedControl
+                label={t('orders.view')}
+                value={state.view}
+                options={[{ value: 'list', label: t('orders.viewList') }, { value: 'board', label: t('orders.viewBoard') }]}
+                onChange={(view) => { setState({ view: view === 'board' ? 'board' : 'list' }, { replace: true }) }}
+              />
+              <Button onClick={() => void download()} disabled={exporting}>
+                {exporting ? t('orders.exporting') : t('orders.excel')}
+              </Button>
+              <NewOrderLink />
+            </div>
+          </>
+        }
+      />
       <OrderFilters
         value={filters}
         onChange={(patch, opts) => { setState(patch, opts) }}

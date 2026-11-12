@@ -60,7 +60,7 @@ export function FieldsDialog({
     >
       <div className="space-y-3">
         {error ? <Banner kind="error">{error}</Banner> : null}
-        {hint ? <p className="text-sm text-slate-600 dark:text-slate-300">{hint}</p> : null}
+        {hint ? <p className="text-sm text-muted">{hint}</p> : null}
         {fields.map((f) => {
           const set = (value: string) => { setValues((x) => ({ ...x, [f.key]: value })) }
           if (f.type === 'date') return <DateInput key={f.key} label={f.label} value={values[f.key] ?? ''} onChange={set} required={f.required} />

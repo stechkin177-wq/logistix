@@ -20,6 +20,8 @@ import { usePartyOption } from '../../orders/hooks'
 import { CreateTripDrawer } from '../components/CreateTripDrawer'
 import { useConsignmentList } from '../hooks'
 import type { Consignment } from '../types'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { Boxes } from '../../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -105,20 +107,23 @@ export function ConsignmentsPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{t('nav.consignments')}</h1>
-        <div className="flex items-center gap-2">
-          {selected.size > 0 ? (
-            <>
-              <span className="text-xs" aria-live="polite">{t('consignments.selectedCount', { count: selected.size })}</span>
-              <Button variant="ghost" onClick={() => { setSelected(new Map()) }}>{t('consignments.clearSelection')}</Button>
-            </>
-          ) : null}
-          <WriteButton permission="trips.create" variant="primary" disabled={selected.size === 0} onClick={() => { setCreating(true) }}>
-            {t('consignments.createTrip')}
-          </WriteButton>
-        </div>
-      </div>
+      <PageHeader icon={Boxes} title={t('nav.consignments')}
+        actions={
+          <>
+            <div className="flex items-center gap-2">
+              {selected.size > 0 ? (
+                <>
+                  <span className="text-xs" aria-live="polite">{t('consignments.selectedCount', { count: selected.size })}</span>
+                  <Button variant="ghost" onClick={() => { setSelected(new Map()) }}>{t('consignments.clearSelection')}</Button>
+                </>
+              ) : null}
+              <WriteButton permission="trips.create" variant="primary" disabled={selected.size === 0} onClick={() => { setCreating(true) }}>
+                {t('consignments.createTrip')}
+              </WriteButton>
+            </div>
+          </>
+        }
+      />
       <FilterBar canReset={filtered} onReset={reset}>
         <FilterItem className="w-48">
           <TextField label={t('common.search')} type="search" placeholder={t('consignments.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />

@@ -68,7 +68,7 @@ function Allocations({ expense }: { expense: ExpenseRow }) {
         </li>
       ))}
       {Number(expense.unallocated) > 0 ? (
-        <li className="text-slate-500">{t('finance.ledger.unallocated')}: <Money value={expense.unallocated} currency={cur} /></li>
+        <li className="text-muted">{t('finance.ledger.unallocated')}: <Money value={expense.unallocated} currency={cur} /></li>
       ) : null}
     </ul>
     </>

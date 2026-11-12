@@ -33,5 +33,5 @@ export function FilterBar({
 
 /** Обёртка поля фильтра с ограниченной шириной. */
 export function FilterItem({ children, className = 'w-40' }: { children: ReactNode; className?: string }) {
-  return <div className={`min-w-0 ${className}`}>{children}</div>
+  return <div className={`min-w-0 ${className} max-sm:w-full`}>{children}</div>
 }
