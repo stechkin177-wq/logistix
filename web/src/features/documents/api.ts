@@ -23,6 +23,9 @@ export const listIssued = (f: IssuedFilters, signal?: AbortSignal) =>
   api.get<Paginated<IssuedDocument>>(
     '/documents/issued/',
     {
+      order: f.order,
+      trip: f.trip,
+      client: f.client,
       kind: f.kind || undefined,
       date_from: f.date_from || undefined,
       date_to: f.date_to || undefined,

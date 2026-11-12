@@ -2,11 +2,12 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { changeTripStatus, createTrip, deleteTrip, getTrip, listTrips, patchTrip, reassignTrip, type TripStatusExtra } from './api'
 import type { TripCreatePayload, TripListParams, TripPatchPayload } from './types'
 
-export function useTripList(params: TripListParams) {
+export function useTripList(params: TripListParams, enabled = true) {
   return useQuery({
     queryKey: ['trips', 'list', params],
     queryFn: ({ signal }) => listTrips(params, signal),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

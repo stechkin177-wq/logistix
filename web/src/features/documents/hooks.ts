@@ -44,11 +44,12 @@ export function usePlaceholders(kind: DocumentKind | null) {
   })
 }
 
-export function useIssued(filters: IssuedFilters) {
+export function useIssued(filters: IssuedFilters, enabled = true) {
   return useQuery({
     queryKey: ['documents', 'issued', filters],
     queryFn: ({ signal }) => listIssued(filters, signal),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

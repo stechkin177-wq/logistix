@@ -50,9 +50,10 @@ describe('Карточка заказа', () => {
     loggedIn([['GET', '/api/orders/5/', { body: makeOrder() }], ...common])
     renderApp('/orders/5')
     expect(await screen.findByRole('heading', { name: 'ORD-2026-00005' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'ТОО Ромашка' })).toHaveAttribute('href', '/clients?q=%D0%A2%D0%9E%D0%9E%20%D0%A0%D0%BE%D0%BC%D0%B0%D1%88%D0%BA%D0%B0')
+    expect(screen.getByRole('link', { name: 'ТОО Ромашка' })).toHaveAttribute('href', '/clients/7')
     expect(screen.getByText('Д-1')).toBeInTheDocument()
-    expect(await screen.findByText(/^250\s000,00\sKZT$/)).toBeInTheDocument()
+    // ставка видна и в сводке над вкладками, и в обзоре
+    expect((await screen.findAllByText(/^250\s000,00\sKZT$/)).length).toBeGreaterThanOrEqual(2)
   })
 
   it('смена статуса: POST /status/ и обновление карточки', async () => {
@@ -200,7 +201,7 @@ describe('Карточка заказа', () => {
     ])
     renderApp('/orders/5?tab=cargo')
     expect(await screen.findByText('Станки')).toBeInTheDocument()
-    expect(screen.getByText(/Алматы/)).toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel')).getByText(/Алматы/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Изменить груз: Станки' }))
     const drawer = await screen.findByRole('dialog')
     await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))

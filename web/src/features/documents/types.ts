@@ -43,6 +43,10 @@ export interface IssuedDocument {
 }
 
 export interface IssuedFilters {
+  /** Привязка к записи (сервер уже фильтрует по ним): документы заказа, рейса или клиента. */
+  order?: number
+  trip?: number
+  client?: number
   kind: DocumentKind | ''
   date_from: string
   date_to: string

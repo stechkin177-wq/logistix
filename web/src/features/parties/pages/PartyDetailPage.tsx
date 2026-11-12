@@ -19,6 +19,7 @@ import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { EntityDocuments } from '../../documents/EntityDocuments'
 import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { useCurrencies, useOrderList } from '../../orders/hooks'
 import { useTripList } from '../../trips/hooks'
@@ -159,12 +160,11 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
           </div>
         </form>
         {active === 'documents' ? (
-          <Card>
-            <CardHeader title={t('documents.title')} hint={t('parties.documentsHint')} />
-            <CardBody className="flex flex-wrap gap-2">
-              <IssueDocumentButton kind="contract" source={{ client: party.id }} label={t('documents.kind.contract')} />
-            </CardBody>
-          </Card>
+          <EntityDocuments
+            source={{ client: party.id }}
+            hint={t('parties.documentsHint')}
+            actions={<IssueDocumentButton kind="contract" source={{ client: party.id }} label={t('documents.kind.contract')} />}
+          />
         ) : null}
         {active === 'work' ? (kind === 'clients' ? <ClientWork party={party} /> : <CarrierWork party={party} />) : null}
         {active === 'history' ? <EntityHistory objectType={`forwarding.${kind === 'clients' ? 'client' : 'carrier'}`} objectId={party.id} /> : null}

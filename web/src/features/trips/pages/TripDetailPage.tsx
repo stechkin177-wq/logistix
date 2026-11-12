@@ -12,12 +12,13 @@ import { Button } from '../../../shared/ui/Button'
 import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { EmptyState } from '../../../shared/ui/EmptyState'
-import { Boxes, FileText, History, MapPin, Route, Trash2, Wallet } from '../../../shared/ui/icons'
+import { Boxes, FileText, History, MapPin, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
 import { Money } from '../../../shared/ui/Money'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { EntityDocuments } from '../../documents/EntityDocuments'
 import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { useFinanceEngine } from '../../finance/ledgerHooks'
 import { TripFinanceBlock } from '../../finance/TripFinanceBlock'
@@ -29,7 +30,7 @@ import { TripStatusControl } from '../components/TripStatusControl'
 import { useDeleteTrip, useTrip } from '../hooks'
 import type { Trip } from '../types'
 
-const TABS = ['main', 'cargo', 'route', 'finance', 'history'] as const
+const TABS = ['main', 'cargo', 'route', 'finance', 'documents', 'history'] as const
 const SCHEMA = { tab: codecs.oneOf(TABS, 'main') }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -83,11 +84,13 @@ function Content({ trip }: { trip: Trip }) {
   const [deleting, setDeleting] = useState(false)
 
   const canFinance = hasPermission('finance.view') && hasModule('finance')
+  const canDocs = hasModule('documents') && hasPermission('documents.view')
   const tabs: TabDef[] = [
     { key: 'main', label: t('trips.tabMain'), icon: Route },
     { key: 'cargo', label: t('trips.tabCargo'), icon: Boxes, count: trip.consignments.length },
     { key: 'route', label: t('trips.tabRoute'), icon: MapPin, count: (trip.legs ?? []).length },
     ...(canFinance ? [{ key: 'finance', label: t('trips.tabFinance'), icon: Wallet }] : []),
+    ...(canDocs ? [{ key: 'documents', label: t('trips.tabDocuments'), icon: Paperclip }] : []),
     { key: 'history', label: t('trips.tabHistory'), icon: History },
   ]
   const active = tabs.some((x) => x.key === state.tab) ? state.tab : 'main'
@@ -154,6 +157,17 @@ function Content({ trip }: { trip: Trip }) {
               <span className="inline-flex items-center gap-1.5"><FileText className="size-4" aria-hidden="true" />{t('trips.financeLegacyHint')}</span>
             </Banner>
           )
+        ) : null}
+        {active === 'documents' ? (
+          <EntityDocuments
+            source={{ trip: trip.id }}
+            actions={
+              <>
+                {trip.carrier !== null ? <IssueDocumentButton kind="carrier_order" source={{ trip: trip.id }} label={t('documents.kind.carrier_order')} /> : null}
+                <IssueDocumentButton kind="cmr" source={{ trip: trip.id }} label={t('documents.kind.cmr')} />
+              </>
+            }
+          />
         ) : null}
         {active === 'history' ? <EntityHistory objectType="forwarding.trip" objectId={trip.id} /> : null}
       </div>
