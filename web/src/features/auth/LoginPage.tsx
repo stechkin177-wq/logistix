@@ -68,15 +68,21 @@ export function LoginPage() {
   }
 
   const header = (
-    <div className="flex items-center gap-2">
-      {branding.logo_url ? <img src={branding.logo_url} alt="" className="size-8 rounded object-contain" /> : null}
+    <div className="flex items-center gap-2.5">
+      {branding.logo_url ? (
+        <img src={branding.logo_url} alt="" className="size-9 rounded-md object-contain" />
+      ) : (
+        <span aria-hidden="true" className="inline-flex size-9 items-center justify-center rounded-md bg-brand-600 text-sm font-bold text-brand-fg">
+          {branding.app_name.charAt(0).toUpperCase()}
+        </span>
+      )}
       <h1 className="text-lg font-semibold">{branding.app_name}</h1>
     </div>
   )
-  const card = 'w-full max-w-sm space-y-3 rounded-card border border-line bg-surface p-6 shadow-card'
+  const card = 'w-full max-w-sm space-y-4 rounded-card border border-line bg-surface p-7 shadow-pop'
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+    <div className="flex min-h-dvh items-center justify-center bg-canvas p-4">
       {totp ? (
         <div className={card}>
           {header}

@@ -246,7 +246,7 @@ export function HandbooksPage() {
                         type="button"
                         aria-current={b.code === selected ? 'true' : undefined}
                         onClick={() => { setState({ code: b.code }) }}
-                        className={`flex min-h-8 w-full items-center justify-between gap-2 rounded px-2 text-left text-sm ${b.code === selected ? 'bg-brand-100 font-medium dark:bg-brand-900' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                        className={`flex min-h-9 w-full items-center justify-between gap-2 rounded-control px-2.5 text-left text-sm ${b.code === selected ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}
                       >
                         <span>{b.name}</span>
                         <span className="text-xs text-muted">{b.values_count}</span>

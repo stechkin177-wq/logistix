@@ -90,7 +90,7 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
         <div className="overflow-x-auto rounded-control border border-line">
           <table className="w-full min-w-max text-sm">
             <caption className="sr-only">{t('roles.matrix')}</caption>
-            <thead className="bg-slate-50 text-xs dark:bg-slate-800">
+            <thead className="bg-surface-2 text-xs">
               <tr>
                 <th scope="col" className="px-2 py-1 text-left font-medium">{t('roles.section')}</th>
                 {ACTIONS.map((a) => <th key={a} scope="col" className="px-2 py-1 text-center font-medium">{t(`roles.actions.${a}`)}</th>)}

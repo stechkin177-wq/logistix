@@ -118,7 +118,7 @@ export function CargoTab({ order }: { order: Order }) {
               {hasPermission('consignments.view') && c.stops ? <CargoTracking consignmentId={c.id} stops={c.stops} /> : null}
               <ul className="grid gap-1 text-xs md:grid-cols-2">
                 {(c.stops && isMultiStop(c.stops) ? c.stops : c.points).map((p, index) => (
-                  <li key={'seq' in p ? p.seq : index} className="rounded bg-slate-50 p-1.5 dark:bg-slate-800">
+                  <li key={'seq' in p ? p.seq : index} className="rounded-control bg-surface-2 p-1.5">
                     <span className="font-medium">{t(`orders.stopKinds.${p.kind}`)}: </span>
                     {[p.country_name, p.city, p.street].filter(Boolean).join(', ')}
                     <br />

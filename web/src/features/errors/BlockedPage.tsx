@@ -5,7 +5,7 @@ import { Button } from '../../shared/ui/Button'
 export function BlockedPage({ onLogout }: { onLogout: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-slate-50 p-4 text-center dark:bg-slate-950">
+    <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-canvas p-4 text-center">
       <h1 className="text-xl font-semibold">{t('blocked.title')}</h1>
       <p className="max-w-md text-sm text-muted">{t('blocked.text')}</p>
       <Button variant="primary" onClick={onLogout}>

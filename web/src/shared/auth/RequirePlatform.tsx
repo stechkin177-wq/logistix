@@ -20,7 +20,7 @@ export function RequirePlatform() {
   if (context !== 'platform') return <Navigate to="/" replace />
   if (status === 'loading') {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <Spinner label={t('common.loading')} />
       </div>
     )

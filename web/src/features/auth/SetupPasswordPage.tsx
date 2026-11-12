@@ -40,7 +40,7 @@ export function SetupPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+    <div className="flex min-h-dvh items-center justify-center bg-canvas p-4">
       <div className="w-full max-w-sm space-y-3 rounded-card border border-line bg-surface p-6 shadow-card">
         <h1 className="text-lg font-semibold">{branding.app_name}</h1>
         {done ? (
