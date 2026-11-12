@@ -29,7 +29,7 @@ export function CreateTripButton({ order }: { order: Order }) {
         create.mutate(
           { consignments: ids, carrier: null, vehicle_plate: '', driver_name: '', carrier_price: '0' },
           {
-            onSuccess: (trip) => void navigate(`/trips?open=${String(trip.id)}`),
+            onSuccess: (trip) => void navigate(`/trips/${String(trip.id)}`),
             onError: (e) => { pushToast('error', errorMessage(e, t)) },
           },
         )

@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { errorMessage } from '../../../shared/api/errors'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { usePageFallback } from '../../../shared/hooks/usePageFallback'
@@ -18,7 +17,6 @@ import { Select } from '../../../shared/ui/Select'
 import { TextField } from '../../../shared/ui/TextField'
 import { searchCarriers } from '../../carriers/api'
 import { useCurrencies, usePartyOption } from '../../orders/hooks'
-import { TripDrawer } from '../components/TripDrawer'
 import { TripStatusControl } from '../components/TripStatusControl'
 import { useTripList } from '../hooks'
 import type { Trip } from '../types'
@@ -36,7 +34,7 @@ const SCHEMA = {
   pageSize: codecs.choiceInt(PAGE_SIZES, 50),
 }
 
-/** Рейсы: фильтры в адресе (q и order приходят по ссылкам со страницы заказа), статус на месте, карточка в Drawer. */
+/** Рейсы: фильтры в адресе (q и order приходят по ссылкам со страницы заказа), статус на месте, карточка - отдельная страница. */
 export function TripsPage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
@@ -45,7 +43,6 @@ export function TripsPage() {
   const statuses = useHandbookValues('trip_status')
   const { codeOf } = useCurrencies()
   const carrier = usePartyOption('carriers', state.carrier)
-  const [openId, setOpenId] = useState<number | null>(state.open)
   const filtered = state.q !== '' || state.order !== null || state.status !== null || state.carrier !== null || state.consolidated
   const reset = () => { setState({ q: '', order: null, status: null, carrier: null, consolidated: false }) }
 
@@ -54,9 +51,9 @@ export function TripsPage() {
       key: 'number',
       header: t('trips.number'),
       cell: (trip) => (
-        <button type="button" className="text-left font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setOpenId(trip.id) }}>
+        <Link to={`/trips/${String(trip.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
           {trip.number}
-        </button>
+        </Link>
       ),
     },
     { key: 'status', header: t('common.status'), cell: (trip) => <TripStatusControl trip={trip} /> },
@@ -77,6 +74,9 @@ export function TripsPage() {
     { key: 'cargo', header: t('trips.cargo'), cell: (trip) => trip.consignments.map((c) => c.name).join(', ') || '—' },
     { key: 'carrier_price', header: t('trips.carrierPrice'), align: 'right', cell: (trip) => <Money value={trip.carrier_price} currency={codeOf(trip.currency) || undefined} /> },
   ]
+
+  // прежние ссылки /trips?open=ID ведут на страницу рейса
+  if (state.open !== null) return <Navigate to={`/trips/${String(state.open)}`} replace />
 
   return (
     <div className="space-y-3">
@@ -121,7 +121,6 @@ export function TripsPage() {
         }
       />
       <Pagination page={state.page} pageSize={state.pageSize} count={list.data?.count ?? 0} onPage={(page) => { setState({ page }) }} onPageSize={(pageSize) => { setState({ pageSize }) }} />
-      {openId !== null ? <TripDrawer tripId={openId} onClose={() => { setOpenId(null) }} /> : null}
     </div>
   )
 }

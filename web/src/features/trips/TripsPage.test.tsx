@@ -23,7 +23,7 @@ describe('Рейсы: список', () => {
   it('q и order из адреса уходят в запрос списка', async () => {
     const m = loggedIn(base())
     renderApp('/trips?q=ORD-2026-00005-1&order=5&consolidated=1')
-    await screen.findByRole('button', { name: 'ORD-2026-00005-1' })
+    await screen.findByRole('link', { name: 'ORD-2026-00005-1' })
     const q = new URL(m.calls.find((c) => c.path.startsWith('/api/trips/?'))!.path, 'http://x').searchParams
     expect(Object.fromEntries(q)).toMatchObject({ q: 'ORD-2026-00005-1', order: '5', only_consolidated: '1' })
   })
@@ -31,7 +31,7 @@ describe('Рейсы: список', () => {
   it('колонки: перевозчик, машина/водитель, ссылки на заказы, цена с валютой', async () => {
     loggedIn(base())
     renderApp('/trips')
-    const row = (await screen.findByRole('button', { name: 'ORD-2026-00005-1' })).closest('tr')!
+    const row = (await screen.findByRole('link', { name: 'ORD-2026-00005-1' })).closest('tr')!
     expect(within(row).getByText('ИП Быстров')).toBeInTheDocument()
     expect(within(row).getByText('123ABC02 / Иван')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: 'ORD-2026-00005' })).toHaveAttribute('href', '/orders/5')
@@ -95,7 +95,7 @@ describe('Рейсы: список', () => {
   it('без trips.update статус - значок, не список', async () => {
     loggedIn(base(), { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'trips.update') } })
     renderApp('/trips')
-    const row = (await screen.findByRole('button', { name: 'ORD-2026-00005-1' })).closest('tr')!
+    const row = (await screen.findByRole('link', { name: 'ORD-2026-00005-1' })).closest('tr')!
     expect(screen.queryByRole('combobox', { name: /Статус рейса/ })).not.toBeInTheDocument()
     expect(within(row).getByText('Планируется')).toBeInTheDocument()
   })
@@ -105,8 +105,9 @@ describe('Рейс: карточка', () => {
   const open = async (extra: MockRoutes = [], session = {}) => {
     const m = loggedIn([...extra, ...base()], { session })
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    return { m, dialog: await screen.findByRole('dialog') }
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    // карточка рейса - страница: проверяем внутри основной области
+    return { m, dialog: await screen.findByRole('main') }
   }
 
   it('PATCH несёт только редактируемые поля', async () => {
@@ -127,10 +128,10 @@ describe('Рейс: карточка', () => {
     const priced = makeTrip({ carrier_price: '250000.00', price: '1.00' })
     loggedIn([['GET', '/api/trips/90/', { body: priced }], ...base([priced])])
     renderApp('/trips')
-    const row = (await screen.findByRole('button', { name: 'ORD-2026-00005-1' })).closest('tr')!
+    const row = (await screen.findByRole('link', { name: 'ORD-2026-00005-1' })).closest('tr')!
     expect(within(row).getByText(/^250\s000,00\sKZT$/)).toBeInTheDocument()
-    await userEvent.click(within(row).getByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(row).getByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
     expect(await within(dialog).findByLabelText('К оплате перевозчику')).toHaveValue('250000.00')
   })
 
@@ -138,8 +139,8 @@ describe('Рейс: карточка', () => {
     const done = makeTrip({ status: 23, status_name: 'Завершён', completed_at: '2026-11-05T10:00:00Z' })
     loggedIn([['GET', '/api/trips/90/', { body: done }], ...base([done])])
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
     expect(await within(dialog).findByText(/Завершён: .*2026/)).toBeInTheDocument()
   })
 
@@ -149,6 +150,7 @@ describe('Рейс: карточка', () => {
       ['GET', /^\/api\/consignments\/\?/, { body: page([makeCargo(), found]) }],
       ['POST', '/api/trips/90/reassign/', { body: makeTrip() }],
     ])
+    await userEvent.click(await within(dialog).findByRole('tab', { name: /Грузы/ }))
     await userEvent.click(await within(dialog).findByRole('button', { name: 'Изменить грузы' }))
     const reassign = await screen.findByRole('dialog', { name: 'Грузы рейса ORD-2026-00005-1' })
     expect(within(reassign).getByText(/Номер рейса не изменится/)).toBeInTheDocument()
@@ -177,8 +179,9 @@ describe('Рейс: карточка', () => {
   it('в режиме только чтения правка и удаление отключены', async () => {
     const { dialog } = await open([], { subscription: { status: 'readonly', plan_code: 'start', days_left: 0, grace_days_left: null, is_free_period: false } })
     expect(await within(dialog).findByRole('button', { name: 'Сохранить' })).toBeDisabled()
-    expect(within(dialog).getByRole('button', { name: 'Изменить грузы' })).toBeDisabled()
     expect(within(dialog).getByRole('button', { name: 'Удалить рейс' })).toBeDisabled()
+    await userEvent.click(within(dialog).getByRole('tab', { name: /Грузы/ }))
+    expect(within(dialog).getByRole('button', { name: 'Изменить грузы' })).toBeDisabled()
   })
 })
 
@@ -215,8 +218,9 @@ describe('Рейсы: техника и водитель из справочни
   it('без модулей fleet/drivers - только текстовые поля', async () => {
     loggedIn(base())
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
+    expect(await within(dialog).findByLabelText('Госномер')).toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox', { name: /Тягач/ })).not.toBeInTheDocument()
     expect(within(dialog).getByLabelText('Госномер')).toBeInTheDocument()
   })
@@ -232,9 +236,9 @@ describe('Рейсы: техника и водитель из справочни
       { session: withFleet },
     )
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByLabelText('Госномер')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
+    expect(await within(dialog).findByLabelText('Госномер')).toBeInTheDocument()
     await userEvent.click(within(dialog).getByRole('combobox', { name: /Тягач/ }))
     await userEvent.click(await screen.findByRole('option', { name: /777AAA01/ }))
     await userEvent.click(within(dialog).getByRole('combobox', { name: /Водитель/ }))

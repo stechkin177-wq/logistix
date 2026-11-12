@@ -171,9 +171,9 @@ describe('Выдача документов: рейс и клиент', () => {
   it('в рейсе с перевозчиком есть договор-заявка и CMR; запрос несёт trip', async () => {
     const m = loggedIn([...tripRoutes(), caps(true), ['POST', '/api/documents/issued/', { status: 201, body: makeIssued({ number: 'ДЗ-1' }) }]])
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByRole('button', { name: 'CMR' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
+    expect(await within(dialog).findByRole('button', { name: 'CMR' })).toBeInTheDocument()
     await userEvent.click(await within(dialog).findByRole('button', { name: 'Договор-заявка перевозчику' }))
     await screen.findByText('Документ ДЗ-1 выдан')
     expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ kind: 'carrier_order', trip: 90 })
@@ -182,8 +182,8 @@ describe('Выдача документов: рейс и клиент', () => {
   it('в рейсе без перевозчика нет договора-заявки', async () => {
     loggedIn(tripRoutes(makeTrip({ carrier: null, carrier_name: null })))
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    const dialog = await screen.findByRole('main')
     await within(dialog).findByRole('button', { name: 'CMR' })
     expect(within(dialog).queryByRole('button', { name: 'Договор-заявка перевозчику' })).not.toBeInTheDocument()
   })

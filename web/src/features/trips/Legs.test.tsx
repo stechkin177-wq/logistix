@@ -49,8 +49,11 @@ describe('Карточка рейса: участки', () => {
     ]
     loggedIn(routes)
     renderApp('/trips')
-    await userEvent.click(await screen.findByRole('button', { name: 'ORD-2026-00005-1' }))
-    return await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
+    // страница рейса: участки лежат на вкладке «Маршрут»
+    const main = await screen.findByRole('main')
+    await userEvent.click(await within(main).findByRole('tab', { name: /Маршрут/ }))
+    return main
   }
 
   it('участки: откуда-куда, груз, доли и статус', async () => {
@@ -73,9 +76,9 @@ describe('Карточка рейса: участки', () => {
     expect(await within(dialog).findByText(/Весь маршрут/)).toBeInTheDocument()
   })
 
-  it('ответ без поля legs (старый API) - карточка открывается без блока участков', async () => {
+  it('ответ без поля legs (старый API) - страница открывается без блока участков', async () => {
     const dialog = await open(makeTrip())
-    await within(dialog).findByLabelText('Госномер')
+    expect(await within(dialog).findByText('Участки не заданы')).toBeInTheDocument()
     expect(within(dialog).queryByRole('region', { name: 'Участки' })).not.toBeInTheDocument()
   })
 })

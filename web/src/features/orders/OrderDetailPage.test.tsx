@@ -28,7 +28,7 @@ describe('Карточка заказа: рейс одной кнопкой', ()
     const { router } = renderApp('/orders/5')
     await userEvent.click(await screen.findByRole('button', { name: 'Создать рейс' }))
     await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/trips/' && c.method === 'POST')?.body).toMatchObject({ consignments: [makeOrder().consignments[0]!.id] }) })
-    await waitFor(() => { expect(router.state.location.pathname + router.state.location.search).toBe('/trips?open=90') })
+    await waitFor(() => { expect(router.state.location.pathname + router.state.location.search).toBe('/trips/90') })
   })
 
   it('без права trips.create кнопки «Создать рейс» нет', async () => {
