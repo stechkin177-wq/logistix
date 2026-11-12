@@ -34,6 +34,7 @@ import { SettingsLayout } from '../features/settings/SettingsLayout'
 import { UsersPage } from '../features/settings/users/UsersPage'
 import { TrashPage } from '../features/trash/TrashPage'
 import { TransfersPage } from '../features/tracking/pages/TransfersPage'
+import { PartyDetailPage } from '../features/parties/pages/PartyDetailPage'
 import { TripDetailPage } from '../features/trips/pages/TripDetailPage'
 import { TripsPage } from '../features/trips/pages/TripsPage'
 import { AppLayout } from '../layout/AppLayout'
@@ -96,6 +97,10 @@ export function createRoutes(): RouteObject[] {
   const tripPages: RouteObject[] = tripsItem
     ? [{ path: '/trips/:id', element: <RequireAccess item={tripsItem}><TripDetailPage /></RequireAccess> }]
     : []
+  const partyPages: RouteObject[] = (['clients', 'carriers'] as const).flatMap((kind) => {
+    const item = flattenNav(NAV).find((i) => i.key === kind)
+    return item ? [{ path: `/${kind}/:id`, element: <RequireAccess item={item}><PartyDetailPage kind={kind} /></RequireAccess> }] : []
+  })
   const financeItem = flattenNav(NAV).find((item) => item.key === 'finance')
   const financePages: RouteObject[] = financeItem
     ? [
@@ -129,7 +134,7 @@ export function createRoutes(): RouteObject[] {
         },
         {
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
+          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, ...partyPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
         },
       ],
     },

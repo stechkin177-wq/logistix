@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
 import { useSession } from '../../../shared/auth/useSession'
 import { errorMessage } from '../../../shared/api/errors'
@@ -46,6 +46,7 @@ const SCHEMAS = { clients: schemaFor('clients'), carriers: schemaFor('carriers')
 export function PartyListPage({ kind }: { kind: PartyKind }) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
+  const navigate = useNavigate()
   const [state, setState] = useUrlState(SCHEMAS[kind], { pageKey: 'page' })
   const list = usePartyList(kind, state)
   usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
@@ -62,13 +63,9 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
       header: t('parties.name'),
       sortKey: 'name',
       cell: (p) => (
-        <button
-          type="button"
-          className="text-left font-medium text-brand-700 hover:underline dark:text-brand-300"
-          onClick={() => { setEditor({ party: p, nonce: Date.now() }) }}
-        >
+        <Link to={`/${kind}/${String(p.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
           {p.name}
-        </button>
+        </Link>
       ),
     },
     { key: 'bin', header: t('parties.binIin'), cell: (p) => p.bin_iin || '—' },
@@ -195,7 +192,14 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
         onPageSize={(pageSize) => { setState({ pageSize }) }}
       />
       {editor ? (
-        <PartyDrawer key={editor.nonce} kind={kind} party={editor.party} open onClose={() => { setEditor(null) }} />
+        <PartyDrawer
+          key={editor.nonce}
+          kind={kind}
+          party={editor.party}
+          open
+          onClose={() => { setEditor(null) }}
+          onSaved={(saved) => { void navigate(`/${kind}/${String(saved.id)}`) }}
+        />
       ) : null}
       <ConfirmDialog
         open={toDelete !== null}

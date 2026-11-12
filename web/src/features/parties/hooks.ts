@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createParty, deleteParty, listParties, updateParty } from './api'
+import { createParty, deleteParty, getParty, listParties, updateParty } from './api'
 import type { PartyKind, PartyListParams, PartyPayload } from './types'
 
 /** Ключ включает ВСЕ параметры списка: смена любого фильтра - новый запрос (старый отменяется). */
@@ -32,4 +32,13 @@ export function useSaveParty(kind: PartyKind) {
 export function useDeleteParty(kind: PartyKind) {
   const invalidate = useInvalidate(kind)
   return useMutation({ mutationFn: (id: number) => deleteParty(kind, id), onSuccess: invalidate })
+}
+
+/** Карточка клиента/перевозчика по id; id=null - запрос не отправляется. */
+export function useParty(kind: PartyKind, id: number | null) {
+  return useQuery({
+    queryKey: [kind, 'detail', id],
+    queryFn: ({ signal }) => getParty(kind, id ?? 0, signal),
+    enabled: id !== null,
+  })
 }

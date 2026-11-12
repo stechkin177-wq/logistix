@@ -83,13 +83,14 @@ describe('Клиенты', () => {
 
   it('контакты: добавить, изменить и убрать строку; id существующих уходят на сервер', async () => {
     const m = loggedIn([
-      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }],
+      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], ['GET', '/api/clients/7/', { body: CLIENT }],
       typesRoute,
       ['PATCH', '/api/clients/7/', { body: CLIENT }],
     ])
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Контакты/ }))
     await userEvent.click(within(drawer).getByRole('button', { name: 'Добавить контакт' }))
     const names = within(drawer).getAllByLabelText(/^Имя/)
     expect(names).toHaveLength(2)
@@ -104,13 +105,14 @@ describe('Клиенты', () => {
 
   it('409 «контакт используется» показывается в баннере формы', async () => {
     loggedIn([
-      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }],
+      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], ['GET', '/api/clients/7/', { body: CLIENT }],
       typesRoute,
       ['PATCH', '/api/clients/7/', { status: 409, body: { detail: 'Контакт используется в заказах и не может быть удалён', code: 'contact_in_use' } }],
     ])
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Контакты/ }))
     await userEvent.click(within(drawer).getByRole('button', { name: 'Убрать контакт 1' }))
     await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
     expect(await within(drawer).findByRole('alert')).toHaveTextContent('Контакт используется в заказах')
@@ -167,24 +169,26 @@ describe('Клиенты', () => {
   })
 
   it('контакты отключены, если нельзя сохранять (нет clients.update)', async () => {
-    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], typesRoute], {
+    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], ['GET', '/api/clients/7/', { body: CLIENT }], typesRoute], {
       session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'clients.update') },
     })
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Контакты/ }))
     expect(within(drawer).getByLabelText(/^Имя/)).toBeDisabled()
     expect(within(drawer).getByRole('button', { name: 'Добавить контакт' })).toBeDisabled()
     expect(within(drawer).getByRole('button', { name: 'Убрать контакт 1' })).toBeDisabled()
   })
 
   it('режим только чтения отключает контакты', async () => {
-    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], typesRoute], {
+    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], ['GET', '/api/clients/7/', { body: CLIENT }], typesRoute], {
       session: { subscription: { status: 'readonly', plan_code: 'start', days_left: 0, grace_days_left: null, is_free_period: false } },
     })
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Контакты/ }))
     expect(within(drawer).getByRole('button', { name: 'Добавить контакт' })).toBeDisabled()
   })
 
@@ -201,13 +205,14 @@ describe('Клиенты', () => {
 
   it('реквизиты: поля заполняются из ответа и уходят в PATCH', async () => {
     const m = loggedIn([
-      ['GET', /^\/api\/clients\/\?/, { body: page([{ ...CLIENT, address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ123' }]) }],
+      ['GET', /^\/api\/clients\/\?/, { body: page([{ ...CLIENT, address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ123' }]) }], ['GET', '/api/clients/7/', { body: { ...CLIENT, address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ123' } }],
       typesRoute,
       ['PATCH', '/api/clients/7/', { body: CLIENT }],
     ])
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Реквизиты/ }))
     expect(within(drawer).getByLabelText('Адрес')).toHaveValue('г. Астана, ул. 1')
     expect(within(drawer).getByLabelText('Банк')).toHaveValue('Halyk')
     const iban = within(drawer).getByLabelText('IBAN')
@@ -232,13 +237,14 @@ describe('Клиенты', () => {
 
   it('ошибка 400 по iban показывается у поля', async () => {
     loggedIn([
-      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }],
+      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], ['GET', '/api/clients/7/', { body: CLIENT }],
       typesRoute,
       ['PATCH', '/api/clients/7/', { status: 400, body: { iban: ['Убедитесь, что это значение содержит не более 34 символов.'] } }],
     ])
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    const drawer = await screen.findByRole('dialog')
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const drawer = await screen.findByRole('main')
+    await userEvent.click(await within(drawer).findByRole('tab', { name: /Реквизиты/ }))
     await userEvent.type(within(drawer).getByLabelText('IBAN'), 'X'.repeat(40))
     await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
     const field = await within(drawer).findByLabelText('IBAN')

@@ -195,6 +195,7 @@ describe('Выдача документов: рейс и клиент', () => {
     }
     const m = loggedIn([
       ['GET', /^\/api\/clients\/\?/, { body: page([client]) }],
+      ['GET', '/api/clients/7/', { body: client }],
       caps(true),
       ['POST', '/api/documents/issued/', { status: 201, body: makeIssued({ number: 'Д-1', kind: 'contract' }) }],
     ])
@@ -202,8 +203,10 @@ describe('Выдача документов: рейс и клиент', () => {
     await userEvent.click((await screen.findAllByRole('button', { name: 'Новый клиент' }))[0]!)
     expect(within(await screen.findByRole('dialog')).queryByRole('button', { name: 'Договор' })).not.toBeInTheDocument()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Отмена' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'ТОО Ромашка' }))
-    await userEvent.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Договор' }))
+    await userEvent.click(await screen.findByRole('link', { name: 'ТОО Ромашка' }))
+    const card = await screen.findByRole('main')
+    await userEvent.click(await within(card).findByRole('tab', { name: /Документы/ }))
+    await userEvent.click(await within(card).findByRole('button', { name: 'Договор' }))
     await screen.findByText('Документ Д-1 выдан')
     expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ kind: 'contract', client: 7 })
   })
