@@ -1,16 +1,24 @@
 import { Link } from 'react-router'
+import type { LucideIcon } from './icons'
 
-/** Карточка-показатель; со ссылкой (to) ведёт в соответствующий раздел. */
-export function Stat({ label, value, to }: { label: string; value: string; to?: string }) {
+/** Карточка-показатель; со ссылкой (to) ведёт в соответствующий раздел. tone окрашивает значение (минус - красным). */
+export function Stat({
+  label, value, to, icon: Icon, tone, note,
+}: { label: string; value: string; to?: string; icon?: LucideIcon; tone?: 'danger' | 'success'; note?: string }) {
+  const color = tone === 'danger' ? 'text-red-600 dark:text-red-400' : tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
   const body = (
     <>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium text-muted">{label}</p>
+        {Icon ? <Icon className="size-4 shrink-0 text-muted" aria-hidden="true" /> : null}
+      </div>
+      <p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
+      {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
     </>
   )
-  const cls = 'rounded border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900'
+  const cls = 'rounded-card border border-line bg-surface-2 p-4 dark:bg-surface-2'
   return to ? (
-    <Link to={to} className={`${cls} block hover:border-brand-400`}>
+    <Link to={to} className={`${cls} block transition-colors hover:border-brand-400`}>
       {body}
     </Link>
   ) : (

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from './Button'
+import { SelectBox } from './SelectBox'
 
 /** Конверт постраничного ответа бэкенда (DRF PageNumberPagination, StandardPagination). */
 export interface Paginated<T> {
@@ -26,18 +27,19 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
   const from = (page - 1) * pageSize + 1
   const to = Math.min(count, page * pageSize)
   return (
-    <nav aria-label={t('pagination.label')} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs">
+    <nav aria-label={t('pagination.label')} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted">
       <span>{t('pagination.range', { from, to, total: count })}</span>
       <div className="flex items-center gap-2">
         {onPageSize ? (
           <label className="flex items-center gap-1">
             {t('pagination.pageSize')}
+            <SelectBox>
             <select
               value={pageSize}
               onChange={(event) => {
                 onPageSize(Number(event.target.value))
               }}
-              className="h-8 rounded border border-slate-300 bg-white px-1 dark:border-slate-600 dark:bg-slate-900"
+              className="h-9 appearance-none rounded-control border border-line bg-surface pl-2 pr-7 text-sm"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>
@@ -45,6 +47,7 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
                 </option>
               ))}
             </select>
+            </SelectBox>
           </label>
         ) : null}
         <Button

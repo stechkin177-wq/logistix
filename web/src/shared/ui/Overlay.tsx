@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { X } from './icons'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -73,7 +74,7 @@ export function Overlay({
   const isDrawer = variant === 'drawer'
   return createPortal(
     <div
-      className={`fixed inset-0 z-40 flex bg-black/40 ${isDrawer ? 'justify-end' : 'items-center justify-center p-3'}`}
+      className={`fixed inset-0 z-40 flex bg-slate-950/50 backdrop-blur-[1px] ${isDrawer ? 'justify-end' : 'items-end justify-center sm:items-center sm:p-3'}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose()
       }}
@@ -85,12 +86,14 @@ export function Overlay({
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={`flex max-h-full flex-col bg-white shadow-xl outline-none dark:bg-slate-900 ${
-          isDrawer ? `h-full w-full ${width ?? 'max-w-xl'}` : `w-full rounded ${width ?? 'max-w-md'}`
+        className={`flex max-h-full flex-col bg-surface text-ink shadow-pop outline-none ${
+          isDrawer
+            ? `h-full w-full rounded-l-card ${width ?? 'max-w-xl'} max-md:rounded-none`
+            : `w-full rounded-t-card sm:rounded-card ${width ?? 'max-w-md'}`
         }`}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-          <h2 id={titleId} className="text-sm font-semibold">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 id={titleId} className="text-base font-semibold">
             {title}
           </h2>
           <button
@@ -98,14 +101,14 @@ export function Overlay({
             aria-label={t('common.close')}
             disabled={busy}
             onClick={onClose}
-            className="rounded px-2 text-lg leading-none text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-800"
+            className="inline-flex size-8 items-center justify-center rounded-control text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-50"
           >
-            ×
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
+        <div className="thin-scroll min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-slate-200 px-3 py-2 dark:border-slate-700">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3">
             {footer}
           </div>
         ) : null}

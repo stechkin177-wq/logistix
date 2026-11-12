@@ -18,7 +18,7 @@ export function FilterBar({
       onSubmit={(event: SyntheticEvent) => {
         event.preventDefault()
       }}
-      className="flex flex-wrap items-end gap-2 rounded border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900"
+      className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-surface p-3 shadow-card"
     >
       {children}
       {onReset ? (

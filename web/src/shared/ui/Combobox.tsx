@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FIELD_CLASS } from './fieldStyles'
+import { X } from './icons'
 import { FormField } from './FormField'
 
 export interface ComboOption {
@@ -113,7 +114,7 @@ export function Combobox({
                 setText(null)
               }}
               onKeyDown={onKeyDown}
-              className={`${FIELD_CLASS} ${value ? 'pr-6' : ''}`}
+              className={`${FIELD_CLASS} ${value ? 'pr-9' : ''}`}
             />
             {value && !disabled ? (
               <button
@@ -122,9 +123,9 @@ export function Combobox({
                 onClick={() => {
                   pick(null)
                 }}
-                className="absolute inset-y-0 right-0 px-1.5 text-slate-500 hover:text-slate-900"
+                className="absolute inset-y-0 right-0 px-2.5 text-muted hover:text-ink"
               >
-                ×
+                <X className="size-4" aria-hidden="true" />
               </button>
             ) : null}
           </div>
@@ -133,14 +134,14 @@ export function Combobox({
               id={listId}
               role="listbox"
               aria-label={label}
-              className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded border border-slate-200 bg-white text-sm shadow dark:border-slate-700 dark:bg-slate-900"
+              className="thin-scroll absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-control border border-line bg-surface text-sm shadow-pop"
             >
               {query.isPending ? (
-                <li className="px-2 py-1 text-slate-500">{t('combobox.loading')}</li>
+                <li className="px-3 py-2 text-muted">{t('combobox.loading')}</li>
               ) : query.isError ? (
-                <li className="px-2 py-1 text-red-600">{t('common.loadFailed')}</li>
+                <li className="px-3 py-2 text-red-600">{t('common.loadFailed')}</li>
               ) : options.length === 0 ? (
-                <li className="px-2 py-1 text-slate-500">{t('common.noResults')}</li>
+                <li className="px-3 py-2 text-muted">{t('common.noResults')}</li>
               ) : (
                 options.map((option, index) => (
                   <li
@@ -155,7 +156,7 @@ export function Combobox({
                     onMouseEnter={() => {
                       setActive(index)
                     }}
-                    className={`cursor-pointer px-2 py-1 ${index === active ? 'bg-brand-100 dark:bg-slate-700' : ''}`}
+                    className={`cursor-pointer px-3 py-2 ${index === active ? 'bg-brand-50 text-brand-900 dark:bg-slate-700 dark:text-white' : ''}`}
                   >
                     {option.label}
                   </li>

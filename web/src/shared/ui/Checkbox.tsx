@@ -6,7 +6,7 @@ export function Checkbox({
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { label: ReactNode; hideLabel?: boolean }) {
   return (
     <label className={`inline-flex min-h-8 items-center gap-1.5 text-sm ${className}`}>
-      <input type="checkbox" className="h-4 w-4 accent-brand-600" {...rest} />
+      <input type="checkbox" className="size-4 rounded accent-brand-600" {...rest} />
       <span className={hideLabel ? 'sr-only' : ''}>{label}</span>
     </label>
   )

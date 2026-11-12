@@ -61,11 +61,12 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-max border-collapse text-left text-sm" aria-busy={loading ? true : undefined}>
+    <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      <div className="thin-scroll overflow-x-auto">
+        {/* на узком экране строки превращаются в карточки: подпись колонки берётся из data-label */}
+        <table className="w-full border-collapse text-left text-sm max-md:block md:min-w-max" aria-busy={loading ? true : undefined}>
           <caption className="sr-only">{caption}</caption>
-          <thead className="bg-slate-50 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted max-md:sr-only">
             <tr>
               {columns.map((column) => {
                 const sorted =
@@ -81,7 +82,7 @@ export function DataTable<T>({
                     key={column.key}
                     scope="col"
                     aria-sort={sorted}
-                    className={`whitespace-nowrap px-2 py-1.5 font-medium ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                    className={`whitespace-nowrap px-3 py-2.5 font-semibold ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                   >
                     {column.sortKey !== undefined && onOrderingChange ? (
                       <button
@@ -106,13 +107,14 @@ export function DataTable<T>({
             </tr>
           </thead>
           {rows && rows.length > 0 && !error ? (
-            <tbody className={loading ? 'opacity-60' : undefined}>
+            <tbody className={`max-md:block ${loading ? 'opacity-60' : ''}`}>
               {rows.map((row) => (
-                <tr key={rowKey(row)} className="border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                <tr key={rowKey(row)} className="border-t border-line transition-colors hover:bg-surface-2 max-md:block max-md:px-3 max-md:py-2">
                   {columns.map((column) => (
                     <td
                       key={column.key}
-                      className={`px-2 py-1 align-middle ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                      data-label={column.headerLabel ?? (typeof column.header === 'string' ? column.header : '')}
+                      className={`px-3 py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                     >
                       {column.cell(row)}
                     </td>

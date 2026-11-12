@@ -18,6 +18,39 @@
   /* текст на сплошном фоне бренда (bg-brand-600) и цвет фона при наведении */
   --color-brand-fg: var(--brand-fg, #ffffff);
   --color-brand-solid-hover: var(--brand-solid-hover, #1d4ed8);
+
+  /* Семантические цвета интерфейса: переключаются вместе с темой (светлая/тёмная) */
+  --color-canvas: var(--ui-canvas);
+  --color-surface: var(--ui-surface);
+  --color-surface-2: var(--ui-surface-2);
+  --color-line: var(--ui-line);
+  --color-ink: var(--ui-ink);
+  --color-muted: var(--ui-muted);
+
+  /* Скругления, тени, отступы страницы */
+  --radius-card: 0.875rem;
+  --radius-control: 0.5rem;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 6px 20px rgb(15 23 42 / 0.05);
+  --shadow-pop: 0 10px 30px rgb(15 23 42 / 0.16);
+  --spacing-sidebar: 15rem;
+}
+
+:root {
+  --ui-canvas: #eef1f6;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f6f8fb;
+  --ui-line: #e3e8ef;
+  --ui-ink: #0f172a;
+  --ui-muted: #64748b;
+}
+
+.dark {
+  --ui-canvas: #0a0f1c;
+  --ui-surface: #111827;
+  --ui-surface-2: #172033;
+  --ui-line: #25304a;
+  --ui-ink: #e5e9f2;
+  --ui-muted: #94a3b8;
 }
 
 :root {
@@ -26,6 +59,10 @@
 
 body {
   margin: 0;
+  background: var(--ui-canvas);
+  color: var(--ui-ink);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 /* Видимое кольцо фокуса для клавиатуры у ссылок, кнопок и полей без своего оформления */
@@ -42,4 +79,28 @@ textarea:focus-visible {
 /* Страница не должна уходить в горизонтальный скролл: длинные слова переносятся, таблицы прокручиваются внутри своего контейнера */
 main {
   overflow-wrap: anywhere;
+}
+
+/* Тонкая полоса прокрутки внутри панелей */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-line) transparent;
+}
+
+/* Не даём iOS увеличивать масштаб при фокусе на поле: на узком экране шрифт полей 16px */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

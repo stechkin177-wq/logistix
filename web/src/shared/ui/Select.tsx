@@ -1,6 +1,7 @@
 import type { SelectHTMLAttributes } from 'react'
-import { FIELD_CLASS } from './fieldStyles'
+import { SELECT_CLASS } from './fieldStyles'
 import { FormField } from './FormField'
+import { SelectBox } from './SelectBox'
 
 export interface Option {
   value: string
@@ -26,6 +27,7 @@ export function Select({
   return (
     <FormField label={label} error={error} hint={hint} hideLabel={hideLabel} required={required} className={fieldClassName}>
       {(aria) => (
+        <SelectBox>
         <select
           {...aria}
           {...rest}
@@ -33,7 +35,7 @@ export function Select({
           onChange={(event) => {
             onChange(event.target.value)
           }}
-          className={`${FIELD_CLASS} ${className}`}
+          className={`${SELECT_CLASS} ${className}`}
         >
           {placeholder !== undefined ? <option value="">{placeholder}</option> : null}
           {options.map((option) => (
@@ -42,6 +44,7 @@ export function Select({
             </option>
           ))}
         </select>
+        </SelectBox>
       )}
     </FormField>
   )
