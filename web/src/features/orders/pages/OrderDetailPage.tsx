@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { EmptyState } from '../../../shared/ui/EmptyState'
 import { Boxes, FileText, History, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
 import { SubjectLabels } from '../../labels/SubjectLabels'
+import { ComposeMailButton } from '../../mail/ComposeMailButton'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
@@ -93,6 +94,7 @@ export function OrderDetailPage() {
         actions={
           <>
             <CreateTripButton order={order} />
+            <ComposeMailButton context={{ order: order.id, client: order.client }} />
             <IssueDocumentButton kind="order_request" source={{ order: order.id }} label={t('documents.kind.order_request')} />
             {hasPermission('orders.delete') ? (
               <WriteButton variant="danger" permission="orders.delete" icon={Trash2} onClick={() => { setConfirmDelete(true) }}>

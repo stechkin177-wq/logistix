@@ -11,4 +11,5 @@ redis>=5.0
 openpyxl>=3.1
 sentry-sdk>=2.20
 docxtpl>=0.20
+cryptography>=43
 num2words>=0.5.14

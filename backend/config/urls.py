@@ -95,6 +95,11 @@ from apps.forwarding.orders.api import OrderViewSet
 from apps.forwarding.requisites_api import BankAccountViewSet
 from apps.forwarding.tracking.api import TransferViewSet
 from apps.forwarding.trips.api import TripViewSet
+from apps.mail.api import AccountTestView as MailAccountTestView
+from apps.mail.api import AccountView as MailAccountView
+from apps.mail.api import MessageViewSet as MailMessageViewSet
+from apps.mail.api import StatusView as MailStatusView
+from apps.mail.api import TemplateViewSet as MailTemplateViewSet
 
 router = SimpleRouter()
 router.register("roles", RoleViewSet, basename="role")
@@ -104,6 +109,8 @@ router.register("handbooks", HandbookViewSet, basename="handbook")
 router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
 router.register("labels", LabelViewSet, basename="label")
+router.register("mail/templates", MailTemplateViewSet, basename="mail-template")
+router.register("mail/messages", MailMessageViewSet, basename="mail-message")
 router.register("handbook-values", HandbookValueViewSet, basename="handbook-value")
 router.register("clients", ClientViewSet, basename="client")
 router.register("carriers", CarrierViewSet, basename="carrier")
@@ -139,6 +146,9 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/mail/account/", MailAccountView.as_view()),
+    path("api/mail/account/test/", MailAccountTestView.as_view()),
+    path("api/mail/status/", MailStatusView.as_view()),
     path("api/labels/subjects/<str:kind>/<int:pk>/", SubjectLabelsView.as_view()),
     path("api/fleet/reminders/", RemindersView.as_view()),
     path("api/drivers/reminders/", DriverRemindersView.as_view()),

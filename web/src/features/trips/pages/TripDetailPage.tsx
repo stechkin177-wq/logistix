@@ -21,6 +21,7 @@ import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { EntityDocuments } from '../../documents/EntityDocuments'
 import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
+import { ComposeMailButton } from '../../mail/ComposeMailButton'
 import { useFinanceEngine } from '../../finance/ledgerHooks'
 import { TripFinanceBlock } from '../../finance/TripFinanceBlock'
 import { useCurrencies } from '../../orders/hooks'
@@ -115,6 +116,7 @@ function Content({ trip }: { trip: Trip }) {
               <IssueDocumentButton kind="carrier_order" source={{ trip: trip.id }} label={t('documents.kind.carrier_order')} />
             ) : null}
             <IssueDocumentButton kind="cmr" source={{ trip: trip.id }} label={t('documents.kind.cmr')} />
+            <ComposeMailButton context={{ trip: trip.id }} />
             {hasPermission('trips.delete') ? (
               <WriteButton permission="trips.delete" variant="danger" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('trips.delete')}</WriteButton>
             ) : null}

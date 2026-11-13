@@ -59,6 +59,10 @@ AUDIT_PERMISSIONS = ["audit.view"]
 # (раздел.update); видеть - тот, кто видит объект.
 LABEL_PERMISSIONS = ["labels.manage"]
 
+# Исходящая почта (apps.mail): просмотр писем, отправка, настройка ящика компании. Наблюдателю по
+# умолчанию не выдаётся (переписка - персональные данные).
+MAIL_PERMISSIONS = ["mail.view", "mail.send", "mail.manage_account"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
@@ -66,6 +70,7 @@ ALL_PERMISSIONS: list[str] = (
     + TRANSFER_PERMISSIONS
     + AUDIT_PERMISSIONS
     + LABEL_PERMISSIONS
+    + MAIL_PERMISSIONS
 )
 
 
@@ -80,6 +85,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     "Администратор": list(ALL_PERMISSIONS),
     "Менеджер": _codes(_OPERATIONS, _VCU)
     + LABEL_PERMISSIONS
+    + MAIL_PERMISSIONS[:2]
     + TRANSFER_PERMISSIONS
     + _codes(["finance", "trash", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
@@ -90,12 +96,15 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)
     + LABEL_PERMISSIONS
+    + MAIL_PERMISSIONS[:2]
     + TRANSFER_PERMISSIONS
     + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Механик": ["trips.view", *_codes(["fleet"], _VCU)],
     "Наблюдатель": [
-        p for p in ALL_PERMISSIONS if p.endswith(".view") and p not in AUDIT_PERMISSIONS
+        p
+        for p in ALL_PERMISSIONS
+        if p.endswith(".view") and p not in AUDIT_PERMISSIONS and p != "mail.view"
     ],
     "Водитель": [],
 }

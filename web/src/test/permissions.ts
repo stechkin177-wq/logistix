@@ -19,4 +19,7 @@ export const ALL_PERMISSIONS: string[] = [
   'consignments.transfer',
   'audit.view',
   'labels.manage',
+  'mail.view',
+  'mail.send',
+  'mail.manage_account',
 ]

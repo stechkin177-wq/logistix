@@ -73,7 +73,7 @@ def test_catalog_has_72_unique_codes():
     # 15 разделов x 4 действия + 12 особых прав (override_limit, cancel_invoice, revert_completed,
     # пять прав финансовой архитектуры, company.manage_modules, consignments.transfer,
     # audit.view и labels.manage)
-    assert len(ALL_PERMISSIONS) == 72 == len(set(ALL_PERMISSIONS))
+    assert len(ALL_PERMISSIONS) == 75 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
     assert "trips.revert_completed" in ALL_PERMISSIONS
 
@@ -91,9 +91,9 @@ def test_system_roles_content():
     assert SYSTEM_ROLES[ADMIN] == ALL_PERMISSIONS
     assert SYSTEM_ROLES["Механик"] == ["trips.view", "fleet.view", "fleet.create", "fleet.update"]
     assert SYSTEM_ROLES["Водитель"] == []
-    # наблюдатель видит всё, кроме журнала аудита (audit.view выдаётся отдельно)
+    # наблюдатель видит всё, кроме журнала аудита и переписки (audit.view, mail.view - отдельно)
     assert sorted(SYSTEM_ROLES["Наблюдатель"]) == sorted(
-        p for p in ALL_PERMISSIONS if p.endswith(".view") and p != "audit.view"
+        p for p in ALL_PERMISSIONS if p.endswith(".view") and p not in ("audit.view", "mail.view")
     )
     assert "labels.manage" in SYSTEM_ROLES["Менеджер"]
     assert "labels.manage" in SYSTEM_ROLES["Диспетчер"]

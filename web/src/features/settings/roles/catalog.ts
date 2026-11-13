@@ -26,4 +26,7 @@ export const AUDIT_CODES = ['audit.view'] as const
 /** Право управления метками (как LABEL_PERMISSIONS на бэкенде). */
 export const LABEL_CODES = ['labels.manage'] as const
 
-export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES, ...AUDIT_CODES, ...LABEL_CODES]
+/** Права почты (как MAIL_PERMISSIONS на бэкенде). */
+export const MAIL_CODES = ['mail.view', 'mail.send', 'mail.manage_account'] as const
+
+export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES, ...AUDIT_CODES, ...LABEL_CODES, ...MAIL_CODES]

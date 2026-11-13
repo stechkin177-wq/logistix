@@ -16,6 +16,7 @@ import { Building2, FileText, History, Landmark, Package, Phone, Route, Trash2, 
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Money } from '../../../shared/ui/Money'
 import { SubjectLabels } from '../../labels/SubjectLabels'
+import { ComposeMailButton } from '../../mail/ComposeMailButton'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
@@ -150,6 +151,7 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
         }
         actions={
           <>
+            {kind === 'clients' ? <ComposeMailButton context={{ client: party.id, to: party.contacts.find((c) => c.email)?.email }} /> : null}
             {hasPermission(`${kind}.delete`) ? (
               <WriteButton permission={`${kind}.delete`} variant="danger" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('common.delete')}</WriteButton>
             ) : null}

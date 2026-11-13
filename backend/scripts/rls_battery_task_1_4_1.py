@@ -91,6 +91,10 @@ if STEP == "M6":
     # таблицы finance.0010 (1.4.14) и core.0016 (этап 1.5-A: CompanyModule) появляются позже
     # шагов этого скрипта: до M6 их в БД нет
     LATER_TABLES = {
+        "mail_mailaccount",  # шаг 5 этапа 3: исходящая почта
+        "mail_mailtemplate",
+        "mail_mailmessage",
+        "mail_mailattachment",
         "finance_fxrevaluation",
         "finance_fxrevaluationline",
         "core_companymodule",

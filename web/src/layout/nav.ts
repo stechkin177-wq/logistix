@@ -1,7 +1,7 @@
 import type { Session } from '../shared/api/types'
 import {
   Blocks, BookOpen, Boxes, Building, Building2, CarFront, FileCog, FileStack, FileText, Hash, LayoutDashboard, Network,
-  KeyRound, Package, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet, ArrowLeftRight,
+  KeyRound, Mail, Package, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet, ArrowLeftRight,
   type LucideIcon,
 } from '../shared/ui/icons'
 
@@ -46,6 +46,7 @@ export const NAV: NavItem[] = [
   { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'fleet.view', module: 'fleet', icon: CarFront },
   { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers', icon: UserRound },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance', icon: Wallet },
+  { key: 'mail', labelKey: 'nav.mail', path: '/mail', permission: 'mail.view', icon: Mail },
   { key: 'documents', labelKey: 'nav.documents', path: '/documents', permission: 'documents.view', module: 'documents', icon: FileText },
   { key: 'trash', labelKey: 'nav.trash', path: '/trash', permission: 'trash.view', icon: Trash2 },
   {
@@ -59,6 +60,7 @@ export const NAV: NavItem[] = [
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view', icon: ShieldCheck, section: 'organization' },
       { key: 'audit', labelKey: 'nav.audit', path: '/settings/audit', permission: 'audit.view', icon: KeyRound, section: 'organization' },
       { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules', icon: Blocks, section: 'organization' },
+      { key: 'mailsettings', labelKey: 'nav.mailSettings', path: '/settings/mail', permission: 'mail.manage_account', icon: Mail, section: 'data' },
       { key: 'labels', labelKey: 'nav.labels', path: '/settings/labels', permission: 'labels.manage', icon: Tag, section: 'data' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view', icon: BookOpen, section: 'data' },
       { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'], icon: FileCog, section: 'data' },

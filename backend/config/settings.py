@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.documents",
     "apps.drivers",
     "apps.fleet",
+    "apps.mail",
 ]
 
 # Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP
@@ -156,6 +157,8 @@ REST_FRAMEWORK = {
         "login": env("THROTTLE_LOGIN", "10/minute"),
         "totp": env("THROTTLE_TOTP", "5/minute"),
         "password_setup": env("THROTTLE_PASSWORD_SETUP", "10/minute"),
+        # исходящая почта: на пользователя (защита от рассылки)
+        "mail_send": env("MAIL_SEND_THROTTLE_RATE", "30/hour"),
     },
 }
 # Продакшен/serverless: только JSON (BrowsableAPI тянет статику и шаблоны, которых там нет).
@@ -242,3 +245,11 @@ LOGGING = {
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
     },
 }
+
+# Исходящая почта (apps.mail): ключ шифрования паролей ящиков, суточный предел писем
+# на компанию, запрет SMTP-серверов во внутренней сети (защита от SSRF; в разработке можно
+# разрешить).
+MAIL_ENCRYPTION_KEY = env("MAIL_ENCRYPTION_KEY", "")
+MAIL_DAILY_LIMIT = int(env("MAIL_DAILY_LIMIT", "200"))
+MAIL_ALLOW_PRIVATE_HOSTS = env_bool("MAIL_ALLOW_PRIVATE_HOSTS", False)
+MAIL_SMTP_TIMEOUT = int(env("MAIL_SMTP_TIMEOUT", "15"))
