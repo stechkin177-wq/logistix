@@ -11,8 +11,10 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.handbooks.models import HandbookValue
 from apps.core.pagination import StandardPagination
 
+from . import requisites
 from .filters import filter_parties
 from .models import Carrier, Client, Contact, Order
+from .requisites_api import BankAccountSerializer
 
 BIN_RE = re.compile(r"[0-9]{10,12}")  # только ASCII: \d принимает и арабо-индийские цифры
 DUPLICATE_BIN_MESSAGE = "Контрагент с таким БИН/ИИН уже есть"
@@ -52,6 +54,8 @@ class PartySerializer(serializers.ModelSerializer):
     parent_field: str
     type_name = serializers.SerializerMethodField()
     contacts = ContactSerializer(many=True, required=False)
+    # единый источник банковских реквизитов; bank/iban ниже - зеркало счёта по умолчанию
+    accounts = BankAccountSerializer(many=True, read_only=True)
 
     def get_type_name(self, obj):
         return obj.type.name if obj.type_id else None
@@ -108,6 +112,7 @@ class PartySerializer(serializers.ModelSerializer):
             instance.save()
             for item in contacts:
                 Contact(**{self.parent_field: instance}, **item).save()
+            requisites.upsert_default_from_legacy(instance)  # прежний путь bank/iban -> счёт
         instance._contacts_changed = bool(contacts)
         return instance
 
@@ -115,6 +120,8 @@ class PartySerializer(serializers.ModelSerializer):
         contacts = validated_data.pop("contacts", None)
         with transaction.atomic():
             instance = super().update(instance, validated_data)
+            if "bank" in validated_data or "iban" in validated_data:
+                requisites.upsert_default_from_legacy(instance)
             instance._contacts_changed = (
                 self._replace_contacts(instance, contacts) if contacts is not None else False
             )
@@ -172,6 +179,7 @@ class ClientSerializer(PartySerializer):
             "address",
             "bank",
             "iban",
+            "accounts",
             "contacts",
             "created_at",
         ]
@@ -197,6 +205,7 @@ class CarrierSerializer(PartySerializer):
             "address",
             "bank",
             "iban",
+            "accounts",
             "contacts",
             "created_at",
         ]
@@ -215,7 +224,7 @@ class PartyViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
         return [ModuleRequired(self.required_module)(), *super().get_permissions()]
 
     def get_queryset(self):
-        qs = self.model.objects.select_related("type").prefetch_related("contacts")
+        qs = self.model.objects.select_related("type").prefetch_related("contacts", "accounts")
         if self.action == "list":
             qs = filter_parties(qs, self.request.query_params, self.ordering_fields)
         return qs

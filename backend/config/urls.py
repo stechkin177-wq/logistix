@@ -87,9 +87,11 @@ from apps.fleet.api import (
 )
 from apps.forwarding.api import CarrierViewSet, ClientViewSet
 from apps.forwarding.consignments.api import ConsignmentViewSet
+from apps.forwarding.contracts_api import ContractViewSet
 from apps.forwarding.dashboard import DashboardSummaryView
 from apps.forwarding.finance_lines.api import OrderServiceViewSet
 from apps.forwarding.orders.api import OrderViewSet
+from apps.forwarding.requisites_api import BankAccountViewSet
 from apps.forwarding.tracking.api import TransferViewSet
 from apps.forwarding.trips.api import TripViewSet
 
@@ -103,6 +105,8 @@ router.register("audit", AuditLogViewSet, basename="audit")
 router.register("handbook-values", HandbookValueViewSet, basename="handbook-value")
 router.register("clients", ClientViewSet, basename="client")
 router.register("carriers", CarrierViewSet, basename="carrier")
+router.register("bank-accounts", BankAccountViewSet, basename="bank-account")
+router.register("contracts", ContractViewSet, basename="contract")
 router.register("orders", OrderViewSet, basename="order")
 router.register("order-lines", OrderServiceViewSet, basename="order-line")
 router.register("consignments", ConsignmentViewSet, basename="consignment")

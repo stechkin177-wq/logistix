@@ -18,6 +18,7 @@ import {
   ORDER_KNOWN_PATH, emptyConsignment, initialOrderState, type ConsignmentForm, orderPayload, validateOrder, type OrderFormState,
 } from '../orderForm'
 import type { Order } from '../types'
+import { ContractSelect } from '../../contracts/ContractSelect'
 import { CargoFields, RouteFields } from './ConsignmentFields'
 
 interface Props {
@@ -60,7 +61,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
   useFocusInvalid(formRef, local)
   useFocusInvalid(formRef, error)
 
-  const EXTRA_KEYS = ['contract_number', 'client_ref', 'contact', 'forwarder', 'extra_managers', 'transport_condition', 'delivery_days', 'payment_delay_days', 'payment_delay_condition'] as const
+  const EXTRA_KEYS = ['contract', 'contract_number', 'client_ref', 'contact', 'forwarder', 'extra_managers', 'transport_condition', 'delivery_days', 'payment_delay_days', 'payment_delay_condition'] as const
   // дополнительные поля открыты сами, если в них уже есть значения (правка заказа) или ошибки проверки
   const showExtra =
     extraOpen ||
@@ -117,7 +118,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
             fetchOptions={mode === 'create' ? searchActiveClients : searchClients}
             error={errors.client}
             onChange={(client) => {
-              setForm((f) => ({ ...f, client, contact: '' }))
+              setForm((f) => ({ ...f, client, contact: '', contract: '' }))
               setLocal((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== 'client')))
             }}
           />
@@ -147,7 +148,14 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
         </Button>
         {showExtra ? (
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <TextField label={t('orders.contractNumber')} value={form.contract_number} error={errors.contract_number} onChange={(e) => { set('contract_number', e.target.value) }} />
+          <ContractSelect
+            owner={form.client ? { kind: 'client', id: form.client.id } : null}
+            value={form.contract}
+            error={errors.contract}
+            currentLabel={form.contract_number}
+            onChange={(v, picked) => { setForm((f) => ({ ...f, contract: v, contract_number: picked ? picked.number : f.contract_number })) }}
+          />
+          <TextField label={t('orders.contractNumber')} value={form.contract_number} disabled={form.contract !== ''} error={errors.contract_number} onChange={(e) => { set('contract_number', e.target.value) }} />
           <TextField label={t('orders.clientRef')} value={form.client_ref} error={errors.client_ref} onChange={(e) => { set('client_ref', e.target.value) }} />
           <Select
             label={t('orders.contact')}

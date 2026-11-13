@@ -4,6 +4,7 @@ import { Combobox, type ComboOption } from '../../../shared/ui/Combobox'
 import { Select } from '../../../shared/ui/Select'
 import { TextField } from '../../../shared/ui/TextField'
 import { useSession } from '../../../shared/auth/useSession'
+import { ContractSelect } from '../../contracts/ContractSelect'
 import { searchActiveCarriers, searchDrivers, searchVehicles } from '../api'
 
 export interface TripFormState {
@@ -15,6 +16,8 @@ export interface TripFormState {
   driver_name: string
   carrier_price: string
   currency: string
+  /** id договора перевозчика из реестра ('' - не выбран). */
+  contract: string
 }
 
 const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
@@ -26,11 +29,13 @@ export function validateTrip(form: TripFormState, t: (key: string) => string): R
 }
 
 /** Поля, общие для создания и правки рейса (перевозчик, машина, водитель, цена, валюта). */
-export function TripFields({ form, errors, currencies, disabled, onChange }: {
+export function TripFields({ form, errors, currencies, disabled, withContract = false, onChange }: {
   form: TripFormState
   errors: Record<string, string>
   currencies: HandbookValue[]
   disabled?: boolean
+  /** Показывать выбор договора перевозчика (только в карточке рейса: при создании рейса договор не принимается). */
+  withContract?: boolean
   onChange: <K extends keyof TripFormState>(key: K, value: TripFormState[K]) => void
 }) {
   const { t } = useTranslation()
@@ -48,7 +53,15 @@ export function TripFields({ form, errors, currencies, disabled, onChange }: {
         disabled={disabled}
         error={errors.carrier}
         fieldClassName="sm:col-span-2"
-        onChange={(option) => { onChange('carrier', option) }}
+        onChange={(option) => { onChange('carrier', option); onChange('contract', '') }}
+      />
+      <ContractSelect
+        owner={withContract && form.carrier ? { kind: 'carrier', id: form.carrier.id } : null}
+        value={form.contract}
+        disabled={disabled}
+        error={errors.contract}
+        fieldClassName="sm:col-span-2"
+        onChange={(v) => { onChange('contract', v) }}
       />
       {fleet ? (
         <>

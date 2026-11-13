@@ -39,6 +39,14 @@ class Trip(TenantModel, SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="trips",
     )
+    contract = models.ForeignKey(
+        "forwarding.Contract",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="trips",
+        help_text="Договор с перевозчиком из реестра (необязательно)",
+    )
     # назначение собственных техники и водителя (модули fleet и drivers); необязательно, свободные
     # поля vehicle_plate и driver_name ниже сохраняются для совместимости. Участки рейса
     # наследуют технику и водителя из рейса (индивидуальной подмены на участке нет).

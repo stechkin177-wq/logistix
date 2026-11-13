@@ -9,7 +9,7 @@ from apps.drivers.models import Driver
 from apps.fleet.models import Vehicle
 
 from ..fields import ActiveHandbookField, CurrentTolerantField
-from ..models import Carrier, Trip, TripConsignment
+from ..models import Carrier, Contract, Trip, TripConsignment
 from . import odometer
 from .resources import validate_assignment
 from .services import change_trip_status, create_trip, reassign
@@ -98,6 +98,11 @@ class VehicleField(CurrentTolerantField):
         return Vehicle.objects.all()
 
 
+class TripContractField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):  # договоры компании без удалённых
+        return Contract.objects.filter(carrier__isnull=False)
+
+
 class DriverField(CurrentTolerantField):
     def get_queryset(self):  # водители компании без удалённых
         return Driver.objects.all()
@@ -114,6 +119,7 @@ class TripSerializer(serializers.ModelSerializer):
     vehicle = VehicleField(allow_null=True, required=False)
     trailer = VehicleField(allow_null=True, required=False)
     driver = DriverField(allow_null=True, required=False)
+    contract = TripContractField(allow_null=True, required=False)
     currency = ActiveHandbookField("currency", required=False)
     # price - временный алиас carrier_price (чтение и запись); удаляется отдельным решением
     price = serializers.DecimalField(
@@ -135,6 +141,7 @@ class TripSerializer(serializers.ModelSerializer):
             "vehicle",
             "trailer",
             "driver",
+            "contract",
             "vehicle_plate",
             "driver_name",
             "carrier_price",
@@ -215,8 +222,30 @@ class TripSerializer(serializers.ModelSerializer):
         if alias != main:
             raise serializers.ValidationError({"price": [PRICE_CONFLICT]})
 
+    def _check_contract(self, attrs):
+        """Договор рейса - договор его перевозчика; смена перевозчика снимает чужой договор."""
+        if "carrier" in attrs:
+            carrier = attrs["carrier"]
+        else:
+            carrier = getattr(self.instance, "carrier", None)
+        contract = attrs.get("contract")
+        if contract is not None:
+            if carrier is None or contract.carrier_id != carrier.pk:
+                raise serializers.ValidationError(
+                    {"contract": "Договор принадлежит другому перевозчику"}
+                )
+        elif (
+            "contract" not in attrs
+            and "carrier" in attrs
+            and self.instance is not None
+            and self.instance.contract_id is not None
+            and (carrier is None or self.instance.contract.carrier_id != carrier.pk)
+        ):
+            attrs["contract"] = None
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        self._check_contract(attrs)
         if any(k in attrs for k in ("vehicle", "trailer", "driver")):
             attrs.update(validate_assignment(attrs, self.instance, get_current_company_id()))
         return attrs
@@ -231,7 +260,7 @@ class TripSerializer(serializers.ModelSerializer):
 class TripCreateSerializer(TripSerializer):
     """Создание: consignments - список id грузов (не менее одного)."""
 
-    forbidden = SERVER_FIELDS
+    forbidden = {**SERVER_FIELDS, "contract": "Договор выбирается после создания рейса"}
 
     # грузы на весь маршрут; вместе с ним (или вместо) можно передать явные участки legs
     consignments = serializers.ListField(

@@ -99,6 +99,8 @@ export interface Order {
   client_name: string
   client_ref: string
   contract_number: string
+  /** Договор из реестра (необязательно): contract_number берётся из него. */
+  contract: number | null
   contact: number | null
   manager: number
   manager_name: string

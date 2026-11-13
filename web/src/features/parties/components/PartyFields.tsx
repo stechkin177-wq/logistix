@@ -38,6 +38,12 @@ export function PartyMainFields({ kind, api }: { kind: PartyKind; api: Api }) {
   )
 }
 
+/** Только адрес (банковские счета в карточке ведутся отдельным блоком). */
+export function PartyAddressField({ api }: { api: Api }) {
+  const { t } = useTranslation()
+  return <TextField label={t('parties.address')} value={api.form.address} error={api.errors.fields.address} onChange={(e) => { api.set('address', e.target.value) }} />
+}
+
 /** Адрес и банковские реквизиты (одна пара банк/IBAN; расширение до нескольких счетов - в техническом предложении). */
 export function PartyRequisitesFields({ api }: { api: Api }) {
   const { t } = useTranslation()

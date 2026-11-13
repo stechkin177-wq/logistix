@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -88,6 +89,145 @@ class Carrier(PartyBase):
                 name="carrier_rating_0_5",
             ),
         ]
+
+
+class BankAccount(TenantModel):
+    """Банковский счёт клиента, перевозчика или нашего юрлица (ровно одного владельца).
+
+    Единственный источник банковских реквизитов. Столбцы bank/iban владельца - зеркало счёта по
+    умолчанию (пишет только apps.forwarding.requisites); они остаются для прежних читателей API
+    и документов. IBAN в аудит не пишется (audit_masked_fields)."""
+
+    audit_masked_fields = ("iban",)
+
+    client = models.ForeignKey(
+        "forwarding.Client",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="accounts",
+    )
+    carrier = models.ForeignKey(
+        "forwarding.Carrier",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="accounts",
+    )
+    legal_entity = models.ForeignKey(
+        "core.LegalEntity",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="accounts",
+    )
+    bank = models.CharField(max_length=255, blank=True)
+    bic = models.CharField("БИК/SWIFT", max_length=16, blank=True)
+    iban = models.CharField(max_length=34, blank=True)
+    kbe = models.CharField("Кбе", max_length=4, blank=True)
+    currency = models.CharField("Код валюты", max_length=3, blank=True)
+    is_default = models.BooleanField(default=False)
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    OWNER_FIELDS = ("client", "carrier", "legal_entity")
+
+    class Meta:
+        ordering = ["-is_default", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(client__isnull=False, carrier__isnull=True, legal_entity__isnull=True)
+                    | Q(client__isnull=True, carrier__isnull=False, legal_entity__isnull=True)
+                    | Q(client__isnull=True, carrier__isnull=True, legal_entity__isnull=False)
+                ),
+                name="bankaccount_exactly_one_owner",
+            ),
+            models.UniqueConstraint(
+                fields=["client"],
+                condition=Q(is_default=True, client__isnull=False),
+                name="bankaccount_client_one_default",
+            ),
+            models.UniqueConstraint(
+                fields=["carrier"],
+                condition=Q(is_default=True, carrier__isnull=False),
+                name="bankaccount_carrier_one_default",
+            ),
+            models.UniqueConstraint(
+                fields=["legal_entity"],
+                condition=Q(is_default=True, legal_entity__isnull=False),
+                name="bankaccount_entity_one_default",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.bank} {self.iban}".strip()
+
+    @property
+    def owner(self):
+        return self.client or self.carrier or self.legal_entity
+
+
+class Contract(TenantModel, SoftDeleteModel):
+    """Договор с клиентом или перевозчиком (ровно одна сторона).
+
+    Единственный источник договоров. Order.contract_number остаётся текстом для прежних заказов и
+    заполняется из выбранного договора. Файл договора по шаблону - IssuedDocument.contract."""
+
+    KINDS = [("main", "Основной"), ("supplement", "Дополнительное соглашение"), ("other", "Прочее")]
+    MANUAL = "manual"
+    IMPORTED = "imported"
+    SOURCES = [(MANUAL, "Введён вручную"), (IMPORTED, "Перенесён из прежних данных")]
+
+    client = models.ForeignKey(
+        "forwarding.Client",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="contracts",
+    )
+    carrier = models.ForeignKey(
+        "forwarding.Carrier",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="contracts",
+    )
+    kind = models.CharField(max_length=16, choices=KINDS, default="main")
+    number = models.CharField(max_length=64)
+    date = models.DateField()
+    valid_until = models.DateField(null=True, blank=True, help_text="Пусто - бессрочно")
+    title = models.CharField(max_length=255, blank=True)
+    comment = models.TextField(blank=True)
+    source = models.CharField(max_length=16, choices=SOURCES, default=MANUAL)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(Q(client__isnull=False) & Q(carrier__isnull=True))
+                | (Q(client__isnull=True) & Q(carrier__isnull=False)),
+                name="contract_exactly_one_party",
+            ),
+            models.UniqueConstraint(
+                fields=["company", "client", "number"],
+                condition=Q(deleted_at__isnull=True, client__isnull=False),
+                name="contract_client_number_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["company", "carrier", "number"],
+                condition=Q(deleted_at__isnull=True, carrier__isnull=False),
+                name="contract_carrier_number_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.number} от {self.date:%d.%m.%Y}"
 
 
 class Contact(TenantModel):

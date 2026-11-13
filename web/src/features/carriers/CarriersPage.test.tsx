@@ -50,26 +50,6 @@ describe('Перевозчики', () => {
     expect(m.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 
-  it('реквизиты: поля заполняются из ответа и уходят в PATCH', async () => {
-    const m = loggedIn([
-      ['GET', /^\/api\/carriers\/\?/, { body: page([{ ...CARRIER, address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ123' }]) }], ['GET', '/api/carriers/3/', { body: { ...CARRIER, address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ123' } }],
-        ['PATCH', '/api/carriers/3/', { body: CARRIER }],
-    ])
-    renderApp('/carriers')
-    await userEvent.click(await screen.findByRole('link', { name: 'ИП Быстров' }))
-    const drawer = await screen.findByRole('main')
-    await userEvent.click(await within(drawer).findByRole('tab', { name: /Реквизиты/ }))
-    expect(within(drawer).getByLabelText('Адрес')).toHaveValue('г. Астана, ул. 1')
-    expect(within(drawer).getByLabelText('Банк')).toHaveValue('Halyk')
-    const iban = within(drawer).getByLabelText('IBAN')
-    expect(iban).toHaveValue('KZ123')
-    await userEvent.clear(iban)
-    await userEvent.type(iban, 'KZ999')
-    await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
-    await waitFor(() => { expect(m.calls.some((c) => c.method === 'PATCH')).toBe(true) })
-    expect(m.calls.find((c) => c.method === 'PATCH')!.body).toMatchObject({ address: 'г. Астана, ул. 1', bank: 'Halyk', iban: 'KZ999' })
-  })
-
   it('создание без реквизитов отправляет пустые строки', async () => {
     const m = loggedIn([['GET', /^\/api\/carriers\/\?/, { body: page([]) }], ['POST', '/api/carriers/', { status: 201, body: CARRIER }]])
     renderApp('/carriers')
@@ -81,19 +61,5 @@ describe('Перевозчики', () => {
     expect(m.calls.find((c) => c.method === 'POST')!.body).toMatchObject({ address: '', bank: '', iban: '' })
   })
 
-  it('ошибка 400 по iban показывается у поля', async () => {
-    loggedIn([
-      ['GET', /^\/api\/carriers\/\?/, { body: page([CARRIER]) }], ['GET', '/api/carriers/3/', { body: CARRIER }],
-        ['PATCH', '/api/carriers/3/', { status: 400, body: { iban: ['Убедитесь, что это значение содержит не более 34 символов.'] } }],
-    ])
-    renderApp('/carriers')
-    await userEvent.click(await screen.findByRole('link', { name: 'ИП Быстров' }))
-    const drawer = await screen.findByRole('main')
-    await userEvent.click(await within(drawer).findByRole('tab', { name: /Реквизиты/ }))
-    await userEvent.type(within(drawer).getByLabelText('IBAN'), 'X'.repeat(40))
-    await userEvent.click(within(drawer).getByRole('button', { name: 'Сохранить' }))
-    const field = await within(drawer).findByLabelText('IBAN')
-    await waitFor(() => { expect(field).toHaveAttribute('aria-invalid', 'true') })
-    expect(within(drawer).getByText(/не более 34 символов/)).toBeInTheDocument()
-  })
+
 })

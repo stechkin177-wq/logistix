@@ -45,6 +45,8 @@ export interface Trip {
   number: string
   carrier: number | null
   carrier_name: string | null
+  /** Договор с перевозчиком из реестра (необязательно). */
+  contract?: number | null
   /** Ссылки на технику и водителя (модули fleet/drivers); текст ниже сервер заполняет по ним. */
   vehicle?: number | null
   trailer?: number | null
@@ -85,6 +87,7 @@ export interface TripCreatePayload {
   consignments: number[]
   legs?: TripLegInput[]
   carrier: number | null
+  contract?: number | null
   vehicle?: number | null
   trailer?: number | null
   driver?: number | null

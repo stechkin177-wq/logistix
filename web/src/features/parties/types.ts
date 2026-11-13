@@ -60,8 +60,8 @@ export interface PartyPayload {
   status: PartyStatus
   notes: string
   address: string
-  bank: string
-  iban: string
+  bank?: string
+  iban?: string
   contacts: ContactPayload[]
   credit_limit?: string
   rating?: string | null

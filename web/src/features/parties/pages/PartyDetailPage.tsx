@@ -24,12 +24,14 @@ import { IssueDocumentButton } from '../../documents/IssueDocumentButton'
 import { useCurrencies, useOrderList } from '../../orders/hooks'
 import { useTripList } from '../../trips/hooks'
 import { ContactsEditor } from '../components/ContactsEditor'
-import { PartyMainFields, PartyRequisitesFields } from '../components/PartyFields'
+import { BankAccountsPanel } from '../../contracts/BankAccountsPanel'
+import { ContractsPanel } from '../../contracts/ContractsPanel'
+import { PartyAddressField, PartyMainFields } from '../components/PartyFields'
 import { usePartyForm } from '../components/usePartyForm'
 import { useDeleteParty, useParty } from '../hooks'
 import type { Client, Party, PartyKind } from '../types'
 
-const TABS = ['main', 'contacts', 'requisites', 'documents', 'work', 'history'] as const
+const TABS = ['main', 'contacts', 'requisites', 'contracts', 'documents', 'work', 'history'] as const
 const SCHEMA = { tab: codecs.oneOf(TABS, 'main') }
 const FORM_ID = 'party-card-form'
 
@@ -115,13 +117,16 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
   const remove = useDeleteParty(kind)
   const [state, setState] = useUrlState(SCHEMA)
   const [deleting, setDeleting] = useState(false)
-  const { api, formRef } = usePartyForm(kind, party, onSaved)
+  // банковские счета - отдельный блок (единый источник), поэтому bank/iban формой не отправляются
+  const { api, formRef } = usePartyForm(kind, party, onSaved, { includeBank: false })
+  const owner = { kind: kind === 'clients' ? ('client' as const) : ('carrier' as const), id: party.id }
   const permission = `${kind}.update`
 
   const tabs: TabDef[] = [
     { key: 'main', label: t('parties.tabMain'), icon: kind === 'clients' ? Building2 : Truck },
     { key: 'contacts', label: t('parties.tabContacts'), icon: Phone, count: party.contacts.length },
     { key: 'requisites', label: t('parties.tabRequisites'), icon: Landmark },
+    { key: 'contracts', label: t('parties.tabContracts'), icon: FileText },
     ...(kind === 'clients' ? [{ key: 'documents', label: t('parties.tabDocuments'), icon: FileText }] : []),
     { key: 'work', label: t(kind === 'clients' ? 'parties.tabOrders' : 'parties.tabTrips'), icon: kind === 'clients' ? Package : Route, count: kind === 'clients' ? (party as Client).orders_count : undefined },
     { key: 'history', label: t('parties.tabHistory'), icon: History },
@@ -156,9 +161,11 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
             <FormBanner message={api.errors.banner} />
             {active === 'main' ? <Card><CardBody><PartyMainFields kind={kind} api={api} /></CardBody></Card> : null}
             {active === 'contacts' ? <Card><CardBody><ContactsEditor disabled={!api.canSave} rows={api.form.contacts} errors={api.errors.fields} onChange={(rows) => { api.set('contacts', rows) }} /></CardBody></Card> : null}
-            {active === 'requisites' ? <Card><CardBody><PartyRequisitesFields api={api} /></CardBody></Card> : null}
+            {active === 'requisites' ? <Card><CardBody><PartyAddressField api={api} /></CardBody></Card> : null}
           </div>
         </form>
+        {active === 'requisites' ? <div className="mt-3"><BankAccountsPanel owner={owner} /></div> : null}
+        {active === 'contracts' ? <ContractsPanel owner={owner} /> : null}
         {active === 'documents' ? (
           <EntityDocuments
             source={{ client: party.id }}

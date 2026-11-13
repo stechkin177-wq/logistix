@@ -44,7 +44,7 @@ export function CreateTripDrawer({ selected, onClose, onCreated }: Props) {
   const currencies = useHandbookValues('currency', { activeOnly: true })
   const create = useCreateTrip()
   const formRef = useRef<HTMLFormElement>(null)
-  const [form, setForm] = useState<TripFormState>({ carrier: null, vehicle: null, trailer: null, driver: null, vehicle_plate: '', driver_name: '', carrier_price: '0', currency: '' })
+  const [form, setForm] = useState<TripFormState>({ carrier: null, vehicle: null, trailer: null, driver: null, vehicle_plate: '', driver_name: '', carrier_price: '0', currency: '', contract: '' })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   const [picks, setPicks] = useState<Record<number, LegPick>>({})
   useFocusInvalid(formRef, errors)

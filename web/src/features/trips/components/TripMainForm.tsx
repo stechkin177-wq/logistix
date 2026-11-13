@@ -10,7 +10,7 @@ import { usePatchTrip } from '../hooks'
 import type { Trip } from '../types'
 import { TripFields, validateTrip, type TripFormState } from './TripFields'
 
-const KNOWN = /^(carrier|vehicle|trailer|driver|vehicle_plate|driver_name|carrier_price|currency)$/
+const KNOWN = /^(carrier|contract|vehicle|trailer|driver|vehicle_plate|driver_name|carrier_price|currency)$/
 
 /** Основные поля рейса: перевозчик, техника, водитель, цена. Сохранение - PATCH только редактируемых полей. */
 export function TripMainForm({ trip }: { trip: Trip }) {
@@ -28,6 +28,7 @@ export function TripMainForm({ trip }: { trip: Trip }) {
     driver_name: trip.driver_name,
     carrier_price: trip.carrier_price,
     currency: String(trip.currency),
+    contract: trip.contract ? String(trip.contract) : '',
   })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   useFocusInvalid(formRef, errors)
@@ -51,6 +52,8 @@ export function TripMainForm({ trip }: { trip: Trip }) {
           ...((form.driver?.id ?? null) !== (trip.driver ?? null) ? { driver: form.driver?.id ?? null } : {}),
           ...(form.vehicle === null ? { vehicle_plate: form.vehicle_plate.trim() } : {}),
           ...(form.driver === null ? { driver_name: form.driver_name.trim() } : {}),
+          // договор уходит только при изменении (смена перевозчика снимает его и на сервере)
+          ...(form.contract !== (trip.contract ? String(trip.contract) : '') ? { contract: form.contract ? Number(form.contract) : null } : {}),
           carrier_price: form.carrier_price.trim(),
           ...(form.currency ? { currency: Number(form.currency) } : {}),
         },
@@ -67,6 +70,7 @@ export function TripMainForm({ trip }: { trip: Trip }) {
         errors={errors.fields}
         currencies={currencies.values.filter((c) => c.is_active || c.id === trip.currency)}
         disabled={!canUpdate}
+        withContract
         onChange={(key, value) => { setForm((f) => ({ ...f, [key]: value })) }}
       />
       <div className="flex justify-end">

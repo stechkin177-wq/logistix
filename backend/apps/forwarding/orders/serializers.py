@@ -13,7 +13,7 @@ from ..consignments.serializers import NestedConsignmentSerializer
 from ..consignments.services import first_load, last_unload
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
-from ..models import Client, Contact, Order, OrderStatusHistory, TripConsignment
+from ..models import Client, Contact, Contract, Order, OrderStatusHistory, TripConsignment
 from .services import carried_with_carrier, change_status, create_order, ensure_client_active
 
 FORBIDDEN_FIELDS = {
@@ -60,6 +60,11 @@ class ClientField(CurrentTolerantField):
         return Client.objects.all()  # клиенты компании без удалённых
 
 
+class ContractField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        return Contract.objects.all()  # договоры компании без удалённых
+
+
 class ContactField(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         return Contact.objects.filter(client__isnull=False)
@@ -93,6 +98,7 @@ class HistorySerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     client = ClientField()
     contact = ContactField(allow_null=True, required=False)
+    contract = ContractField(allow_null=True, required=False)
     manager = CompanyUserField(required=False)
     forwarder = CompanyUserField(allow_null=True, required=False)
     extra_managers = CompanyUserField(many=True, required=False)
@@ -133,6 +139,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "client_name",
             "client_ref",
             "contract_number",
+            "contract",
             "contact",
             "manager",
             "manager_name",
@@ -225,12 +232,35 @@ class OrderSerializer(serializers.ModelSerializer):
             # полей уже созданного заказа неактивного клиента не блокируется
             ensure_client_active(new_client)
         client = attrs.get("client") or (self.instance.client if self.instance else None)
+        self._apply_contract(attrs, client)
         contact = (
             attrs["contact"] if "contact" in attrs else getattr(self.instance, "contact", None)
         )
         if contact is not None and client is not None and contact.client_id != client.pk:
             raise serializers.ValidationError({"contact": "Контакт принадлежит другому клиенту"})
         return attrs
+
+    def _apply_contract(self, attrs, client):
+        """Договор из реестра: принадлежит клиенту заказа; contract_number берётся из него.
+
+        Перенос заказа на другого клиента снимает договор прежнего клиента. Заказы без выбранного
+        договора работают как раньше: contract_number остаётся свободным текстом."""
+        contract = attrs.get("contract")
+        if contract is not None:
+            if client is None or contract.client_id != client.pk:
+                raise serializers.ValidationError(
+                    {"contract": "Договор принадлежит другому клиенту"}
+                )
+            if "contract_number" not in attrs:
+                attrs["contract_number"] = contract.number
+        elif (
+            "contract" not in attrs
+            and self.instance is not None
+            and self.instance.contract_id is not None
+            and client is not None
+            and self.instance.contract.client_id != client.pk
+        ):
+            attrs["contract"] = None
 
     def create(self, validated_data):
         request = self.context["request"]

@@ -29,7 +29,7 @@ export function makeConsignment(over: Partial<OrderConsignment> = {}): OrderCons
 
 export function makeOrder(over: Partial<Order> = {}): Order {
   return {
-    id: 5, number: 'ORD-2026-00005', client: 7, client_name: 'ТОО Ромашка', client_ref: '', contract_number: 'Д-1', contact: null,
+    id: 5, number: 'ORD-2026-00005', client: 7, client_name: 'ТОО Ромашка', client_ref: '', contract_number: 'Д-1', contract: null, contact: null,
     manager: 1, manager_name: 'Админ Админов', forwarder: null, extra_managers: [], legal_entity: 3, client_rate: '250000.00',
     currency: 11, transport_condition: null, delivery_days: 5, payment_delay_days: null, payment_delay_condition: null, comment: '',
     status: 1, status_name: 'Новый', completed_at: null, route: 'Алматы → Астана', has_carrier: false,

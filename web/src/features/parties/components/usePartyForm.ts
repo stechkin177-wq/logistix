@@ -53,7 +53,8 @@ export function validateParty(kind: PartyKind, form: PartyFormState, t: (key: st
   return errors
 }
 
-export function partyPayload(kind: PartyKind, form: PartyFormState): PartyPayload {
+/** includeBank=false: карточка стороны, где счета ведутся отдельно (единый источник), bank/iban не отправляются. */
+export function partyPayload(kind: PartyKind, form: PartyFormState, includeBank = true): PartyPayload {
   return {
     name: form.name.trim(),
     bin_iin: form.bin_iin.trim(),
@@ -61,8 +62,7 @@ export function partyPayload(kind: PartyKind, form: PartyFormState): PartyPayloa
     status: form.status,
     notes: form.notes,
     address: form.address.trim(),
-    bank: form.bank.trim(),
-    iban: form.iban.trim(),
+    ...(includeBank ? { bank: form.bank.trim(), iban: form.iban.trim() } : {}),
     contacts: form.contacts.map((c) => ({
       ...(c.id !== undefined ? { id: c.id } : {}),
       name: c.name.trim(),
@@ -89,7 +89,12 @@ export interface PartyFormApi {
  * Состояние и сохранение формы клиента/перевозчика: общее для окна создания и страницы карточки.
  * onSaved вызывается после успешного сохранения.
  */
-export function usePartyForm(kind: PartyKind, party: Party | null, onSaved?: (saved: Party) => void) {
+export function usePartyForm(
+  kind: PartyKind,
+  party: Party | null,
+  onSaved?: (saved: Party) => void,
+  options: { includeBank?: boolean } = {},
+) {
   const { t } = useTranslation()
   const [form, setForm] = useState(() => initialPartyState(kind, party))
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
@@ -113,7 +118,7 @@ export function usePartyForm(kind: PartyKind, party: Party | null, onSaved?: (sa
     }
     setErrors(NO_ERRORS)
     save.mutate(
-      { id: party?.id ?? null, body: partyPayload(kind, form) },
+      { id: party?.id ?? null, body: partyPayload(kind, form, options.includeBank ?? true) },
       {
         onSuccess: (saved) => { onSaved?.(saved) },
         onError: (error) => { setErrors(serverErrors(error, t, (path) => PARTY_FIELD_PATHS.test(path))) },

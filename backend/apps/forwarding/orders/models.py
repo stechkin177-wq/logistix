@@ -23,6 +23,14 @@ class Order(TenantModel, SoftDeleteModel):
     client = models.ForeignKey("forwarding.Client", on_delete=models.PROTECT, related_name="orders")
     client_ref = models.CharField(max_length=255, blank=True)
     contract_number = models.CharField(max_length=255, blank=True)
+    contract = models.ForeignKey(
+        "forwarding.Contract",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="orders",
+        help_text="Договор из реестра; contract_number берётся из него (прежние заказы - текстом)",
+    )
     contact = models.ForeignKey(
         "forwarding.Contact",
         null=True,

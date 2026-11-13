@@ -47,6 +47,9 @@ export interface OrderFormState {
   client: { id: number; label: string } | null
   client_ref: string
   contract_number: string
+  /** id выбранного договора из реестра ('' - не выбран) и его исходное значение (чтобы отправить снятие). */
+  contract: string
+  contract_initial: string
   contact: string
   manager: string
   forwarder: string
@@ -145,6 +148,8 @@ export function initialOrderState(order: Order | null, defaults: { manager?: num
     client: order ? { id: order.client, label: order.client_name } : null,
     client_ref: order?.client_ref ?? '',
     contract_number: order?.contract_number ?? '',
+    contract: idText(order?.contract),
+    contract_initial: idText(order?.contract),
     contact: idText(order?.contact),
     manager: order ? String(order.manager) : idText(defaults.manager),
     forwarder: idText(order?.forwarder),
@@ -268,6 +273,7 @@ export function orderPayload(form: OrderFormState, mode: 'create' | 'edit', tz: 
     client: form.client?.id,
     client_ref: form.client_ref.trim(),
     contract_number: form.contract_number.trim(),
+    ...(form.contract ? { contract: Number(form.contract) } : form.contract_initial ? { contract: null } : {}),
     contact: idOrNull(form.contact),
     client_rate: form.client_rate.trim(),
     transport_condition: idOrNull(form.transport_condition),
@@ -290,7 +296,7 @@ export function orderPayload(form: OrderFormState, mode: 'create' | 'edit', tz: 
 
 /** Какие пути ошибок сервера есть в форме (остальные уходят в баннер). */
 export const ORDER_KNOWN_PATH =
-  /^(client|client_ref|contract_number|contact|manager|forwarder|extra_managers|currency|client_rate|transport_condition|delivery_days|payment_delay_days|payment_delay_condition|comment)$|^consignments(\.\d+(\.(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?|stops(\.\d+(\.(kind|status|weight_kg|volume_m3|pallets|window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?))?)?$/
+  /^(client|client_ref|contract_number|contract|contact|manager|forwarder|extra_managers|currency|client_rate|transport_condition|delivery_days|payment_delay_days|payment_delay_condition|comment)$|^consignments(\.\d+(\.(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?|stops(\.\d+(\.(kind|status|weight_kg|volume_m3|pallets|window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?))?)?$/
 
 export const CONSIGNMENT_KNOWN_PATH =
   /^(name|weight_kg|volume_m3|pallets|packaging|points(\.[01](\.(window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?|stops(\.\d+(\.(kind|status|weight_kg|volume_m3|pallets|window_from|window_to|country|city|street|method|contact|postal_code|lat|lng|note))?)?)$/
