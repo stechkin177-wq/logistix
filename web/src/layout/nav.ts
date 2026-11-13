@@ -1,7 +1,7 @@
 import type { Session } from '../shared/api/types'
 import {
   Blocks, BookOpen, Boxes, Building, Building2, CarFront, FileCog, FileStack, FileText, Hash, LayoutDashboard, Network,
-  KeyRound, Package, Route, Settings, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet, ArrowLeftRight,
+  KeyRound, Package, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet, ArrowLeftRight,
   type LucideIcon,
 } from '../shared/ui/icons'
 
@@ -59,6 +59,7 @@ export const NAV: NavItem[] = [
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view', icon: ShieldCheck, section: 'organization' },
       { key: 'audit', labelKey: 'nav.audit', path: '/settings/audit', permission: 'audit.view', icon: KeyRound, section: 'organization' },
       { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules', icon: Blocks, section: 'organization' },
+      { key: 'labels', labelKey: 'nav.labels', path: '/settings/labels', permission: 'labels.manage', icon: Tag, section: 'data' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view', icon: BookOpen, section: 'data' },
       { key: 'doctypes', labelKey: 'nav.docTypes', path: '/settings/document-types', anyModule: ['fleet', 'drivers'], anyPermission: ['fleet.view', 'drivers.view'], icon: FileCog, section: 'data' },
       { key: 'numbering', labelKey: 'nav.numbering', path: '/settings/numbering', permission: 'numbering.view', icon: Hash, section: 'data' },

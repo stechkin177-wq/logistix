@@ -21,6 +21,7 @@ export interface PartyBase {
   bank: string
   iban: string
   contacts: Contact[]
+  labels?: import('../labels/types').LabelRef[]
   created_at: string
 }
 

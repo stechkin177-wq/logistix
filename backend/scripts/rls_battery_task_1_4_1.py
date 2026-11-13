@@ -104,6 +104,9 @@ if STEP == "M6":
         "fleet_servicerecord",
         "fleet_fuelfill",
         "fleet_fleetsettings",  # этап 2.4 (порог сверки GPS)
+        "core_companyauditsettings",  # журнал входов: срок хранения (core.0026)
+        "core_label",  # метки (core.0028)
+        "core_labelassignment",
     }
     ok(
         expected - LATER_TABLES <= present,

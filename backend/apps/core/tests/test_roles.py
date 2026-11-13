@@ -69,10 +69,11 @@ def admin_client(api_client, owner_a, company_a):
 # --- каталог ---
 
 
-def test_catalog_has_70_unique_codes():
-    # 13 разделов x 4 действия + 10 особых прав (override_limit, cancel_invoice, revert_completed,
-    # пять прав финансовой архитектуры, company.manage_modules и consignments.transfer)
-    assert len(ALL_PERMISSIONS) == 70 == len(set(ALL_PERMISSIONS))
+def test_catalog_has_72_unique_codes():
+    # 15 разделов x 4 действия + 12 особых прав (override_limit, cancel_invoice, revert_completed,
+    # пять прав финансовой архитектуры, company.manage_modules, consignments.transfer,
+    # audit.view и labels.manage)
+    assert len(ALL_PERMISSIONS) == 72 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
     assert "trips.revert_completed" in ALL_PERMISSIONS
 
@@ -90,9 +91,13 @@ def test_system_roles_content():
     assert SYSTEM_ROLES[ADMIN] == ALL_PERMISSIONS
     assert SYSTEM_ROLES["Механик"] == ["trips.view", "fleet.view", "fleet.create", "fleet.update"]
     assert SYSTEM_ROLES["Водитель"] == []
+    # наблюдатель видит всё, кроме журнала аудита (audit.view выдаётся отдельно)
     assert sorted(SYSTEM_ROLES["Наблюдатель"]) == sorted(
-        p for p in ALL_PERMISSIONS if p.endswith(".view")
+        p for p in ALL_PERMISSIONS if p.endswith(".view") and p != "audit.view"
     )
+    assert "labels.manage" in SYSTEM_ROLES["Менеджер"]
+    assert "labels.manage" in SYSTEM_ROLES["Диспетчер"]
+    assert "labels.manage" not in SYSTEM_ROLES["Бухгалтер"]
     mgr = set(SYSTEM_ROLES["Менеджер"])
     assert "orders.create" in mgr and "orders.delete" not in mgr and "finance.view" in mgr
     assert "finance.create" not in mgr and "trash.view" in mgr and "handbooks.view" in mgr

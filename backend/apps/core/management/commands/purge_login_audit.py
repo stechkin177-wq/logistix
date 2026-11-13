@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.core.audit.models import AuditLog
+from apps.core.audit.retention import login_retention_days
 from apps.core.audit.services import LOGIN_ACTIONS
 from apps.core.models import Company
 from apps.core.tenancy import tenant_context
@@ -12,7 +13,7 @@ from apps.core.tenancy import tenant_context
 class Command(BaseCommand):
     help = (
         "Удаляет события входа (login, login_failed) старше срока хранения компании "
-        "(Company.login_audit_retention_days, по умолчанию 90 дней). Остальные записи журнала "
+        "(CompanyAuditSettings, по умолчанию 90 дней). Остальные записи журнала "
         "не затрагиваются. Это единственный разрешённый путь удаления из журнала аудита."
     )
 
@@ -23,8 +24,9 @@ class Command(BaseCommand):
         now = timezone.now()
         total = 0
         for company in Company.objects.all():
-            border = now - timedelta(days=company.login_audit_retention_days)
             with tenant_context(company.id):
+                days = login_retention_days()
+                border = now - timedelta(days=days)
                 qs = AuditLog.objects.filter(action__in=LOGIN_ACTIONS, created_at__lt=border)
                 count = qs.count()
                 if count and not options["dry_run"]:
@@ -32,7 +34,6 @@ class Command(BaseCommand):
                     qs.delete()
             total += count
             if count:
-                days = company.login_audit_retention_days
                 self.stdout.write(f"{company.name}: {count} (старше {days} дн.)")
         verb = "найдено" if options["dry_run"] else "удалено"
         self.stdout.write(f"Событий входа {verb}: {total}")

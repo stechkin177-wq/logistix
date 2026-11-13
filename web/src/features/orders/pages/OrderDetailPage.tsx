@@ -10,6 +10,7 @@ import { Button } from '../../../shared/ui/Button'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { EmptyState } from '../../../shared/ui/EmptyState'
 import { Boxes, FileText, History, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
+import { SubjectLabels } from '../../labels/SubjectLabels'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
@@ -83,6 +84,7 @@ export function OrderDetailPage() {
         meta={
           <>
             <StatusControl orderId={order.id} number={order.number} statusId={order.status} statusName={order.status_name} />
+            <SubjectLabels kind="order" id={order.id} labels={order.labels} />
             <Link to={`/clients/${String(order.client)}`} className="text-sm text-brand-700 hover:underline dark:text-brand-300">
               {order.client_name}
             </Link>

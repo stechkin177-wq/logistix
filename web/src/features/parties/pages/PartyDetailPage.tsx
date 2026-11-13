@@ -15,6 +15,7 @@ import { EmptyState } from '../../../shared/ui/EmptyState'
 import { Building2, FileText, History, Landmark, Package, Phone, Route, Trash2, Truck, UserRound } from '../../../shared/ui/icons'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Money } from '../../../shared/ui/Money'
+import { SubjectLabels } from '../../labels/SubjectLabels'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
@@ -36,7 +37,7 @@ const SCHEMA = { tab: codecs.oneOf(TABS, 'main') }
 const FORM_ID = 'party-card-form'
 
 const NO_FILTERS = {
-  q: '', status: [] as number[], client: null as number | null, carrier: null as number | null,
+  q: '', status: [] as number[], client: null as number | null, carrier: null as number | null, label: null as number | null,
   loading_from: '', loading_to: '', created_from: '', created_to: '', completed_from: '', completed_to: '', unassigned: false,
 }
 
@@ -141,7 +142,12 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
         back={{ to: `/${kind}`, label: t(`nav.${kind}`) }}
         title={party.name}
         subtitle={subtitle || undefined}
-        meta={<Badge tone={party.status === 'active' ? 'success' : 'neutral'}>{t(party.status === 'active' ? 'common.active' : 'common.inactive')}</Badge>}
+        meta={
+          <>
+            <Badge tone={party.status === 'active' ? 'success' : 'neutral'}>{t(party.status === 'active' ? 'common.active' : 'common.inactive')}</Badge>
+            <SubjectLabels kind={owner.kind} id={party.id} labels={party.labels} />
+          </>
+        }
         actions={
           <>
             {hasPermission(`${kind}.delete`) ? (

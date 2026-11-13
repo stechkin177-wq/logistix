@@ -20,6 +20,8 @@ import { useCurrencies, usePartyOption } from '../../orders/hooks'
 import { TripStatusControl } from '../components/TripStatusControl'
 import { useTripList } from '../hooks'
 import type { Trip } from '../types'
+import { useLabels } from '../../labels/hooks'
+import { LabelChips } from '../../labels/LabelChip'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Route } from '../../../shared/ui/icons'
 
@@ -28,6 +30,7 @@ const SCHEMA = {
   order: codecs.id(),
   status: codecs.id(),
   carrier: codecs.id(),
+  label: codecs.id(),
   consolidated: codecs.flag(),
   open: codecs.id(), // карточка рейса открывается сразу (переход после «Создать рейс»)
   page: codecs.positiveInt(1),
@@ -41,19 +44,23 @@ export function TripsPage() {
   const list = useTripList(state)
   usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
   const statuses = useHandbookValues('trip_status')
+  const labels = useLabels()
   const { codeOf } = useCurrencies()
   const carrier = usePartyOption('carriers', state.carrier)
-  const filtered = state.q !== '' || state.order !== null || state.status !== null || state.carrier !== null || state.consolidated
-  const reset = () => { setState({ q: '', order: null, status: null, carrier: null, consolidated: false }) }
+  const filtered = state.q !== '' || state.order !== null || state.status !== null || state.carrier !== null || state.label !== null || state.consolidated
+  const reset = () => { setState({ q: '', order: null, status: null, carrier: null, label: null, consolidated: false }) }
 
   const columns: Column<Trip>[] = [
     {
       key: 'number',
       header: t('trips.number'),
       cell: (trip) => (
-        <Link to={`/trips/${String(trip.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
-          {trip.number}
-        </Link>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Link to={`/trips/${String(trip.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+            {trip.number}
+          </Link>
+          <LabelChips labels={trip.labels} />
+        </span>
       ),
     },
     { key: 'status', header: t('common.status'), cell: (trip) => <TripStatusControl trip={trip} /> },
@@ -90,6 +97,9 @@ export function TripsPage() {
         </FilterItem>
         <FilterItem className="w-56">
           <Combobox label={t('trips.carrier')} queryKey={['carriers', 'search']} fetchOptions={searchCarriers} value={carrier} onChange={(o) => { setState({ carrier: o?.id ?? null }) }} />
+        </FilterItem>
+        <FilterItem>
+          <Select label={t('labels.filter')} value={state.label === null ? '' : String(state.label)} placeholder={t('common.all')} options={(labels.data ?? []).map((l) => ({ value: String(l.id), label: l.name }))} onChange={(v) => { setState({ label: v ? Number(v) : null }) }} />
         </FilterItem>
         <FilterItem className="w-auto">
           <Checkbox label={t('trips.onlyConsolidated')} checked={state.consolidated} onChange={(e) => { setState({ consolidated: e.target.checked }) }} />

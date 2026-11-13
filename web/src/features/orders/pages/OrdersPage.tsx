@@ -24,6 +24,7 @@ export const ORDERS_SCHEMA = {
   status: codecs.numberList(),
   client: codecs.id(),
   carrier: codecs.id(),
+  label: codecs.id(),
   loading_from: codecs.date(),
   loading_to: codecs.date(),
   created_from: codecs.date(),
@@ -44,7 +45,7 @@ export function OrdersPage() {
   const [exportError, setExportError] = useState<string | null>(null)
 
   const filters: OrderListFilters = {
-    q: state.q, status: state.status, client: state.client, carrier: state.carrier,
+    q: state.q, status: state.status, client: state.client, carrier: state.carrier, label: state.label,
     loading_from: state.loading_from, loading_to: state.loading_to, created_from: state.created_from,
     created_to: state.created_to, completed_from: state.completed_from, completed_to: state.completed_to,
     unassigned: state.unassigned,

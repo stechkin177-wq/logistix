@@ -14,7 +14,7 @@ from apps.core.rls import EnableRLS
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0027_audit_view_permission"),
+        ("core", "0006_rls"),
         ("forwarding", "0016_orderservice_trip_link"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

@@ -23,4 +23,7 @@ export const TRANSFER_CODES = ['consignments.transfer'] as const
 /** Право журнала аудита и входов (отдельный список, как AUDIT_PERMISSIONS на бэкенде). */
 export const AUDIT_CODES = ['audit.view'] as const
 
-export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES, ...AUDIT_CODES]
+/** Право управления метками (как LABEL_PERMISSIONS на бэкенде). */
+export const LABEL_CODES = ['labels.manage'] as const
+
+export const ALL_CODES: string[] = [...SECTIONS.flatMap((s) => ACTIONS.map((a) => `${s}.${a}`)), ...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES, ...AUDIT_CODES, ...LABEL_CODES]

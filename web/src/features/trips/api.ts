@@ -12,6 +12,7 @@ export function listTrips(p: TripListParams, signal?: AbortSignal) {
       order: p.order,
       status: p.status,
       carrier: p.carrier,
+      label: p.label ?? undefined,
       only_consolidated: p.consolidated ? 1 : undefined,
       page: p.page,
       page_size: p.pageSize,

@@ -25,7 +25,7 @@ DOC_CODES = ["documents.view", "documents.create", "documents.update", "document
 
 def test_documents_section_in_catalog():
     assert "documents.update" in ALL_PERMISSIONS
-    assert len(ALL_PERMISSIONS) == 70
+    assert len(ALL_PERMISSIONS) == 72  # 70 + audit.view + labels.manage
 
 
 def test_roles_documents_rights():

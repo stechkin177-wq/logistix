@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { EmptyState } from '../../../shared/ui/EmptyState'
 import { Boxes, FileText, History, MapPin, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
 import { Money } from '../../../shared/ui/Money'
+import { SubjectLabels } from '../../labels/SubjectLabels'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { Tabs, type TabDef } from '../../../shared/ui/Tabs'
@@ -103,6 +104,7 @@ function Content({ trip }: { trip: Trip }) {
         meta={
           <>
             <TripStatusControl trip={trip} />
+            <SubjectLabels kind="trip" id={trip.id} labels={trip.labels} />
             {trip.is_consolidated ? <Badge tone="info">{t('trips.consolidatedShort')}</Badge> : null}
             {trip.completed_at ? <span className="text-xs text-muted">{t('trips.completedAt')}: {dateTime(trip.completed_at)}</span> : null}
           </>

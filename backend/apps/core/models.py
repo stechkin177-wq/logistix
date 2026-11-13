@@ -162,11 +162,6 @@ class Company(models.Model):
         blank=True,
         help_text="Начало учёта: раньше этой даты финансы и завершённые не считаются",
     )
-    login_audit_retention_days = models.PositiveSmallIntegerField(
-        default=90,
-        validators=[MinValueValidator(30), MaxValueValidator(1095)],
-        help_text="Сколько дней хранятся события входа в журнале аудита (по умолчанию 3 месяца)",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -504,4 +499,25 @@ class LabelAssignment(TenantModel):
             models.Index(
                 fields=["company", "subject_type", "subject_id"], name="labelassignment_subject"
             ),
+        ]
+
+
+DEFAULT_LOGIN_AUDIT_RETENTION_DAYS = 90
+
+
+class CompanyAuditSettings(TenantModel):
+    """Настройки журнала компании (одна строка на компанию; нет строки - значения по умолчанию).
+
+    Отдельная таблица, а не столбец Company: Company читается до появления контекста компании и
+    нужна во всех этапах поэтапной проверки RLS."""
+
+    login_audit_retention_days = models.PositiveSmallIntegerField(
+        default=DEFAULT_LOGIN_AUDIT_RETENTION_DAYS,
+        validators=[MinValueValidator(30), MaxValueValidator(1095)],
+        help_text="Сколько дней хранятся события входа в журнале аудита (по умолчанию 3 месяца)",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company"], name="companyauditsettings_company_uniq"),
         ]

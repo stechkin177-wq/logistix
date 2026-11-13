@@ -22,6 +22,7 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { PartyDrawer } from '../components/PartyDrawer'
 import { useDeleteParty, usePartyList } from '../hooks'
 import type { Carrier, Client, Party, PartyKind } from '../types'
+import { LabelChips } from '../../labels/LabelChip'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Building2, Truck } from '../../../shared/ui/icons'
 
@@ -63,9 +64,12 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
       header: t('parties.name'),
       sortKey: 'name',
       cell: (p) => (
-        <Link to={`/${kind}/${String(p.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
-          {p.name}
-        </Link>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Link to={`/${kind}/${String(p.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+            {p.name}
+          </Link>
+          <LabelChips labels={p.labels} />
+        </span>
       ),
     },
     { key: 'bin', header: t('parties.binIin'), cell: (p) => p.bin_iin || '—' },

@@ -6,7 +6,7 @@ from django.conf import settings
 from apps.core.tenancy import NoTenantContext, get_current_company_id
 
 ACTIONS = ("create", "update", "delete", "restore", "login", "login_failed")
-# события входа: у них свой срок хранения (Company.login_audit_retention_days)
+# события входа: у них свой срок хранения (CompanyAuditSettings.login_audit_retention_days)
 LOGIN_ACTIONS = ("login", "login_failed")
 SENSITIVE_FIELDS = {"password", "token", "refresh", "access", "secret"}
 MASK = "***"

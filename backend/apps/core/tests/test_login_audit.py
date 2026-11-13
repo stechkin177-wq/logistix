@@ -11,7 +11,8 @@ from rest_framework.test import APIClient
 from apps.core import audit
 from apps.core.api.auth import issue_tokens
 from apps.core.audit.models import AuditLog
-from apps.core.models import Company, Membership, Role, User
+from apps.core.audit.retention import set_login_retention_days
+from apps.core.models import Membership, Role, User
 from apps.core.tenancy import tenant_context
 
 pytestmark = pytest.mark.django_db
@@ -116,7 +117,8 @@ def _old_login(company, user, action, days):
 def test_purge_uses_company_retention_and_touches_only_login_events(make_company):
     a_company, a_user, _ = make_company("A")
     b_company, b_user, _ = make_company("B")
-    Company.objects.filter(pk=b_company.pk).update(login_audit_retention_days=365)
+    with tenant_context(b_company.id):
+        set_login_retention_days(365)
     old_a = _old_login(a_company, a_user, "login", 100)
     fresh_a = _old_login(a_company, a_user, "login_failed", 10)
     old_b = _old_login(b_company, b_user, "login", 100)  # у B срок год - остаётся

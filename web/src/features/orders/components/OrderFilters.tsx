@@ -6,12 +6,14 @@ import { DateInput } from '../../../shared/ui/DateInput'
 import { FilterBar, FilterItem } from '../../../shared/ui/FilterBar'
 import { TextField } from '../../../shared/ui/TextField'
 import { searchCarriers } from '../../carriers/api'
+import { Select } from '../../../shared/ui/Select'
+import { useLabels } from '../../labels/hooks'
 import { searchClients } from '../../clients/api'
 import { useOrderStatuses, usePartyOption } from '../hooks'
 import type { OrderListFilters } from '../types'
 
 export const EMPTY_FILTERS: OrderListFilters = {
-  q: '', status: [], client: null, carrier: null, loading_from: '', loading_to: '', created_from: '', created_to: '',
+  q: '', status: [], client: null, carrier: null, label: null, loading_from: '', loading_to: '', created_from: '', created_to: '',
   completed_from: '', completed_to: '', unassigned: false,
 }
 
@@ -37,6 +39,7 @@ export function OrderFilters({ value, onChange, actions }: Props) {
   const { statuses } = useOrderStatuses()
   const client = usePartyOption('clients', value.client)
   const carrier = usePartyOption('carriers', value.carrier)
+  const labels = useLabels()
   const extraCount = extraFiltersCount(value)
   const [more, setMore] = useState(false)
   const showMore = more || extraCount > 0
@@ -75,6 +78,9 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       </FilterItem>
       <FilterItem className="w-44">
         <Combobox label={t('orders.client')} queryKey={['clients', 'search']} fetchOptions={searchClients} value={client} onChange={(o) => { onChange({ client: o?.id ?? null }) }} />
+      </FilterItem>
+      <FilterItem className="w-40">
+        <Select label={t('labels.filter')} value={value.label === null ? '' : String(value.label)} placeholder={t('common.all')} options={(labels.data ?? []).map((l) => ({ value: String(l.id), label: l.name }))} onChange={(v) => { onChange({ label: v ? Number(v) : null }) }} />
       </FilterItem>
       <Button
         variant="ghost"

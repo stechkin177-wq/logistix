@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { LabelChips } from '../../labels/LabelChip'
 import { errorMessage } from '../../../shared/api/errors'
 import { useSession } from '../../../shared/auth/useSession'
 import { usePageFallback } from '../../../shared/hooks/usePageFallback'
@@ -48,9 +49,12 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
       header: t('orders.number'),
       sortKey: 'number',
       cell: (o) => (
-        <Link to={`/orders/${String(o.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
-          {o.number}
-        </Link>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Link to={`/orders/${String(o.id)}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+            {o.number}
+          </Link>
+          <LabelChips labels={o.labels} />
+        </span>
       ),
     },
     { key: 'client', header: t('orders.client'), cell: (o) => o.client_name },

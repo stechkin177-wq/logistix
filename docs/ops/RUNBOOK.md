@@ -383,7 +383,7 @@ u.set_password(getpass('Новый пароль: ')); u.save()
 
 ## 14. Журнал входов: срок хранения и очистка
 
-События входа (`login`, `login_failed`) хранятся `Company.login_audit_retention_days` дней (по умолчанию 90;
+События входа (`login`, `login_failed`) хранятся `CompanyAuditSettings.login_audit_retention_days` дней (по умолчанию 90;
 меняется в «Настройки → Компания», допустимо 30-1095). Очистка:
 
 ```bash

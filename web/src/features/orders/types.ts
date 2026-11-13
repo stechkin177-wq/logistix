@@ -101,6 +101,7 @@ export interface Order {
   contract_number: string
   /** Договор из реестра (необязательно): contract_number берётся из него. */
   contract: number | null
+  labels?: import('../labels/types').LabelRef[]
   contact: number | null
   manager: number
   manager_name: string
@@ -135,6 +136,8 @@ export interface OrderListFilters {
   status: number[]
   client: number | null
   carrier: number | null
+  /** Фильтр по метке (id). */
+  label: number | null
   loading_from: string
   loading_to: string
   created_from: string

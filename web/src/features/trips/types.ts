@@ -47,6 +47,7 @@ export interface Trip {
   carrier_name: string | null
   /** Договор с перевозчиком из реестра (необязательно). */
   contract?: number | null
+  labels?: import('../labels/types').LabelRef[]
   /** Ссылки на технику и водителя (модули fleet/drivers); текст ниже сервер заполняет по ним. */
   vehicle?: number | null
   trailer?: number | null
@@ -77,6 +78,7 @@ export interface TripListParams {
   status: number | null
   carrier: number | null
   consolidated: boolean
+  label?: number | null
   page: number
   pageSize: number
 }

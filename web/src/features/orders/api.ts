@@ -10,6 +10,7 @@ export function filterQuery(f: OrderListFilters): Query {
     status: f.status.length ? f.status.join(',') : undefined,
     client: f.client,
     carrier: f.carrier,
+    label: f.label,
     loading_from: f.loading_from,
     loading_to: f.loading_to,
     created_from: f.created_from,
