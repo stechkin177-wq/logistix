@@ -87,14 +87,6 @@ class IssuedDocument(TenantModel):
     order = models.ForeignKey(
         "forwarding.Order", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
-    # договор из реестра, к которому относится выданный файл (вид contract)
-    contract = models.ForeignKey(
-        "forwarding.Contract",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="documents",
-    )
     trip = models.ForeignKey(
         "forwarding.Trip", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )

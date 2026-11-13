@@ -270,7 +270,7 @@ def test_backfill_creates_accounts_and_contracts_idempotently_without_touching_o
         numbers = sorted(Contract.objects.filter(client=client).values_list("number", flat=True))
         assert numbers == ["Д-5", "Д-77"]
         assert Contract.objects.get(number="Д-5").source == "imported"
-        assert IssuedDocument.objects.get(pk=doc.pk).contract.number == "Д-5"
+        assert Contract.objects.get(number="Д-5").document_id == doc.pk
         assert Order.objects.filter(client=client, contract__number="Д-77").count() == 2
         assert Order.objects.get(pk=order.pk).contract_number == " Д-77 "  # текст не менялся
         assert Trip.objects.count() == 0

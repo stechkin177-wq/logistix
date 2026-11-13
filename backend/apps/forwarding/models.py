@@ -172,7 +172,7 @@ class Contract(TenantModel, SoftDeleteModel):
     """Договор с клиентом или перевозчиком (ровно одна сторона).
 
     Единственный источник договоров. Order.contract_number остаётся текстом для прежних заказов и
-    заполняется из выбранного договора. Файл договора по шаблону - IssuedDocument.contract."""
+    заполняется из выбранного договора. Файл договора по шаблону - Contract.document."""
 
     KINDS = [("main", "Основной"), ("supplement", "Дополнительное соглашение"), ("other", "Прочее")]
     MANUAL = "manual"
@@ -200,6 +200,14 @@ class Contract(TenantModel, SoftDeleteModel):
     title = models.CharField(max_length=255, blank=True)
     comment = models.TextField(blank=True)
     source = models.CharField(max_length=16, choices=SOURCES, default=MANUAL)
+    # выданный по шаблону файл договора (вид contract); сам файл остаётся в журнале документов
+    document = models.ForeignKey(
+        "documents.IssuedDocument",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="contracts",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

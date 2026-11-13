@@ -3,8 +3,8 @@
 Ничего не удаляется и не меняется в прежних полях. Идемпотентна (повторный запуск не создаёт дублей).
 - Счета: каждому клиенту, перевозчику и юрлицу с непустыми bank/iban - один счёт по умолчанию.
 - Договоры: из выданных документов вида contract (клиент) и из уникальных пар (клиент, номер договора
-  в заказе); заказам с совпавшим номером проставляется Order.contract (текст contract_number не меняется).
-Обратима как noop (созданные записи остаются; прежние поля не тронуты).
+  в заказе); заказам с совпавшим номером проставляется Order.contract (текст contract_number не
+  меняется). Обратима как noop (созданные записи остаются; прежние поля не тронуты).
 """
 
 from django.db import migrations
@@ -49,22 +49,32 @@ def _backfill_contracts(apps, company_id):
             company_id=company_id, client_id=client_id, number=number, deleted_at__isnull=True
         ).first()
 
-    for doc in IssuedDocument._base_manager.filter(
-        company_id=company_id, kind=CONTRACT, client__isnull=False, contract__isnull=True
-    ).order_by("id"):
+    linked = set(
+        Contract._base_manager.filter(company_id=company_id, document__isnull=False).values_list(
+            "document_id", flat=True
+        )
+    )
+    docs = IssuedDocument._base_manager.filter(
+        company_id=company_id, kind=CONTRACT, client__isnull=False
+    ).order_by("id")
+    for doc in docs:
+        if doc.pk in linked:
+            continue
         number = (doc.number or "").strip() or f"ДОК-{doc.id}"
         contract = find(doc.client_id, number)
         if contract is None:
-            contract = Contract._base_manager.create(
+            Contract._base_manager.create(
                 company_id=company_id,
                 client_id=doc.client_id,
                 number=number,
                 date=doc.issue_date,
                 source="imported",
                 title="Договор из выданных документов",
+                document_id=doc.pk,
                 created_by_id=doc.created_by_id,
             )
-        IssuedDocument._base_manager.filter(pk=doc.pk).update(contract_id=contract.pk)
+        elif contract.document_id is None:
+            Contract._base_manager.filter(pk=contract.pk).update(document_id=doc.pk)
 
     pairs = (
         Order._base_manager.filter(company_id=company_id, contract__isnull=True)
@@ -114,8 +124,5 @@ def forwards(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ("forwarding", "0017_bank_accounts_contracts"),
-        ("documents", "0005_issueddocument_contract"),
-    ]
+    dependencies = [("forwarding", "0017_bank_accounts_contracts")]
     operations = [migrations.RunPython(forwards, migrations.RunPython.noop)]

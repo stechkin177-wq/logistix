@@ -37,9 +37,9 @@ class ContractSerializer(serializers.ModelSerializer):
         model = Contract
         fields = [
             "id", "client", "carrier", "party_name", "kind", "number", "date", "valid_until",
-            "title", "comment", "source", "is_expired", "in_use", "created_at",
+            "title", "comment", "source", "document", "is_expired", "in_use", "created_at",
         ]  # fmt: skip
-        read_only_fields = ["id", "source", "created_at"]
+        read_only_fields = ["id", "source", "document", "created_at"]
         validators: list = []  # уникальность номера проверяет validate() с понятным текстом
 
     def get_party_name(self, obj):
