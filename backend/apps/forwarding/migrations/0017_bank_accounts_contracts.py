@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("core", "0006_rls"),
-        ("documents", "0004_issued_document_subject_backfill"),
+        ("documents", "0001_initial"),
         ("forwarding", "0016_orderservice_trip_link"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
