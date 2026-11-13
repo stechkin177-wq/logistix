@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
+from apps.core.labels import serialize_labels
 from apps.core.models import LegalEntity
 
 from ..consignments.models import Consignment, ConsignmentPoint
@@ -129,6 +130,10 @@ class OrderSerializer(serializers.ModelSerializer):
         max_digits=20, decimal_places=2, read_only=True, allow_null=True
     )
     history = serializers.SerializerMethodField()
+    labels = serializers.SerializerMethodField()
+
+    def get_labels(self, obj):
+        return serialize_labels(self, obj, "forwarding.order")
 
     class Meta:
         model = Order
@@ -140,6 +145,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "client_ref",
             "contract_number",
             "contract",
+            "labels",
             "contact",
             "manager",
             "manager_name",

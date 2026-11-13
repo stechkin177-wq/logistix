@@ -9,6 +9,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.handbooks.models import HandbookValue
+from apps.core.labels import serialize_labels
 from apps.core.pagination import StandardPagination
 
 from . import requisites
@@ -56,6 +57,10 @@ class PartySerializer(serializers.ModelSerializer):
     contacts = ContactSerializer(many=True, required=False)
     # единый источник банковских реквизитов; bank/iban ниже - зеркало счёта по умолчанию
     accounts = BankAccountSerializer(many=True, read_only=True)
+    labels = serializers.SerializerMethodField()
+
+    def get_labels(self, obj):
+        return serialize_labels(self, obj, obj._meta.label_lower)
 
     def get_type_name(self, obj):
         return obj.type.name if obj.type_id else None
@@ -180,6 +185,7 @@ class ClientSerializer(PartySerializer):
             "bank",
             "iban",
             "accounts",
+            "labels",
             "contacts",
             "created_at",
         ]
@@ -206,6 +212,7 @@ class CarrierSerializer(PartySerializer):
             "bank",
             "iban",
             "accounts",
+            "labels",
             "contacts",
             "created_at",
         ]

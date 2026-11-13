@@ -55,12 +55,17 @@ TRANSFER_PERMISSIONS = ["consignments.transfer"]
 # Не входит в «Наблюдатель» (там все *.view): аудит - не для наблюдателя по умолчанию.
 AUDIT_PERMISSIONS = ["audit.view"]
 
+# Метки: создание, правка и удаление меток компании. Назначать метки может тот, кто правит объект
+# (раздел.update); видеть - тот, кто видит объект.
+LABEL_PERMISSIONS = ["labels.manage"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
     + MODULE_MANAGEMENT_PERMISSIONS
     + TRANSFER_PERMISSIONS
     + AUDIT_PERMISSIONS
+    + LABEL_PERMISSIONS
 )
 
 
@@ -74,6 +79,7 @@ _VCU = ["view", "create", "update"]
 SYSTEM_ROLES: dict[str, list[str]] = {
     "Администратор": list(ALL_PERMISSIONS),
     "Менеджер": _codes(_OPERATIONS, _VCU)
+    + LABEL_PERMISSIONS
     + TRANSFER_PERMISSIONS
     + _codes(["finance", "trash", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
@@ -83,6 +89,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes([*_OPERATIONS, "handbooks"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)
+    + LABEL_PERMISSIONS
     + TRANSFER_PERMISSIONS
     + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),

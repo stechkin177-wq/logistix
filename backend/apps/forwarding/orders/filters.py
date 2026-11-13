@@ -16,6 +16,7 @@ from django.db.models import Exists, OuterRef, Q, Subquery
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
 
+from apps.core.labels import apply_label_filter
 from apps.core.tenancy import get_current_company_id
 
 from ..finance_lines.models import company_zone
@@ -153,5 +154,5 @@ def apply_ordering(qs, params):
 
 
 def filter_orders(qs, params, zone=None):
-    """Все фильтры и сортировка списка заказов."""
-    return apply_ordering(apply_filters(qs, params, zone), params)
+    """Все фильтры и сортировка списка заказов (в том числе ?label=<id>)."""
+    return apply_ordering(apply_label_filter(apply_filters(qs, params, zone), params), params)

@@ -11,6 +11,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin, permission_required
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.audit.services import client_ip
+from apps.core.labels import apply_label_filter
 from apps.core.pagination import StandardPagination
 
 from ..models import Consignment, Trip, TripConsignment
@@ -48,6 +49,7 @@ UPDATE_ACTIONS = ("reassign", "change_status", "set_odometer")
 def filter_trips(qs, params):
     """status (id), carrier (id), order (id заказа с грузом в рейсе), only_consolidated (1),
     q (номер, перевозчик, название груза)."""
+    qs = apply_label_filter(qs, params)
     if (status := int_param(params, "status")) is not None:
         qs = qs.filter(status_id=status)
     if (carrier := int_param(params, "carrier")) is not None:

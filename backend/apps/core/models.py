@@ -455,3 +455,53 @@ class DocumentType(TenantModel):
 
     def __str__(self):
         return self.name
+
+
+LABEL_COLORS = ["slate", "red", "orange", "amber", "green", "teal", "blue", "violet", "pink"]
+
+
+class Label(TenantModel):
+    """Метка компании: своё название и цвет; назначается разным объектам (заказ, рейс, клиент...).
+
+    Метки - отдельная сущность компании, а не значения справочника: их создаёт и меняет пользователь
+    с правом labels.manage. Удаление метки снимает её со всех объектов."""
+
+    name = models.CharField(max_length=64)
+    color = models.CharField(max_length=16, default="slate")
+    created_by = models.ForeignKey(
+        "core.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint(Lower("name"), "company", name="label_company_name_uniq"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class LabelAssignment(TenantModel):
+    """Назначение метки объекту: "<модуль>.<модель>" (forwarding.order) и id, как у документов."""
+
+    label = models.ForeignKey(Label, on_delete=models.CASCADE, related_name="assignments")
+    subject_type = models.CharField(max_length=64)
+    subject_id = models.BigIntegerField()
+    assigned_by = models.ForeignKey(
+        "core.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["label", "subject_type", "subject_id"], name="labelassignment_uniq"
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["company", "subject_type", "subject_id"], name="labelassignment_subject"
+            ),
+        ]

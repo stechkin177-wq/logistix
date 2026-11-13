@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
+from apps.core.labels import serialize_labels
 from apps.core.tenancy import get_current_company_id
 from apps.drivers.models import Driver
 from apps.fleet.models import Vehicle
@@ -130,6 +131,10 @@ class TripSerializer(serializers.ModelSerializer):
     orders = serializers.SerializerMethodField()
     consignments = serializers.SerializerMethodField()
     legs = serializers.SerializerMethodField()
+    labels = serializers.SerializerMethodField()
+
+    def get_labels(self, obj):
+        return serialize_labels(self, obj, "forwarding.trip")
 
     class Meta:
         model = Trip
@@ -154,6 +159,7 @@ class TripSerializer(serializers.ModelSerializer):
             "orders",
             "consignments",
             "legs",
+            "labels",
             "created_by",
             "created_at",
             "updated_at",

@@ -3,6 +3,8 @@
 from django.db.models import F, Q
 from rest_framework.exceptions import ValidationError
 
+from apps.core.labels import apply_label_filter
+
 STATUS_VALUES = ("active", "inactive")
 DEFAULT_ORDERING = "name"
 
@@ -27,6 +29,7 @@ def filter_parties(qs, params, ordering_fields):
         if value not in STATUS_VALUES:
             raise ValidationError({"status": "Допустимо: active, inactive"})
         qs = qs.filter(status=value)
+    qs = apply_label_filter(qs, params)
     ordering = params.get("ordering") or DEFAULT_ORDERING
     allowed = {*ordering_fields, *(f"-{f}" for f in ordering_fields)}
     if ordering not in allowed:

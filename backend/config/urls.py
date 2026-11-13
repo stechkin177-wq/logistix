@@ -28,6 +28,7 @@ from apps.core.api.auth import (
 from apps.core.api.branding import CompanyBrandingView, PublicBrandingView
 from apps.core.api.company import CompanySettingsView
 from apps.core.api.document_types import DocumentTypeViewSet
+from apps.core.api.labels import LabelViewSet, SubjectLabelsView
 from apps.core.api.modules import (
     ActivityProfilesView,
     ApplyProfileView,
@@ -102,6 +103,7 @@ router.register("users", MembershipViewSet, basename="user")
 router.register("handbooks", HandbookViewSet, basename="handbook")
 router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
+router.register("labels", LabelViewSet, basename="label")
 router.register("handbook-values", HandbookValueViewSet, basename="handbook-value")
 router.register("clients", ClientViewSet, basename="client")
 router.register("carriers", CarrierViewSet, basename="carrier")
@@ -137,6 +139,7 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/labels/subjects/<str:kind>/<int:pk>/", SubjectLabelsView.as_view()),
     path("api/fleet/reminders/", RemindersView.as_view()),
     path("api/drivers/reminders/", DriverRemindersView.as_view()),
     path("api/fleet/settings/", FleetSettingsView.as_view()),
