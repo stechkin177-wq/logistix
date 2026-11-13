@@ -757,7 +757,7 @@ def test_search_does_not_duplicate_orders(admin_client, company):
     assert r.data["count"] == 1 and r.data["results"][0]["id"] == d["id"]
 
 
-LIST_QUERY_BOUND = 12  # измерено: 12 на любой размер списка (+3 prefetch, режим учёта, +1 участки)
+LIST_QUERY_BOUND = 13  # на любой размер списка: +3 prefetch, режим учёта, участки, метки пакетом
 
 
 def test_list_query_count_is_flat(admin_client, company, django_assert_max_num_queries):

@@ -747,7 +747,8 @@ def test_list_default_order_pagination_and_filters(admin_client, company):
 # верхняя граница запросов списка рейсов: аутентификация и подписка, count, рейсы (с
 # перевозчиком и статусом), одним запросом грузы с заказами, одним запросом участки (этап 1.5-C)
 # = 6 измеренных запросов, остальное запас; число запросов не зависит от числа рейсов и грузов
-TRIP_LIST_QUERY_BOUND = 9
+# +1 запрос меток на страницу (labels_map), не на строку
+TRIP_LIST_QUERY_BOUND = 10
 
 
 def test_list_query_count_is_flat(admin_client, company, django_assert_max_num_queries):

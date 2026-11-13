@@ -191,6 +191,6 @@ def test_trip_list_query_count_stays_flat_with_legs(
         _, (c,) = make_cargos(company, stops_per=3)
         s1, s2, s3 = stops_of(company, c)
         post_trip(admin_client, legs=[leg_body(c, s1, s2), leg_body(c, s2, s3)])
-    with django_assert_max_num_queries(9):
+    with django_assert_max_num_queries(10):
         r = admin_client.get(TRIPS)
     assert r.status_code == 200 and all(len(t["legs"]) == 2 for t in r.data["results"])

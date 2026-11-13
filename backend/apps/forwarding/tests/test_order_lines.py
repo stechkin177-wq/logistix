@@ -364,5 +364,5 @@ def test_list_query_bound_holds_with_and_without_finance(
     for i in range(5):
         new_order(admin_client, make_client(company, f"К{i}"), client_rate="5")
     _, api = client_with_role(company, role)
-    with django_assert_max_num_queries(10):
+    with django_assert_max_num_queries(11):
         assert api.get(ORDERS).status_code == 200
