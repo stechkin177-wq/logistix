@@ -5,7 +5,9 @@ from django.conf import settings
 
 from apps.core.tenancy import NoTenantContext, get_current_company_id
 
-ACTIONS = ("create", "update", "delete", "restore", "login")
+ACTIONS = ("create", "update", "delete", "restore", "login", "login_failed")
+# события входа: у них свой срок хранения (Company.login_audit_retention_days)
+LOGIN_ACTIONS = ("login", "login_failed")
 SENSITIVE_FIELDS = {"password", "token", "refresh", "access", "secret"}
 MASK = "***"
 _SKIP_SNAPSHOT = {"id", "company_id", "updated_at"}  # updated_at меняется при любом save: шум
@@ -112,9 +114,22 @@ def client_ip(request) -> str | None:
     return None
 
 
-def log_login(request, user, company_id, changes=None):
-    """Запись `login` в контексте компании токена (контекст после выхода сбрасывается)."""
+def _user_agent(request) -> str:
+    """Строка устройства для журнала входов (усечена; секретов в ней нет)."""
+    return (request.META.get("HTTP_USER_AGENT") or "").strip()[:200]
+
+
+def log_login(request, user, company_id, changes=None, *, action="login"):
+    """Запись о входе (`login`) или неудачной попытке (`login_failed`) в контексте компании.
+
+    В changes попадают только способ/причина и устройство; пароли, коды и токены не пишутся.
+    Контекст компании после записи сбрасывается."""
     from apps.core.tenancy import tenant_context
 
+    if action not in LOGIN_ACTIONS:
+        raise ValueError(f"Не событие входа: {action!r}")
+    data = dict(changes or {})
+    if agent := _user_agent(request):
+        data["user_agent"] = agent
     with tenant_context(company_id):
-        return log("login", user, user, changes, ip=client_ip(request))
+        return log(action, user, user, data, ip=client_ip(request))

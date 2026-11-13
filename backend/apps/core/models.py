@@ -3,6 +3,7 @@ import datetime
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -160,6 +161,11 @@ class Company(models.Model):
         null=True,
         blank=True,
         help_text="Начало учёта: раньше этой даты финансы и завершённые не считаются",
+    )
+    login_audit_retention_days = models.PositiveSmallIntegerField(
+        default=90,
+        validators=[MinValueValidator(30), MaxValueValidator(1095)],
+        help_text="Сколько дней хранятся события входа в журнале аудита (по умолчанию 3 месяца)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

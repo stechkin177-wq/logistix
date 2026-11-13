@@ -6,7 +6,7 @@ import { ALL_PERMISSIONS } from '../../../test/permissions'
 import { renderApp } from '../../../test/renderApp'
 import { logoProblem } from './BrandingBlock'
 
-const settings = { name: 'Альфа', timezone: 'Asia/Almaty', language: 'ru', accounting_start: null }
+const settings = { name: 'Альфа', timezone: 'Asia/Almaty', language: 'ru', accounting_start: null, login_audit_retention_days: 90 }
 const branding = { app_name: 'Logistix', logo_url: null, primary_color: '#2563EB', theme: 'system' }
 const sub = { plan: { code: 'start', name: 'Старт' }, status: 'active', is_free_period: true, ends_at: '2026-12-31T00:00:00Z', days_left: 30 }
 const base: MockRoutes = [
@@ -58,7 +58,7 @@ describe('Настройки компании', () => {
     renderApp('/settings/company')
     await screen.findByDisplayValue('Альфа')
     await userEvent.click(within(screen.getByLabelText(/^Название компании/).closest('form')!).getByRole('button', { name: 'Сохранить' }))
-    await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Альфа', timezone: 'Asia/Almaty', language: 'ru', accounting_start: null }) })
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Альфа', timezone: 'Asia/Almaty', language: 'ru', accounting_start: null, login_audit_retention_days: 90 }) })
     await waitFor(() => { expect(m.count('GET', '/api/session/')).toBeGreaterThan(1) })
   })
 
@@ -157,5 +157,23 @@ describe('Оформление', () => {
     await save()
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'PATCH')).toBe(true) })
     expect((m.calls.find((c) => c.method === 'PATCH')!.body as FormData).get('logo')).toBe('')
+  })
+})
+
+describe('Срок хранения журнала входов', () => {
+  it('значение по умолчанию 90 дней; недопустимое не отправляется', async () => {
+    const m = loggedIn([
+      ['GET', '/api/company/settings/', { body: settings }],
+      ['PATCH', '/api/company/settings/', { body: settings }],
+      ['GET', '/api/company/branding/', { body: {} }],
+    ])
+    renderApp('/settings/company')
+    const field = await screen.findByLabelText('Хранить журнал входов, дней')
+    expect(field).toHaveValue(90)
+    await userEvent.clear(field)
+    await userEvent.type(field, '5')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Сохранить' })[0]!)
+    expect(await screen.findByText('Целое число от 30 до 1095')).toBeInTheDocument()
+    expect(m.calls.some((c) => c.method === 'PATCH')).toBe(false)
   })
 })

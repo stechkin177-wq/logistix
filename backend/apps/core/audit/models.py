@@ -9,6 +9,7 @@ ACTION_CHOICES = [
     ("delete", "Удаление"),
     ("restore", "Восстановление"),
     ("login", "Вход"),
+    ("login_failed", "Неудачный вход"),
 ]
 
 

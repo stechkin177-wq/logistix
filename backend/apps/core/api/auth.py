@@ -112,6 +112,22 @@ class LoginView(APIView):
             check_password(password, _DUMMY_HASH)  # выравниваем время ответа
             raise AuthenticationFailed(LOGIN_ERROR)
         if not user.check_password(password) or not user.is_active:
+            if not user.is_platform_admin:
+                # неудачная попытка известного пользователя компании - в журнал входов (по первой
+                # компании членства); исключение откатило бы запись вместе с транзакцией запроса,
+                # поэтому отказ возвращается ответом, тем же по формату. Неизвестный логин не
+                # пишется: компании нет.
+                first = memberships_of(user).order_by("id").first()
+                if first is not None:
+                    audit.log_login(
+                        request,
+                        user,
+                        first.company_id,
+                        {"reason": "inactive" if not user.is_active else "bad_credentials"},
+                        action="login_failed",
+                    )
+                    body = {"detail": LOGIN_ERROR, "code": "authentication_failed"}
+                    return Response(body, status=401)
             if user.is_platform_admin:
                 # исключение откатило бы транзакцию запроса вместе с записью в журнал,
                 # поэтому отказ возвращается ответом (формат тот же, что у обработчика ошибок)

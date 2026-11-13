@@ -28,6 +28,8 @@ interface CompanySettings {
   timezone: string
   language: 'ru' | 'kk'
   accounting_start: string | null
+  /** Срок хранения событий входа, дней (30-1095). */
+  login_audit_retention_days: number
 }
 
 function CompanyForm({ settings }: { settings: CompanySettings }) {
@@ -40,6 +42,7 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
     timezone: settings.timezone,
     language: settings.language,
     accounting_start: settings.accounting_start ?? '',
+    retention: String(settings.login_audit_retention_days),
   })
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   const ref = useRef<HTMLFormElement>(null)
@@ -51,15 +54,20 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
       await Promise.all([qc.invalidateQueries({ queryKey: ['session'] }), qc.invalidateQueries({ queryKey: ['company'] })])
       pushToast('info', t('company.saved'))
     },
-    onError: (error) => { setErrors(serverErrors(error, t, (p) => ['name', 'timezone', 'language', 'accounting_start'].includes(p))) },
+    onError: (error) => { setErrors(serverErrors(error, t, (p) => ['name', 'timezone', 'language', 'accounting_start', 'login_audit_retention_days'].includes(p))) },
   })
   const submit = () => {
     if (!form.name.trim()) {
       setErrors({ fields: { name: t('errors.requiredField') }, banner: undefined })
       return
     }
+    const days = Number(form.retention)
+    if (!Number.isInteger(days) || days < 30 || days > 1095) {
+      setErrors({ fields: { login_audit_retention_days: t('company.retentionRange') }, banner: undefined })
+      return
+    }
     setErrors(NO_ERRORS)
-    save.mutate({ name: form.name.trim(), timezone: form.timezone.trim(), language: form.language, accounting_start: form.accounting_start || null })
+    save.mutate({ name: form.name.trim(), timezone: form.timezone.trim(), language: form.language, accounting_start: form.accounting_start || null, login_audit_retention_days: days })
   }
   const f = errors.fields
   return (
@@ -72,6 +80,7 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
           <datalist id="tz-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>
         </div>
         <Select label={t('company.language')} value={form.language} disabled={!canSave} error={f.language} options={[{ value: 'ru', label: t('languages.ru') }, { value: 'kk', label: t('languages.kk') }]} onChange={(v) => { setForm((s) => ({ ...s, language: v === 'kk' ? 'kk' : 'ru' })) }} />
+        <TextField label={t('company.loginAuditRetention')} type="number" min={30} max={1095} inputMode="numeric" value={form.retention} disabled={!canSave} error={f.login_audit_retention_days} hint={t('company.loginAuditRetentionHint')} onChange={(e) => { setForm((s) => ({ ...s, retention: e.target.value })) }} />
         <DateInput label={t('company.accountingStart')} value={form.accounting_start} disabled={!canSave} error={f.accounting_start} onChange={(v) => { setForm((s) => ({ ...s, accounting_start: v })) }} />
       </div>
       <div className="flex justify-end">

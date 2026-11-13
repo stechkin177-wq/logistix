@@ -13,7 +13,7 @@ import { Drawer } from '../../../shared/ui/Drawer'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
-import { ACTIONS, ALL_CODES, EXTRA_CODES, MODULE_CODES, SECTIONS, TRANSFER_CODES } from './catalog'
+import { ACTIONS, ALL_CODES, AUDIT_CODES, EXTRA_CODES, MODULE_CODES, SECTIONS, TRANSFER_CODES } from './catalog'
 
 export interface Role {
   id: number
@@ -125,7 +125,7 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
         </div>
         <fieldset className="space-y-1">
           <legend className="text-xs font-medium">{t('roles.extra.title')}</legend>
-          {[...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES].map((code) => {
+          {[...EXTRA_CODES, ...MODULE_CODES, ...TRANSFER_CODES, ...AUDIT_CODES].map((code) => {
             const held = hasPermission(code)
             return (
               <Checkbox

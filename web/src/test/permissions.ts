@@ -17,4 +17,5 @@ export const ALL_PERMISSIONS: string[] = [
   'finance.manage_settings',
   'company.manage_modules',
   'consignments.transfer',
+  'audit.view',
 ]

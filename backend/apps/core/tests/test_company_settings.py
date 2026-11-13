@@ -42,6 +42,7 @@ def test_get_shape_and_defaults(admin_client, company):
         "accounting_start": None,
         "timezone": "Asia/Almaty",
         "language": "ru",
+        "login_audit_retention_days": 90,
     }
 
 

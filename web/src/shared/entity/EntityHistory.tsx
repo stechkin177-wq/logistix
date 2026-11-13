@@ -22,6 +22,7 @@ export interface AuditEntry {
   object_type: string
   object_id: string
   object_repr: string
+  ip: string | null
   changes: Record<string, unknown>
   changes_labels: Record<string, string>
   created_at: string
@@ -78,13 +79,13 @@ interface Props {
 
 /**
  * Сквозная история записи: кто, когда и что изменил. Источник - существующий журнал аудита
- * (чтение, право company.view); отдельного хранилища истории нет.
+ * (чтение, право audit.view); отдельного хранилища истории нет.
  */
 export function EntityHistory({ objectType, objectId }: Props) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const { users } = useUsers()
-  const allowed = hasPermission('company.view')
+  const allowed = hasPermission('audit.view')
   const [page, setPage] = useState(1)
   const query = useQuery({
     queryKey: ['audit', 'entity', objectType, String(objectId), page],

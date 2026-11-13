@@ -346,12 +346,14 @@ def test_login_writes_audit_row(company, admin_user):
     assert "s3cret-pass" not in str(row.changes) and r.json()["access"] not in str(row.changes)
 
 
-def test_failed_login_writes_nothing(company, admin_user):
+def test_failed_login_is_logged_only_for_known_user(company, admin_user):
     client = APIClient()
     for login, pwd in ((admin_user.email, "wrong"), ("ghost@audit.kz", "wrong")):
         r = client.post("/api/auth/login/", {"login": login, "password": pwd}, format="json")
         assert r.status_code == 401
-    assert AuditLog.all_objects.count() == 0
+    # неизвестный логин не пишется (нет компании); известный - одна запись login_failed
+    assert [r.action for r in rows(company)] == ["login_failed"]
+    assert AuditLog.all_objects.count() == 1
 
 
 def test_switch_company_writes_login_row(make_company):
@@ -447,11 +449,12 @@ def test_audit_read_only(admin_client, company):
     assert AuditLog.all_objects.filter(pk=row.pk).exists()
 
 
-def test_audit_requires_company_view(company):
+def test_audit_requires_audit_view(company, admin_client):
     _, manager = client_with_role(company, "Менеджер")
     assert manager.get("/api/audit/").status_code == 403
     _, observer = client_with_role(company, "Наблюдатель")
-    assert observer.get("/api/audit/").status_code == 200  # holds company.view
+    assert observer.get("/api/audit/").status_code == 403  # аудит - не для наблюдателя
+    assert admin_client.get("/api/audit/").status_code == 200  # Администратор: audit.view
 
 
 def test_audit_isolation(make_company):

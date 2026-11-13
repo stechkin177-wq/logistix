@@ -13,7 +13,7 @@ from apps.core.audit import services as audit
 from apps.core.models import Company
 
 LANGUAGES = ["ru", "kk"]
-FIELDS = ("name", "accounting_start", "timezone", "language")
+FIELDS = ("name", "accounting_start", "timezone", "language", "login_audit_retention_days")
 
 
 @lru_cache(maxsize=1)

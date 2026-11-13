@@ -23,6 +23,7 @@ import { FinancePage } from '../features/finance/FinancePage'
 import { InvoiceDetailPage } from '../features/finance/InvoiceDetailPage'
 import { InvoiceFormPage } from '../features/finance/InvoiceFormPage'
 import { FinanceSettingsPage } from '../features/finance/FinanceSettingsPage'
+import { LoginAuditPage } from '../features/settings/audit/LoginAuditPage'
 import { CompanyPage } from '../features/settings/company/CompanyPage'
 import { DepartmentsPage } from '../features/settings/departments/DepartmentsPage'
 import { HandbooksPage } from '../features/settings/handbooks/HandbooksPage'
@@ -63,6 +64,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/roles': RolesPage,
   '/settings/handbooks': HandbooksPage,
   '/settings/finance': FinanceSettingsPage,
+  '/settings/audit': LoginAuditPage,
   '/settings/modules': ModulesPage,
   '/settings/document-types': DocumentTypesPage,
   '/settings/numbering': NumberingPage,

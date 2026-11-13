@@ -10,6 +10,7 @@ from apps.core.pagination import StandardPagination
 
 from .labels import changes_labels
 from .models import AuditLog
+from .services import ACTIONS
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
@@ -53,9 +54,9 @@ def _parse_bound(name: str, raw: str, *, end: bool):
 
 
 class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    """Журнал аудита: только чтение (право company.view); изменение записей API не даёт."""
+    """Журнал аудита: только чтение (право audit.view); изменение записей API не даёт."""
 
-    permission_classes = [permission_required("company.view")]
+    permission_classes = [permission_required("audit.view")]
     serializer_class = AuditLogSerializer
     pagination_class = StandardPagination
 
@@ -65,6 +66,13 @@ class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         for field in ("action", "object_type", "object_id"):
             if value := params.get(field):
                 qs = qs.filter(**{field: value})
+        if value := params.get("actions"):
+            # несколько действий через запятую (например, login,login_failed - «Аудит входов»)
+            names = [v for v in value.split(",") if v]
+            unknown = [v for v in names if v not in ACTIONS]
+            if unknown:
+                raise ValidationError({"actions": f"Неизвестные действия: {', '.join(unknown)}"})
+            qs = qs.filter(action__in=names)
         if value := params.get("user"):
             if not value.isdigit():
                 raise ValidationError({"user": "Ожидается числовой id"})

@@ -50,11 +50,17 @@ MODULE_MANAGEMENT_PERMISSIONS = ["company.manage_modules"]
 # с consignments.transfer или consignments.update.
 TRANSFER_PERMISSIONS = ["consignments.transfer"]
 
+# Право на журнал аудита и входов (раньше чтение журнала требовало company.view). Отдельный код,
+# чтобы менеджеру можно было открыть историю своих записей, не давая доступ к настройкам.
+# Не входит в «Наблюдатель» (там все *.view): аудит - не для наблюдателя по умолчанию.
+AUDIT_PERMISSIONS = ["audit.view"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
     + MODULE_MANAGEMENT_PERMISSIONS
     + TRANSFER_PERMISSIONS
+    + AUDIT_PERMISSIONS
 )
 
 
@@ -81,7 +87,9 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
     + _codes(["documents"], ["view", "create"]),
     "Механик": ["trips.view", *_codes(["fleet"], _VCU)],
-    "Наблюдатель": [p for p in ALL_PERMISSIONS if p.endswith(".view")],
+    "Наблюдатель": [
+        p for p in ALL_PERMISSIONS if p.endswith(".view") and p not in AUDIT_PERMISSIONS
+    ],
     "Водитель": [],
 }
 
