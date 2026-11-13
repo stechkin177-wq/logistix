@@ -14,7 +14,7 @@ from ..consignments.services import first_load, last_unload
 from ..fields import ActiveHandbookField, CompanyUserField, CurrentTolerantField
 from ..finance_lines.services import attach_totals, forget_totals, sync_base_line
 from ..models import Client, Contact, Order, OrderStatusHistory, TripConsignment
-from .services import carried_with_carrier, change_status, create_order
+from .services import carried_with_carrier, change_status, create_order, ensure_client_active
 
 FORBIDDEN_FIELDS = {
     "number": "Номер выдаётся автоматически",
@@ -216,6 +216,14 @@ class OrderSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def validate(self, attrs):
+        new_client = attrs.get("client")
+        changed = self.instance is None or (
+            new_client is not None and self.instance.client_id != new_client.pk
+        )
+        if new_client is not None and changed:
+            # новый заказ или перенос на другого клиента: неактивный не подходит; правка прочих
+            # полей уже созданного заказа неактивного клиента не блокируется
+            ensure_client_active(new_client)
         client = attrs.get("client") or (self.instance.client if self.instance else None)
         contact = (
             attrs["contact"] if "contact" in attrs else getattr(self.instance, "contact", None)

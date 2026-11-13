@@ -55,6 +55,19 @@ def _default_legal_entity() -> LegalEntity:
     return entity
 
 
+CLIENT_INACTIVE = (
+    "Клиент неактивен: новые заказы по нему не создаются. "
+    "Сделайте клиента активным или выберите другого."
+)
+
+
+def ensure_client_active(client) -> None:
+    """Новый заказ нельзя завести на неактивного клиента (уже созданные заказы и рейсы работают)."""
+    if client.status != client.INACTIVE:
+        return
+    raise ValidationError({"client": [CLIENT_INACTIVE]}, code="party_inactive")
+
+
 @transaction.atomic
 def create_order(data: dict, user, *, ip: str | None = None) -> Order:
     """Создаёт заказ вместе с грузами и точками в одной транзакции.
@@ -65,6 +78,7 @@ def create_order(data: dict, user, *, ip: str | None = None) -> Order:
     с points) необязательны. Пишет первую строку истории статусов и аудит create.
     """
     data = dict(data)
+    ensure_client_active(data["client"])
     consignments = data.pop("consignments", None) or []
     extra_managers = data.pop("extra_managers", None) or []
     for forbidden in ("number", "status", "completed_at", "created_by"):

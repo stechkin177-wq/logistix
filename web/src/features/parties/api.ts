@@ -19,8 +19,8 @@ export const updateParty = (kind: PartyKind, id: number, body: PartyPayload) =>
 export const deleteParty = (kind: PartyKind, id: number) => api.delete(`/${kind}/${id}/`)
 
 /** Поиск для Combobox (заказ, фильтры): первые 20 по названию/БИН. */
-export async function searchParties(kind: PartyKind, q: string, signal: AbortSignal): Promise<ComboOption[]> {
-  const page = await api.get<Paginated<Party>>(`/${kind}/`, { q, page_size: 20, ordering: 'name' }, { signal })
+export async function searchParties(kind: PartyKind, q: string, signal: AbortSignal, status?: 'active'): Promise<ComboOption[]> {
+  const page = await api.get<Paginated<Party>>(`/${kind}/`, { q, page_size: 20, ordering: 'name', status }, { signal })
   return page.results.map((p) => ({ id: p.id, label: p.name }))
 }
 

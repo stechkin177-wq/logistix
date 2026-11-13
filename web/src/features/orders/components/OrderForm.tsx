@@ -12,7 +12,7 @@ import { Select } from '../../../shared/ui/Select'
 import { TextArea, TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { getParty } from '../../parties/api'
-import { searchClients } from '../../clients/api'
+import { searchActiveClients, searchClients } from '../../clients/api'
 import { useQuery } from '@tanstack/react-query'
 import {
   ORDER_KNOWN_PATH, emptyConsignment, initialOrderState, type ConsignmentForm, orderPayload, validateOrder, type OrderFormState,
@@ -113,8 +113,8 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
             label={t('orders.client')}
             required
             value={form.client}
-            queryKey={['clients', 'search']}
-            fetchOptions={searchClients}
+            queryKey={['clients', mode === 'create' ? 'search-active' : 'search']}
+            fetchOptions={mode === 'create' ? searchActiveClients : searchClients}
             error={errors.client}
             onChange={(client) => {
               setForm((f) => ({ ...f, client, contact: '' }))

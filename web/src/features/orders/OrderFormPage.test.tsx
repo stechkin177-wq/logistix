@@ -49,6 +49,20 @@ describe('Новый заказ', () => {
     await waitFor(() => { expect(screen.getByLabelText('Менеджер')).toHaveValue('1') })
   })
 
+  it('в выборе клиента для нового заказа только активные (status=active); сервер может отказать неактивному', async () => {
+    const m = loggedIn([
+      ...base,
+      ['POST', '/api/orders/', { status: 400, body: { client: ['Клиент неактивен: новые заказы по нему не создаются. Сделайте клиента активным или выберите другого.'] } }],
+    ])
+    renderApp('/orders/new')
+    await screen.findByRole('region', { name: 'Контакты' })
+    await pickClient()
+    const search = m.calls.find((c) => c.path.startsWith('/api/clients/?'))!
+    expect(new URL(search.path, 'http://x').searchParams.get('status')).toBe('active')
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText(/Клиент неактивен/)).toBeInTheDocument()
+  })
+
   it('без users.view селекторы сотрудников скрыты, запрос /users/ не уходит, manager не отправляется', async () => {
     const m = loggedIn(
       [...base, ['POST', '/api/orders/', { status: 201, body: makeOrder() }], ['GET', '/api/orders/5/', { body: makeOrder() }]],
