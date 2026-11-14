@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { errorMessage } from '../../shared/api/errors'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Badge } from '../../shared/ui/Badge'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
 import { DateTime } from '../../shared/ui/DateTime'
@@ -38,6 +39,7 @@ export function InvoicesTab() {
   const [state, setState] = useUrlState(INVOICES_SCHEMA, { pageKey: 'page' })
   const filters: InvoiceListFilters = state
   const list = useInvoices(filters)
+  const hasFilters = Boolean(state.direction || state.status || state.search || state.date_from || state.date_to || state.client || state.carrier || state.order)
 
   const columns: Column<Invoice>[] = [
     {
@@ -57,8 +59,21 @@ export function InvoicesTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-wrap items-end gap-2">
+      <FilterBar
+        canReset={hasFilters}
+        onReset={() => { setState({ direction: '', status: '', search: '', date_from: '', date_to: '', client: null, carrier: null, order: null }) }}
+        actions={
+          <>
+            <WriteButton permission="finance.create" onClick={() => { void navigate('/finance/invoices/new?direction=in') }}>
+              {t('finance.invoices.newIn')}
+            </WriteButton>
+            <WriteButton variant="primary" permission="finance.create" onClick={() => { void navigate('/finance/invoices/new') }}>
+              {t('finance.invoices.new')}
+            </WriteButton>
+          </>
+        }
+      >
+        <FilterItem>
           <Select
             label={t('finance.invoices.direction')}
             value={state.direction}
@@ -66,6 +81,8 @@ export function InvoicesTab() {
             options={DIRECTIONS.filter(Boolean).map((d) => ({ value: d, label: t(`finance.direction.${d}`) }))}
             onChange={(value) => { setState({ direction: value as typeof state.direction }) }}
           />
+        </FilterItem>
+        <FilterItem>
           <Select
             label={t('finance.invoices.status')}
             value={state.status}
@@ -73,19 +90,17 @@ export function InvoicesTab() {
             options={STATUSES.filter(Boolean).map((s) => ({ value: s, label: t(`finance.status.${s}`) }))}
             onChange={(value) => { setState({ status: value as typeof state.status }) }}
           />
-          <TextField label={t('finance.invoices.search')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
+        </FilterItem>
+        <FilterItem className="w-48">
+          <TextField label={t('finance.invoices.search')} type="search" value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
+        </FilterItem>
+        <FilterItem>
           <DateInput label={t('finance.invoices.dateFrom')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
+        </FilterItem>
+        <FilterItem>
           <DateInput label={t('finance.invoices.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
-        </div>
-        <div className="flex gap-2">
-          <WriteButton permission="finance.create" onClick={() => { void navigate('/finance/invoices/new?direction=in') }}>
-            {t('finance.invoices.newIn')}
-          </WriteButton>
-          <WriteButton variant="primary" permission="finance.create" onClick={() => { void navigate('/finance/invoices/new') }}>
-            {t('finance.invoices.new')}
-          </WriteButton>
-        </div>
-      </div>
+        </FilterItem>
+      </FilterBar>
       <DataTable
         caption={t('finance.tabs.invoices')}
         columns={columns}

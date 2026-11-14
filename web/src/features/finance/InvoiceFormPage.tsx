@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api } from '../../shared/api/client'
 import { errorMessage } from '../../shared/api/errors'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
@@ -11,9 +11,11 @@ import { useHandbookValues } from '../../shared/handbooks/useHandbook'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { Checkbox } from '../../shared/ui/Checkbox'
+import { Card, CardBody, CardHeader } from '../../shared/ui/Card'
 import { Combobox, type ComboOption } from '../../shared/ui/Combobox'
 import { DateInput } from '../../shared/ui/DateInput'
 import { FormBanner } from '../../shared/ui/FormBanner'
+import { PageHeader } from '../../shared/ui/PageHeader'
 import type { Paginated } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
@@ -158,115 +160,125 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
 
   return (
     <form ref={ref} noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="max-w-3xl space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold">{title}</h1>
-        <Link className="text-sm text-brand-700 underline dark:text-brand-300" to="/finance?tab=invoices">{t('finance.invoices.backToList')}</Link>
-      </div>
+      <PageHeader back={{ to: '/finance?tab=invoices', label: t('finance.invoices.backToList') }} title={title} />
       <FormBanner message={errors.banner} />
 
-      {isOut ? (
-        <Combobox
-          label={t('finance.invoices.selectOrder')}
-          required
-          queryKey={['finance', 'order-search']}
-          fetchOptions={searchOrders}
-          value={orderOption}
-          error={f.source}
-          disabled={invoice !== null}
-          onChange={(o) => { setOrderId(o?.id ?? null); setPicks({}) }}
-        />
-      ) : (
-        <div className="grid gap-2 md:grid-cols-2">
-          <Combobox
-            label={t('finance.invoices.pickCarrier')}
-            queryKey={['finance', 'carrier-search']}
-            fetchOptions={searchActiveCarriers}
-            value={carrierOption}
-            disabled={invoice !== null}
-            onChange={(o) => { setCarrier(o); setTripId(null); setPicks({}) }}
-          />
-          <Combobox
-            label={t('finance.invoices.selectTrip')}
-            required
-            queryKey={['finance', 'trip-search', carrierOption?.id ?? 0]}
-            fetchOptions={async (q, signal) => {
-              const page = await listTrips({ q, order: null, status: null, carrier: carrierOption?.id ?? null, consolidated: false, page: 1, pageSize: 20 }, signal)
-              return page.results.map((x) => ({ id: x.id, label: `${x.number}${x.carrier_name ? ` · ${x.carrier_name}` : ''}` }))
-            }}
-            value={tripOption}
-            error={f.source}
-            disabled={invoice !== null || carrierOption === null}
-            onChange={(o) => { setTripId(o?.id ?? null); setPicks({}) }}
-          />
-        </div>
-      )}
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold">{t('finance.invoices.lines')}</legend>
-        {(isOut ? orderQuery.isError : tripQuery.isError) ? <Banner kind="error">{errorMessage(isOut ? orderQuery.error : tripQuery.error, t)}</Banner> : null}
-        {sourceOrders.length === 0 ? <p className="text-sm text-muted">{isOut ? t('finance.invoices.pickOrderFirst') : t('finance.invoices.pickTripFirst')}</p> : null}
-        {linesLoading && sourceOrders.length > 0 ? <Spinner /> : null}
-        {sourceOrders.length > 0 && !linesLoading && rows.length === 0 && isOut ? <p className="text-sm text-muted">{t('finance.invoices.noLines')}</p> : null}
-        {noExpense ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-muted">{t('finance.invoices.noTripLines')}</p>
-            <WriteButton permission="finance.create" onClick={() => { setExpenseOpen(true) }}>{t('finance.tripExpense.button')}</WriteButton>
-          </div>
-        ) : null}
-        {f.items ? <p role="alert" className="text-xs text-red-600 dark:text-red-400">{f.items}</p> : null}
-        {rows.map(({ line, orderNumber }) => {
-          const pick = picks[line.id]
-          return (
-            <div key={line.id} className="grid items-start gap-2 rounded-control border border-line p-2 md:grid-cols-[auto_1fr_10rem]">
-              <Checkbox
-                label={t('finance.invoices.include', { name: line.title })}
-                hideLabel
-                checked={pick?.checked ?? false}
-                onChange={(e) => { toggle(line, e.target.checked) }}
+      <Card>
+        <CardBody>
+          {isOut ? (
+            <Combobox
+              label={t('finance.invoices.selectOrder')}
+              required
+              queryKey={['finance', 'order-search']}
+              fetchOptions={searchOrders}
+              value={orderOption}
+              error={f.source}
+              disabled={invoice !== null}
+              onChange={(o) => { setOrderId(o?.id ?? null); setPicks({}) }}
+            />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Combobox
+                label={t('finance.invoices.pickCarrier')}
+                queryKey={['finance', 'carrier-search']}
+                fetchOptions={searchActiveCarriers}
+                value={carrierOption}
+                disabled={invoice !== null}
+                onChange={(o) => { setCarrier(o); setTripId(null); setPicks({}) }}
               />
-              <TextField
-                label={`${t('finance.invoices.lineTitle')}: ${line.title}`}
-                hideLabel
-                disabled={!pick?.checked}
-                value={pick?.title ?? line.title}
-                error={f[`title.${String(line.id)}`]}
-                hint={`${orderNumber}${line.category ? ` · ${line.category}` : ''}`}
-                onChange={(e) => { patchPick(line.id, { title: e.target.value }) }}
-              />
-              <TextField
-                label={`${t('finance.invoices.amountNet')}: ${line.title}`}
-                hideLabel
-                inputMode="decimal"
-                disabled={!pick?.checked}
-                value={pick?.amount ?? (isOut ? line.income : line.expense)}
-                error={f[`amount.${String(line.id)}`]}
-                onChange={(e) => { patchPick(line.id, { amount: e.target.value }) }}
+              <Combobox
+                label={t('finance.invoices.selectTrip')}
+                required
+                queryKey={['finance', 'trip-search', carrierOption?.id ?? 0]}
+                fetchOptions={async (q, signal) => {
+                  const page = await listTrips({ q, order: null, status: null, carrier: carrierOption?.id ?? null, consolidated: false, page: 1, pageSize: 20 }, signal)
+                  return page.results.map((x) => ({ id: x.id, label: `${x.number}${x.carrier_name ? ` · ${x.carrier_name}` : ''}` }))
+                }}
+                value={tripOption}
+                error={f.source}
+                disabled={invoice !== null || carrierOption === null}
+                onChange={(o) => { setTripId(o?.id ?? null); setPicks({}) }}
               />
             </div>
-          )
-        })}
-      </fieldset>
+          )}
+        </CardBody>
+      </Card>
 
-      <div className="grid gap-2 md:grid-cols-3">
-        <Select
-          label={t('finance.invoices.vatRate')}
-          required
-          value={vatId}
-          placeholder="—"
-          options={vatValues.values.map((v) => ({ value: String(v.id), label: v.name }))}
-          error={f.vat_rate}
-          onChange={setVatId}
-        />
-        <DateInput label={t('finance.invoices.dueDate')} value={dueDate} error={f.due_date} onChange={setDueDate} />
-        {!isOut ? <TextField label={t('finance.invoices.externalNumber')} value={external} error={f.external_number} onChange={(e) => { setExternal(e.target.value) }} /> : null}
-      </div>
-      <TextField label={t('finance.invoices.comment')} value={comment} error={f.comment} onChange={(e) => { setComment(e.target.value) }} />
+      <Card>
+        <fieldset>
+          <legend className="sr-only">{t('finance.invoices.lines')}</legend>
+          <CardHeader title={t('finance.invoices.lines')} />
+          <CardBody className="space-y-2">
+            {(isOut ? orderQuery.isError : tripQuery.isError) ? <Banner kind="error">{errorMessage(isOut ? orderQuery.error : tripQuery.error, t)}</Banner> : null}
+            {sourceOrders.length === 0 ? <p className="text-sm text-muted">{isOut ? t('finance.invoices.pickOrderFirst') : t('finance.invoices.pickTripFirst')}</p> : null}
+            {linesLoading && sourceOrders.length > 0 ? <Spinner /> : null}
+            {sourceOrders.length > 0 && !linesLoading && rows.length === 0 && isOut ? <p className="text-sm text-muted">{t('finance.invoices.noLines')}</p> : null}
+            {noExpense ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm text-muted">{t('finance.invoices.noTripLines')}</p>
+                <WriteButton permission="finance.create" onClick={() => { setExpenseOpen(true) }}>{t('finance.tripExpense.button')}</WriteButton>
+              </div>
+            ) : null}
+            {f.items ? <p role="alert" className="text-xs text-red-600 dark:text-red-400">{f.items}</p> : null}
+            {rows.map(({ line, orderNumber }) => {
+              const pick = picks[line.id]
+              return (
+                <div key={line.id} className="grid items-start gap-3 rounded-control border border-line bg-surface-2 p-3 md:grid-cols-[auto_1fr_10rem]">
+                  <Checkbox
+                    label={t('finance.invoices.include', { name: line.title })}
+                    hideLabel
+                    checked={pick?.checked ?? false}
+                    onChange={(e) => { toggle(line, e.target.checked) }}
+                  />
+                  <TextField
+                    label={`${t('finance.invoices.lineTitle')}: ${line.title}`}
+                    hideLabel
+                    disabled={!pick?.checked}
+                    value={pick?.title ?? line.title}
+                    error={f[`title.${String(line.id)}`]}
+                    hint={`${orderNumber}${line.category ? ` · ${line.category}` : ''}`}
+                    onChange={(e) => { patchPick(line.id, { title: e.target.value }) }}
+                  />
+                  <TextField
+                    label={`${t('finance.invoices.amountNet')}: ${line.title}`}
+                    hideLabel
+                    inputMode="decimal"
+                    disabled={!pick?.checked}
+                    value={pick?.amount ?? (isOut ? line.income : line.expense)}
+                    error={f[`amount.${String(line.id)}`]}
+                    onChange={(e) => { patchPick(line.id, { amount: e.target.value }) }}
+                  />
+                </div>
+              )
+            })}
+          </CardBody>
+        </fieldset>
+      </Card>
 
-      <div role="group" aria-label={t('finance.invoices.totals')} className="ml-auto grid max-w-xs grid-cols-2 gap-x-3 gap-y-1 text-sm">
-        <span>{t('finance.invoices.net')}</span><span className="text-right tabular-nums">{money(totals.net, currency)}</span>
-        <span>{t('finance.invoices.vat')}</span><span className="text-right tabular-nums">{money(totals.vat, currency)}</span>
-        <span className="font-semibold">{t('finance.invoices.gross')}</span><span className="text-right font-semibold tabular-nums">{money(totals.gross, currency)}</span>
-      </div>
+      <Card>
+        <CardHeader title={t('finance.invoices.terms')} />
+        <CardBody className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Select
+              label={t('finance.invoices.vatRate')}
+              required
+              value={vatId}
+              placeholder="—"
+              options={vatValues.values.map((v) => ({ value: String(v.id), label: v.name }))}
+              error={f.vat_rate}
+              onChange={setVatId}
+            />
+            <DateInput label={t('finance.invoices.dueDate')} value={dueDate} error={f.due_date} onChange={setDueDate} />
+            {!isOut ? <TextField label={t('finance.invoices.externalNumber')} value={external} error={f.external_number} onChange={(e) => { setExternal(e.target.value) }} /> : null}
+          </div>
+          <TextField label={t('finance.invoices.comment')} value={comment} error={f.comment} onChange={(e) => { setComment(e.target.value) }} />
+          <div role="group" aria-label={t('finance.invoices.totals')} className="ml-auto grid max-w-xs grid-cols-2 gap-x-3 gap-y-1 border-t border-line pt-3 text-sm">
+            <span className="text-muted">{t('finance.invoices.net')}</span><span className="text-right tabular-nums">{money(totals.net, currency)}</span>
+            <span className="text-muted">{t('finance.invoices.vat')}</span><span className="text-right tabular-nums">{money(totals.vat, currency)}</span>
+            <span className="font-semibold">{t('finance.invoices.gross')}</span><span className="text-right font-semibold tabular-nums">{money(totals.gross, currency)}</span>
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="flex justify-end gap-2">
         <Button onClick={() => { void navigate('/finance?tab=invoices') }} disabled={save.isPending}>{t('common.cancel')}</Button>

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '../../../shared/api/errors'
 import { useSession } from '../../../shared/auth/useSession'
+import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
 import { Banner } from '../../../shared/ui/Banner'
 import { Money } from '../../../shared/ui/Money'
 import { Spinner } from '../../../shared/ui/Spinner'
@@ -26,40 +27,44 @@ export function OrderInvoicesBlock({ order, currency }: { order: Order; currency
   const active = invoices.filter((i) => i.status === 'issued')
 
   return (
-    <section aria-label={t('finance.orderBlock.title')} className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{t('finance.orderBlock.title')}</h2>
-        {hasPermission('finance.create') ? (
-          <Link className="text-sm font-medium text-brand-700 underline dark:text-brand-300" to={`/finance/invoices/new?order=${String(order.id)}`}>
-            {t('finance.orderBlock.new')}
-          </Link>
+    <Card aria-label={t('finance.orderBlock.title')}>
+      <CardHeader
+        title={t('finance.orderBlock.title')}
+        actions={
+          hasPermission('finance.create') ? (
+            <Link className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300" to={`/finance/invoices/new?order=${String(order.id)}`}>
+              {t('finance.orderBlock.new')}
+            </Link>
+          ) : null
+        }
+      />
+      <CardBody className="space-y-3">
+        {list.isPending ? <Spinner /> : null}
+        {list.isError ? <Banner kind="error">{errorMessage(list.error, t)}</Banner> : null}
+        {list.data ? (
+          <>
+            <dl className="grid grid-cols-3 gap-3 text-sm">
+              <div><dt className="text-xs text-muted">{t('finance.orderBlock.invoiced')}</dt><dd className="font-medium"><Money value={sum(active.map((i) => i.totals.net))} currency={currency} /></dd></div>
+              <div><dt className="text-xs text-muted">{t('finance.orderBlock.income')}</dt><dd className="font-medium"><Money value={order.revenue} currency={currency} /></dd></div>
+              <div><dt className="text-xs text-muted">{t('finance.orderBlock.paid')}</dt><dd className="font-medium"><Money value={sum(active.map((i) => i.paid))} currency={currency} /></dd></div>
+            </dl>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted">{t('finance.orderBlock.empty')}</p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {invoices.map((i) => (
+                  <li key={i.id} className="flex flex-wrap items-center gap-2 py-2">
+                    <Link className="text-brand-700 hover:underline dark:text-brand-300" to={`/finance/invoices/${String(i.id)}`}>{invoiceLabel(i, t)}</Link>
+                    <StatusBadge status={i.display_status} />
+                    <Money value={i.totals.gross} currency={currency} />
+                    <span className="text-xs text-muted">{t('finance.invoices.balance')}: <Money value={i.balance} currency={currency} /></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         ) : null}
-      </div>
-      {list.isPending ? <Spinner /> : null}
-      {list.isError ? <Banner kind="error">{errorMessage(list.error, t)}</Banner> : null}
-      {list.data ? (
-        <>
-          <dl className="grid grid-cols-3 gap-2 text-sm">
-            <div><dt className="text-xs text-muted">{t('finance.orderBlock.invoiced')}</dt><dd><Money value={sum(active.map((i) => i.totals.net))} currency={currency} /></dd></div>
-            <div><dt className="text-xs text-muted">{t('finance.orderBlock.income')}</dt><dd><Money value={order.revenue} currency={currency} /></dd></div>
-            <div><dt className="text-xs text-muted">{t('finance.orderBlock.paid')}</dt><dd><Money value={sum(active.map((i) => i.paid))} currency={currency} /></dd></div>
-          </dl>
-          {invoices.length === 0 ? (
-            <p className="text-sm text-muted">{t('finance.orderBlock.empty')}</p>
-          ) : (
-            <ul className="space-y-1 text-sm">
-              {invoices.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-center gap-2">
-                  <Link className="text-brand-700 underline dark:text-brand-300" to={`/finance/invoices/${String(i.id)}`}>{invoiceLabel(i, t)}</Link>
-                  <StatusBadge status={i.display_status} />
-                  <Money value={i.totals.gross} currency={currency} />
-                  <span className="text-xs text-muted">{t('finance.invoices.balance')}: <Money value={i.balance} currency={currency} /></span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : null}
-    </section>
+      </CardBody>
+    </Card>
   )
 }

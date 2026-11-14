@@ -6,6 +6,7 @@ import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
 import { selectableValues, useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { useUsers, userLabel } from '../../../shared/users/useUsers'
 import { Button } from '../../../shared/ui/Button'
+import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
 import { Combobox } from '../../../shared/ui/Combobox'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Select } from '../../../shared/ui/Select'
@@ -33,10 +34,10 @@ interface Props {
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {children}
-    </section>
+    <Card aria-label={title}>
+      <CardHeader title={title} />
+      <CardBody className="space-y-3">{children}</CardBody>
+    </Card>
   )
 }
 
@@ -104,12 +105,12 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
         event.preventDefault()
         submit()
       }}
-      className="space-y-3"
+      className="space-y-4"
     >
       <FormBanner message={server.banner} />
 
       <Block title={t('orders.blockContacts')}>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <Combobox
             label={t('orders.client')}
             required
@@ -133,7 +134,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
       </Block>
 
       <Block title={t('orders.blockPrice')}>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <TextField label={t('orders.clientRate')} inputMode="decimal" required value={form.client_rate} error={errors.client_rate} onChange={(e) => { set('client_rate', e.target.value) }} />
           {currency.allowed ? (
             <Select label={t('orders.currency')} value={currencyValue} options={selectableValues(currency.all, order?.currency).map((v) => ({ value: String(v.id), label: v.code || v.name }))} error={errors.currency} onChange={(v) => { set('currency', v) }} />
@@ -147,7 +148,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
           {showExtra ? '▾' : '▸'} {t('orders.blockExtra')}
         </Button>
         {showExtra ? (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <ContractSelect
             owner={form.client ? { kind: 'client', id: form.client.id } : null}
             value={form.contract}

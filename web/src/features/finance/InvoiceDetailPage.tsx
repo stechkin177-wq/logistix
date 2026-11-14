@@ -6,6 +6,7 @@ import { useSession } from '../../shared/auth/useSession'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
+import { Card, CardBody, CardHeader } from '../../shared/ui/Card'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
@@ -14,6 +15,7 @@ import { Drawer } from '../../shared/ui/Drawer'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { FormBanner } from '../../shared/ui/FormBanner'
 import { Money } from '../../shared/ui/Money'
+import { PageHeader } from '../../shared/ui/PageHeader'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
@@ -90,8 +92,8 @@ function PaymentsBlock({ invoice }: { invoice: Invoice }) {
     },
   ]
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-semibold">{t('finance.invoices.payments')}</h2>
+    <Card aria-label={t('finance.invoices.payments')}>
+      <CardHeader title={t('finance.invoices.payments')} />
       <DataTable
         caption={t('finance.invoices.payments')}
         columns={columns}
@@ -113,7 +115,7 @@ function PaymentsBlock({ invoice }: { invoice: Invoice }) {
         onCancel={() => { setToDelete(null); remove.reset() }}
         onConfirm={() => { if (toDelete) remove.mutate(toDelete.id, { onSuccess: () => { setToDelete(null) } }) }}
       />
-    </section>
+    </Card>
   )
 }
 
@@ -163,14 +165,17 @@ export function InvoiceDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-base font-semibold">{invoiceLabel(invoice, t)}</h1>
-          <StatusBadge status={invoice.display_status} />
-          <span className="text-xs text-muted">{t(`finance.direction.${invoice.direction}`)}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link className="text-sm text-brand-700 underline dark:text-brand-300" to="/finance?tab=invoices">{t('finance.invoices.backToList')}</Link>
+      <PageHeader
+        back={{ to: '/finance?tab=invoices', label: t('finance.invoices.backToList') }}
+        title={invoiceLabel(invoice, t)}
+        meta={
+          <>
+            <StatusBadge status={invoice.display_status} />
+            <span className="text-xs text-muted">{t(`finance.direction.${invoice.direction}`)}</span>
+          </>
+        }
+        actions={
+          <>
           {isDraft ? (
             <>
               <WriteButton permission="finance.update" onClick={() => { void navigate(`/finance/invoices/${String(invoice.id)}/edit`) }}>{t('finance.invoices.edit')}</WriteButton>
@@ -195,24 +200,31 @@ export function InvoiceDetailPage() {
               ) : null}
             </>
           ) : null}
-        </div>
-      </div>
+          </>
+        }
+      />
       {error ? <Banner kind="error">{error}</Banner> : null}
 
-      <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-        <div><dt className="text-xs text-muted">{invoice.client ? t('finance.invoices.client') : t('finance.invoices.carrier')}</dt><dd>{invoice.client?.name ?? invoice.carrier?.name}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.order')}</dt><dd>{invoice.order ? <Link className="text-brand-700 underline dark:text-brand-300" to={`/orders/${String(invoice.order.id)}`}>{invoice.order.number}</Link> : '—'}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.trip')}</dt><dd>{invoice.trip?.number ?? '—'}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.externalNumber')}</dt><dd>{invoice.external_number || '—'}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.issueDate')}</dt><dd>{invoice.issue_date ? <DateTime value={invoice.issue_date} dateOnly /> : '—'}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.dueDate')}</dt><dd>{invoice.due_date ? <DateTime value={invoice.due_date} dateOnly /> : '—'}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.vatRate')}</dt><dd>{invoice.vat_rate.name}</dd></div>
-        <div><dt className="text-xs text-muted">{t('finance.invoices.rateToKzt')}</dt><dd>{invoice.rate_to_kzt ? Number(invoice.rate_to_kzt).toLocaleString('ru-RU', { maximumFractionDigits: 6 }) : '—'}</dd></div>
-      </dl>
+      <Card>
+        <CardBody>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm md:grid-cols-4">
+          <div><dt className="text-xs text-muted">{invoice.client ? t('finance.invoices.client') : t('finance.invoices.carrier')}</dt><dd>{invoice.client?.name ?? invoice.carrier?.name}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.order')}</dt><dd>{invoice.order ? <Link className="text-brand-700 underline dark:text-brand-300" to={`/orders/${String(invoice.order.id)}`}>{invoice.order.number}</Link> : '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.trip')}</dt><dd>{invoice.trip?.number ?? '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.externalNumber')}</dt><dd>{invoice.external_number || '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.issueDate')}</dt><dd>{invoice.issue_date ? <DateTime value={invoice.issue_date} dateOnly /> : '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.dueDate')}</dt><dd>{invoice.due_date ? <DateTime value={invoice.due_date} dateOnly /> : '—'}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.vatRate')}</dt><dd>{invoice.vat_rate.name}</dd></div>
+          <div><dt className="text-xs text-muted">{t('finance.invoices.rateToKzt')}</dt><dd>{invoice.rate_to_kzt ? Number(invoice.rate_to_kzt).toLocaleString('ru-RU', { maximumFractionDigits: 6 }) : '—'}</dd></div>
+        </dl>
+        </CardBody>
+      </Card>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">{t('finance.invoices.items')}</h2>
+
+      <Card aria-label={t('finance.invoices.items')}>
+        <CardHeader title={t('finance.invoices.items')} />
         <DataTable caption={t('finance.invoices.items')} columns={itemColumns} rows={invoice.items} rowKey={(i) => i.id} />
+        <CardBody className="space-y-3 border-t border-line">
         <dl className="ml-auto grid max-w-xs grid-cols-2 gap-x-3 gap-y-1 text-sm">
           <dt>{t('finance.invoices.net')}</dt><dd className="text-right"><Money value={invoice.totals.net} currency={code} /></dd>
           <dt>{t('finance.invoices.vat')}</dt><dd className="text-right"><Money value={invoice.totals.vat} currency={code} /></dd>
@@ -221,7 +233,8 @@ export function InvoiceDetailPage() {
           <dt>{t('finance.invoices.balance')}</dt><dd className="text-right"><Money value={invoice.balance} currency={code} /></dd>
         </dl>
         {invoice.comment ? <p className="text-sm text-muted">{invoice.comment}</p> : null}
-      </section>
+        </CardBody>
+      </Card>
 
       {invoice.status !== 'draft' ? <PaymentsBlock invoice={invoice} /> : null}
 
