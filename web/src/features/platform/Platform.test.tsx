@@ -99,14 +99,14 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     const { router } = renderApp('/orders')
     await screen.findByRole('navigation', { name: 'Центр управления' })
-    expect(router.state.location.pathname).toBe('/platform/plans')
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/plans') })
   })
 
   it('пользователь компании не попадает в Центр управления', async () => {
     const m = loggedIn([...base])
     const { router } = renderApp('/platform/plans')
     await screen.findByRole('navigation', { name: 'Основное меню' })
-    expect(router.state.location.pathname).toBe('/')
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/') })
     expect(m.calls.some((c) => c.path === '/api/platform/plans/')).toBe(false)
   })
 

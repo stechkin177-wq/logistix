@@ -78,7 +78,7 @@ describe('вход', () => {
     const { router } = renderApp('/login')
     await submitLogin('o@x.kz', 'pass')
     await screen.findByRole('navigation', { name: 'Центр управления' })
-    expect(router.state.location.pathname).toBe('/platform/plans')
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/plans') })
     expect(window.sessionStorage.getItem('logistix.context')).toBe('platform')
   })
 
@@ -99,7 +99,7 @@ describe('вход', () => {
     expect(getRefresh()).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
     await screen.findByRole('navigation', { name: 'Центр управления' })
-    expect(router.state.location.pathname).toBe('/platform/plans')
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/plans') })
     expect(m.calls.find((c) => c.path === '/api/auth/totp/')?.body).toEqual({ challenge: 'signed-challenge', code: '123456' })
   })
 
