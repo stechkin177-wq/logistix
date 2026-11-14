@@ -136,7 +136,8 @@ describe('Sidebar', () => {
     await waitFor(() => {
       expect(document.documentElement.style.getPropertyValue('--brand-500')).toBe('#aa0000')
     })
-    expect(document.title).toBe('Мой бренд')
+    // название раздела впереди, название приложения в конце: «Дашборд · Мой бренд»
+    expect(document.title).toMatch(/Мой бренд$/)
     expect(screen.getAllByText('Мой бренд').length).toBeGreaterThan(0)
     expect(m.calls.some((c) => c.path === '/api/company/branding/')).toBe(false)
   })

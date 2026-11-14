@@ -70,7 +70,7 @@ export function TransfersPage() {
           <Select label={t('tracking.kind')} value={state.kind} placeholder={t('tracking.allKinds')} options={TRANSFER_KINDS.map((k) => ({ value: k, label: t(`tracking.kinds.${k}`) }))} onChange={(kind) => { setState({ kind, page: 1 }) }} />
         </FilterItem>
         <FilterItem>
-          <Checkbox label={t('tracking.onlyPending')} checked={state.pending} onChange={(e) => { setState({ pending: e.target.checked, page: 1 }) }} />
+          <Checkbox className="whitespace-nowrap" label={t('tracking.onlyPending')} checked={state.pending} onChange={(e) => { setState({ pending: e.target.checked, page: 1 }) }} />
         </FilterItem>
       </FilterBar>
       {failure ? <Banner kind="error">{errorMessage(failure, t)}</Banner> : null}

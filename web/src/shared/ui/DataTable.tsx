@@ -95,7 +95,7 @@ export function DataTable<T>({
                         aria-label={t('table.sortBy', {
                           column: column.headerLabel ?? (typeof column.header === 'string' ? column.header : column.key),
                         })}
-                        className="inline-flex items-center gap-1 hover:underline"
+                        className="inline-flex items-center gap-1 [font:inherit] [letter-spacing:inherit] [text-transform:inherit] hover:underline"
                       >
                         {column.header}
                         <span aria-hidden="true">{sorted === 'ascending' ? '▲' : sorted === 'descending' ? '▼' : ''}</span>

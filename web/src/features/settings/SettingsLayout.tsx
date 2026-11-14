@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import { isAllowed, NAV, type NavItem } from '../../layout/nav'
 import { useSession } from '../../shared/auth/useSession'
 
@@ -17,11 +18,20 @@ export function SettingsLayout() {
   const { t } = useTranslation()
   const { session } = useSession()
   const group = NAV.find((item) => item.key === 'settings')
+  const { pathname } = useLocation()
+  const navRef = useRef<HTMLElement>(null)
+  // на телефоне подразделы идут в строку: активный подраздел прокручивается в видимую область
+  useEffect(() => {
+    const active = navRef.current?.querySelector('[aria-current="page"]')
+    // в jsdom (тесты) scrollIntoView не реализован
+    if (active && typeof active.scrollIntoView === 'function') active.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [pathname])
   const allowed = session ? (group?.children ?? []).filter((item) => isAllowed(item, session)) : []
 
   return (
     <div className="grid items-start gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
       <nav
+        ref={navRef}
         aria-label={t('nav.settingsLabel')}
         className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto rounded-card border border-line bg-surface p-2 shadow-card md:sticky md:top-0 md:flex-col md:overflow-visible"
       >

@@ -9,6 +9,7 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { Mail, RotateCcw } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Pagination } from '../../shared/ui/Pagination'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
@@ -61,10 +62,14 @@ export function MailPage() {
       />
       {!configured ? <Banner kind="warning">{t('mail.notConfigured')}</Banner> : null}
       {resend.isError ? <Banner kind="error">{errorMessage(resend.error, t)}</Banner> : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <TextField label={t('mail.search')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
-        <Select label={t('mail.state')} value={state} placeholder={t('mail.allStates')} options={(['draft', 'sent', 'failed'] as const).map((s) => ({ value: s, label: t(`mail.states.${s}`) }))} onChange={(v) => { setState(v); setPage(1) }} />
-      </div>
+      <FilterBar>
+        <FilterItem className="w-56">
+          <TextField label={t('mail.search')} type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
+        </FilterItem>
+        <FilterItem className="w-48">
+          <Select label={t('mail.state')} value={state} placeholder={t('mail.allStates')} options={(['draft', 'sent', 'failed'] as const).map((s) => ({ value: s, label: t(`mail.states.${s}`) }))} onChange={(v) => { setState(v); setPage(1) }} />
+        </FilterItem>
+      </FilterBar>
       <DataTable
         caption={t('nav.mail')}
         columns={columns}

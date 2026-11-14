@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSession } from '../../../shared/auth/useSession'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { useUsers, userLabel } from '../../../shared/users/useUsers'
+import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
 import { DateTime } from '../../../shared/ui/DateTime'
 import { Money } from '../../../shared/ui/Money'
 import { WriteButton } from '../../../shared/ui/WriteButton'
@@ -14,7 +15,7 @@ import { OrderForm } from './OrderForm'
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_1fr] gap-2 border-b border-line py-1 text-sm">
+    <div className="grid grid-cols-[9rem_1fr] gap-2 border-b border-line py-2 text-sm">
       <dt className="text-muted">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
@@ -61,11 +62,17 @@ export function OverviewTab({ order }: { order: Order }) {
     )
   }
   return (
-    <div className="space-y-3">
-      {hasPermission('orders.update') ? (
-        <WriteButton permission="orders.update" onClick={() => { setEditing(true) }}>{t('common.edit')}</WriteButton>
-      ) : null}
-      <dl className="max-w-3xl">
+    <Card aria-label={t('orders.tabOverview')}>
+      <CardHeader
+        title={t('orders.tabOverview')}
+        actions={
+          hasPermission('orders.update') ? (
+            <WriteButton permission="orders.update" onClick={() => { setEditing(true) }}>{t('common.edit')}</WriteButton>
+          ) : null
+        }
+      />
+      <CardBody>
+      <dl className="grid gap-x-8 md:grid-cols-2">
         <Row label={t('orders.client')}>{order.client_name}</Row>
         <Row label={t('orders.contractNumber')}>{order.contract_number || '—'}</Row>
         <Row label={t('orders.clientRef')}>{order.client_ref || '—'}</Row>
@@ -83,6 +90,7 @@ export function OverviewTab({ order }: { order: Order }) {
         <Row label={t('parties.created')}><DateTime value={order.created_at} /></Row>
         <Row label={t('orders.completedAt')}><DateTime value={order.completed_at} /></Row>
       </dl>
-    </div>
+      </CardBody>
+    </Card>
   )
 }

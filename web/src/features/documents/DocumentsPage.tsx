@@ -6,6 +6,7 @@ import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Banner } from '../../shared/ui/Banner'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { DateTime } from '../../shared/ui/DateTime'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
@@ -82,18 +83,26 @@ export function DocumentsPage() {
           </>
         }
       />
-      <div className="flex flex-wrap items-end gap-2">
-        <Select
-          label={t('documents.issued.kind')}
-          value={state.kind}
-          placeholder={t('documents.issued.allKinds')}
-          options={DOCUMENT_KINDS.map((k) => ({ value: k, label: t(`documents.kind.${k}`) }))}
-          onChange={(value) => { setState({ kind: value as typeof state.kind }) }}
-        />
-        <DateInput label={t('documents.issued.dateFrom')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
-        <DateInput label={t('documents.issued.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
-        <TextField label={t('documents.issued.search')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
-      </div>
+      <FilterBar>
+        <FilterItem className="w-48">
+          <Select
+            label={t('documents.issued.kind')}
+            value={state.kind}
+            placeholder={t('documents.issued.allKinds')}
+            options={DOCUMENT_KINDS.map((k) => ({ value: k, label: t(`documents.kind.${k}`) }))}
+            onChange={(value) => { setState({ kind: value as typeof state.kind }) }}
+          />
+        </FilterItem>
+        <FilterItem>
+          <DateInput label={t('documents.issued.dateFrom')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
+        </FilterItem>
+        <FilterItem>
+          <DateInput label={t('documents.issued.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
+        </FilterItem>
+        <FilterItem className="w-48">
+          <TextField label={t('documents.issued.search')} type="search" value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
+        </FilterItem>
+      </FilterBar>
       {downloadError ? <Banner kind="error">{downloadError}</Banner> : null}
       <DataTable
         caption={t('nav.documents')}

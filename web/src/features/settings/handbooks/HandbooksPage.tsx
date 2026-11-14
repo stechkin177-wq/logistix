@@ -234,7 +234,7 @@ export function HandbooksPage() {
       ) : !list.data ? (
         <Spinner label={t('table.loading')} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[16rem_1fr]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[13rem_minmax(0,1fr)]">
           <nav aria-label={t('handbooks.list')} className="space-y-2 rounded-card border border-line bg-surface p-3 shadow-card">
             {[...groups.entries()].map(([group, books]) => (
               <div key={group}>

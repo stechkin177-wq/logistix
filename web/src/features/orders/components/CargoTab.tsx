@@ -95,7 +95,7 @@ export function CargoTab({ order }: { order: Order }) {
       ) : (
         <ul className="space-y-2">
           {order.consignments.map((c) => (
-            <li key={c.id} className="space-y-1 rounded-control border border-line bg-surface p-2 text-sm dark:bg-slate-900">
+            <li key={c.id} className="space-y-2 rounded-card border border-line bg-surface p-4 text-sm shadow-card">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{c.name} <Badge>{c.status_name}</Badge> <LocationBadge status={c.location_status} /></p>
                 <div className="flex gap-1">
@@ -116,9 +116,9 @@ export function CargoTab({ order }: { order: Order }) {
               </p>
               {c.route ? <RouteLane route={c.route} /> : c.stops && isMultiStop(c.stops) ? <RouteChain stops={c.stops} /> : null}
               {hasPermission('consignments.view') && c.stops ? <CargoTracking consignmentId={c.id} stops={c.stops} /> : null}
-              <ul className="grid gap-1 text-xs md:grid-cols-2">
+              <ul className="grid gap-2 text-sm md:grid-cols-2">
                 {(c.stops && isMultiStop(c.stops) ? c.stops : c.points).map((p, index) => (
-                  <li key={'seq' in p ? p.seq : index} className="rounded-control bg-surface-2 p-1.5">
+                  <li key={'seq' in p ? p.seq : index} className="rounded-control bg-surface-2 p-2.5">
                     <span className="font-medium">{t(`orders.stopKinds.${p.kind}`)}: </span>
                     {[p.country_name, p.city, p.street].filter(Boolean).join(', ')}
                     <br />

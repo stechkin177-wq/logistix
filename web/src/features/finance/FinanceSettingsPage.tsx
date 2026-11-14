@@ -131,9 +131,12 @@ function StatusMapping() {
       <p className="text-sm">
         {t('finance.settings.completedStatus')}: <b>{d.completed_status ? `${d.completed_status.name} (${d.completed_status.code})` : '—'}</b>
       </p>
-      <ul className="text-sm">
+      <ul className="divide-y divide-line rounded-control border border-line text-sm">
         {d.values.map((v) => (
-          <li key={v.id}>{v.name} - {v.code || t('finance.settings.noCode')}{v.is_active ? '' : ` (${t('common.inactive')})`}</li>
+          <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
+            <span>{v.name}{v.is_active ? '' : ` (${t('common.inactive')})`}</span>
+            <code className="text-xs text-muted">{v.code || t('finance.settings.noCode')}</code>
+          </li>
         ))}
       </ul>
       {d.unmapped.map((u) => (
@@ -274,11 +277,17 @@ export function FinanceSettingsPage() {
   const s = query.data
   return (
     <div className="space-y-3">
-      <PageHeader icon={SlidersHorizontal} title={t('nav.financeSettings')} />
-      <p className="text-sm">
-        {t('finance.settings.engine')}: <Badge tone={s.engine === 'new' ? 'success' : 'info'}>{t(`finance.settings.engines.${s.engine}`)}</Badge>
-        {s.financial_writes_frozen ? <> <Badge tone="danger">{t('finance.settings.frozen')}</Badge></> : null}
-      </p>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title={t('nav.financeSettings')}
+        meta={
+          <>
+            <span className="text-sm text-muted">{t('finance.settings.engine')}:</span>
+            <Badge tone={s.engine === 'new' ? 'success' : 'info'}>{t(`finance.settings.engines.${s.engine}`)}</Badge>
+            {s.financial_writes_frozen ? <Badge tone="danger">{t('finance.settings.frozen')}</Badge> : null}
+          </>
+        }
+      />
       <BaseCurrency settings={s} />
       <Flags settings={s} />
       <StatusMapping />

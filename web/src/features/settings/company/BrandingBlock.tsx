@@ -110,13 +110,13 @@ function BrandingForm({ branding }: { branding: Branding }) {
           options={(['light', 'dark', 'system'] as const).map((v) => ({ value: v, label: t(`company.themes.${v}`) }))}
           onChange={(v) => { setForm((s) => ({ ...s, theme: v === 'dark' || v === 'system' ? v : 'light' })) }}
         />
-        <div className="flex items-end gap-2">
+        <div className="flex items-start gap-2">
           <input
             type="color"
             aria-label={t('company.colorPicker')}
             value={colorOk ? form.color.toLowerCase() : '#000000'}
             disabled={!canSave}
-            className="h-8 w-10 cursor-pointer rounded border border-slate-300 p-0.5"
+            className="mt-[1.375rem] h-9 w-11 shrink-0 cursor-pointer rounded-control border border-line bg-surface p-1"
             onChange={(e) => { setForm((s) => ({ ...s, color: e.target.value.toUpperCase() })) }}
           />
           <TextField fieldClassName="flex-1" label={t('company.primaryColor')} value={form.color} maxLength={7} disabled={!canSave} error={f.primary_color} hint={t('company.colorHint')} onChange={(e) => { setForm((s) => ({ ...s, color: e.target.value })) }} />
@@ -129,7 +129,7 @@ function BrandingForm({ branding }: { branding: Branding }) {
               type="file"
               accept=".png,.jpg,.jpeg,.webp"
               disabled={!canSave}
-              className={`${FIELD_CLASS} h-auto py-1`}
+              className={`${FIELD_CLASS} h-auto py-1.5 file:mr-3 file:cursor-pointer file:rounded-control file:border-0 file:bg-surface-2 file:px-3 file:py-1 file:text-sm file:font-medium file:text-ink`}
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null
                 setLogo(file)

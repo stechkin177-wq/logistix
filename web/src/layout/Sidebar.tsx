@@ -49,7 +49,7 @@ export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void;
 
   return (
     <aside
-      className={`flex h-full w-60 shrink-0 flex-col bg-surface ${flat ? '' : 'rounded-card border border-line shadow-card'}`}
+      className={`flex h-full shrink-0 flex-col bg-surface ${flat ? 'w-full' : 'w-60 rounded-card border border-line shadow-card'}`}
     >
       <div className="flex h-14 items-center gap-2.5 px-4">
         {branding.logo_url ? (

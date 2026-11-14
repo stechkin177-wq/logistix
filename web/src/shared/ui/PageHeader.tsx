@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useBranding } from '../branding/useBranding'
 import { ArrowLeft, type LucideIcon } from './icons'
 
 interface Props {
@@ -18,6 +19,14 @@ interface Props {
 /** Единая шапка страницы: [← назад] [иконка] Название [статус] ........ [действия]. Единственный h1 страницы. */
 export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }: Props) {
   const { t } = useTranslation()
+  const { app_name: appName } = useBranding()
+  // заголовок вкладки браузера повторяет название раздела: вкладки и история различимы
+  const text = typeof title === 'string' ? title : null
+  useEffect(() => {
+    if (text === null) return
+    document.title = `${text} · ${appName}`
+    return () => { document.title = appName }
+  }, [text, appName])
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">

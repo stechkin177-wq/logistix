@@ -10,6 +10,7 @@ import { DateTime } from '../../shared/ui/DateTime'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Money } from '../../shared/ui/Money'
 import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { Select } from '../../shared/ui/Select'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { RealizedExcludedHint } from './DebtsExcludedHint'
@@ -77,15 +78,19 @@ export function PaymentsTab() {
 
   return (
     <div className="space-y-3">
-      <Select
-        label={t('finance.invoices.direction')}
-        value={state.direction}
-        placeholder={t('finance.invoices.allDirections')}
-        options={[{ value: 'out', label: t('finance.direction.out') }, { value: 'in', label: t('finance.direction.in') }]}
-        onChange={(value) => { setState({ direction: value as typeof state.direction }) }}
-      />
+      <FilterBar>
+        <FilterItem>
+          <Select
+            label={t('finance.invoices.direction')}
+            value={state.direction}
+            placeholder={t('finance.invoices.allDirections')}
+            options={[{ value: 'out', label: t('finance.direction.out') }, { value: 'in', label: t('finance.direction.in') }]}
+            onChange={(value) => { setState({ direction: value as typeof state.direction }) }}
+          />
+        </FilterItem>
+      </FilterBar>
       {summary ? (
-        <div role="group" aria-label={t('finance.fx.realizedTitle')} className="rounded-control border border-line p-2">
+        <div role="group" aria-label={t('finance.fx.realizedTitle')} className="rounded-card border border-line bg-surface-2 p-3">
           <p className="text-xs text-muted">{t('finance.fx.realizedTotal', { currency: summary.base_currency })}</p>
           <p className="text-lg font-semibold tabular-nums"><Money value={summary.fx_realized_base} currency={summary.base_currency} /></p>
           <RealizedExcludedHint summary={summary} />

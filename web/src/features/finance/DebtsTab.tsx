@@ -11,6 +11,7 @@ import { Button } from '../../shared/ui/Button'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Money } from '../../shared/ui/Money'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { Select } from '../../shared/ui/Select'
 import { exportDebts } from './api'
 import { DebtsExcludedHint } from './DebtsExcludedHint'
@@ -104,12 +105,16 @@ export function DebtsTab() {
 
   return (
     <div className="space-y-3">
-      <Select
-        label={t('finance.debts.kind')}
-        value={state.kind}
-        options={[{ value: 'clients', label: t('finance.debts.clients') }, { value: 'carriers', label: t('finance.debts.carriers') }]}
-        onChange={(value) => { setState({ kind: value as typeof state.kind }) }}
-      />
+      <FilterBar>
+        <FilterItem>
+          <Select
+            label={t('finance.debts.kind')}
+            value={state.kind}
+            options={[{ value: 'clients', label: t('finance.debts.clients') }, { value: 'carriers', label: t('finance.debts.carriers') }]}
+            onChange={(value) => { setState({ kind: value as typeof state.kind }) }}
+          />
+        </FilterItem>
+      </FilterBar>
       {base ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted">

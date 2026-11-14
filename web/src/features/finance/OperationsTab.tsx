@@ -10,6 +10,7 @@ import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
+import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { DateTime } from '../../shared/ui/DateTime'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { ExcludedHint } from '../../shared/ui/ExcludedHint'
@@ -72,16 +73,23 @@ export function OperationsTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-wrap items-end gap-2">
+      <FilterBar
+        actions={
+          <Button onClick={() => { void download() }} disabled={exporting}>
+            {exporting ? t('finance.operations.exporting') : t('finance.operations.export')}
+          </Button>
+        }
+      >
+        <FilterItem>
           <DateInput label={t('finance.operations.from')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
+        </FilterItem>
+        <FilterItem>
           <DateInput label={t('finance.operations.to')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
+        </FilterItem>
+        <FilterItem>
           <TextField label={t('finance.operations.categoryFilter')} value={state.category} onChange={(e) => { setState({ category: e.target.value }) }} />
-        </div>
-        <Button onClick={() => { void download() }} disabled={exporting}>
-          {exporting ? t('finance.operations.exporting') : t('finance.operations.export')}
-        </Button>
-      </div>
+        </FilterItem>
+      </FilterBar>
       {exportError ? <Banner kind="error">{exportError}</Banner> : null}
       {summary ? (
         <div role="group" aria-label={t('finance.operations.summary')} className="grid gap-2 sm:grid-cols-3">
@@ -90,12 +98,12 @@ export function OperationsTab() {
             ['expenseKzt', summary.expense_kzt],
             ['diffKzt', summary.diff_kzt],
           ] as const).map(([key, value]) => (
-            <div key={key} className="rounded-control border border-line p-2">
+            <div key={key} className="rounded-card border border-line bg-surface-2 p-3">
               <p className="text-xs text-muted">{t(`finance.operations.${key}`, { currency: summary.currency ?? 'KZT' })}</p>
               <p className="text-lg font-semibold tabular-nums">{money(value)}</p>
             </div>
           ))}
-          <ul className="text-xs text-slate-600 sm:col-span-3 dark:text-slate-300" aria-label={t('finance.operations.byCurrency')}>
+          <ul className="text-xs text-muted sm:col-span-3" aria-label={t('finance.operations.byCurrency')}>
             {Object.entries(summary.by_currency).map(([code, v]) => (
               <li key={code}>{code}: {money(v.income)} / {money(v.expense)} → {money(v.diff)}</li>
             ))}

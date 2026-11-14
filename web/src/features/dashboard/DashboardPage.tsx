@@ -75,14 +75,13 @@ export function DashboardPage() {
       ) : null}
       {data ? (
         <>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
             <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
             <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />
             <Stat label={t('dashboard.carriers')} value={String(data.carriers)} to="/carriers" />
-          </div>
           {data.month_profit !== null ? (
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="contents">
               <Stat label={t('dashboard.monthProfit')} value={money(data.month_profit, data.currency ?? undefined)} />
               <Stat
                 label={t('dashboard.monthMargin')}
@@ -91,7 +90,7 @@ export function DashboardPage() {
             </div>
           ) : null}
           {canFinance && finance ? (
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="contents">
               {finance.base_currency ? (
                 <>
                   <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_base, finance.base_currency)} to="/finance?tab=debts" />
@@ -109,6 +108,7 @@ export function DashboardPage() {
               )}
             </div>
           ) : null}
+          </div>
           {canFinance && finance?.base_currency ? <DebtsExcludedHint excluded={finance.debts_excluded} /> : null}
           {canFinance && finance?.fx_realized_partial ? <p className="text-xs text-amber-700 dark:text-amber-300">{t('finance.fx.realizedPartial')}</p> : null}
           {data.month_profit !== null && data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
