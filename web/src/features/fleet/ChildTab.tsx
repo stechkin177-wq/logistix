@@ -68,7 +68,7 @@ export function ChildTab({ path, vehicle, fields, summary, emptyText, header, re
           <li key={row.id} className="flex items-center justify-between gap-2 py-1.5">
             <span>{summary(row)}</span>
             {readOnly ? null : (
-              <WriteButton permission="fleet.delete" variant="ghost" aria-label={t('fleet.deleteRecord')} onClick={() => { remove.mutate(row.id) }}>
+              <WriteButton permission="fleet.delete" variant="dangerGhost" aria-label={t('fleet.deleteRecord')} onClick={() => { remove.mutate(row.id) }}>
                 {t('common.delete')}
               </WriteButton>
             )}

@@ -144,7 +144,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
       </Block>
 
       <section aria-label={t('orders.blockExtra')} className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
-        <Button variant="ghost" aria-expanded={showExtra} onClick={() => { setExtraOpen(!showExtra) }}>
+        <Button variant="ghost" className="h-auto! min-h-9 max-w-full whitespace-normal! py-1.5 text-left" aria-expanded={showExtra} onClick={() => { setExtraOpen(!showExtra) }}>
           {showExtra ? '▾' : '▸'} {t('orders.blockExtra')}
         </Button>
         {showExtra ? (

@@ -90,7 +90,7 @@ function TypeDrawer({ subject, type, onClose }: { subject: DocSubject; type: Doc
             <li key={e.key || String(i)} className="flex items-end gap-2">
               <TextField label={t('doctypes.extraLabel')} value={e.label} onChange={(ev) => { setExtra((s) => s.map((x, j) => (j === i ? { ...x, label: ev.target.value } : x))) }} />
               <Checkbox label={t('doctypes.requiredField')} checked={e.required} onChange={(ev) => { setExtra((s) => s.map((x, j) => (j === i ? { ...x, required: ev.target.checked } : x))) }} />
-              <Button variant="ghost" onClick={() => { setExtra((s) => s.filter((_, j) => j !== i)) }}>{t('common.delete')}</Button>
+              <Button variant="dangerGhost" onClick={() => { setExtra((s) => s.filter((_, j) => j !== i)) }}>{t('common.delete')}</Button>
             </li>
           ))}
         </ul>

@@ -33,7 +33,7 @@ export function MailPage() {
     { key: 'subject', header: t('mail.subject'), cell: (m) => (
       <span>
         <span className="font-medium">{m.subject}</span>
-        {m.error ? <span className="block text-xs text-red-700 dark:text-red-300">{m.error}</span> : null}
+        {m.error ? <span title={m.error} className="block max-w-xs truncate text-xs text-red-700 dark:text-red-300 md:max-w-md">{m.error}</span> : null}
       </span>
     ) },
     { key: 'to', header: t('mail.to'), cell: (m) => m.to.join(', ') },

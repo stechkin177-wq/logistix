@@ -14,6 +14,8 @@ export interface Column<T> {
   sortKey?: string
   className?: string
   align?: 'left' | 'right'
+  /** Подпись значения в карточке на телефоне; пустая строка скрывает подпись. */
+  mobileLabel?: string
 }
 
 interface Props<T> {
@@ -61,8 +63,8 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-      <div className="thin-scroll overflow-x-auto">
+    <div className="relative overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      <div className="thin-scroll scroll-shadow-x overflow-x-auto">
         {/* на узком экране строки превращаются в карточки: подпись колонки берётся из data-label */}
         <table className="w-full border-collapse text-left text-sm max-md:block md:min-w-max" aria-busy={loading ? true : undefined}>
           <caption className="sr-only">{caption}</caption>
@@ -113,7 +115,7 @@ export function DataTable<T>({
                   {columns.map((column) => (
                     <td
                       key={column.key}
-                      data-label={column.headerLabel ?? (typeof column.header === 'string' ? column.header : '')}
+                      data-label={column.mobileLabel ?? column.headerLabel ?? (typeof column.header === 'string' ? column.header : '')}
                       className={`px-3 py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                     >
                       {column.cell(row)}

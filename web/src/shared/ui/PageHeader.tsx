@@ -35,9 +35,9 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
             <Icon className="size-[18px]" aria-hidden="true" />
           </span>
         ) : null}
-        <div className="min-w-0">
+        <div className="min-w-[10rem] max-w-full flex-1">
           <h1 className="truncate text-lg font-semibold leading-tight text-ink">{title}</h1>
-          {subtitle ? <p className="truncate text-xs text-muted">{subtitle}</p> : null}
+          {subtitle ? <p className="line-clamp-2 text-xs text-muted">{subtitle}</p> : null}
         </div>
         {meta ? <div className="flex flex-wrap items-center gap-2">{meta}</div> : null}
       </div>

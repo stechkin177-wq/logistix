@@ -14,7 +14,7 @@ export interface TabDef {
 /** Вкладки (role=tablist); панель рендерит вызывающий. Выбранная вкладка хранится снаружи (URL). */
 export function Tabs({ tabs, active, onChange, label }: { tabs: TabDef[]; active: string; onChange: (key: string) => void; label: string }): ReactNode {
   return (
-    <div role="tablist" aria-label={label} className="thin-scroll flex gap-1 overflow-x-auto border-b border-line">
+    <div role="tablist" aria-label={label} className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto border-b border-line [--scroll-bg:var(--ui-canvas)]">
       {tabs.map((tab) => {
         const Icon = tab.icon
         return (

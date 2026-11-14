@@ -72,6 +72,7 @@ export function ConsignmentsPage() {
       key: 'select',
       header: <Checkbox label={t('consignments.selectPage')} hideLabel checked={allOnPage} disabled={(rows ?? []).length === 0} onChange={togglePage} />,
       headerLabel: t('consignments.selectPage'),
+      mobileLabel: '',
       cell: (c) => <Checkbox label={t('consignments.selectNamed', { name: c.name })} hideLabel checked={selected.has(c.id)} onChange={() => { toggle(c) }} />,
     },
     { key: 'name', header: t('consignments.cargo'), cell: (c) => <span className="font-medium">{c.name}</span> },

@@ -104,3 +104,12 @@ main {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Тень на краю прокручиваемого блока показывает, что справа (или слева) есть ещё содержимое */
+.scroll-shadow-x {
+  background:
+    linear-gradient(to right, var(--scroll-bg, var(--ui-surface)) 30%, transparent) left center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--scroll-bg, var(--ui-surface)) 30%, transparent) right center / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(15 23 42 / 0.16), transparent) left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(15 23 42 / 0.16), transparent) right center / 0.75rem 100% no-repeat scroll;
+}

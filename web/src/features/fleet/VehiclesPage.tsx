@@ -82,7 +82,7 @@ export function VehiclesPage() {
       align: 'right',
       cell: (v) =>
         hasPermission('fleet.delete') ? (
-          <WriteButton permission="fleet.delete" variant="ghost" aria-label={t('fleet.deleteNamed', { name: v.plate })} onClick={() => { setToDelete(v) }}>
+          <WriteButton permission="fleet.delete" variant="dangerGhost" aria-label={t('fleet.deleteNamed', { name: v.plate })} onClick={() => { setToDelete(v) }}>
             {t('common.delete')}
           </WriteButton>
         ) : null,

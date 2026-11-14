@@ -83,7 +83,7 @@ export function LabelsPage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <WriteButton permission="labels.manage" variant="ghost" icon={Pencil} aria-label={t('labels.editNamed', { name: l.name })} onClick={() => { setEditor({ label: l, nonce: Date.now() }) }} />
-                  <WriteButton permission="labels.manage" variant="ghost" icon={Trash2} aria-label={t('labels.deleteNamed', { name: l.name })} onClick={() => { setToDelete(l) }} />
+                  <WriteButton permission="labels.manage" variant="dangerGhost" icon={Trash2} aria-label={t('labels.deleteNamed', { name: l.name })} onClick={() => { setToDelete(l) }} />
                 </span>
               </li>
             ))}

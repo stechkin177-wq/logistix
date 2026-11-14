@@ -140,7 +140,7 @@ function StopsEditor({ value, onChange, prefix, errors }: Props & { value: Consi
                     <Select label={t('orders.stopKind')} value={stop.kind} options={kindOptions} error={err(`${base}kind`)} onChange={(v) => { patchStop(index, { kind: v as StopKind }) }} />
                     <Button variant="ghost" aria-label={t('orders.moveStopUp', { n: index + 1 })} disabled={index === 0} onClick={() => { move(index, -1) }}>↑</Button>
                     <Button variant="ghost" aria-label={t('orders.moveStopDown', { n: index + 1 })} disabled={index === stops.length - 1} onClick={() => { move(index, 1) }}>↓</Button>
-                    <Button variant="ghost" aria-label={t('orders.removeStopN', { n: index + 1 })} disabled={stops.length <= 2} onClick={() => { setStops(stops.filter((_, i) => i !== index)) }}>
+                    <Button variant="dangerGhost" aria-label={t('orders.removeStopN', { n: index + 1 })} disabled={stops.length <= 2} onClick={() => { setStops(stops.filter((_, i) => i !== index)) }}>
                       {t('common.delete')}
                     </Button>
                   </div>

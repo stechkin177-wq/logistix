@@ -56,7 +56,7 @@ export function RolesPage() {
       align: 'right',
       cell: (r) =>
         !r.is_system && hasPermission('roles.delete') ? (
-          <WriteButton permission="roles.delete" variant="ghost" aria-label={t('roles.deleteNamed', { name: r.name })} onClick={() => { setToDelete(r) }}>
+          <WriteButton permission="roles.delete" variant="dangerGhost" aria-label={t('roles.deleteNamed', { name: r.name })} onClick={() => { setToDelete(r) }}>
             {t('common.delete')}
           </WriteButton>
         ) : null,

@@ -97,7 +97,7 @@ export function OrderDetailPage() {
             <ComposeMailButton context={{ order: order.id, client: order.client }} />
             <IssueDocumentButton kind="order_request" source={{ order: order.id }} label={t('documents.kind.order_request')} />
             {hasPermission('orders.delete') ? (
-              <WriteButton variant="danger" permission="orders.delete" icon={Trash2} onClick={() => { setConfirmDelete(true) }}>
+              <WriteButton variant="dangerSoft" permission="orders.delete" icon={Trash2} onClick={() => { setConfirmDelete(true) }}>
                 {t('orders.delete')}
               </WriteButton>
             ) : null}

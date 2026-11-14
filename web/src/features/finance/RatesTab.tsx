@@ -110,7 +110,7 @@ export function RatesTab() {
             {t('common.edit')}
           </WriteButton>
           {hasPermission('finance.delete') ? (
-            <WriteButton variant="ghost" permission="finance.delete" aria-label={t('finance.rates.deleteNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setToDelete(r) }}>
+            <WriteButton variant="dangerGhost" permission="finance.delete" aria-label={t('finance.rates.deleteNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setToDelete(r) }}>
               {t('common.delete')}
             </WriteButton>
           ) : null}

@@ -153,7 +153,7 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
           <>
             {kind === 'clients' ? <ComposeMailButton context={{ client: party.id, to: party.contacts.find((c) => c.email)?.email }} /> : null}
             {hasPermission(`${kind}.delete`) ? (
-              <WriteButton permission={`${kind}.delete`} variant="danger" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('common.delete')}</WriteButton>
+              <WriteButton permission={`${kind}.delete`} variant="dangerSoft" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('common.delete')}</WriteButton>
             ) : null}
             <WriteButton permission={permission} variant="primary" type="submit" form={FORM_ID} disabled={api.isPending}>
               {api.isPending ? t('common.saving') : t('common.save')}

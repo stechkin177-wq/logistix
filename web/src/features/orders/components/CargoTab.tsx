@@ -105,7 +105,7 @@ export function CargoTab({ order }: { order: Order }) {
                     </Button>
                   ) : null}
                   {hasPermission('consignments.delete') ? (
-                    <WriteButton variant="ghost" permission="consignments.delete" aria-label={t('orders.deleteCargoNamed', { name: c.name })} onClick={() => { setToDelete(c) }}>
+                    <WriteButton variant="dangerGhost" permission="consignments.delete" aria-label={t('orders.deleteCargoNamed', { name: c.name })} onClick={() => { setToDelete(c) }}>
                       {t('common.delete')}
                     </WriteButton>
                   ) : null}

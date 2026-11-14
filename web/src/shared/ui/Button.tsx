@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react'
 import type { LucideIcon } from './icons'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerSoft' | 'dangerGhost'
 
 const VARIANTS: Record<Variant, string> = {
   primary:
@@ -10,6 +10,11 @@ const VARIANTS: Record<Variant, string> = {
     'border border-line bg-surface text-ink shadow-sm hover:bg-surface-2 dark:hover:bg-surface-2',
   ghost: 'text-ink hover:bg-surface-2',
   danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700',
+  /** Удаление в шапке страницы: заметно, но не конкурирует с главной кнопкой. */
+  dangerSoft:
+    'border border-red-300 bg-surface text-red-700 shadow-sm hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950',
+  /** Удаление в строке таблицы. */
+  dangerGhost: 'text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950',
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

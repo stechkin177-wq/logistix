@@ -90,7 +90,7 @@ export function DepartmentsPage() {
       align: 'right',
       cell: (d) =>
         hasPermission('users.delete') ? (
-          <WriteButton permission="users.delete" variant="ghost" aria-label={t('departments.deleteNamed', { name: d.name })} onClick={() => { setToDelete(d) }}>
+          <WriteButton permission="users.delete" variant="dangerGhost" aria-label={t('departments.deleteNamed', { name: d.name })} onClick={() => { setToDelete(d) }}>
             {t('common.delete')}
           </WriteButton>
         ) : null,

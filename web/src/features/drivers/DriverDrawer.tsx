@@ -138,7 +138,7 @@ function DocumentsBlock({ driver }: { driver: Driver }) {
         {driver.documents.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-2 py-1.5">
             <span>{documentSummary(d, t(`drivers.docKind.${d.kind}`), t('drivers.until'))}</span>
-            <WriteButton permission="drivers.update" variant="ghost" aria-label={t('drivers.deleteDocument')} onClick={() => { remove.mutate(d.id) }}>
+            <WriteButton permission="drivers.update" variant="dangerGhost" aria-label={t('drivers.deleteDocument')} onClick={() => { remove.mutate(d.id) }}>
               {t('common.delete')}
             </WriteButton>
           </li>

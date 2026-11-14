@@ -118,7 +118,7 @@ function Content({ trip }: { trip: Trip }) {
             <IssueDocumentButton kind="cmr" source={{ trip: trip.id }} label={t('documents.kind.cmr')} />
             <ComposeMailButton context={{ trip: trip.id }} />
             {hasPermission('trips.delete') ? (
-              <WriteButton permission="trips.delete" variant="danger" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('trips.delete')}</WriteButton>
+              <WriteButton permission="trips.delete" variant="dangerSoft" icon={Trash2} onClick={() => { setDeleting(true) }}>{t('trips.delete')}</WriteButton>
             ) : null}
           </>
         }

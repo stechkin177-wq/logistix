@@ -138,7 +138,7 @@ export function ContractsPanel({ owner }: { owner: PartyOwner }) {
                 {c.is_expired ? <Badge tone="warning">{t('contracts.expired')}</Badge> : null}
                 {c.source === 'imported' ? <Badge>{t('contracts.imported')}</Badge> : null}
                 <WriteButton permission={permission} variant="ghost" icon={Pencil} aria-label={t('contracts.editNamed', { number: c.number })} onClick={() => { setEditor({ contract: c, nonce: Date.now() }) }} />
-                <WriteButton permission={permission} variant="ghost" icon={Trash2} aria-label={t('contracts.deleteNamed', { number: c.number })} onClick={() => { setToDelete(c) }} />
+                <WriteButton permission={permission} variant="dangerGhost" icon={Trash2} aria-label={t('contracts.deleteNamed', { number: c.number })} onClick={() => { setToDelete(c) }} />
               </span>
             </li>
           ))}

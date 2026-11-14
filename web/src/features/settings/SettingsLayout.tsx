@@ -23,7 +23,7 @@ export function SettingsLayout() {
     <div className="grid items-start gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
       <nav
         aria-label={t('nav.settingsLabel')}
-        className="thin-scroll flex gap-1 overflow-x-auto rounded-card border border-line bg-surface p-2 shadow-card md:sticky md:top-0 md:flex-col md:overflow-visible"
+        className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto rounded-card border border-line bg-surface p-2 shadow-card md:sticky md:top-0 md:flex-col md:overflow-visible"
       >
         {SECTIONS.map((section) => {
           const items = allowed.filter((item) => item.section === section.key)

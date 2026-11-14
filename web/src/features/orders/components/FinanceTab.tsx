@@ -142,7 +142,7 @@ export function FinanceTab({ order }: { order: Order }) {
               {t('common.edit')}
             </WriteButton>
             {hasPermission('finance.delete') ? (
-              <WriteButton variant="ghost" permission="finance.delete" aria-label={t('orders.deleteLineNamed', { name: l.title })} onClick={() => { setToDelete(l) }}>
+              <WriteButton variant="dangerGhost" permission="finance.delete" aria-label={t('orders.deleteLineNamed', { name: l.title })} onClick={() => { setToDelete(l) }}>
                 {t('common.delete')}
               </WriteButton>
             ) : null}

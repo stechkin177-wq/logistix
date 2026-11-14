@@ -118,7 +118,7 @@ export function BankAccountsPanel({ owner }: { owner: PartyOwner }) {
               <span className="flex items-center gap-2">
                 {a.is_default ? <Badge tone="success">{t('accounts.default')}</Badge> : null}
                 <WriteButton permission={permission} variant="ghost" icon={Pencil} aria-label={t('accounts.editNamed', { iban: a.iban || a.bank })} onClick={() => { setEditor({ account: a, nonce: Date.now() }) }} />
-                <WriteButton permission={permission} variant="ghost" icon={Trash2} aria-label={t('accounts.deleteNamed', { iban: a.iban || a.bank })} onClick={() => { setToDelete(a) }} />
+                <WriteButton permission={permission} variant="dangerGhost" icon={Trash2} aria-label={t('accounts.deleteNamed', { iban: a.iban || a.bank })} onClick={() => { setToDelete(a) }} />
               </span>
             </li>
           ))}

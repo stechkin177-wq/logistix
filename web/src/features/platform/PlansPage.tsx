@@ -88,7 +88,7 @@ export function PlansPage() {
           {p.status === 'active' && !p.is_default ? <Button variant="ghost" onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
           {p.status !== 'archived' && !p.is_default ? <Button variant="ghost" onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
           {p.status === 'archived' ? <Button variant="ghost" onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
-          {!p.is_default ? <Button variant="ghost" aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
+          {!p.is_default ? <Button variant="dangerGhost" aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
         </span>
       ),
     },

@@ -65,7 +65,7 @@ export function DriversPage() {
       align: 'right',
       cell: (d) =>
         hasPermission('drivers.delete') ? (
-          <WriteButton permission="drivers.delete" variant="ghost" aria-label={t('drivers.deleteNamed', { name: d.full_name })} onClick={() => { setToDelete(d) }}>
+          <WriteButton permission="drivers.delete" variant="dangerGhost" aria-label={t('drivers.deleteNamed', { name: d.full_name })} onClick={() => { setToDelete(d) }}>
             {t('common.delete')}
           </WriteButton>
         ) : null,

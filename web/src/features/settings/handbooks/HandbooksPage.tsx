@@ -177,7 +177,7 @@ function ValuesPanel({ code }: { code: string }) {
             {t(v.is_active ? 'handbooks.deactivate' : 'handbooks.activate')}
           </WriteButton>
           {hasPermission('handbooks.delete') && !v.is_system ? (
-            <WriteButton permission="handbooks.delete" variant="ghost" aria-label={t('handbooks.deleteNamed', { name: v.name })} onClick={() => { setToDelete(v) }}>
+            <WriteButton permission="handbooks.delete" variant="dangerGhost" aria-label={t('handbooks.deleteNamed', { name: v.name })} onClick={() => { setToDelete(v) }}>
               {t('common.delete')}
             </WriteButton>
           ) : null}

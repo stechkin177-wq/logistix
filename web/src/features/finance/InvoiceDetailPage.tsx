@@ -85,7 +85,7 @@ function PaymentsBlock({ invoice }: { invoice: Invoice }) {
       align: 'right',
       cell: (p) =>
         hasPermission('finance.delete') ? (
-          <WriteButton variant="ghost" permission="finance.delete" aria-label={t('finance.payments.deleteNamed', { date: p.date })} onClick={() => { setToDelete(p) }}>
+          <WriteButton variant="dangerGhost" permission="finance.delete" aria-label={t('finance.payments.deleteNamed', { date: p.date })} onClick={() => { setToDelete(p) }}>
             {t('common.delete')}
           </WriteButton>
         ) : null,
