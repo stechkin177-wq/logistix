@@ -177,12 +177,10 @@ class TemplateViewSet(AuditedMixin, viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_permissions(self):
-        code = (
-            "mail.view"
-            if self.request.method in ("GET", "HEAD", "OPTIONS")
-            else "mail.manage_account"
-        )
-        return [permission_required(code)()]
+        if self.action == "render":  # подстановка в окне письма нужна тем, кто пишет письма
+            return [permission_required("mail.send")()]
+        safe = self.request.method in ("GET", "HEAD", "OPTIONS")
+        return [permission_required("mail.view" if safe else "mail.manage_account")()]
 
     def get_queryset(self):
         return MailTemplate.objects.all()

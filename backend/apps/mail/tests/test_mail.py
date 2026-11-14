@@ -176,6 +176,16 @@ def test_permissions(company):
         assert who.get(MESSAGES).status_code == 403
         assert who.get("/api/mail/status/").status_code == 403
     assert manager.get("/api/mail/status/").json()["configured"] is True
+    # менеджер подставляет шаблон в письмо, но создавать и менять шаблоны не может
+    tpl = admin.post(
+        TEMPLATES, {"name": "Т", "subject": "{{ company_name }}", "body": "-"}, format="json"
+    ).json()
+    assert manager.get(TEMPLATES).status_code == 200
+    assert manager.post(f"{TEMPLATES}{tpl['id']}/render/", {}, format="json").status_code == 200
+    assert manager.post(TEMPLATES, {"name": "Т2"}, format="json").status_code == 403
+    assert manager.delete(f"{TEMPLATES}{tpl['id']}/").status_code == 403
+    for who in (observer, accountant):
+        assert who.post(f"{TEMPLATES}{tpl['id']}/render/", {}, format="json").status_code == 403
 
 
 def test_isolation_between_companies(make_company):
