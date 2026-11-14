@@ -75,13 +75,15 @@ export function DashboardPage() {
       ) : null}
       {data ? (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="space-y-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
             <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
             <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
             <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />
             <Stat label={t('dashboard.carriers')} value={String(data.carriers)} to="/carriers" />
+          </div>
           {data.month_profit !== null ? (
-            <div className="contents">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
               <Stat label={t('dashboard.monthProfit')} value={money(data.month_profit, data.currency ?? undefined)} />
               <Stat
                 label={t('dashboard.monthMargin')}
@@ -90,7 +92,7 @@ export function DashboardPage() {
             </div>
           ) : null}
           {canFinance && finance ? (
-            <div className="contents">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
               {finance.base_currency ? (
                 <>
                   <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_base, finance.base_currency)} to="/finance?tab=debts" />

@@ -7,6 +7,7 @@ import { selectableValues, useHandbookValues } from '../../../shared/handbooks/u
 import { useUsers, userLabel } from '../../../shared/users/useUsers'
 import { Button } from '../../../shared/ui/Button'
 import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
+import { Checkbox } from '../../../shared/ui/Checkbox'
 import { Combobox } from '../../../shared/ui/Combobox'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { Select } from '../../../shared/ui/Select'
@@ -174,16 +175,14 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
                 <legend className="mb-1 text-xs font-medium text-muted">{t('orders.extraManagers')}</legend>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {activeUsers.map((u) => (
-                    <label key={u.user_id} className="flex items-center gap-1 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={form.extra_managers.includes(u.user_id)}
-                        onChange={(event) => {
-                          set('extra_managers', event.target.checked ? [...form.extra_managers, u.user_id] : form.extra_managers.filter((id) => id !== u.user_id))
-                        }}
-                      />
-                      {userLabel(u)}
-                    </label>
+                    <Checkbox
+                      key={u.user_id}
+                      label={userLabel(u)}
+                      checked={form.extra_managers.includes(u.user_id)}
+                      onChange={(event) => {
+                        set('extra_managers', event.target.checked ? [...form.extra_managers, u.user_id] : form.extra_managers.filter((id) => id !== u.user_id))
+                      }}
+                    />
                   ))}
                 </div>
                 {errors.extra_managers ? <p className="text-xs text-red-600">{errors.extra_managers}</p> : null}

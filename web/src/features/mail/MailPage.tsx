@@ -43,6 +43,7 @@ export function MailPage() {
         {m.order ? <Link className="text-brand-700 hover:underline dark:text-brand-300" to={`/orders/${String(m.order)}`}>{m.order_number}</Link> : null}
         {m.trip ? <Link className="text-brand-700 hover:underline dark:text-brand-300" to={`/trips/${String(m.trip)}`}>{m.trip_number}</Link> : null}
         {m.client ? <Link className="text-brand-700 hover:underline dark:text-brand-300" to={`/clients/${String(m.client)}`}>{m.client_name}</Link> : null}
+        {!m.order && !m.trip && !m.client ? <span className="text-muted">—</span> : null}
       </span>
     ) },
     { key: 'state', header: t('mail.state'), cell: (m) => <Badge tone={STATE_TONE[m.state]}>{t(`mail.states.${m.state}`)}</Badge> },

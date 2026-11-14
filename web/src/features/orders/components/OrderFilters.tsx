@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/ui/Button'
+import { Checkbox } from '../../../shared/ui/Checkbox'
 import { Combobox } from '../../../shared/ui/Combobox'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { FilterBar, FilterItem } from '../../../shared/ui/FilterBar'
@@ -62,16 +63,15 @@ export function OrderFilters({ value, onChange, actions }: Props) {
           <fieldset className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded-control border border-line bg-surface p-2 shadow-pop">
             <legend className="sr-only">{t('orders.statusFilter')}</legend>
             {statuses.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 py-0.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={value.status.includes(s.id)}
-                  onChange={(event) => {
-                    onChange({ status: event.target.checked ? [...value.status, s.id] : value.status.filter((id) => id !== s.id) })
-                  }}
-                />
-                {s.name}
-              </label>
+              <Checkbox
+                key={s.id}
+                className="flex"
+                label={s.name}
+                checked={value.status.includes(s.id)}
+                onChange={(event) => {
+                  onChange({ status: event.target.checked ? [...value.status, s.id] : value.status.filter((id) => id !== s.id) })
+                }}
+              />
             ))}
           </fieldset>
         </details>
@@ -100,10 +100,7 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       <FilterItem className="w-36"><DateInput label={t('orders.createdTo')} value={value.created_to} onChange={(v) => { onChange({ created_to: v }) }} /></FilterItem>
       <FilterItem className="w-36"><DateInput label={t('orders.completedFrom')} value={value.completed_from} onChange={(v) => { onChange({ completed_from: v }) }} /></FilterItem>
       <FilterItem className="w-36"><DateInput label={t('orders.completedTo')} value={value.completed_to} onChange={(v) => { onChange({ completed_to: v }) }} /></FilterItem>
-      <label className="flex h-9 items-center gap-1.5 text-sm">
-        <input type="checkbox" checked={value.unassigned} onChange={(event) => { onChange({ unassigned: event.target.checked }) }} />
-        {t('orders.unassigned')}
-      </label>
+      <Checkbox className="h-9" label={t('orders.unassigned')} checked={value.unassigned} onChange={(event) => { onChange({ unassigned: event.target.checked }) }} />
         </>
       ) : null}
     </FilterBar>

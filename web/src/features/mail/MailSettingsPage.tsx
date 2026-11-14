@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { Dialog } from '../../shared/ui/Dialog'
 import { Pencil, Trash2, Mail } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
+import { Checkbox } from '../../shared/ui/Checkbox'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextArea, TextField } from '../../shared/ui/TextField'
@@ -48,10 +49,7 @@ function AccountForm({ account }: { account: MailAccount }) {
         />
         <TextField label={t('mail.fromEmail')} type="email" required value={form.from_email} onChange={(e) => { set('from_email', e.target.value) }} />
         <TextField label={t('mail.fromName')} value={form.from_name} onChange={(e) => { set('from_name', e.target.value) }} />
-        <label className="flex items-center gap-2 self-end pb-2 text-sm">
-          <input type="checkbox" checked={form.is_active} onChange={(e) => { set('is_active', e.target.checked) }} />
-          {t('mail.active')}
-        </label>
+        <Checkbox className="self-end" label={t('mail.active')} checked={form.is_active} onChange={(e) => { set('is_active', e.target.checked) }} />
         <div className="space-y-2 sm:col-span-2">
           {save.isError ? <Banner kind="error">{errorMessage(save.error, t)}</Banner> : null}
           {save.isSuccess ? <Banner kind="info">{t('mail.saved')}</Banner> : null}

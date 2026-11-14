@@ -89,7 +89,7 @@ export function TripsPage() {
     <div className="space-y-3">
       <PageHeader icon={Route} title={t('nav.trips')} />
       <FilterBar canReset={filtered} onReset={reset}>
-        <FilterItem className="w-48">
+        <FilterItem className="w-60">
           <TextField label={t('common.search')} type="search" placeholder={t('trips.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
         </FilterItem>
         <FilterItem>

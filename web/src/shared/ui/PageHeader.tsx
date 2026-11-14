@@ -50,7 +50,7 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
         </div>
         {meta ? <div className="flex flex-wrap items-center gap-2">{meta}</div> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
     </header>
   )
 }

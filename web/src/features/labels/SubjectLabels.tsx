@@ -87,7 +87,7 @@ export function SubjectLabels({ kind, id, labels }: { kind: LabelSubject; id: nu
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <LabelChips labels={labels} />
       {canEdit ? (
-        <Button variant="ghost" icon={Tag} className="h-7 px-2 text-xs" aria-label={labels && labels.length > 0 ? t('labels.editAria') : t('labels.addAria')} onClick={() => { setOpen(true) }}>
+        <Button variant="ghost" icon={Tag} className="h-7 border border-dashed border-line px-2 text-xs text-muted hover:text-ink" aria-label={labels && labels.length > 0 ? t('labels.editAria') : t('labels.addAria')} onClick={() => { setOpen(true) }}>
           {labels && labels.length > 0 ? t('labels.edit') : t('labels.add')}
         </Button>
       ) : null}
