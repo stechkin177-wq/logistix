@@ -52,8 +52,8 @@ export function InvoicesTab() {
     { key: 'order', header: t('finance.invoices.order'), cell: (i) => i.order?.number ?? i.trip?.number ?? '—' },
     { key: 'issue', header: t('finance.invoices.issueDate'), cell: (i) => (i.issue_date ? <DateTime value={i.issue_date} dateOnly /> : '—') },
     { key: 'due', header: t('finance.invoices.dueDate'), cell: (i) => (i.due_date ? <DateTime value={i.due_date} dateOnly /> : '—') },
-    { key: 'gross', header: t('finance.invoices.gross'), align: 'right', cell: (i) => <Money value={i.totals.gross} currency={i.currency.code} /> },
-    { key: 'balance', header: t('finance.invoices.balance'), align: 'right', cell: (i) => <Money value={i.balance} currency={i.currency.code} /> },
+    { key: 'gross', header: t('finance.invoices.gross'), align: 'right', cell: (i) => (i.status === 'draft' ? '—' : <Money value={i.totals.gross} currency={i.currency.code} />) },
+    { key: 'balance', header: t('finance.invoices.balance'), align: 'right', cell: (i) => (i.status === 'draft' ? '—' : <Money value={i.balance} currency={i.currency.code} />) },
     { key: 'status', header: t('finance.invoices.status'), cell: (i) => <StatusBadge status={i.display_status} /> },
   ]
 

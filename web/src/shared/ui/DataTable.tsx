@@ -32,11 +32,13 @@ interface Props<T> {
   ordering?: string
   onOrderingChange?: (ordering: string) => void
   caption: string
+  /** Таблица внутри Card: без собственной рамки, скругления и тени. */
+  bare?: boolean
 }
 
 /** Плотная таблица: горизонтальный скролл, состояния loading/error/empty, сортировка через ordering API. */
 export function DataTable<T>({
-  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption,
+  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false,
 }: Props<T>) {
   const { t } = useTranslation()
 
@@ -63,7 +65,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-card border border-line bg-surface shadow-card">
+    <div className={`relative overflow-hidden ${bare ? '' : 'rounded-card border border-line bg-surface shadow-card'}`}>
       <div className="thin-scroll scroll-shadow-x overflow-x-auto">
         {/* на узком экране строки превращаются в карточки: подпись колонки берётся из data-label */}
         <table className="w-full border-collapse text-left text-sm max-md:block md:min-w-max" aria-busy={loading ? true : undefined}>

@@ -23,6 +23,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import {
   useCancelInvoice, useDeleteInvoice, useDeletePayment, useInvoice, useInvoicePayments, useIssueInvoice, useSaveInvoice,
 } from './hooks'
+import { computeTotals, vatPercent } from './invoiceMath'
 import { OverrideDialog } from './OverrideDialog'
 import { PaymentDialog } from './PaymentDialog'
 import { StatusBadge, invoiceLabel } from './StatusBadge'
@@ -95,6 +96,7 @@ function PaymentsBlock({ invoice }: { invoice: Invoice }) {
     <Card aria-label={t('finance.invoices.payments')}>
       <CardHeader title={t('finance.invoices.payments')} />
       <DataTable
+        bare
         caption={t('finance.invoices.payments')}
         columns={columns}
         rows={payments.data?.results}
@@ -141,6 +143,8 @@ export function InvoiceDetailPage() {
   const code = invoice.currency.code
   const isDraft = invoice.status === 'draft'
   const isIssued = invoice.status === 'issued'
+  // у черновика итоги на сервере ещё не зафиксированы (пишутся при выставлении): считаем из позиций, как в форме
+  const totals = isDraft ? computeTotals(invoice.items.map((i) => i.amount_net), vatPercent(invoice.vat_rate.code) ?? 0) : invoice.totals
 
   const runIssue = (reason?: string) => {
     setError(undefined)
@@ -223,14 +227,18 @@ export function InvoiceDetailPage() {
 
       <Card aria-label={t('finance.invoices.items')}>
         <CardHeader title={t('finance.invoices.items')} />
-        <DataTable caption={t('finance.invoices.items')} columns={itemColumns} rows={invoice.items} rowKey={(i) => i.id} />
+        <DataTable bare caption={t('finance.invoices.items')} columns={itemColumns} rows={invoice.items} rowKey={(i) => i.id} />
         <CardBody className="space-y-3 border-t border-line">
         <dl className="ml-auto grid max-w-xs grid-cols-2 gap-x-3 gap-y-1 text-sm">
-          <dt>{t('finance.invoices.net')}</dt><dd className="text-right"><Money value={invoice.totals.net} currency={code} /></dd>
-          <dt>{t('finance.invoices.vat')}</dt><dd className="text-right"><Money value={invoice.totals.vat} currency={code} /></dd>
-          <dt className="font-semibold">{t('finance.invoices.gross')}</dt><dd className="text-right font-semibold"><Money value={invoice.totals.gross} currency={code} /></dd>
-          <dt>{t('finance.invoices.paid')}</dt><dd className="text-right"><Money value={invoice.paid} currency={code} /></dd>
-          <dt>{t('finance.invoices.balance')}</dt><dd className="text-right"><Money value={invoice.balance} currency={code} /></dd>
+          <dt>{t('finance.invoices.net')}</dt><dd className="text-right"><Money value={totals.net} currency={code} /></dd>
+          <dt>{t('finance.invoices.vat')}</dt><dd className="text-right"><Money value={totals.vat} currency={code} /></dd>
+          <dt className="font-semibold">{t('finance.invoices.gross')}</dt><dd className="text-right font-semibold"><Money value={totals.gross} currency={code} /></dd>
+          {isDraft ? null : (
+            <>
+              <dt>{t('finance.invoices.paid')}</dt><dd className="text-right"><Money value={invoice.paid} currency={code} /></dd>
+              <dt>{t('finance.invoices.balance')}</dt><dd className="text-right"><Money value={invoice.balance} currency={code} /></dd>
+            </>
+          )}
         </dl>
         {invoice.comment ? <p className="text-sm text-muted">{invoice.comment}</p> : null}
         </CardBody>

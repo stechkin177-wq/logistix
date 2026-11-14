@@ -32,6 +32,21 @@ describe('Счёт: карточка', () => {
     expect(screen.getAllByText(/960,00/).length).toBeGreaterThan(0)
   })
 
+  it('черновик: итоги считаются из позиций (на сервере они фиксируются при выставлении), оплат и остатка нет', async () => {
+    loggedIn([
+      invoiceRoute(makeInvoice({
+        status: 'draft', display_status: 'draft', number: '',
+        totals: { net: '0.00', vat: '0.00', gross: '0.00' }, paid: '0.00', balance: '0.00',
+      })),
+      paymentsRoute(),
+    ])
+    renderApp('/finance/invoices/1')
+    expect(await screen.findByText('Всего')).toBeInTheDocument()
+    expect(screen.getAllByText(/1\s?160,00/).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Оплачено')).not.toBeInTheDocument()
+    expect(screen.queryByText('Остаток')).not.toBeInTheDocument()
+  })
+
   it('оплата: сумма по умолчанию = остатку, больше остатка нельзя, успешная отправка', async () => {
     const m = loggedIn([
       invoiceRoute(makeInvoice({ balance: '1160.00' })),
