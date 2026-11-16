@@ -253,6 +253,27 @@
     }
   },
   "dashboard": {
+    "marginInline": "Маржа {{value}} %",
+    "periodConfigure": "Пайда кезеңін баптау",
+    "periodTitle": "Пайда кезеңі",
+    "periodFrom": "Бастап",
+    "periodTo": "Дейін",
+    "periodApply": "Қолдану",
+    "periodReset": "Ағымдағы айға қайту",
+    "periodPreset": {
+      "month": "Ағымдағы ай",
+      "prev_month": "Өткен ай",
+      "quarter": "Тоқсан",
+      "year": "Жыл",
+      "custom": "Өз кезеңім"
+    },
+    "profitLabel": {
+      "month": "Айдағы пайда",
+      "prev_month": "Өткен айдағы пайда",
+      "quarter": "Тоқсандағы пайда",
+      "year": "Жылдағы пайда",
+      "custom": "Кезеңдегі пайда"
+    },
     "activeOrders": "Белсенді тапсырыстар",
     "completedOrders": "Аяқталған тапсырыстар",
     "unassignedOrders": "Тасымалдаушысыз",

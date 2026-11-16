@@ -338,6 +338,37 @@ def test_month_profit_excludes_cancelled_deleted_and_before_accounting_start(adm
     assert s["month_profit"] == "0.00" and s["month_margin_pct"] is None
 
 
+def test_profit_period_is_configurable(admin_client, company):
+    order = make_order(company, client_rate=0)
+    add_line(company, order, income=1000, expense=400, on=date(2026, 10, 3))  # текущий месяц
+    add_line(company, order, income=500, expense=0, on=date(2026, 9, 20))  # прошлый месяц
+    add_line(company, order, income=300, expense=0, on=date(2026, 1, 5))  # раньше
+    base = admin_client.get(SUMMARY).json()
+    assert base["month_profit"] == "600.00"
+    assert base["profit_from"] == "2026-10-01" and base["profit_to"] == "2026-10-31"
+    q = admin_client.get(SUMMARY, {"profit_from": "2026-09-01", "profit_to": "2026-10-31"}).json()
+    assert q["month_profit"] == "1100.00" and q["month_margin_pct"] == "73.33"
+    assert q["profit_from"] == "2026-09-01" and q["profit_to"] == "2026-10-31"
+    # границы включительно: один день
+    one = admin_client.get(SUMMARY, {"profit_from": "2026-10-03", "profit_to": "2026-10-03"}).json()
+    assert one["month_profit"] == "600.00"
+    # остальные поля сводки от периода не зависят
+    assert q["month"] == base["month"] and q["active_orders"] == base["active_orders"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"profit_from": "2026-10-01"},
+        {"profit_from": "вчера", "profit_to": "2026-10-31"},
+        {"profit_from": "2026-10-31", "profit_to": "2026-10-01"},
+        {"profit_from": "2020-01-01", "profit_to": "2026-10-31"},
+    ],
+)
+def test_profit_period_invalid_is_400(admin_client, params):
+    assert admin_client.get(SUMMARY, params).status_code == 400
+
+
 def test_month_zero_revenue_margin_none_no_error(admin_client, company):
     order = make_order(company, client_rate=0)
     add_line(company, order, income=0, expense=300)

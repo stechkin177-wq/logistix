@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loggedIn, type MockRoutes } from '../../test/harness'
 import { ALL_PERMISSIONS } from '../../test/permissions'
@@ -54,7 +55,9 @@ describe('Дашборд', () => {
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByText(/^1\s234\s567,80\sKZT$/)).toBeInTheDocument()
     expect(screen.queryByText(/в другой валюте/)).not.toBeInTheDocument()
-    expect(screen.getByText('12,50 %')).toBeInTheDocument()
+    // маржа - мелким текстом внутри плитки прибыли, отдельной плитки нет
+    expect(screen.getByText(/Маржа 12,50 %/)).toBeInTheDocument()
+    expect(screen.queryByText('Маржа за месяц')).not.toBeInTheDocument()
     const bars = screen.getByRole('region', { name: 'Заказы по статусам' })
     expect(within(bars).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByRole('link', { name: /Без перевозчика/ })).toHaveAttribute('href', '/orders?unassigned=1')
@@ -66,8 +69,23 @@ describe('Дашборд', () => {
     expect(await screen.findByText('Данных пока нет')).toBeInTheDocument()
     const bars = screen.getByRole('region', { name: 'Заказы по статусам' })
     expect(within(bars).getAllByRole('listitem')).toHaveLength(3)
-    expect(screen.getByText('Маржа за месяц').nextSibling).toHaveTextContent('—')
+    expect(screen.queryByText(/Маржа/)).not.toBeInTheDocument()
     expect(screen.queryByText('NaN')).not.toBeInTheDocument()
+  })
+
+  it('период прибыли настраивается: выбор уходит в запрос и запоминается', async () => {
+    window.localStorage.removeItem('logistix.dashboard.profitPeriod')
+    const m = loggedIn([['GET', /^\/api\/dashboard\/summary\//, { body: SUMMARY }]])
+    renderApp('/')
+    expect(await screen.findByText('Прибыль за месяц')).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Настроить период прибыли' }))
+    await user.click(screen.getByRole('button', { name: 'Год' }))
+    expect(await screen.findByText('Прибыль за год')).toBeInTheDocument()
+    const last = m.calls.filter((c) => c.path.startsWith('/api/dashboard/summary/')).at(-1)
+    expect(last?.path).toMatch(/profit_from=\d{4}-01-01&profit_to=\d{4}-12-31/)
+    expect(JSON.parse(window.localStorage.getItem('logistix.dashboard.profitPeriod') ?? '{}')).toEqual({ preset: 'year' })
+    window.localStorage.removeItem('logistix.dashboard.profitPeriod')
   })
 
   it('без finance.view финансовых карточек нет', async () => {

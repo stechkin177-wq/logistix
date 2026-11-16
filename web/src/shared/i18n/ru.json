@@ -253,6 +253,27 @@
     }
   },
   "dashboard": {
+    "marginInline": "Маржа {{value}} %",
+    "periodConfigure": "Настроить период прибыли",
+    "periodTitle": "Период прибыли",
+    "periodFrom": "С",
+    "periodTo": "По",
+    "periodApply": "Применить",
+    "periodReset": "Вернуть текущий месяц",
+    "periodPreset": {
+      "month": "Текущий месяц",
+      "prev_month": "Прошлый месяц",
+      "quarter": "Квартал",
+      "year": "Год",
+      "custom": "Свой период"
+    },
+    "profitLabel": {
+      "month": "Прибыль за месяц",
+      "prev_month": "Прибыль за прошлый месяц",
+      "quarter": "Прибыль за квартал",
+      "year": "Прибыль за год",
+      "custom": "Прибыль за период"
+    },
     "activeOrders": "Активные заказы",
     "completedOrders": "Завершённые заказы",
     "unassignedOrders": "Без перевозчика",

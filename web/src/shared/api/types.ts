@@ -69,6 +69,9 @@ export interface ExcludedBase {
 
 export interface DashboardSummary {
   month: string
+  /** Период прибыли, включительно (null без finance.view). */
+  profit_from?: string | null
+  profit_to?: string | null
   active_orders: number
   completed_orders: number
   clients: number

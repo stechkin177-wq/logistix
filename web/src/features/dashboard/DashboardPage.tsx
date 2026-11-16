@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '../../shared/api/errors'
@@ -14,6 +15,8 @@ import { useSession } from '../../shared/auth/useSession'
 import { DebtsExcludedHint } from '../finance/DebtsExcludedHint'
 import { useFinanceSummary } from '../finance/hooks'
 import { useDashboardSummary } from './hooks'
+import { ProfitTile } from './ProfitTile'
+import { periodQuery, readPeriod, savePeriod, type ProfitPeriod } from './profitPeriod'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { LayoutDashboard } from '../../shared/ui/icons'
 
@@ -49,8 +52,10 @@ export function DashboardPage() {
   const { t } = useTranslation()
   const { money } = useFormat()
   const canCreate = useCanWrite('orders.create')
-  const query = useDashboardSummary()
-  const { hasPermission, hasModule } = useSession()
+  const { hasPermission, hasModule, session } = useSession()
+  const [period, setPeriodState] = useState<ProfitPeriod>(readPeriod)
+  const setPeriod = (next: ProfitPeriod) => { savePeriod(next); setPeriodState(next) }
+  const query = useDashboardSummary(true, periodQuery(period, session?.company.timezone ?? 'UTC') ?? undefined)
   const canFinance = hasPermission('finance.view') && hasModule('finance')
   const finance = useFinanceSummary(canFinance).data
   const data = query.data
@@ -75,25 +80,14 @@ export function DashboardPage() {
       ) : null}
       {data ? (
         <>
-          <div className="space-y-3">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
+          <div className="flex flex-wrap items-start gap-2">
             <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
             <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
             <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />
             <Stat label={t('dashboard.carriers')} value={String(data.carriers)} to="/carriers" />
-          </div>
-          {data.month_profit !== null ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
-              <Stat label={t('dashboard.monthProfit')} value={money(data.month_profit, data.currency ?? undefined)} />
-              <Stat
-                label={t('dashboard.monthMargin')}
-                value={data.month_margin_pct === null ? '—' : `${money(data.month_margin_pct)} %`}
-              />
-            </div>
-          ) : null}
-          {canFinance && finance ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
-              {finance.base_currency ? (
+            {data.month_profit !== null ? <ProfitTile data={data} period={period} onChange={setPeriod} /> : null}
+            {canFinance && finance ? (
+              finance.base_currency ? (
                 <>
                   <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_base, finance.base_currency)} to="/finance?tab=debts" />
                   <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_base, finance.base_currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
@@ -107,9 +101,8 @@ export function DashboardPage() {
                   <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
                   <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts&kind=carriers" />
                 </>
-              )}
-            </div>
-          ) : null}
+              )
+            ) : null}
           </div>
           {canFinance && finance?.base_currency ? <DebtsExcludedHint excluded={finance.debts_excluded} /> : null}
           {canFinance && finance?.fx_realized_partial ? <p className="text-xs text-amber-700 dark:text-amber-300">{t('finance.fx.realizedPartial')}</p> : null}

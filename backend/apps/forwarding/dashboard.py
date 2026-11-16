@@ -9,12 +9,16 @@
 валюте компании (settings.base_currency) по сохранённым снимкам курса; записи прежней базовой
 валюты и без курса не конвертируются задним числом, а перечисляются в excluded. Запросов к БД
 фиксированное число (не зависит от числа заказов).
+
+Период прибыли настраивается: ?profit_from=YYYY-MM-DD&profit_to=YYYY-MM-DD (границы включительно, не
+более 3 лет); без параметров - текущий месяц. В ответе profit_from/profit_to - фактический период.
 """
 
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 
 from django.db.models import Count, Exists, Q, Sum
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -45,25 +49,29 @@ def month_bounds(today):
     return first, nxt
 
 
-def _month_finance(company, today) -> dict:
-    """Прибыль месяца; engine == 'new' читает из Income / долей расходов (finance.reports_new)."""
+MAX_PROFIT_PERIOD_DAYS = 3 * 366
+
+
+def _month_finance(company, today, bounds=None) -> dict:
+    """Прибыль месяца (или выбранного периода bounds = [первый день, день после последнего));
+    engine == 'new' читает из Income / долей расходов (finance.reports_new)."""
     from apps.finance import reports_new
     from apps.finance.engine import use_new_engine
 
     if use_new_engine(company):
-        first, nxt = month_bounds(today)
+        first, nxt = bounds or month_bounds(today)
         new = reports_new.month_totals_new(company, first, nxt)
         return {
             k: new[k]
             for k in ("month_profit", "month_margin_pct", "currency", "excluded_orders", "excluded")
         }
-    return _month_finance_legacy(company, today)
+    return _month_finance_legacy(company, today, bounds)
 
 
-def _month_finance_legacy(company, today) -> dict:
+def _month_finance_legacy(company, today, bounds=None) -> dict:
     """Прибыль месяца только по заказам в базовой валюте; заказы в других валютах не
     суммируются (разные валюты нельзя складывать) и считаются в excluded_orders."""
-    first, nxt = month_bounds(today)
+    first, nxt = bounds or month_bounds(today)
     start = max(first, company.accounting_start) if company.accounting_start else first
     lines = OrderService.objects.filter(
         order__deleted_at__isnull=True, date__gte=start, date__lt=nxt
@@ -84,8 +92,10 @@ def _month_finance_legacy(company, today) -> dict:
     }
 
 
-def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
-    """Сводка компании (в её контексте). Деньги - Decimal; сериализует представление."""
+def dashboard_summary(company: Company, *, with_finance: bool, period=None) -> dict:
+    """Сводка компании (в её контексте). Деньги - Decimal; сериализует представление.
+
+    period - (первый день, последний день) прибыли включительно; по умолчанию текущий месяц."""
     zone = company_zone(company.pk)
     today = timezone.now().astimezone(zone).date()
     counts = dict(Order.objects.values_list("status_id").annotate(n=Count("pk")))
@@ -111,6 +121,8 @@ def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
             {"status_id": s.pk, "status": s.name, "count": counts.get(s.pk, 0)} for s in statuses
         ],
         "unassigned_orders": unassigned.count(),
+        "profit_from": None,
+        "profit_to": None,
         "month_profit": None,
         "month_margin_pct": None,
         "currency": None,
@@ -119,8 +131,29 @@ def dashboard_summary(company: Company, *, with_finance: bool) -> dict:
         "is_partial": False,
     }
     if with_finance:
-        result.update(_month_finance(company, today))
+        bounds = (period[0], period[1] + timedelta(days=1)) if period else month_bounds(today)
+        result.update(_month_finance(company, today, bounds))
+        result["profit_from"] = bounds[0].isoformat()
+        result["profit_to"] = (bounds[1] - timedelta(days=1)).isoformat()
     return result
+
+
+def parse_profit_period(params) -> tuple[date, date] | None:
+    """Период прибыли из query-параметров; ни одного параметра - None (текущий месяц)."""
+    raw_from, raw_to = params.get("profit_from"), params.get("profit_to")
+    if not raw_from and not raw_to:
+        return None
+    if not (raw_from and raw_to):
+        raise ValidationError({"profit_from": ["Укажите обе даты: profit_from и profit_to"]})
+    try:
+        first, last = date.fromisoformat(raw_from), date.fromisoformat(raw_to)
+    except ValueError:
+        raise ValidationError({"profit_from": ["Дата в формате ГГГГ-ММ-ДД"]}) from None
+    if first > last:
+        raise ValidationError({"profit_to": ["Конец периода раньше начала"]})
+    if (last - first).days > MAX_PROFIT_PERIOD_DAYS:
+        raise ValidationError({"profit_to": ["Период не может быть длиннее трёх лет"]})
+    return first, last
 
 
 class DashboardSummaryView(APIView):
@@ -130,7 +163,8 @@ class DashboardSummaryView(APIView):
     def get(self, request):
         membership = request.membership
         with_finance = "finance.view" in membership.role.permissions
-        data = dashboard_summary(membership.company, with_finance=with_finance)
+        period = parse_profit_period(request.query_params) if with_finance else None
+        data = dashboard_summary(membership.company, with_finance=with_finance, period=period)
         for key in ("month_profit", "month_margin_pct"):
             if data[key] is not None:
                 data[key] = _money(data[key])

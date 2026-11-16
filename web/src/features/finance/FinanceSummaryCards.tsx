@@ -17,9 +17,12 @@ export function FinanceSummaryCards() {
   const payable = base ? finance.payable_base : finance.payable_kzt
   return (
     <section aria-label={t('finance.summaryTitle')} className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-        <Stat label={t('dashboard.monthProfit')} value={money(finance.month_profit_kzt, finance.currency)} />
-        <Stat label={t('dashboard.monthMargin')} value={finance.month_margin_pct === null ? '—' : `${money(finance.month_margin_pct)} %`} />
+      <div className="flex flex-wrap items-start gap-2">
+        <Stat
+          label={t('dashboard.monthProfit')}
+          value={money(finance.month_profit_kzt, finance.currency)}
+          sub={finance.month_margin_pct === null ? undefined : t('dashboard.marginInline', { value: money(finance.month_margin_pct) })}
+        />
         <Stat label={t('finance.dashboard.clientDebt')} value={money(debt, cur)} to="/finance?tab=debts" />
         <Stat label={t('finance.dashboard.overdue')} value={money(overdue, cur)} to="/finance?tab=invoices&status=overdue&direction=out" />
         <Stat label={t('finance.dashboard.payable')} value={money(payable, cur)} to="/finance?tab=debts&kind=carriers" />

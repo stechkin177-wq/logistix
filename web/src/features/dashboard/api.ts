@@ -1,5 +1,5 @@
-import { api } from '../../shared/api/client'
+import { api, type Query } from '../../shared/api/client'
 import type { DashboardSummary } from '../../shared/api/types'
 
-export const fetchSummary = (signal?: AbortSignal) =>
-  api.get<DashboardSummary>('/dashboard/summary/', undefined, { signal })
+export const fetchSummary = (query?: Query, signal?: AbortSignal) =>
+  api.get<DashboardSummary>('/dashboard/summary/', query, { signal })
