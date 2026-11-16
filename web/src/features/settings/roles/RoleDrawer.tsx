@@ -7,6 +7,7 @@ import { useSession } from '../../../shared/auth/useSession'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
 import { Banner } from '../../../shared/ui/Banner'
+import { Trash2 } from '../../../shared/ui/icons'
 import { Button } from '../../../shared/ui/Button'
 import { Checkbox } from '../../../shared/ui/Checkbox'
 import { Drawer } from '../../../shared/ui/Drawer'
@@ -23,7 +24,7 @@ export interface Role {
 }
 
 /** Матрица прав: разделы x действия. Права, которых нет у вас самих, отключены (сервер проверяет это же правило). */
-export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () => void }) {
+export function RoleDrawer({ role, onClose, onDelete }: { role: Role | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const qc = useQueryClient()
@@ -72,6 +73,7 @@ export function RoleDrawer({ role, onClose }: { role: Role | null; onClose: () =
       busy={save.isPending}
       footer={
         <>
+          {role && !role.is_system && onDelete ? <WriteButton permission="roles.delete" variant="dangerSoft" icon={Trash2} className="mr-auto" onClick={onDelete}>{t('common.delete')}</WriteButton> : null}
           <Button onClick={onClose} disabled={save.isPending}>{readOnlyRole ? t('common.close') : t('common.cancel')}</Button>
           {readOnlyRole ? null : (
             <WriteButton permission={editing ? 'roles.update' : 'roles.create'} variant="primary" onClick={submit} disabled={save.isPending}>

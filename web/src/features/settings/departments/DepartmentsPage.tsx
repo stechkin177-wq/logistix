@@ -3,7 +3,6 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../../shared/api/client'
 import { errorMessage } from '../../../shared/api/errors'
-import { useSession } from '../../../shared/auth/useSession'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
 import { Button } from '../../../shared/ui/Button'
@@ -16,9 +15,9 @@ import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useDepartments, type Department } from './useDepartments'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Network } from '../../../shared/ui/icons'
+import { Network, Trash2 } from '../../../shared/ui/icons'
 
-function DepartmentDialog({ department, onClose }: { department: Department | null; onClose: () => void }) {
+function DepartmentDialog({ department, onClose, onDelete }: { department: Department | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [name, setName] = useState(department?.name ?? '')
@@ -48,6 +47,7 @@ function DepartmentDialog({ department, onClose }: { department: Department | nu
       busy={save.isPending}
       footer={
         <>
+          {department && onDelete ? <WriteButton permission="users.delete" variant="dangerSoft" icon={Trash2} className="mr-auto" onClick={onDelete}>{t('common.delete')}</WriteButton> : null}
           <Button onClick={onClose} disabled={save.isPending}>{t('common.cancel')}</Button>
           <WriteButton permission={permission} variant="primary" onClick={submit} disabled={save.isPending}>{t('common.save')}</WriteButton>
         </>
@@ -64,7 +64,6 @@ function DepartmentDialog({ department, onClose }: { department: Department | nu
 /** Отделы: список, создание/переименование, удаление (права раздела users). */
 export function DepartmentsPage() {
   const { t } = useTranslation()
-  const { hasPermission } = useSession()
   const list = useDepartments()
   const qc = useQueryClient()
   const [editor, setEditor] = useState<{ department: Department | null; nonce: number } | null>(null)
@@ -83,17 +82,6 @@ export function DepartmentsPage() {
           {d.name}
         </button>
       ),
-    },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (d) =>
-        hasPermission('users.delete') ? (
-          <WriteButton permission="users.delete" variant="dangerGhost" aria-label={t('departments.deleteNamed', { name: d.name })} onClick={() => { setToDelete(d) }}>
-            {t('common.delete')}
-          </WriteButton>
-        ) : null,
     },
   ]
 
@@ -117,7 +105,7 @@ export function DepartmentsPage() {
         onRetry={() => void list.refetch()}
         empty={<EmptyState title={t('departments.empty')} hint={t('departments.emptyHint')} />}
       />
-      {editor ? <DepartmentDialog key={editor.nonce} department={editor.department} onClose={() => { setEditor(null) }} /> : null}
+      {editor ? <DepartmentDialog key={editor.nonce} department={editor.department} onClose={() => { setEditor(null) }} onDelete={() => { setToDelete(editor.department); setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}
         danger

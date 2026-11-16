@@ -84,8 +84,12 @@ describe('Роли и права', () => {
   it('удаление своей роли с подтверждением; 409 «роль назначена» показывается', async () => {
     const m = loggedIn([['DELETE', '/api/roles/9/', { status: 409, body: { detail: 'Роль назначена сотрудникам, сначала переназначьте их' } }], ...base])
     renderApp('/settings/roles')
-    expect(screen.queryByRole('button', { name: 'Удалить роль Администратор' })).not.toBeInTheDocument()
-    await userEvent.click(await screen.findByRole('button', { name: 'Удалить роль Склад' }))
+    // удаление - в окне роли; у системной роли кнопки нет
+    await userEvent.click(await screen.findByRole('button', { name: 'Администратор' }))
+    expect(within(await screen.findByRole('dialog')).queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(await screen.findByRole('button', { name: 'Склад' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Удалить' }))
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Удалить' }))
     expect(await screen.findByText('Роль назначена сотрудникам, сначала переназначьте их')).toBeInTheDocument()
     expect(m.count('DELETE', '/api/roles/9/')).toBe(1)

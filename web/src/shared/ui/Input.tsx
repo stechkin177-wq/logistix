@@ -12,7 +12,7 @@ export function Input({ label, error, className = '', id, ...rest }: InputProps)
   const errorId = `${inputId}-error`
   return (
     <div className="space-y-1">
-      <label htmlFor={inputId} className="block text-xs font-medium text-muted">
+      <label htmlFor={inputId} className="block w-fit max-w-full text-xs font-medium text-muted">
         {label}
       </label>
       <input

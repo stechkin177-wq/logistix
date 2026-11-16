@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../../shared/api/client'
 import { errorMessage } from '../../../shared/api/errors'
-import { useSession } from '../../../shared/auth/useSession'
 import { Badge } from '../../../shared/ui/Badge'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { DataTable, type Column } from '../../../shared/ui/DataTable'
@@ -21,7 +20,6 @@ export function useRoles(enabled = true) {
 /** Роли и права: системные только для чтения, свои роли - с матрицей прав. */
 export function RolesPage() {
   const { t } = useTranslation()
-  const { hasPermission } = useSession()
   const roles = useRoles()
   const { users, allowed: usersAllowed } = useUsers()
   const qc = useQueryClient()
@@ -50,17 +48,6 @@ export function RolesPage() {
       align: 'right',
       cell: (r) => (usersAllowed ? users.filter((u) => u.role === r.id).length : '—'),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (r) =>
-        !r.is_system && hasPermission('roles.delete') ? (
-          <WriteButton permission="roles.delete" variant="dangerGhost" aria-label={t('roles.deleteNamed', { name: r.name })} onClick={() => { setToDelete(r) }}>
-            {t('common.delete')}
-          </WriteButton>
-        ) : null,
-    },
   ]
 
   return (
@@ -83,7 +70,7 @@ export function RolesPage() {
         onRetry={() => void roles.refetch()}
         empty={<EmptyState title={t('roles.empty')} />}
       />
-      {editor ? <RoleDrawer key={editor.nonce} role={editor.role} onClose={() => { setEditor(null) }} /> : null}
+      {editor ? <RoleDrawer key={editor.nonce} role={editor.role} onClose={() => { setEditor(null) }} onDelete={() => { setToDelete(editor.role); setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}
         danger

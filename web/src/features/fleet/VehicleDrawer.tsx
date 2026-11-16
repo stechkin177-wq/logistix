@@ -4,6 +4,7 @@ import { useCanWrite } from '../../shared/auth/useCanWrite'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../shared/forms/useFocusInvalid'
 import { Badge } from '../../shared/ui/Badge'
+import { Trash2 } from '../../shared/ui/icons'
 import { Button } from '../../shared/ui/Button'
 import { Checkbox } from '../../shared/ui/Checkbox'
 import { Drawer } from '../../shared/ui/Drawer'
@@ -81,7 +82,7 @@ function VehicleWarnings({ vehicle, onOpen }: { vehicle: Vehicle; onOpen: (tab: 
 }
 
 /** Единая карточка техники: предупреждения сверху, основное, документы, страхование, обслуживание, заправки, пробег. */
-export function VehicleDrawer({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () => void }) {
+export function VehicleDrawer({ vehicle, onClose, onDelete }: { vehicle: Vehicle | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState<TabKey>('main')
   const reminders = useReminders().data?.results ?? []
@@ -96,14 +97,14 @@ export function VehicleDrawer({ vehicle, onClose }: { vehicle: Vehicle | null; o
       {vehicle ? <VehicleWarnings vehicle={vehicle} onOpen={setTab} /> : null}
       <Tabs label={t('fleet.tabsLabel')} tabs={tabs} active={tab} onChange={(k) => { setTab(k as TabKey) }} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-3">
-        {tab === 'main' ? <MainTab vehicle={vehicle} onClose={onClose} /> : null}
+        {tab === 'main' ? <MainTab vehicle={vehicle} onClose={onClose} onDelete={onDelete} /> : null}
         {vehicle && tab !== 'main' ? <VehicleTab tab={tab} vehicle={vehicle} /> : null}
       </div>
     </Drawer>
   )
 }
 
-function MainTab({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () => void }) {
+function MainTab({ vehicle, onClose, onDelete }: { vehicle: Vehicle | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
   const [form, setForm] = useState(() => initial(vehicle))
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
@@ -156,6 +157,7 @@ function MainTab({ vehicle, onClose }: { vehicle: Vehicle | null; onClose: () =>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {vehicle ? <IssueDocumentButton kind="letter" module="fleet" source={{ subject_type: 'fleet.vehicle', subject_id: vehicle.id }} label={t('fleet.issueCertificate')} /> : <span />}
         <div className="flex gap-2">
+          {vehicle && onDelete ? <WriteButton permission="fleet.delete" variant="dangerSoft" icon={Trash2} onClick={onDelete}>{t('common.delete')}</WriteButton> : null}
           <Button onClick={onClose} disabled={save.isPending}>{t('common.cancel')}</Button>
           <WriteButton permission={permission} variant="primary" onClick={submit} disabled={save.isPending || !canSave}>
             {save.isPending ? t('common.saving') : t('common.save')}

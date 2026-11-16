@@ -217,6 +217,10 @@ class Payment(TenantModel, SoftDeleteModel):
             models.CheckConstraint(condition=Q(amount__gt=0), name="payment_amount_gt_0"),
         ]
 
+    def __str__(self):
+        # читаемое название для корзины и журналов (без него Django даёт «Payment object (1)»)
+        return f"Оплата {self.amount} от {self.date:%d.%m.%Y}"
+
     def restore_blocker(self) -> str | None:
         """Восстановить оплату нельзя, если счёт не выставлен или не хватает остатка."""
         invoice = Invoice.all_objects.filter(pk=self.invoice_id).first()

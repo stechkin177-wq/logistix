@@ -70,7 +70,7 @@ export function ConsignmentsPage() {
   const columns: Column<Consignment>[] = [
     {
       key: 'select',
-      header: <Checkbox label={t('consignments.selectPage')} hideLabel checked={allOnPage} disabled={(rows ?? []).length === 0} onChange={togglePage} />,
+      header: <Checkbox className="min-h-0!" label={t('consignments.selectPage')} hideLabel checked={allOnPage} disabled={(rows ?? []).length === 0} onChange={togglePage} />,
       headerLabel: t('consignments.selectPage'),
       mobileLabel: '',
       cell: (c) => <Checkbox label={t('consignments.selectNamed', { name: c.name })} hideLabel checked={selected.has(c.id)} onChange={() => { toggle(c) }} />,

@@ -28,10 +28,10 @@ export function FormField({ label, error, hint, required, hideLabel, className =
     <div className={`space-y-1 ${className}`}>
       <label
         htmlFor={id}
-        className={hideLabel ? 'sr-only' : 'block text-xs font-medium text-muted'}
+        className={hideLabel ? 'sr-only' : 'block w-fit max-w-full text-xs font-medium text-muted'}
       >
         {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
+        {required ? <span aria-hidden="true" className="font-semibold text-red-600 dark:text-red-400"> *</span> : null}
       </label>
       {children({
         id,

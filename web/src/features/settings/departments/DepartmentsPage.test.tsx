@@ -28,7 +28,9 @@ describe('Отделы', () => {
     await userEvent.type(within(dialog).getByLabelText(/^Название/), 'Склад')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => { expect(m.calls.filter((c) => c.method === 'POST').at(-1)?.body).toEqual({ name: 'Склад' }) })
-    await userEvent.click(await screen.findByRole('button', { name: 'Удалить отдел Продажи' }))
+    // удаление - в окне отдела (клик по названию)
+    await userEvent.click(await screen.findByRole('button', { name: 'Продажи' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Удалить' }))
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Удалить' }))
     expect(await screen.findByText('В отделе есть сотрудники')).toBeInTheDocument()
   })
@@ -37,7 +39,8 @@ describe('Отделы', () => {
     loggedIn([['GET', '/api/departments/', { body: [{ id: 4, name: 'Продажи' }] }]], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'users.delete') } })
     renderApp('/settings/departments')
     await screen.findByText('Продажи')
-    expect(screen.queryByRole('button', { name: /Удалить отдел/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Продажи' }))
+    expect(within(await screen.findByRole('dialog')).queryByRole('button', { name: 'Удалить' })).toBeDisabled()
   })
 
   it('без users.view даёт 403', async () => {

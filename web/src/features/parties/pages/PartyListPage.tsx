@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
-import { useSession } from '../../../shared/auth/useSession'
 import { errorMessage } from '../../../shared/api/errors'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { usePageFallback } from '../../../shared/hooks/usePageFallback'
@@ -46,7 +45,6 @@ const SCHEMAS = { clients: schemaFor('clients'), carriers: schemaFor('carriers')
 /** Список клиентов или перевозчиков: поиск, фильтры, сортировка, страницы, правка в Drawer, мягкое удаление. */
 export function PartyListPage({ kind }: { kind: PartyKind }) {
   const { t } = useTranslation()
-  const { hasPermission } = useSession()
   const navigate = useNavigate()
   const [state, setState] = useUrlState(SCHEMAS[kind], { pageKey: 'page' })
   const list = usePartyList(kind, state)
@@ -97,22 +95,6 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
           { key: 'rating', header: t('parties.rating'), sortKey: 'rating', align: 'right', cell: (p: Party) => (p as Carrier).rating ?? '—' },
         ] satisfies Column<Party>[])),
     { key: 'created', header: t('parties.created'), sortKey: 'created_at', cell: (p) => <DateTime value={p.created_at} dateOnly /> },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (p) =>
-        hasPermission(`${kind}.delete`) ? (
-          <WriteButton
-            permission={`${kind}.delete`}
-            variant="ghost"
-            aria-label={t('parties.deleteNamed', { name: p.name })}
-            onClick={() => { setToDelete(p) }}
-          >
-            {t('common.delete')}
-          </WriteButton>
-        ) : null,
-    },
   ]
 
   const confirmDelete = () => {

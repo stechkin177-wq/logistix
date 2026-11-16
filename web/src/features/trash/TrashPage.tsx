@@ -16,7 +16,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Trash2 } from '../../shared/ui/icons'
 
-export const TRASH_CODES = ['clients', 'carriers', 'orders', 'consignments', 'trips'] as const
+export const TRASH_CODES = ['clients', 'carriers', 'orders', 'consignments', 'trips', 'vehicles', 'drivers', 'payments'] as const
 
 interface TrashEntry {
   code: string

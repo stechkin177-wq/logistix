@@ -90,7 +90,7 @@ export function DataTable<T>({
                     key={column.key}
                     scope="col"
                     aria-sort={sorted}
-                    className={`${fit ? 'px-2.5' : 'px-3'} py-2.5 align-bottom font-semibold [overflow-wrap:normal] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                    className={`${fit ? 'px-2.5' : 'px-3'} h-10 py-2.5 align-middle font-semibold [overflow-wrap:normal] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                   >
                     {column.sortKey !== undefined && onOrderingChange ? (
                       <button

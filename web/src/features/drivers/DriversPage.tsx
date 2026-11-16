@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../shared/api/errors'
-import { useSession } from '../../shared/auth/useSession'
 import { usePageFallback } from '../../shared/hooks/usePageFallback'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Badge } from '../../shared/ui/Badge'
@@ -31,7 +30,6 @@ const SCHEMA = {
 /** Водители: список с поиском и статусом, карточка в панели справа. */
 export function DriversPage() {
   const { t } = useTranslation()
-  const { hasPermission } = useSession()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
   const list = useDriverList(state)
   usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
@@ -58,17 +56,6 @@ export function DriversPage() {
       key: 'status',
       header: t('common.status'),
       cell: (d) => <Badge tone={d.status === 'active' ? 'success' : 'neutral'}>{t(`drivers.status.${d.status}`)}</Badge>,
-    },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (d) =>
-        hasPermission('drivers.delete') ? (
-          <WriteButton permission="drivers.delete" variant="dangerGhost" aria-label={t('drivers.deleteNamed', { name: d.full_name })} onClick={() => { setToDelete(d) }}>
-            {t('common.delete')}
-          </WriteButton>
-        ) : null,
     },
   ]
 
@@ -125,7 +112,7 @@ export function DriversPage() {
         onPage={(page) => { setState({ page }) }}
         onPageSize={(pageSize) => { setState({ pageSize }) }}
       />
-      {editor ? <DriverDrawer key={editor.nonce} driver={editor.driver} onClose={() => { setEditor(null) }} /> : null}
+      {editor ? <DriverDrawer key={editor.nonce} driver={editor.driver} onClose={() => { setEditor(null) }} onDelete={() => { setToDelete(editor.driver); setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}
         danger

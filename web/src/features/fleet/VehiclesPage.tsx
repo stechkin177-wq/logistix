@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../shared/api/errors'
-import { useSession } from '../../shared/auth/useSession'
 import { usePageFallback } from '../../shared/hooks/usePageFallback'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Badge } from '../../shared/ui/Badge'
@@ -32,7 +31,6 @@ const SCHEMA = {
 /** Автопарк: список техники, предупреждения (ТО, документы, страховки) и единая карточка в панели. */
 export function VehiclesPage() {
   const { t } = useTranslation()
-  const { hasPermission } = useSession()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
   const list = useVehicleList(state)
   usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
@@ -75,17 +73,6 @@ export function VehiclesPage() {
           </span>
         )
       },
-    },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (v) =>
-        hasPermission('fleet.delete') ? (
-          <WriteButton permission="fleet.delete" variant="dangerGhost" aria-label={t('fleet.deleteNamed', { name: v.plate })} onClick={() => { setToDelete(v) }}>
-            {t('common.delete')}
-          </WriteButton>
-        ) : null,
     },
   ]
 
@@ -172,7 +159,7 @@ export function VehiclesPage() {
         onPage={(page) => { setState({ page }) }}
         onPageSize={(pageSize) => { setState({ pageSize }) }}
       />
-      {editor ? <VehicleDrawer key={editor.nonce} vehicle={editor.vehicle} onClose={() => { setEditor(null) }} /> : null}
+      {editor ? <VehicleDrawer key={editor.nonce} vehicle={editor.vehicle} onClose={() => { setEditor(null) }} onDelete={() => { setToDelete(editor.vehicle); setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}
         danger

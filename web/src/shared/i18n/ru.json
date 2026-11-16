@@ -385,7 +385,7 @@
     "carrierAssigned": "Назначен",
     "noCarrier": "Без перевозчика",
     "unassigned": "Без перевозчика",
-    "searchPlaceholder": "Номер, клиент, груз",
+    "searchPlaceholder": "Номер, клиент или груз",
     "statusFilter": "Статусы",
     "statusOf": "Статус заказа {{number}}",
     "loadingFrom": "Погрузка с",
@@ -585,7 +585,7 @@
     "vehicleDriver": "Машина / водитель",
     "orders": "Заказы",
     "consolidatedShort": "сборный",
-    "searchPlaceholder": "Номер, перевозчик, груз",
+    "searchPlaceholder": "Номер, перевозчик или груз",
     "onlyConsolidated": "Только сборные",
     "orderFilter": "Заказ #{{id}}",
     "empty": "Рейсов пока нет",
@@ -642,7 +642,10 @@
       "carriers": "Перевозчик",
       "orders": "Заказ",
       "consignments": "Груз",
-      "trips": "Рейс"
+      "trips": "Рейс",
+      "vehicles": "Техника",
+      "drivers": "Водитель",
+      "payments": "Оплата"
     },
     "restored": "Восстановлено: {{label}}",
     "type": "Тип",
@@ -657,7 +660,7 @@
     "tabsLabel": "Разделы финансов",
     "tabs": {
       "invoices": "Счета",
-      "payments": "Оплаты",
+      "payments": "Платежи",
       "operations": "Операции",
       "debts": "Долги",
       "rates": "Курсы",

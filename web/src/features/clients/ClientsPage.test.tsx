@@ -137,19 +137,11 @@ describe('Клиенты', () => {
     expect(screen.queryByRole('button', { name: /Удалить/ })).not.toBeInTheDocument()
   })
 
-  it('удаление: подтверждение и DELETE', async () => {
-    const m = loggedIn([
-      ['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }],
-      typesRoute,
-      ['DELETE', '/api/clients/7/', { status: 204 }],
-    ])
+  it('в строке списка кнопки удаления нет: клиент удаляется из своей карточки', async () => {
+    loggedIn([['GET', /^\/api\/clients\/\?/, { body: page([CLIENT]) }], typesRoute])
     renderApp('/clients')
-    await userEvent.click(await screen.findByRole('button', { name: 'Удалить: ТОО Ромашка' }))
-    const dialog = await screen.findByRole('alertdialog')
-    expect(m.calls.some((c) => c.method === 'DELETE')).toBe(false)
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Удалить' }))
-    await waitFor(() => { expect(m.calls.some((c) => c.method === 'DELETE')).toBe(true) })
-    await waitFor(() => { expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument() })
+    await screen.findByText('ТОО Ромашка')
+    expect(screen.queryByRole('button', { name: /Удалить/ })).not.toBeInTheDocument()
   })
 
   it('режим только чтения отключает запись', async () => {
@@ -159,7 +151,6 @@ describe('Клиенты', () => {
     renderApp('/clients')
     await screen.findByText('ТОО Ромашка')
     expect(screen.getAllByRole('button', { name: 'Новый клиент' })[0]).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Удалить: ТОО Ромашка' })).toBeDisabled()
   })
 
   it('без права clients.view открывается страница 403', async () => {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useCanWrite } from '../../shared/auth/useCanWrite'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../shared/forms/useFocusInvalid'
+import { Trash2 } from '../../shared/ui/icons'
 import { Button } from '../../shared/ui/Button'
 import { DateInput } from '../../shared/ui/DateInput'
 import { Drawer } from '../../shared/ui/Drawer'
@@ -42,7 +43,7 @@ const initial = (d: Driver | null): FormState => ({
 const KNOWN = /^(full_name|phone|iin|license_number|license_categories|license_expires|status|notes)$/
 
 /** Карточка водителя: основное, документы водителя и справка (через общую систему документов). */
-export function DriverDrawer({ driver, onClose }: { driver: Driver | null; onClose: () => void }) {
+export function DriverDrawer({ driver, onClose, onDelete }: { driver: Driver | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
   const [form, setForm] = useState(() => initial(driver))
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
@@ -83,6 +84,7 @@ export function DriverDrawer({ driver, onClose }: { driver: Driver | null; onClo
       busy={save.isPending}
       footer={
         <>
+          {driver && onDelete ? <WriteButton permission="drivers.delete" variant="dangerSoft" icon={Trash2} className="mr-auto" onClick={onDelete}>{t('common.delete')}</WriteButton> : null}
           <Button onClick={onClose} disabled={save.isPending}>{t('common.cancel')}</Button>
           <WriteButton permission={permission} variant="primary" onClick={submit} disabled={save.isPending || !canSave}>
             {save.isPending ? t('common.saving') : t('common.save')}
