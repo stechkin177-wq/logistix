@@ -90,7 +90,7 @@ export function TrashPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Trash2} title={t('nav.trash')} />
+      <PageHeader icon={Trash2} title={t('nav.trash')} hint="trash" />
       <FilterBar canReset={state.code !== ''} onReset={() => { setState({ code: '' }) }}>
         <FilterItem className="w-52">
           <Select

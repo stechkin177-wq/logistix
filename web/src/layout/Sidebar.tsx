@@ -20,7 +20,7 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   const isSettingsHub = item.path === undefined && item.key === 'settings'
   const to = isSettingsHub ? '/settings' : item.path
   if (to === undefined) return null
-  const hubActive = isSettingsHub && pathname.startsWith('/settings')
+  const hubActive = isSettingsHub && (pathname === '/settings' || (item.children ?? []).some((c) => c.section === 'data' && c.path !== undefined && pathname.startsWith(c.path)))
   // «Данные и документы» - раскрывающийся список под «Настройки»; сам открывается, когда в нём работаем
   const dataItems = isSettingsHub ? (item.children ?? []).filter((c) => c.section === 'data') : []
   const inData = dataItems.some((c) => c.path !== undefined && pathname.startsWith(c.path))
@@ -48,12 +48,9 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
             <ChevronDown className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
           {expanded ? (
-            <>
-              <p className="ml-[1.375rem] mt-1 pl-2 text-[10px] font-semibold uppercase tracking-wide text-muted">{t('nav.sectionData')}</p>
-              <ul className="mb-1 ml-[1.375rem] mt-0.5 space-y-0.5 border-l border-line pl-2">
-                {dataItems.map((c) => <NavEntry key={c.key} item={c} child />)}
-              </ul>
-            </>
+            <ul className="mb-1 ml-[1.375rem] mt-0.5 space-y-0.5 border-l border-line pl-2">
+              {dataItems.map((c) => <NavEntry key={c.key} item={c} child />)}
+            </ul>
           ) : null}
         </>
       ) : null}

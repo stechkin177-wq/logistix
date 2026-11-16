@@ -108,7 +108,7 @@ export function ConsignmentsPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Boxes} title={t('nav.consignments')}
+      <PageHeader icon={Boxes} title={t('nav.consignments')} hint="consignments"
         actions={
           <>
             <div className="flex items-center gap-2">

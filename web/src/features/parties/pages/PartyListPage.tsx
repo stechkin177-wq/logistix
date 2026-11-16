@@ -23,7 +23,7 @@ import { useDeleteParty, usePartyList } from '../hooks'
 import type { Carrier, Client, Party, PartyKind } from '../types'
 import { LabelChips } from '../../labels/LabelChip'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Building2, Truck } from '../../../shared/ui/icons'
+import { Building2, Truck, Plus } from '../../../shared/ui/icons'
 
 const ORDERINGS = {
   clients: ['name', '-name', 'created_at', '-created_at'],
@@ -109,7 +109,7 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
       <PageHeader icon={(kind === 'clients' ? Building2 : Truck)} title={t(`nav.${kind}`)}
         actions={
           <>
-            <WriteButton permission={`${kind}.create`} variant="primary" onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
+            <WriteButton permission={`${kind}.create`} variant="primary" icon={Plus} onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
               {t(`parties.${kind}.new`)}
             </WriteButton>
           </>

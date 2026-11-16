@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { matchPath, useLocation } from 'react-router'
 import { useSession } from '../shared/auth/useSession'
-import { ChevronRight } from '../shared/ui/icons'
+import { ChevronRight, UserRound } from '../shared/ui/icons'
 import { ThemeToggle } from '../shared/ui/ThemeToggle'
 import { LanguageSwitch } from '../shared/ui/LanguageSwitch'
 import { flattenNav, visibleNav, type NavItem } from './nav'
@@ -29,7 +29,9 @@ export function TopBar() {
   const items = session ? visibleNav(session) : []
   const section = currentSection(pathname, items)
   const parent = section ? items.find((i) => i.children?.some((c) => c.key === section.key)) : undefined
-  const Icon = (parent ?? section)?.icon
+  // организационные и финансовые страницы настроек - это «Профиль»
+  const inProfile = section?.section === 'organization' || section?.section === 'finance'
+  const Icon = inProfile ? UserRound : (parent ?? section)?.icon
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
       {section ? (
@@ -37,7 +39,7 @@ export function TopBar() {
           {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
           {parent ? (
             <>
-              <span className="truncate">{t(parent.labelKey)}</span>
+              <span className="truncate">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
               <ChevronRight className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
             </>
           ) : null}

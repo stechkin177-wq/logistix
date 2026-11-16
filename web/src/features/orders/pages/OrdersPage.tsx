@@ -67,7 +67,7 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Package} title={t('nav.orders')}
+      <PageHeader icon={Package} title={t('nav.orders')} hint="orders"
         actions={
           <>
             <div className="flex flex-wrap items-center gap-2">

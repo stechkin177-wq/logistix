@@ -15,7 +15,7 @@ import { TextField } from '../../../shared/ui/TextField'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useDepartments, type Department } from './useDepartments'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Network, Trash2 } from '../../../shared/ui/icons'
+import { Network, Trash2, Plus } from '../../../shared/ui/icons'
 
 function DepartmentDialog({ department, onClose, onDelete }: { department: Department | null; onClose: () => void; onDelete?: () => void }) {
   const { t } = useTranslation()
@@ -87,10 +87,10 @@ export function DepartmentsPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Network} title={t('nav.departments')}
+      <PageHeader icon={Network} title={t('nav.departments')} hint="departments"
         actions={
           <>
-            <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ department: null, nonce: Date.now() }) }}>{t('departments.new')}</WriteButton>
+            <WriteButton permission="users.create" variant="primary" icon={Plus} onClick={() => { setEditor({ department: null, nonce: Date.now() }) }}>{t('departments.new')}</WriteButton>
           </>
         }
       />

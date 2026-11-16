@@ -149,6 +149,7 @@ async function failWith(response: Response): Promise<never> {
   const error = buildApiError(response.status, await readBody(response))
   if (error.code === 'subscription_blocked') emitApiEvent('blocked')
   if (error.code === 'subscription_readonly') emitApiEvent('readonly')
+  if (error.code === 'limit_exceeded') emitApiEvent('limit')
   throw error
 }
 

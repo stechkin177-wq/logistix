@@ -14,7 +14,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { useArchiveDocumentType, useDocumentTypes, useSaveDocumentType } from './hooks'
 import { STD_FIELDS, type DocSubject, type DocumentType, type ExtraField, type StdField } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { FileCog } from '../../shared/ui/icons'
+import { FileCog, Plus } from '../../shared/ui/icons'
 
 const ACCESS: Record<DocSubject, { module: string; section: string }> = {
   tractor: { module: 'fleet', section: 'fleet' },
@@ -118,7 +118,7 @@ function SubjectTab({ subject }: { subject: DocSubject }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Checkbox label={t('doctypes.showArchived')} checked={showArchived} onChange={(e) => { setShowArchived(e.target.checked) }} />
-        <WriteButton permission={permission} variant="primary" onClick={() => { setEditor({ type: null, nonce: Date.now() }) }}>{t('doctypes.new')}</WriteButton>
+        <WriteButton permission={permission} variant="primary" icon={Plus} onClick={() => { setEditor({ type: null, nonce: Date.now() }) }}>{t('doctypes.new')}</WriteButton>
       </div>
       <FormBanner message={error} />
       {list.data && list.data.length === 0 ? <EmptyState title={t('doctypes.empty')} /> : null}

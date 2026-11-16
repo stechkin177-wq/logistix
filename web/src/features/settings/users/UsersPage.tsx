@@ -10,7 +10,7 @@ import { userLabel, useUsersQuery, type CompanyUser } from '../../../shared/user
 import { useDepartments } from '../departments/useDepartments'
 import { MemberDrawer } from './MemberDrawer'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Users } from '../../../shared/ui/icons'
+import { Users, Plus } from '../../../shared/ui/icons'
 
 /** Сотрудники компании: создание/присоединение, роль, отдел, активность (удаления нет). */
 export function UsersPage() {
@@ -41,10 +41,10 @@ export function UsersPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Users} title={t('nav.users')}
+      <PageHeader icon={Users} title={t('nav.users')} hint="users"
         actions={
           <>
-            <WriteButton permission="users.create" variant="primary" onClick={() => { setEditor({ member: null, nonce: Date.now() }) }}>{t('users.new')}</WriteButton>
+            <WriteButton permission="users.create" variant="primary" icon={Plus} onClick={() => { setEditor({ member: null, nonce: Date.now() }) }}>{t('users.new')}</WriteButton>
           </>
         }
       />

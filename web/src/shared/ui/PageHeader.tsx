@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useBranding } from '../branding/useBranding'
 import { createPortal } from 'react-dom'
-import { HeaderSlotContext } from './headerBleed'
+import { HeaderSlotContext, HintSlotContext } from './headerBleed'
+import { PageHint } from './PageHint'
 import { ArrowLeft, type LucideIcon } from './icons'
 
 interface Props {
@@ -16,13 +17,16 @@ interface Props {
   meta?: ReactNode
   /** Кнопки справа. */
   actions?: ReactNode
+  /** Ключ пояснения (hints.<ключ>.title/text): показывается первой строкой под шапкой. */
+  hint?: string
 }
 
 /** Единая шапка страницы: [← назад] [иконка] Название [статус] ........ [действия]. Единственный h1 страницы. */
-export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }: Props) {
+export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions, hint }: Props) {
   const { t } = useTranslation()
   const { app_name: appName } = useBranding()
   const slot = useContext(HeaderSlotContext)
+  const hintSlot = useContext(HintSlotContext)
   // заголовок вкладки браузера повторяет название раздела: вкладки и история различимы
   const text = typeof title === 'string' ? title : null
   useEffect(() => {
@@ -57,6 +61,12 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
       {actions ? <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">{actions}</div> : null}
     </header>
   )
-  if (slot === undefined) return header
-  return slot ? createPortal(header, slot) : null
+  const hintNode = hint ? <PageHint hint={hint} /> : null
+  if (slot === undefined) return <>{header}{hintNode}</>
+  return (
+    <>
+      {slot ? createPortal(header, slot) : null}
+      {hintNode && hintSlot ? createPortal(hintNode, hintSlot) : null}
+    </>
+  )
 }

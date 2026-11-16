@@ -16,6 +16,7 @@ import { FieldsDialog } from './FieldsDialog'
 import { useCreateIncome, useIncomeAction, useIncomes } from './ledgerHooks'
 import { IncomeStatusBadge } from './LedgerBadges'
 import type { IncomeRow, LedgerFilters } from './ledgerTypes'
+import { Plus } from '../../shared/ui/icons'
 
 const SCHEMA = {
   status: codecs.string(''),
@@ -87,7 +88,7 @@ export function IncomesTab() {
           <DateInput label={t('finance.operations.from')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
           <DateInput label={t('finance.operations.to')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
         </div>
-        <WriteButton variant="primary" permission="finance.create" onClick={() => { setDialog({ kind: 'create' }) }}>{t('finance.ledger.newService')}</WriteButton>
+        <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setDialog({ kind: 'create' }) }}>{t('finance.ledger.newService')}</WriteButton>
       </div>
       {action.isError ? <p role="alert" className="text-sm text-red-600">{errorMessage(action.error, t)}</p> : null}
       <DataTable

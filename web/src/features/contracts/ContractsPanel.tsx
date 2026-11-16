@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { DateInput } from '../../shared/ui/DateInput'
 import { Dialog } from '../../shared/ui/Dialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
-import { FileText, Pencil, Trash2 } from '../../shared/ui/icons'
+import { FileText, Pencil, Trash2, Plus } from '../../shared/ui/icons'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextArea, TextField } from '../../shared/ui/TextField'
@@ -117,7 +117,7 @@ export function ContractsPanel({ owner }: { owner: PartyOwner }) {
       <CardHeader
         title={t('contracts.title')}
         hint={t('contracts.hint')}
-        actions={<WriteButton permission={permission} variant="primary" onClick={() => { setEditor({ contract: null, nonce: Date.now() }) }}>{t('contracts.add')}</WriteButton>}
+        actions={<WriteButton permission={permission} variant="primary" icon={Plus} onClick={() => { setEditor({ contract: null, nonce: Date.now() }) }}>{t('contracts.add')}</WriteButton>}
       />
       {list.isPending ? <div className="p-4"><Spinner label={t('common.loading')} /></div> : null}
       {list.isError ? <div className="p-4"><Banner kind="error">{errorMessage(list.error, t)}</Banner></div> : null}

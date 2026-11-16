@@ -10,6 +10,6 @@ export {
   LayoutGrid, Link2, ListChecks, Lock, LogOut, Mail, MapPin, Menu, MessageSquare, Network, Package, Paperclip,
   Moon, Pencil, Percent, Phone, Plus, Printer, ReceiptText, Repeat, RotateCcw, Route, Rows3, Save, Scale, Search, Send,
   Settings, Shield, ShieldCheck, SlidersHorizontal, Sun, Tag, Trash2, TrendingDown, TrendingUp, TriangleAlert, Truck,
-  UserRound, Users, Wallet, Wrench, X,
+  Upload, UserRound, Users, Wallet, Wrench, X,
 } from 'lucide-react'
 export type { LucideIcon } from 'lucide-react'

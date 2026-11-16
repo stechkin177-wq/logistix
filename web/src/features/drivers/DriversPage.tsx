@@ -17,7 +17,7 @@ import { DriverDrawer } from './DriverDrawer'
 import { useDeleteDriver, useDriverList } from './hooks'
 import { DRIVER_STATUSES, type Driver } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { UserRound } from '../../shared/ui/icons'
+import { UserRound, Plus } from '../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -61,10 +61,10 @@ export function DriversPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={UserRound} title={t('nav.drivers')}
+      <PageHeader icon={UserRound} title={t('nav.drivers')} hint="drivers"
         actions={
           <>
-            <WriteButton permission="drivers.create" variant="primary" onClick={() => { setEditor({ driver: null, nonce: Date.now() }) }}>
+            <WriteButton permission="drivers.create" variant="primary" icon={Plus} onClick={() => { setEditor({ driver: null, nonce: Date.now() }) }}>
               {t('drivers.new')}
             </WriteButton>
           </>

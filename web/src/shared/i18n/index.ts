@@ -21,9 +21,9 @@ function storedLanguage(): Language | null {
   }
 }
 
+/** Язык по умолчанию - русский (не зависит от языка браузера). */
 function browserLanguage(): Language {
-  const nav = typeof navigator === 'undefined' ? '' : navigator.language
-  return nav.toLowerCase().startsWith('kk') ? 'kk' : 'ru'
+  return 'ru'
 }
 
 /** Явный выбор пользователя запоминается и главнее языка компании. */

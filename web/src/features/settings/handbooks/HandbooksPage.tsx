@@ -23,7 +23,7 @@ import { pushToast } from '../../../shared/ui/toast'
 import { WriteButton } from '../../../shared/ui/WriteButton'
 import { codecs, useUrlState } from '../../../shared/hooks/useUrlState'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { BookOpen } from '../../../shared/ui/icons'
+import { BookOpen, Plus } from '../../../shared/ui/icons'
 
 interface HandbookSummary { code: string; name: string; group: string; values_count: number }
 
@@ -192,7 +192,7 @@ function ValuesPanel({ code }: { code: string }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{book.name}</h2>
-        <WriteButton permission="handbooks.create" variant="primary" onClick={() => { setEditor({ value: null, nonce: Date.now() }) }}>{t('handbooks.addValue')}</WriteButton>
+        <WriteButton permission="handbooks.create" variant="primary" icon={Plus} onClick={() => { setEditor({ value: null, nonce: Date.now() }) }}>{t('handbooks.addValue')}</WriteButton>
       </div>
       {isStatus ? <p className="text-xs text-muted">{t('handbooks.statusNote')}</p> : null}
       <DataTable onRowClick={(v) => { setEditor({ value: v, nonce: Date.now() }) }} caption={book.name} columns={columns} rows={book.values} rowKey={(v) => v.id} empty={<EmptyState title={t('handbooks.emptyValues')} />} />
@@ -225,7 +225,7 @@ export function HandbooksPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={BookOpen} title={t('nav.handbooks')} />
+      <PageHeader icon={BookOpen} title={t('nav.handbooks')} hint="handbooks" />
       {list.isError ? (
         <>
           <Banner kind="error">{errorMessage(list.error, t)}</Banner>

@@ -11,7 +11,7 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { useUsers } from '../../../shared/users/useUsers'
 import { RoleDrawer, type Role } from './RoleDrawer'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { ShieldCheck } from '../../../shared/ui/icons'
+import { ShieldCheck, Plus } from '../../../shared/ui/icons'
 
 export function useRoles(enabled = true) {
   return useQuery({ queryKey: ['roles', 'list'], queryFn: ({ signal }) => api.get<Role[]>('/roles/', undefined, { signal }), enabled })
@@ -52,10 +52,10 @@ export function RolesPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={ShieldCheck} title={t('nav.roles')}
+      <PageHeader icon={ShieldCheck} title={t('nav.roles')} hint="roles"
         actions={
           <>
-            <WriteButton permission="roles.create" variant="primary" onClick={() => { setEditor({ role: null, nonce: Date.now() }) }}>{t('roles.new')}</WriteButton>
+            <WriteButton permission="roles.create" variant="primary" icon={Plus} onClick={() => { setEditor({ role: null, nonce: Date.now() }) }}>{t('roles.new')}</WriteButton>
           </>
         }
       />

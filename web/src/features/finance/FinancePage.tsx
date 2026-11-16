@@ -40,7 +40,7 @@ export function FinancePage() {
   const active: TabKey = visible.includes(state.tab) ? state.tab : 'invoices'
   return (
     <div className="space-y-3">
-      <PageHeader icon={Wallet} title={t('nav.finance')} />
+      <PageHeader icon={Wallet} title={t('nav.finance')} hint="finance" />
       <FinanceSummaryCards />
       <Tabs
         label={t('finance.tabsLabel')}

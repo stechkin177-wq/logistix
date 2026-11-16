@@ -20,6 +20,7 @@ import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { useDeleteRate, useRates, useSaveRate } from './hooks'
 import type { Rate } from './types'
+import { Plus } from '../../shared/ui/icons'
 
 const RATE_RE = /^\d{1,12}(\.\d{1,6})?$/
 const KNOWN = /^(currency|date|rate)$/
@@ -130,7 +131,7 @@ export function RatesTab() {
           options={currencies.values.filter((v) => v.code !== BASE_CURRENCY).map((v) => ({ value: String(v.id), label: v.code }))}
           onChange={(value) => { setState({ currency: value ? Number(value) : null }) }}
         />
-        <WriteButton variant="primary" permission="finance.create" onClick={() => { setEditor({ rate: null, nonce: Date.now() }) }}>
+        <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setEditor({ rate: null, nonce: Date.now() }) }}>
           {t('finance.rates.add')}
         </WriteButton>
       </div>

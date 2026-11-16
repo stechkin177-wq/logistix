@@ -16,6 +16,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { useInvoices } from './hooks'
 import { StatusBadge, invoiceLabel } from './StatusBadge'
 import type { Invoice, InvoiceListFilters } from './types'
+import { Plus } from '../../shared/ui/icons'
 
 const STATUSES = ['', 'draft', 'issued', 'partial', 'paid', 'overdue', 'cancelled'] as const
 const DIRECTIONS = ['', 'out', 'in'] as const
@@ -68,7 +69,7 @@ export function InvoicesTab() {
             <WriteButton permission="finance.create" onClick={() => { void navigate('/finance/invoices/new?direction=in') }}>
               {t('finance.invoices.newIn')}
             </WriteButton>
-            <WriteButton variant="primary" permission="finance.create" onClick={() => { void navigate('/finance/invoices/new') }}>
+            <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { void navigate('/finance/invoices/new') }}>
               {t('finance.invoices.new')}
             </WriteButton>
           </>

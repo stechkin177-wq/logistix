@@ -1,5 +1,5 @@
 /** Шина событий клиента API: клиент не знает о React, провайдеры подписываются. */
-export type ApiEvent = 'logout' | 'blocked' | 'readonly'
+export type ApiEvent = 'logout' | 'blocked' | 'readonly' | 'limit'
 
 type Listener = () => void
 
@@ -7,6 +7,7 @@ const listeners: Record<ApiEvent, Set<Listener>> = {
   logout: new Set(),
   blocked: new Set(),
   readonly: new Set(),
+  limit: new Set(),
 }
 
 export function onApiEvent(event: ApiEvent, listener: Listener): () => void {

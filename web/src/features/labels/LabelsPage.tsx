@@ -7,7 +7,7 @@ import { Card } from '../../shared/ui/Card'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { Dialog } from '../../shared/ui/Dialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
-import { Pencil, Tag, Trash2 } from '../../shared/ui/icons'
+import { Pencil, Tag, Trash2, Plus } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
@@ -67,7 +67,7 @@ export function LabelsPage() {
         icon={Tag}
         title={t('nav.labels')}
         subtitle={t('labels.intro')}
-        actions={<WriteButton permission="labels.manage" variant="primary" onClick={() => { setEditor({ label: null, nonce: Date.now() }) }}>{t('labels.create')}</WriteButton>}
+        actions={<WriteButton permission="labels.manage" variant="primary" icon={Plus} onClick={() => { setEditor({ label: null, nonce: Date.now() }) }}>{t('labels.create')}</WriteButton>}
       />
       <Card>
         {list.isPending ? <div className="p-4"><Spinner label={t('common.loading')} /></div> : null}

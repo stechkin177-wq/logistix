@@ -1,46 +1,57 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { onApiEvent } from '../shared/api/events'
 import { useUsage } from '../features/billing/usage'
 import { useSession } from '../shared/auth/useSession'
-import { Banner } from '../shared/ui/Banner'
-import { X } from '../shared/ui/icons'
+import { Button } from '../shared/ui/Button'
+import { Dialog } from '../shared/ui/Dialog'
 
-const STORAGE_KEY = 'limit-banner-dismissed'
-
-/** Владельцу компании (право управления модулями): лимит тарифа приближается, достигнут или превышен. */
-export function LimitBanner() {
+/**
+ * Окно «Лимит тарифа»: появляется только при попытке превысить лимит (ответ сервера limit_exceeded),
+ * а не висит на экране. Показывает, какие ограничения исчерпаны.
+ */
+export function LimitDialog() {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
-  const usage = useUsage(hasPermission('company.manage_modules'))
-  const warnings = usage.data?.warnings ?? []
-  // скрытие действует до конца сессии браузера и только для этого состояния лимита
-  const stateKey = warnings.map((w) => `${w.name}:${w.state}`).join('|')
-  const [dismissedKey, setDismissedKey] = useState<string | null>(() => (typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(STORAGE_KEY)))
-  const dismissed = dismissedKey === stateKey
-  if (warnings.length === 0 || dismissed) return null
-  const exceeded = warnings.some((w) => w.state === 'exceeded')
-  const first = warnings.find((w) => w.state === 'exceeded') ?? warnings[0]
-  if (!first) return null
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const usage = useUsage(open && hasPermission('company.manage_modules'))
+  useEffect(() => onApiEvent('limit', () => {
+    setOpen(true)
+    void qc.invalidateQueries({ queryKey: ['billing', 'usage'] })
+  }), [qc])
+  if (!open) return null
+  const rows = (usage.data?.warnings ?? []).filter((w) => w.state === 'reached' || w.state === 'exceeded')
+  const close = () => { setOpen(false) }
   return (
-    <div className="relative">
-    <Banner kind="warning">
-      <span className="block pr-7">
-      {t(`billing.usage.banner.${exceeded ? 'exceeded' : first.state}`, { name: first.name, usage: first.usage ?? 0, limit: first.limit ?? 0, count: warnings.length })}{' '}
-      <Link className="underline" to="/settings/company">{t('billing.usage.details')}</Link>
-      </span>
-    </Banner>
-    <button
-      type="button"
-      aria-label={t('common.close')}
-      className="absolute right-1 top-1 inline-flex size-9 items-center justify-center rounded-control text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-900"
-      onClick={() => {
-        sessionStorage.setItem(STORAGE_KEY, stateKey)
-        setDismissedKey(stateKey)
-      }}
+    <Dialog
+      open
+      title={t('billing.usage.dialogTitle')}
+      onClose={close}
+      footer={
+        <>
+          <Button onClick={close}>{t('common.close')}</Button>
+          {hasPermission('company.manage_modules') ? (
+            <Link to="/settings/company" onClick={close} className="inline-flex h-9 items-center rounded-control bg-brand-600 px-3.5 text-sm font-medium text-brand-fg hover:bg-brand-solid-hover">{t('billing.usage.details')}</Link>
+          ) : null}
+        </>
+      }
     >
-      <X className="size-4" aria-hidden="true" />
-    </button>
-    </div>
+      <div className="space-y-2 text-sm">
+        <p>{t('billing.usage.dialogText')}</p>
+        {rows.length > 0 ? (
+          <ul className="space-y-1">
+            {rows.map((r) => (
+              <li key={r.code} className="flex items-center justify-between gap-3 rounded-control border border-line bg-surface-2 px-3 py-1.5">
+                <span>{r.name}</span>
+                <span className="tabular-nums text-muted">{r.usage ?? 0} / {r.limit ?? '∞'}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </Dialog>
   )
 }

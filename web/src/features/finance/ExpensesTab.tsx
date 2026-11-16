@@ -18,6 +18,7 @@ import { FieldsDialog } from './FieldsDialog'
 import { useCreateExpense, useExpenses, useReallocateExpense, useVoidExpense } from './ledgerHooks'
 import { ExpenseStatusBadge, ReviewBadge } from './LedgerBadges'
 import type { ExpenseRow, LedgerFilters } from './ledgerTypes'
+import { Plus } from '../../shared/ui/icons'
 
 const SCHEMA = {
   status: codecs.string(''),
@@ -158,7 +159,7 @@ export function ExpensesTab() {
           <DateInput label={t('finance.operations.from')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />
           <DateInput label={t('finance.operations.to')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
         </div>
-        <WriteButton variant="primary" permission="finance.create" onClick={() => { setDialog({ kind: 'create' }) }}>{t('finance.ledger.newExpense')}</WriteButton>
+        <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setDialog({ kind: 'create' }) }}>{t('finance.ledger.newExpense')}</WriteButton>
       </div>
       <DataTable
         caption={t('finance.tabs.expenses')}

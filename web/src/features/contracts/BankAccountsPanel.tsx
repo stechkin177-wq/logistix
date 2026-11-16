@@ -9,7 +9,7 @@ import { Checkbox } from '../../shared/ui/Checkbox'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { Dialog } from '../../shared/ui/Dialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
-import { Landmark, Pencil, Trash2 } from '../../shared/ui/icons'
+import { Landmark, Pencil, Trash2, Plus } from '../../shared/ui/icons'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
@@ -99,7 +99,7 @@ export function BankAccountsPanel({ owner }: { owner: PartyOwner }) {
       <CardHeader
         title={t('accounts.title')}
         hint={t('accounts.hint')}
-        actions={<WriteButton permission={permission} variant="primary" onClick={() => { setEditor({ account: null, nonce: Date.now() }) }}>{t('accounts.add')}</WriteButton>}
+        actions={<WriteButton permission={permission} variant="primary" icon={Plus} onClick={() => { setEditor({ account: null, nonce: Date.now() }) }}>{t('accounts.add')}</WriteButton>}
       />
       {list.isPending ? <div className="p-4"><Spinner label={t('common.loading')} /></div> : null}
       {list.isError ? <div className="p-4"><Banner kind="error">{errorMessage(list.error, t)}</Banner></div> : null}

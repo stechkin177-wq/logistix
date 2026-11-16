@@ -99,7 +99,7 @@ export function NumberingPage() {
   ]
   return (
     <div className="space-y-3">
-      <PageHeader icon={Hash} title={t('nav.numbering')} />
+      <PageHeader icon={Hash} title={t('nav.numbering')} hint="numbering" />
       <DataTable
         caption={t('nav.numbering')}
         columns={columns}

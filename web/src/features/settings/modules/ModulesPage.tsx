@@ -240,8 +240,7 @@ export function ModulesPage() {
   }
   return (
     <div className="max-w-3xl space-y-4">
-      <PageHeader icon={Blocks} title={t('nav.modules')} />
-      <p className="text-sm text-muted">{t('modules.intro')}</p>
+      <PageHeader icon={Blocks} title={t('nav.modules')} hint="modules" />
       {query.isError ? (
         <>
           <Banner kind="error">{errorMessage(query.error, t)}</Banner>

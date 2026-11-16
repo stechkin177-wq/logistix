@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { errorMessage } from '../shared/api/errors'
 import { useAuth } from '../shared/auth/useAuth'
 import { useSession } from '../shared/auth/useSession'
-import { ChevronDown, LogOut } from '../shared/ui/icons'
+import { ChevronDown, LogOut, UserRound } from '../shared/ui/icons'
 import { SelectBox } from '../shared/ui/SelectBox'
 import { SELECT_CLASS } from '../shared/ui/fieldStyles'
 import { pushToast } from '../shared/ui/toast'
@@ -95,6 +96,15 @@ export function ProfileMenu() {
           ) : null}
           {user.platform_role ? <WorkspaceSwitcher mode="company" needsCode={user.platform_totp === true} companies={[]} /> : null}
           <div className="space-y-0.5 border-t border-line pt-2">
+            <Link
+              to="/settings/company"
+              role="menuitem"
+              onClick={() => { setOpen(false) }}
+              className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-ink hover:bg-surface-2"
+            >
+              <UserRound className="size-4" aria-hidden="true" />
+              {t('nav.profileTitle')}
+            </Link>
             <button
               type="button"
               role="menuitem"
@@ -107,14 +117,6 @@ export function ProfileMenu() {
           </div>
         </div>
       }
-      <button
-        type="button"
-        onClick={logout}
-        className="hidden h-9 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-sm font-medium text-muted shadow-card transition-colors hover:bg-surface-2 hover:text-ink md:inline-flex"
-      >
-        <LogOut className="size-4" aria-hidden="true" />
-        {t('auth.logout')}
-      </button>
     </div>
   )
 }

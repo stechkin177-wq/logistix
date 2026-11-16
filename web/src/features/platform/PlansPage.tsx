@@ -12,7 +12,7 @@ import { PlanDrawer } from './PlanDrawer'
 import { useDeletePlan, usePlanAction, usePlans, useReorder } from './hooks'
 import type { AdminPlan, PlanStatus } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { CreditCard } from '../../shared/ui/icons'
+import { CreditCard, Plus } from '../../shared/ui/icons'
 
 const TONE: Record<PlanStatus, 'neutral' | 'success' | 'warning'> = { draft: 'neutral', active: 'success', archived: 'warning' }
 
@@ -101,7 +101,7 @@ export function PlansPage() {
       <PageHeader icon={CreditCard} title={t('nav.platformPlans')} subtitle={t('platform.plans.intro')}
         actions={
           <>
-            <Button variant="primary" onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
+            <Button variant="primary" icon={Plus} onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
           </>
         }
       />

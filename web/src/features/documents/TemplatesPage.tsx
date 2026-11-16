@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
@@ -13,7 +13,35 @@ import { downloadTemplate, saveDownloaded } from './api'
 import { usePatchTemplate, usePlaceholders, useResetTemplate, useTemplates, useUploadVersion } from './hooks'
 import type { DocTemplate } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { FileStack } from '../../shared/ui/icons'
+import { Download, Ellipsis, FileStack, ListChecks, RotateCcw, Upload } from '../../shared/ui/icons'
+
+const ICON_BTN = 'inline-flex size-8 items-center justify-center rounded-control border border-line bg-surface text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50'
+
+/** Меню «⋯» у строки: редкие действия (вернуть стартовую, отключить). Закрывается по клику вне и Esc. */
+function RowMenu({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  return (
+    <div ref={box} className="relative">
+      <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={label} title={label} className={ICON_BTN} onClick={() => { setOpen(!open) }}>
+        <Ellipsis className="size-4" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-1 flex w-52 flex-col gap-0.5 rounded-card border border-line bg-surface p-1 shadow-pop">
+          {children(() => { setOpen(false) })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 function PlaceholdersDialog({ template, onClose }: { template: DocTemplate; onClose: () => void }) {
   const { t } = useTranslation()
@@ -67,10 +95,14 @@ function UploadControl({ template, onError, onDone }: { template: DocTemplate; o
     <>
       <WriteButton
         permission="documents.update"
+        className={ICON_BTN}
+        variant="ghost"
         disabled={upload.isPending}
+        aria-label={upload.isPending ? t('documents.templates.uploading') : t('documents.templates.upload')}
+        title={upload.isPending ? t('documents.templates.uploading') : t('documents.templates.upload')}
         onClick={() => { input.current?.click() }}
       >
-        {upload.isPending ? t('documents.templates.uploading') : t('documents.templates.upload')}
+        <Upload className="size-4" aria-hidden="true" />
       </WriteButton>
       <input
         ref={input}
@@ -144,29 +176,53 @@ export function TemplatesPage() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       headerLabel: t('common.actions'),
       cell: (r) => (
-        <div className="flex flex-wrap justify-end gap-1">
+        <div className="flex items-center justify-end gap-1">
           <Button
+            variant="ghost"
+            className={ICON_BTN}
             disabled={downloading === r.id || r.current_version === null}
             aria-label={t('documents.templates.downloadNamed', { name: r.name })}
+            title={t('documents.templates.download')}
             onClick={() => { void download(r) }}
           >
-            {t('documents.templates.download')}
+            <Download className="size-4" aria-hidden="true" />
           </Button>
           <UploadControl template={r} onError={setMessage} onDone={() => { setNotice(t('documents.templates.uploaded', { name: r.name })) }} />
-          <WriteButton permission="documents.update" aria-label={t('documents.templates.resetNamed', { name: r.name })} onClick={() => { setResetting(r) }}>
-            {t('documents.templates.reset')}
-          </WriteButton>
-          <Button aria-label={t('documents.templates.placeholdersNamed', { name: r.name })} onClick={() => { setLabels(r) }}>
-            {t('documents.templates.placeholders')}
-          </Button>
-          <WriteButton
-            permission={r.is_active ? 'documents.delete' : 'documents.update'}
-            disabled={patch.isPending}
-            aria-label={t(r.is_active ? 'documents.templates.disableNamed' : 'documents.templates.enableNamed', { name: r.name })}
-            onClick={() => { toggle(r) }}
+          <Button
+            variant="ghost"
+            className={ICON_BTN}
+            aria-label={t('documents.templates.placeholdersNamed', { name: r.name })}
+            title={t('documents.templates.placeholders')}
+            onClick={() => { setLabels(r) }}
           >
-            {r.is_active ? t('documents.templates.disable') : t('documents.templates.enable')}
-          </WriteButton>
+            <ListChecks className="size-4" aria-hidden="true" />
+          </Button>
+          <RowMenu label={t('documents.templates.more', { name: r.name })}>
+            {(close) => (
+              <>
+                <WriteButton
+                  variant="ghost"
+                  permission="documents.update"
+                  icon={RotateCcw}
+                  className="w-full justify-start font-normal"
+                  aria-label={t('documents.templates.resetNamed', { name: r.name })}
+                  onClick={() => { close(); setResetting(r) }}
+                >
+                  {t('documents.templates.reset')}
+                </WriteButton>
+                <WriteButton
+                  variant="ghost"
+                  permission={r.is_active ? 'documents.delete' : 'documents.update'}
+                  disabled={patch.isPending}
+                  className="w-full justify-start font-normal"
+                  aria-label={t(r.is_active ? 'documents.templates.disableNamed' : 'documents.templates.enableNamed', { name: r.name })}
+                  onClick={() => { close(); toggle(r) }}
+                >
+                  {r.is_active ? t('documents.templates.disable') : t('documents.templates.enable')}
+                </WriteButton>
+              </>
+            )}
+          </RowMenu>
         </div>
       ),
     },
@@ -174,10 +230,7 @@ export function TemplatesPage() {
 
   return (
     <div className="space-y-3">
-      <div>
-        <PageHeader icon={FileStack} title={t('nav.doctemplates')} />
-        <p className="text-sm text-muted">{t('documents.templates.hint')}</p>
-      </div>
+      <PageHeader icon={FileStack} title={t('nav.doctemplates')} hint="doctemplates" />
       {message ? <Banner kind="error">{message}</Banner> : null}
       {notice && !message ? <Banner kind="info">{notice}</Banner> : null}
       <DataTable

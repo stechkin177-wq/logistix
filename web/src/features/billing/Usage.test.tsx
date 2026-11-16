@@ -17,12 +17,12 @@ const USAGE = {
 }
 
 describe('Лимиты тарифа', () => {
-  it('баннер владельцу: превышение выше приближения, с фактическим использованием', async () => {
+  it('лимит больше не висит баннером на экране', async () => {
     loggedIn([['GET', '/api/billing/usage/', { body: USAGE }]])
     renderApp('/')
-    const banner = await screen.findByText(/Использование выше лимита тарифа: Водители — 3 из 2/)
-    expect(banner).toHaveTextContent('Данные сохранены')
-    expect(within(banner.closest('[role="status"]') as HTMLElement).getByRole('link', { name: 'Подробнее' })).toHaveAttribute('href', '/settings/company')
+    await screen.findByRole('navigation', { name: 'Основное меню' })
+    expect(screen.queryByText(/Использование выше лимита тарифа/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('без предупреждений баннера нет', async () => {

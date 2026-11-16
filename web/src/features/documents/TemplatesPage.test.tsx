@@ -50,6 +50,7 @@ describe('Шаблоны документов', () => {
     loggedIn([list()], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'documents.update') } })
     renderApp(URL_)
     expect(await screen.findByRole('button', { name: 'Загрузить новую версию' })).toBeDisabled()
+    await userEvent.click(await screen.findByRole('button', { name: /Ещё: Договор/ }))
     expect(screen.getByRole('button', { name: /Вернуть стартовую версию: Договор/ })).toBeDisabled()
   })
 
@@ -86,6 +87,7 @@ describe('Шаблоны документов', () => {
   it('отключение отправляет is_active=false; включение требует documents.update', async () => {
     const m = loggedIn([list(), ['PATCH', '/api/documents/templates/1/', { body: makeTemplate({ is_active: false }) }]])
     renderApp(URL_)
+    await userEvent.click(await screen.findByRole('button', { name: /Ещё: Договор/ }))
     await userEvent.click(await screen.findByRole('button', { name: /Отключить шаблон: Договор/ }))
     await waitFor(() => { expect(m.calls.find((c) => c.method === 'PATCH')?.body).toEqual({ is_active: false }) })
   })
@@ -93,12 +95,14 @@ describe('Шаблоны документов', () => {
   it('без documents.delete отключить нельзя', async () => {
     loggedIn([list()], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'documents.delete') } })
     renderApp(URL_)
+    await userEvent.click(await screen.findByRole('button', { name: /Ещё: Договор/ }))
     expect(await screen.findByRole('button', { name: /Отключить шаблон: Договор/ })).toBeDisabled()
   })
 
   it('возврат стартовой версии просит подтверждение и вызывает reset/', async () => {
     const m = loggedIn([list(), ['POST', '/api/documents/templates/1/reset/', { body: makeTemplate() }]])
     renderApp(URL_)
+    await userEvent.click(await screen.findByRole('button', { name: /Ещё: Договор/ }))
     await userEvent.click(await screen.findByRole('button', { name: /Вернуть стартовую версию: Договор/ }))
     const dialog = await screen.findByRole('alertdialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Вернуть стартовую' }))

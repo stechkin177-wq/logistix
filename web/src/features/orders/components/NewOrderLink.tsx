@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
 import { useSession } from '../../../shared/auth/useSession'
 import { WriteButton } from '../../../shared/ui/WriteButton'
+import { Plus } from '../../../shared/ui/icons'
 
 /** «Новый заказ»: ссылка при праве записи; в режиме только чтения - отключённая кнопка с пояснением; без права - ничего. */
 export function NewOrderLink() {
@@ -17,6 +18,6 @@ export function NewOrderLink() {
     )
   }
   return hasPermission('orders.create') ? (
-    <WriteButton variant="primary" permission="orders.create">{t('orders.new')}</WriteButton>
+    <WriteButton variant="primary" icon={Plus} permission="orders.create">{t('orders.new')}</WriteButton>
   ) : null
 }

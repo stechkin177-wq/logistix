@@ -17,7 +17,7 @@ import { useDeleteVehicle, useReminders, useVehicleList } from './hooks'
 import { SELECTABLE_KINDS, VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle } from './types'
 import { VehicleDrawer } from './VehicleDrawer'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { CarFront, TriangleAlert } from '../../shared/ui/icons'
+import { CarFront, TriangleAlert, Plus } from '../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -79,10 +79,10 @@ export function VehiclesPage() {
   const warnings = reminders.data?.results ?? []
   return (
     <div className="space-y-3">
-      <PageHeader icon={CarFront} title={t('nav.vehicles')}
+      <PageHeader icon={CarFront} title={t('nav.vehicles')} hint="vehicles"
         actions={
           <>
-            <WriteButton permission="fleet.create" variant="primary" onClick={() => { setEditor({ vehicle: null, nonce: Date.now() }) }}>
+            <WriteButton permission="fleet.create" variant="primary" icon={Plus} onClick={() => { setEditor({ vehicle: null, nonce: Date.now() }) }}>
               {t('fleet.new')}
             </WriteButton>
           </>
