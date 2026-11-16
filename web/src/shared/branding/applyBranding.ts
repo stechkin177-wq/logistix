@@ -51,6 +51,14 @@ let stopSystemWatch: (() => void) | null = null
 let lightHolds = 0
 let lastTheme: Theme = 'system'
 const THEME_KEY = 'logistix.theme'
+// тема по умолчанию для экрана (Центр управления - светлая); личный выбор пользователя главнее
+let screenDefault: 'light' | 'dark' | null = null
+
+/** Задаёт тему по умолчанию для текущего экрана (null - снять); личный выбор через переключатель сохраняется. */
+export function setScreenDefaultTheme(value: 'light' | 'dark' | null): void {
+  screenDefault = value
+  applyTheme(lastTheme)
+}
 
 /** Личный выбор светлой/тёмной темы на этом устройстве: перекрывает тему компании. */
 function storedTheme(): 'light' | 'dark' | null {
@@ -83,7 +91,7 @@ export function holdLightTheme(): () => void {
 
 function applyTheme(companyTheme: Theme): void {
   lastTheme = companyTheme
-  const theme: Theme = storedTheme() ?? companyTheme
+  const theme: Theme = storedTheme() ?? screenDefault ?? companyTheme
   stopSystemWatch?.()
   stopSystemWatch = null
   if (theme !== 'system') {

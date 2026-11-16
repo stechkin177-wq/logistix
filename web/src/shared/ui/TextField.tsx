@@ -13,9 +13,12 @@ export function TextField({
       {(aria) => {
         if (rest.type !== 'search') return <input {...aria} {...rest} className={`${FIELD_CLASS} ${className}`} />
         // поле поиска: значок лупы слева, ширина по тексту подсказки
-        const width = `min(100%, max(9rem, calc(${String((rest.placeholder ?? '').length)}ch + 3.75rem)))`
+        // ширина по тексту: подсказка или введённое значение (что длиннее), с запасом под лупу и поля
+        const typed = typeof rest.value === 'string' ? rest.value.length : 0
+        const chars = Math.max((rest.placeholder ?? '').length, typed)
+        const width = `min(100%, max(8rem, calc(${String(chars)}ch * 0.98 + 4.25rem)))`
         return (
-          <span className="relative block max-sm:w-full!" style={{ width }}>
+          <span className="relative block text-sm max-sm:w-full!" style={{ width }}>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
             <input {...aria} {...rest} className={`${FIELD_CLASS} pl-9 ${className}`} />
           </span>

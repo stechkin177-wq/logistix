@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../../shared/auth/useAuth'
 import { usePlatformSession } from '../../shared/auth/usePlatformSession'
 import { useBranding } from '../../shared/branding/useBranding'
+import { setScreenDefaultTheme } from '../../shared/branding/applyBranding'
+import { HeaderSlotContext, HintSlotContext } from '../../shared/ui/headerBleed'
 import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
-import { Button } from '../../shared/ui/Button'
-import { CreditCard, History, KeyRound, Landmark, LogOut, Menu } from '../../shared/ui/icons'
+import { ThemeToggle } from '../../shared/ui/ThemeToggle'
+import { initials } from '../../layout/ProfileMenu'
+import { ChevronDown, CreditCard, History, KeyRound, Landmark, LogOut, Menu } from '../../shared/ui/icons'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
@@ -27,6 +30,23 @@ export function PlatformLayout() {
   const branding = useBranding()
   const [changingPassword, setChangingPassword] = useState(false)
   const [open, setOpen] = useState(false)
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const [hintSlot, setHintSlot] = useState<HTMLElement | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  // Центр управления по умолчанию в светлой теме; переключатель темы работает как на основном сайте
+  useEffect(() => {
+    setScreenDefaultTheme('light')
+    return () => { setScreenDefaultTheme(null) }
+  }, [])
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
   const companies = session?.companies ?? []
 
   const panel = (flat: boolean) => (
@@ -62,23 +82,6 @@ export function PlatformLayout() {
       </nav>
       <div className="space-y-2 border-t border-line p-3">
         <WorkspaceSwitcher mode="platform" companies={companies} />
-        <Button
-          variant="ghost"
-          icon={KeyRound}
-          className="w-full"
-          onClick={() => {
-            setChangingPassword(true)
-          }}
-        >
-          {t('account.changePassword')}
-        </Button>
-        {changingPassword ? (
-          <ChangePasswordDialog
-            onClose={() => {
-              setChangingPassword(false)
-            }}
-          />
-        ) : null}
       </div>
     </aside>
   )
@@ -100,22 +103,64 @@ export function PlatformLayout() {
               <span className="truncate">{t(current.labelKey)}</span>
             </p>
           ) : null}
-          <div className="ml-auto flex shrink-0 items-center gap-2 md:rounded-card md:border md:border-line md:bg-surface md:px-2 md:py-1 md:shadow-card">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <LanguageSwitch />
-            <span aria-hidden="true" className="hidden h-6 w-px bg-line md:block" />
-            <span className="hidden min-w-0 max-w-[14rem] md:block">
-              <span className="block truncate text-sm font-medium leading-tight">{session?.user.full_name || session?.user.email}</span>
-              {session ? <span className="block truncate text-xs leading-tight text-muted">{t(`platformShell.role.${session.user.platform_role}`)}</span> : null}
-            </span>
-            <Button variant="ghost" icon={LogOut} onClick={logout}>
-              <span className="hidden md:inline">{t('auth.logout')}</span>
-              <span className="sr-only md:hidden">{t('auth.logout')}</span>
-            </Button>
+            <ThemeToggle />
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={t('nav.profile')}
+                onClick={() => { setMenuOpen(!menuOpen) }}
+                className="flex h-9 items-center gap-2 rounded-control border border-line bg-surface p-0.5 text-left shadow-card hover:bg-surface-2 md:pr-2"
+              >
+                <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800 dark:bg-brand-900 dark:text-brand-100">
+                  {initials(session?.user.full_name || session?.user.email || '')}
+                </span>
+                <span className="hidden min-w-0 max-w-[14rem] md:block">
+                  <span className="block truncate text-sm font-medium leading-tight text-ink">{session?.user.full_name || session?.user.email}</span>
+                  {session ? <span className="block truncate text-xs leading-tight text-muted">{t(`platformShell.role.${session.user.platform_role}`)}</span> : null}
+                </span>
+                <ChevronDown className={`hidden size-4 shrink-0 text-muted transition-transform md:block ${menuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+              {menuOpen ? (
+                <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-60 space-y-0.5 rounded-card border border-line bg-surface p-1.5 shadow-pop">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false); setChangingPassword(true) }}
+                    className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-ink hover:bg-surface-2"
+                  >
+                    <KeyRound className="size-4" aria-hidden="true" />
+                    {t('account.changePassword')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={logout}
+                    className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-red-600 hover:bg-surface-2 dark:text-red-400"
+                  >
+                    <LogOut className="size-4" aria-hidden="true" />
+                    {t('auth.logout')}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
-          <div className="mx-auto w-full max-w-[1500px]">
-            <Outlet />
+        {/* шапка страницы - вне прокрутки, как на основном сайте */}
+        <div className="thin-scroll shrink-0 overflow-y-hidden [scrollbar-gutter:stable] empty:hidden">
+          <div ref={setSlot} className="mx-auto w-full max-w-[1500px] px-3 pt-3 empty:hidden md:px-5 md:pt-2" />
+        </div>
+        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 pt-0 [scrollbar-gutter:stable] md:p-5 md:pb-5 md:pt-0">
+          <div className="mx-auto w-full max-w-[1500px] space-y-3 pt-3">
+            <div ref={setHintSlot} className="empty:hidden" />
+            <HeaderSlotContext.Provider value={slot}>
+              <HintSlotContext.Provider value={hintSlot}>
+                <Outlet />
+              </HintSlotContext.Provider>
+            </HeaderSlotContext.Provider>
           </div>
         </main>
       </div>
@@ -144,6 +189,7 @@ export function PlatformLayout() {
           <span>{t('nav.menu')}</span>
         </button>
       </nav>
+      {changingPassword ? <ChangePasswordDialog onClose={() => { setChangingPassword(false) }} /> : null}
       <Toaster />
     </div>
   )
