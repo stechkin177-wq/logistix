@@ -74,10 +74,10 @@ export function DocumentsPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={FileText} title={t('nav.documents')}
+      <PageHeader icon={FileText} title={t('nav.documents')} subtitle={t('documents.intro')}
         actions={
           <>
-            <WriteButton variant="primary" permission="documents.create" onClick={() => { setLetterOpen(true) }}>
+            <WriteButton variant="primary" permission="documents.create" title={t('documents.letter.hint')} onClick={() => { setLetterOpen(true) }}>
               {t('documents.letter.open')}
             </WriteButton>
           </>

@@ -6,6 +6,7 @@ import { useHandbookValues } from '../../shared/handbooks/useHandbook'
 import { Badge } from '../../shared/ui/Badge'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
+import { Card, CardBody, CardHeader } from '../../shared/ui/Card'
 import { Checkbox } from '../../shared/ui/Checkbox'
 import { DateTime } from '../../shared/ui/DateTime'
 import { Select } from '../../shared/ui/Select'
@@ -25,10 +26,10 @@ const BASE_CODES = ['KZT', 'RUB', 'USD', 'EUR']
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="space-y-2 rounded-control border border-line p-3">
-      <h2 id={id} className="text-sm font-semibold">{title}</h2>
-      {children}
-    </section>
+    <Card aria-labelledby={id}>
+      <CardHeader title={<span id={id}>{title}</span>} />
+      <CardBody className="space-y-3">{children}</CardBody>
+    </Card>
   )
 }
 
