@@ -12,7 +12,7 @@ import { PlanDrawer } from './PlanDrawer'
 import { useDeletePlan, usePlanAction, usePlans, useReorder } from './hooks'
 import type { AdminPlan, PlanStatus } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { CreditCard, Plus } from '../../shared/ui/icons'
+import { CreditCard, Plus, Archive, ArchiveRestore, ArrowDown, ArrowUp, EyeOff, Rocket, Star, Trash2 } from '../../shared/ui/icons'
 
 const TONE: Record<PlanStatus, 'neutral' | 'success' | 'warning'> = { draft: 'neutral', active: 'success', archived: 'warning' }
 
@@ -52,8 +52,8 @@ export function PlansPage() {
         const index = rows.findIndex((x) => x.code === p.code)
         return (
           <span className="flex gap-1">
-            <Button variant="ghost" aria-label={t('platform.plans.moveUp', { name: p.name })} disabled={index === 0 || reorder.isPending} onClick={() => { move(index, -1) }}>↑</Button>
-            <Button variant="ghost" aria-label={t('platform.plans.moveDown', { name: p.name })} disabled={index === rows.length - 1 || reorder.isPending} onClick={() => { move(index, 1) }}>↓</Button>
+            <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveUp', { name: p.name })} disabled={index === 0 || reorder.isPending} onClick={() => { move(index, -1) }}><ArrowUp className="size-4" aria-hidden="true" /></Button>
+            <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveDown', { name: p.name })} disabled={index === rows.length - 1 || reorder.isPending} onClick={() => { move(index, 1) }}><ArrowDown className="size-4" aria-hidden="true" /></Button>
           </span>
         )
       },
@@ -84,13 +84,13 @@ export function PlansPage() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       align: 'right',
       cell: (p) => (
-        <span className="flex flex-wrap justify-end gap-1">
-          {p.status === 'draft' ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
-          {p.status !== 'archived' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
-          {p.status === 'archived' ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
-          {!p.is_default ? <Button variant="dangerGhost" aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
+        <span className="flex flex-wrap justify-end gap-1.5">
+          {p.status === 'draft' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Rocket} onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
+          {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={EyeOff} onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
+          {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Star} onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
+          {p.status !== 'archived' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Archive} onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
+          {p.status === 'archived' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={ArchiveRestore} onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
+          {!p.is_default ? <Button variant="dangerSoft" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Trash2} aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
         </span>
       ),
     },

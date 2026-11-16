@@ -86,7 +86,7 @@ export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void;
         )}
         <span className="truncate text-sm font-semibold">{branding.app_name}</span>
       </div>
-      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={onNavigate}>
+      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={(event) => { if ((event.target as HTMLElement).closest('a')) onNavigate?.() }}>
         <ul className="space-y-0.5">
           {items.map((item) => (
             <NavEntry key={item.key} item={item} />

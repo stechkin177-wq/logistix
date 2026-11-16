@@ -12,7 +12,7 @@ import { OperationsTab } from './OperationsTab'
 import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { Wallet } from '../../shared/ui/icons'
+import { ClipboardList, Coins, CreditCard, ReceiptText, Scale, TrendingDown, TrendingUp, Wallet, type LucideIcon } from '../../shared/ui/icons'
 
 const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates', 'incomes', 'expenses'] as const
 /** Доходы и расходы показываются только при engine = new. */
@@ -27,6 +27,10 @@ const PANELS: Record<TabKey, () => ReactNode> = {
   rates: () => <RatesTab />,
   incomes: () => <IncomesTab />,
   expenses: () => <ExpensesTab />,
+}
+
+const TAB_ICONS: Record<TabKey, LucideIcon> = {
+  invoices: ReceiptText, payments: CreditCard, operations: ClipboardList, debts: Scale, rates: Coins, incomes: TrendingUp, expenses: TrendingDown,
 }
 
 const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'invoices') }
@@ -45,7 +49,8 @@ export function FinancePage() {
       <Tabs
         label={t('finance.tabsLabel')}
         active={active}
-        tabs={visible.map((key) => ({ key, label: t(`finance.tabs.${key}`) }))}
+        variant="pills"
+        tabs={visible.map((key) => ({ key, label: t(`finance.tabs.${key}`), icon: TAB_ICONS[key] }))}
         onChange={(tab) => { setState({ tab: tab as TabKey }) }}
       />
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
