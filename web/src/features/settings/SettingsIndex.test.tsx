@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loggedIn } from '../../test/harness'
+import { ALL_PERMISSIONS } from '../../test/permissions'
 import { renderApp } from '../../test/renderApp'
 
 afterEach(() => {
@@ -8,14 +9,8 @@ afterEach(() => {
 })
 
 describe('/settings и финансы', () => {
-  it('/settings показывает карточки «Данных и документов»', async () => {
-    loggedIn([])
-    renderApp('/settings')
-    expect(await screen.findByRole('link', { name: /Справочники/ })).toHaveAttribute('href', '/settings/handbooks')
-  })
-
-  it('без данных и документов /settings ведёт на первую страницу профиля', async () => {
-    loggedIn([], { session: { permissions: ['users.view'] } })
+  it('/settings ведёт на первый доступный подраздел', async () => {
+    loggedIn([], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'company.view') } })
     const { router } = renderApp('/settings')
     await waitFor(() => { expect(router.state.location.pathname).toBe('/settings/users') })
   })

@@ -27,8 +27,10 @@ describe('Sidebar', () => {
     expect(within(nav).queryByText('Роли и права')).not.toBeInTheDocument()
     const settings = await screen.findByRole('navigation', { name: 'Разделы настроек' })
     expect(within(settings).getByRole('link', { name: 'Роли и права' })).toHaveAttribute('href', '/settings/roles')
-    // «Данные и документы» - карточки на странице «Настройки», во вкладках профиля их нет
+    // «Данные и документы» раскрываются списком под пунктом «Настройки» в основном меню
     expect(within(settings).queryByText('Справочники')).not.toBeInTheDocument()
+    await userEvent.click(within(nav).getByRole('button', { name: 'Данные и документы' }))
+    expect(within(nav).getByRole('link', { name: 'Справочники' })).toHaveAttribute('href', '/settings/handbooks')
     expect(within(settings).queryByText('Пользователи')).not.toBeInTheDocument()
   })
 
