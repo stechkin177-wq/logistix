@@ -100,7 +100,7 @@ export function DocumentsPage() {
           <DateInput label={t('documents.issued.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
         </FilterItem>
         <FilterItem className="w-auto">
-          <TextField label={t('documents.issued.search')} type="search" value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
+          <TextField label={t('common.search')} type="search" placeholder={t('documents.issued.searchPlaceholder')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
         </FilterItem>
       </FilterBar>
       {downloadError ? <Banner kind="error">{downloadError}</Banner> : null}
