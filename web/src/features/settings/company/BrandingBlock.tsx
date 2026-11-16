@@ -12,7 +12,6 @@ import { NO_ERRORS, serverErrors, type FormErrors } from '../../../shared/forms/
 import { useFocusInvalid } from '../../../shared/forms/useFocusInvalid'
 import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
-import { FIELD_CLASS } from '../../../shared/ui/fieldStyles'
 import { FormBanner } from '../../../shared/ui/FormBanner'
 import { FormField } from '../../../shared/ui/FormField'
 import { Select } from '../../../shared/ui/Select'
@@ -123,21 +122,27 @@ function BrandingForm({ branding }: { branding: Branding }) {
         </div>
         <FormField label={t('company.logoFile')} error={f.logo} hint={t('company.logoHint')}>
           {(aria) => (
-            <input
-              {...aria}
-              ref={fileRef}
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp"
-              disabled={!canSave}
-              className={`${FIELD_CLASS} h-auto py-1.5 file:mr-3 file:cursor-pointer file:rounded-control file:border-0 file:bg-surface-2 file:px-3 file:py-1 file:text-sm file:font-medium file:text-ink`}
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null
-                setLogo(file)
-                setClearLogo(false)
-                const problem = file ? logoProblem(file) : null
-                setErrors(problem ? { fields: { logo: t(`company.logo.${problem}`) }, banner: undefined } : NO_ERRORS)
-              }}
-            />
+            // свой вид выбора файла: надписи системного поля зависят от языка браузера, а не приложения
+            <div className="flex items-center gap-3">
+              <input
+                {...aria}
+                ref={fileRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                disabled={!canSave}
+                tabIndex={-1}
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null
+                  setLogo(file)
+                  setClearLogo(false)
+                  const problem = file ? logoProblem(file) : null
+                  setErrors(problem ? { fields: { logo: t(`company.logo.${problem}`) }, banner: undefined } : NO_ERRORS)
+                }}
+              />
+              <Button disabled={!canSave} onClick={() => { fileRef.current?.click() }}>{t('company.logo.choose')}</Button>
+              <span className="min-w-0 truncate text-sm text-muted">{logo ? logo.name : t('company.logo.noneChosen')}</span>
+            </div>
           )}
         </FormField>
       </div>

@@ -135,6 +135,8 @@
     "logoFile": "Логотип",
     "logoHint": "png, jpg, jpeg немесе webp, 1 МБ-тан аспайды",
     "logo": {
+      "choose": "Файлды таңдау",
+      "noneChosen": "Файл таңдалмаған",
       "badType": "Тек png, jpg, jpeg және webp рұқсат етілген (SVG тыйым салынған)",
       "tooBig": "Файл 1 МБ-тан асады",
       "empty": "Файл бос"

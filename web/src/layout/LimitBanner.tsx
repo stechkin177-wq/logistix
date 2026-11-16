@@ -33,7 +33,7 @@ export function LimitBanner() {
     <button
       type="button"
       aria-label={t('common.close')}
-      className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-control text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-900"
+      className="absolute right-1 top-1 inline-flex size-9 items-center justify-center rounded-control text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-900"
       onClick={() => {
         sessionStorage.setItem(STORAGE_KEY, stateKey)
         setDismissedKey(stateKey)

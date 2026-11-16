@@ -135,6 +135,8 @@
     "logoFile": "Логотип",
     "logoHint": "png, jpg, jpeg или webp, не более 1 МБ",
     "logo": {
+      "choose": "Выбрать файл",
+      "noneChosen": "Файл не выбран",
       "badType": "Допустимы только png, jpg, jpeg и webp (SVG запрещён)",
       "tooBig": "Файл больше 1 МБ",
       "empty": "Файл пуст"
