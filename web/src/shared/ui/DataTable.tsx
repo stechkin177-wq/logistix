@@ -36,11 +36,13 @@ interface Props<T> {
   bare?: boolean
   /** Колонки сжимаются под ширину карточки (заголовки переносятся по словам), а не уходят в прокрутку. */
   fit?: boolean
+  /** Клик по строке (вне ссылок, кнопок и полей) открывает запись. Клавиатурный путь - ссылка или кнопка в самой строке. */
+  onRowClick?: (row: T) => void
 }
 
 /** Плотная таблица: горизонтальный скролл, состояния loading/error/empty, сортировка через ordering API. */
 export function DataTable<T>({
-  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false, fit = false,
+  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false, fit = false, onRowClick,
 }: Props<T>) {
   const { t } = useTranslation()
 
@@ -115,7 +117,15 @@ export function DataTable<T>({
           {rows && rows.length > 0 && !error ? (
             <tbody className={`max-md:block ${loading ? 'opacity-60' : ''}`}>
               {rows.map((row) => (
-                <tr key={rowKey(row)} className="border-t border-line transition-colors hover:bg-surface-2 max-md:block max-md:px-3 max-md:py-2">
+                <tr
+                  key={rowKey(row)}
+                  className={`border-t border-line transition-colors hover:bg-surface-2 max-md:block max-md:px-3 max-md:py-2 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={onRowClick ? (event) => {
+                    // клики по ссылкам, кнопкам и полям внутри строки работают как обычно
+                    if ((event.target as HTMLElement).closest('a, button, input, select, textarea, label, summary, [role=button]')) return
+                    onRowClick(row)
+                  } : undefined}
+                >
                   {columns.map((column) => (
                     <td
                       key={column.key}

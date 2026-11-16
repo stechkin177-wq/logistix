@@ -104,6 +104,7 @@ export function InvoicesTab() {
       </FilterBar>
       <DataTable
         fit
+        onRowClick={(i) => { void navigate(`/finance/invoices/${String(i.id)}`) }}
         caption={t('finance.tabs.invoices')}
         columns={columns}
         rows={list.data?.results}

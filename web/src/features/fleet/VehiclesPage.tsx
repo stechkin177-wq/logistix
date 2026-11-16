@@ -145,6 +145,7 @@ export function VehiclesPage() {
         </FilterItem>
       </FilterBar>
       <DataTable
+        onRowClick={(v) => { setEditor({ vehicle: v, nonce: Date.now() }) }}
         caption={t('nav.vehicles')}
         columns={columns}
         rows={list.data?.results}

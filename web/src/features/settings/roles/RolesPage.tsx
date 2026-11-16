@@ -73,6 +73,7 @@ export function RolesPage() {
         }
       />
       <DataTable
+        onRowClick={(r) => { setEditor({ role: r, nonce: Date.now() }) }}
         caption={t('nav.roles')}
         columns={columns}
         rows={roles.data}

@@ -57,6 +57,7 @@ export function CompaniesPage() {
         </FilterItem>
       </FilterBar>
       <DataTable
+        onRowClick={(c) => { setOpen({ company: c, nonce: Date.now() }) }}
         caption={t('nav.platformCompanies')}
         columns={columns}
         rows={list.data?.results}

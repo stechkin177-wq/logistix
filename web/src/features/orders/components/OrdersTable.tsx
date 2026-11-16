@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { LabelChips } from '../../labels/LabelChip'
 import { errorMessage } from '../../../shared/api/errors'
 import { useSession } from '../../../shared/auth/useSession'
@@ -36,6 +36,7 @@ interface Props {
 
 export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { hasPermission } = useSession()
   const list = useOrderList(params)
   usePageFallback(list.error, params.page, () => { onChange({ page: 1 }) })
@@ -88,6 +89,7 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
   return (
     <>
       <DataTable
+        onRowClick={(o) => { void navigate(`/orders/${String(o.id)}`) }}
         caption={t('nav.orders')}
         columns={columns}
         rows={rows}

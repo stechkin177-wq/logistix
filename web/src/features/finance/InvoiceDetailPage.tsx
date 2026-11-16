@@ -16,6 +16,7 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { FormBanner } from '../../shared/ui/FormBanner'
 import { Money } from '../../shared/ui/Money'
 import { PageHeader } from '../../shared/ui/PageHeader'
+import { ReceiptText } from '../../shared/ui/icons'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
@@ -170,6 +171,7 @@ export function InvoiceDetailPage() {
   return (
     <div className="space-y-4">
       <PageHeader
+        icon={ReceiptText}
         back={{ to: '/finance?tab=invoices', label: t('finance.invoices.backToList') }}
         title={invoiceLabel(invoice, t)}
         meta={

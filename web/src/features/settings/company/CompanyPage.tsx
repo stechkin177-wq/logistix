@@ -21,7 +21,9 @@ import { UsageBlock } from '../../billing/UsageBlock'
 import { SubscriptionBlock } from './SubscriptionBlock'
 import { timeZones } from './timezones'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Building } from '../../../shared/ui/icons'
+import { Building, KeyRound } from '../../../shared/ui/icons'
+import { Card, CardBody, CardHeader } from '../../../shared/ui/Card'
+import { ChangePasswordDialog } from '../../account/ChangePasswordDialog'
 
 interface CompanySettings {
   name: string
@@ -90,6 +92,21 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
   )
 }
 
+/** Безопасность: смена собственного пароля (раньше была в меню профиля). */
+function SecurityBlock() {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  return (
+    <Card aria-label={t('account.securityTitle')}>
+      <CardHeader title={t('account.securityTitle')} hint={t('account.securityHint')} />
+      <CardBody>
+        <Button icon={KeyRound} onClick={() => { setOpen(true) }}>{t('account.changePassword')}</Button>
+        {open ? <ChangePasswordDialog onClose={() => { setOpen(false) }} /> : null}
+      </CardBody>
+    </Card>
+  )
+}
+
 /** Компания: общие настройки, оформление и лицензия. */
 export function CompanyPage() {
   const { t } = useTranslation()
@@ -109,6 +126,7 @@ export function CompanyPage() {
         ) : query.data ? <CompanyForm settings={query.data} /> : <Spinner label={t('table.loading')} />}
       </section>
       <BrandingBlock />
+      <SecurityBlock />
       {/* тариф, срок и лимиты видны только тем, кто управляет модулями (администратору компании) */}
       {canSeeLicense ? <SubscriptionBlock /> : null}
       {canSeeLicense ? <UsageBlock /> : null}

@@ -163,6 +163,7 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
         </FilterItem>
       </FilterBar>
       <DataTable
+        onRowClick={(p) => { void navigate(`/${kind}/${String(p.id)}`) }}
         caption={t(`nav.${kind}`)}
         columns={columns}
         rows={list.data?.results}

@@ -100,6 +100,7 @@ function Content({ trip }: { trip: Trip }) {
   return (
     <div className="space-y-4">
       <PageHeader
+        icon={Route}
         back={{ to: '/trips', label: t('nav.trips') }}
         title={trip.number}
         meta={

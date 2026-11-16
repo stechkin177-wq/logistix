@@ -49,6 +49,7 @@ export function UsersPage() {
         }
       />
       <DataTable
+        onRowClick={(u) => { setEditor({ member: u, nonce: Date.now() }) }}
         caption={t('nav.users')}
         columns={columns}
         rows={list.data}

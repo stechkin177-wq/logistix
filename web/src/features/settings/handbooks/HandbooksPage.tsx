@@ -195,7 +195,7 @@ function ValuesPanel({ code }: { code: string }) {
         <WriteButton permission="handbooks.create" variant="primary" onClick={() => { setEditor({ value: null, nonce: Date.now() }) }}>{t('handbooks.addValue')}</WriteButton>
       </div>
       {isStatus ? <p className="text-xs text-muted">{t('handbooks.statusNote')}</p> : null}
-      <DataTable caption={book.name} columns={columns} rows={book.values} rowKey={(v) => v.id} empty={<EmptyState title={t('handbooks.emptyValues')} />} />
+      <DataTable onRowClick={(v) => { setEditor({ value: v, nonce: Date.now() }) }} caption={book.name} columns={columns} rows={book.values} rowKey={(v) => v.id} empty={<EmptyState title={t('handbooks.emptyValues')} />} />
       {editor ? <ValueDrawer key={editor.nonce} handbook={book} value={editor.value} onClose={() => { setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}

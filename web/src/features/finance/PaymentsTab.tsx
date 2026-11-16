@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { errorMessage } from '../../shared/api/errors'
 import { useSession } from '../../shared/auth/useSession'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
@@ -25,6 +25,7 @@ const SCHEMA = {
 
 export function PaymentsTab() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { hasPermission } = useSession()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
   const list = usePayments(state.page, state.pageSize, state.direction)
@@ -97,6 +98,7 @@ export function PaymentsTab() {
         </div>
       ) : null}
       <DataTable
+        onRowClick={(p) => { void navigate(`/finance/invoices/${String(p.invoice.id)}`) }}
         caption={t('finance.tabs.payments')}
         columns={columns}
         rows={list.data?.results}

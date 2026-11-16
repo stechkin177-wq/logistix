@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { HeaderBleedContext } from '../../shared/ui/headerBleed'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { isAllowed, NAV, type NavItem } from '../../layout/nav'
@@ -33,14 +34,14 @@ export function SettingsLayout() {
       <nav
         ref={navRef}
         aria-label={t('nav.settingsLabel')}
-        className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto rounded-card border border-line bg-surface p-2 shadow-card md:sticky md:top-0 md:flex-col md:overflow-visible"
+        className="thin-scroll scroll-shadow-x flex items-start gap-2 overflow-x-auto pb-1 pt-3 [--scroll-bg:var(--ui-canvas)] md:sticky md:top-0 md:max-h-[calc(100dvh-4rem)] md:pt-5 md:flex-col md:gap-3 md:overflow-y-auto md:pb-0"
       >
         {SECTIONS.map((section) => {
           const items = allowed.filter((item) => item.section === section.key)
           if (items.length === 0) return null
           return (
-            <div key={section.key} className="flex gap-1 md:flex-col">
-              <p className="hidden px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted md:block">
+            <div key={section.key} className="flex shrink-0 gap-1 rounded-card border border-line bg-surface p-1.5 shadow-card md:w-full md:flex-col md:p-2">
+              <p className="mb-1 hidden border-b border-line px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted md:block">
                 {t(section.labelKey)}
               </p>
               {items.map((item) => {
@@ -65,7 +66,9 @@ export function SettingsLayout() {
         })}
       </nav>
       <div className="min-w-0">
-        <Outlet />
+        <HeaderBleedContext.Provider value={false}>
+          <Outlet />
+        </HeaderBleedContext.Provider>
       </div>
     </div>
   )

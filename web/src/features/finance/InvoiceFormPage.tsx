@@ -16,6 +16,7 @@ import { Combobox, type ComboOption } from '../../shared/ui/Combobox'
 import { DateInput } from '../../shared/ui/DateInput'
 import { FormBanner } from '../../shared/ui/FormBanner'
 import { PageHeader } from '../../shared/ui/PageHeader'
+import { ReceiptText } from '../../shared/ui/icons'
 import type { Paginated } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
@@ -160,7 +161,7 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
 
   return (
     <form ref={ref} noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="max-w-3xl space-y-4">
-      <PageHeader back={{ to: '/finance?tab=invoices', label: t('finance.invoices.backToList') }} title={title} />
+      <PageHeader icon={ReceiptText} back={{ to: '/finance?tab=invoices', label: t('finance.invoices.backToList') }} title={title} />
       <FormBanner message={errors.banner} />
 
       <Card>

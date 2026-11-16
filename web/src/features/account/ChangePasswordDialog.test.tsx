@@ -6,8 +6,8 @@ import { loggedIn } from '../../test/harness'
 import { renderApp } from '../../test/renderApp'
 
 const open = async () => {
-  await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
-  await userEvent.click(await screen.findByRole('menuitem', { name: 'Сменить пароль' }))
+  // смена пароля - в настройках компании
+  await userEvent.click(await screen.findByRole('button', { name: 'Сменить пароль' }))
   return screen.findByRole('dialog')
 }
 const fill = async (dialog: HTMLElement, old: string, next: string, confirm = next) => {
@@ -20,7 +20,7 @@ const save = (dialog: HTMLElement) => userEvent.click(within(dialog).getByRole('
 describe('Смена пароля', () => {
   it('поля с метками и подходящими autocomplete', async () => {
     loggedIn()
-    renderApp('/')
+    renderApp('/settings/company')
     const dialog = await open()
     expect(within(dialog).getByLabelText(/^Текущий пароль/)).toHaveAttribute('autocomplete', 'current-password')
     expect(within(dialog).getByLabelText(/^Новый пароль/)).toHaveAttribute('autocomplete', 'new-password')
@@ -32,7 +32,7 @@ describe('Смена пароля', () => {
 
   it('успех: POST с двумя паролями, окно закрыто, показан тост', async () => {
     const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
-    renderApp('/')
+    renderApp('/settings/company')
     const dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42')
     await save(dialog)
@@ -44,7 +44,7 @@ describe('Смена пароля', () => {
 
   it('неверный текущий пароль ложится на поле', async () => {
     loggedIn([['POST', '/api/auth/password/', { status: 400, body: { old_password: ['Неверный текущий пароль'] } }]])
-    renderApp('/')
+    renderApp('/settings/company')
     const dialog = await open()
     await fill(dialog, 'nope', 'Brand-new-pass-42')
     await save(dialog)
@@ -55,7 +55,7 @@ describe('Смена пароля', () => {
 
   it('слабый новый пароль: ошибка сервера у поля нового пароля', async () => {
     loggedIn([['POST', '/api/auth/password/', { status: 400, body: { new_password: ['Этот пароль слишком широко распространён.'] } }]])
-    renderApp('/')
+    renderApp('/settings/company')
     const dialog = await open()
     await fill(dialog, 'old-password-1', 'password')
     await save(dialog)
@@ -65,7 +65,7 @@ describe('Смена пароля', () => {
 
   it('несовпадение подтверждения и совпадение со старым ловятся без запроса', async () => {
     const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
-    renderApp('/')
+    renderApp('/settings/company')
     const dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42', 'other')
     await save(dialog)
@@ -79,7 +79,7 @@ describe('Смена пароля', () => {
 
   it('пароли не попадают в хранилище и URL, поля пусты при повторном открытии', async () => {
     const m = loggedIn([['POST', '/api/auth/password/', { body: { access: 'new-a', refresh: 'new-r' } }]])
-    const { router } = renderApp('/')
+    const { router } = renderApp('/settings/company')
     let dialog = await open()
     await fill(dialog, 'old-password-1', 'Brand-new-pass-42')
     await save(dialog)

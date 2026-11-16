@@ -107,6 +107,7 @@ export function DepartmentsPage() {
         }
       />
       <DataTable
+        onRowClick={(d) => { setEditor({ department: d, nonce: Date.now() }) }}
         caption={t('nav.departments')}
         columns={columns}
         rows={list.data}

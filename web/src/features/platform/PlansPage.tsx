@@ -108,6 +108,7 @@ export function PlansPage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
       <DataTable
         fit
+        onRowClick={(p) => { setEditor({ plan: p, nonce: Date.now() }) }}
         caption={t('nav.platformPlans')}
         columns={columns}
         rows={plans.data}

@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../../shared/auth/useAuth'
 import { usePlatformSession } from '../../shared/auth/usePlatformSession'
 import { useBranding } from '../../shared/branding/useBranding'
-import { LANGUAGES, setLanguage, type Language } from '../../shared/i18n'
+import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
 import { Button } from '../../shared/ui/Button'
 import { CreditCard, History, KeyRound, Landmark, LogOut, Menu } from '../../shared/ui/icons'
-import { SelectBox } from '../../shared/ui/SelectBox'
-import { SELECT_CLASS } from '../../shared/ui/fieldStyles'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
@@ -21,7 +19,9 @@ const LINKS = [
 
 /** Оболочка Центра управления платформы: не зависит от тарифов и модулей компаний. */
 export function PlatformLayout() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const { pathname } = useLocation()
+  const current = LINKS.find((l) => pathname.startsWith(l.to))
   const { session } = usePlatformSession()
   const { logout } = useAuth()
   const branding = useBranding()
@@ -62,31 +62,6 @@ export function PlatformLayout() {
       </nav>
       <div className="space-y-2 border-t border-line p-3">
         <WorkspaceSwitcher mode="platform" companies={companies} />
-        <SelectBox>
-          <select
-            aria-label={t('common.language')}
-            className={SELECT_CLASS}
-            value={i18n.resolvedLanguage}
-            onChange={(event) => {
-              setLanguage(event.target.value as Language)
-            }}
-          >
-            {LANGUAGES.map((lng) => (
-              <option key={lng} value={lng}>
-                {t(`languages.${lng}`)}
-              </option>
-            ))}
-          </select>
-        </SelectBox>
-        <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">{session?.user.full_name || session?.user.email}</span>
-            {session ? <span className="block truncate text-xs text-muted">{t(`platformShell.role.${session.user.platform_role}`)}</span> : null}
-          </span>
-          <Button variant="ghost" icon={LogOut} onClick={logout}>
-            {t('auth.logout')}
-          </Button>
-        </div>
         <Button
           variant="ghost"
           icon={KeyRound}
@@ -118,11 +93,27 @@ export function PlatformLayout() {
         </div>
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
-          <span className="truncate text-sm font-semibold">{branding.app_name}</span>
-          <span className="ml-auto truncate text-xs text-muted">{t('platformShell.title')}</span>
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
+          {current ? (
+            <p className="flex min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-100">
+              <current.icon className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{t(current.labelKey)}</span>
+            </p>
+          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:rounded-card md:border md:border-line md:bg-surface md:px-2 md:py-1 md:shadow-card">
+            <LanguageSwitch />
+            <span aria-hidden="true" className="hidden h-6 w-px bg-line md:block" />
+            <span className="hidden min-w-0 max-w-[14rem] md:block">
+              <span className="block truncate text-sm font-medium leading-tight">{session?.user.full_name || session?.user.email}</span>
+              {session ? <span className="block truncate text-xs leading-tight text-muted">{t(`platformShell.role.${session.user.platform_role}`)}</span> : null}
+            </span>
+            <Button variant="ghost" icon={LogOut} onClick={logout}>
+              <span className="hidden md:inline">{t('auth.logout')}</span>
+              <span className="sr-only md:hidden">{t('auth.logout')}</span>
+            </Button>
+          </div>
         </header>
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 md:p-5 md:pb-5">
+        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
           <div className="mx-auto w-full max-w-[1500px]">
             <Outlet />
           </div>

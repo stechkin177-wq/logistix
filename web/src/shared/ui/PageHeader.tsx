@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
+import { useContext, useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useBranding } from '../branding/useBranding'
+import { HeaderBleedContext } from './headerBleed'
 import { ArrowLeft, type LucideIcon } from './icons'
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }: Props) {
   const { t } = useTranslation()
   const { app_name: appName } = useBranding()
+  const bleed = useContext(HeaderBleedContext)
   // заголовок вкладки браузера повторяет название раздела: вкладки и история различимы
   const text = typeof title === 'string' ? title : null
   useEffect(() => {
@@ -28,7 +30,7 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
     return () => { document.title = appName }
   }, [text, appName])
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+    <header className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 bg-canvas pb-2 pt-3 md:pb-2.5 md:pt-5 ${bleed ? '-mx-3 px-3 md:-mx-5 md:px-5' : ''}`}>
       <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-x-3 gap-y-1">
         {back ? (
           <Link
@@ -39,7 +41,8 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
           </Link>
-        ) : Icon ? (
+        ) : null}
+        {Icon ? (
           <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200">
             <Icon className="size-[18px]" aria-hidden="true" />
           </span>

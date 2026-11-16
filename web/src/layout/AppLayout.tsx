@@ -2,17 +2,16 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet } from 'react-router'
 import { useSession } from '../shared/auth/useSession'
-import { useBranding } from '../shared/branding/useBranding'
 import { Toaster } from '../shared/ui/Toaster'
 import { LimitBanner } from './LimitBanner'
 import { MobileTabBar } from './MobileTabBar'
 import { ReadonlyBanner } from './ReadonlyBanner'
 import { Sidebar } from './Sidebar'
+import { TopBar } from './TopBar'
 
 export function AppLayout() {
   const { t } = useTranslation()
   const { session } = useSession()
-  const branding = useBranding()
   const [open, setOpen] = useState(false)
 
   return (
@@ -41,14 +40,14 @@ export function AppLayout() {
         </div>
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
-          <span className="truncate text-sm font-semibold">{branding.app_name}</span>
-          <span className="ml-auto truncate text-xs text-muted">{session?.company.name}</span>
-        </header>
-        <ReadonlyBanner />
-        <LimitBanner />
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 md:p-5 md:pb-5">
-          <div className="mx-auto w-full max-w-[1500px]">
+        <TopBar />
+        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
+          <div className="mx-auto w-full max-w-[1500px] space-y-3">
+            {/* предупреждения - в колонке страницы, ровно по её краям */}
+            <div className="space-y-3 pt-3 empty:hidden md:pt-5">
+              <ReadonlyBanner />
+              <LimitBanner />
+            </div>
             {/* key: при смене компании страницы монтируются заново и не держат чужие данные */}
             <Outlet key={session?.company.id} />
           </div>

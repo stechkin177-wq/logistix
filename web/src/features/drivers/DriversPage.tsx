@@ -98,6 +98,7 @@ export function DriversPage() {
         </FilterItem>
       </FilterBar>
       <DataTable
+        onRowClick={(d) => { setEditor({ driver: d, nonce: Date.now() }) }}
         caption={t('nav.drivers')}
         columns={columns}
         rows={list.data?.results}

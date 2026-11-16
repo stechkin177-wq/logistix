@@ -140,6 +140,7 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
   return (
     <div className="space-y-4">
       <PageHeader
+        icon={kind === 'clients' ? Building2 : Truck}
         back={{ to: `/${kind}`, label: t(`nav.${kind}`) }}
         title={party.name}
         subtitle={subtitle || undefined}

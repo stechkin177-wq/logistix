@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router'
 import { useBranding } from '../shared/branding/useBranding'
 import { useSession } from '../shared/auth/useSession'
 import { visibleNav, type NavItem } from './nav'
-import { ProfileMenu } from './ProfileMenu'
 
 const LINK = 'flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors'
 const ACTIVE = 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100'
@@ -20,17 +19,17 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   if (to === undefined) return null
   const hubActive = isSettingsHub && pathname.startsWith('/settings')
   return (
-    <li>
+    <li className={child ? 'relative before:absolute before:-left-2 before:top-1/2 before:h-px before:w-2 before:bg-line' : undefined}>
       <NavLink
         to={to}
         end={to === '/'}
-        className={({ isActive }) => `${LINK} ${child ? 'py-1.5 pl-9' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
+        className={({ isActive }) => `${LINK} ${child ? 'py-1.5 pl-2.5' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
-        {Icon && !child ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
+        {Icon ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
         <span className="truncate">{t(item.labelKey)}</span>
       </NavLink>
       {!isSettingsHub && item.children ? (
-        <ul className="mt-0.5 space-y-0.5">
+        <ul className="mb-1 ml-[1.375rem] mt-0.5 space-y-0.5 border-l border-line pl-2">
           {item.children.map((c) => (
             <NavEntry key={c.key} item={c} child />
           ))}
@@ -68,7 +67,6 @@ export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void;
           ))}
         </ul>
       </nav>
-      <ProfileMenu />
     </aside>
   )
 }

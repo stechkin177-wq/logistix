@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Link, Navigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 import { errorMessage } from '../../../shared/api/errors'
 import { useHandbookValues } from '../../../shared/handbooks/useHandbook'
 import { usePageFallback } from '../../../shared/hooks/usePageFallback'
@@ -40,6 +40,7 @@ const SCHEMA = {
 /** Рейсы: фильтры в адресе (q и order приходят по ссылкам со страницы заказа), статус на месте, карточка - отдельная страница. */
 export function TripsPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
   const list = useTripList(state)
   usePageFallback(list.error, state.page, () => { setState({ page: 1 }) })
@@ -111,6 +112,7 @@ export function TripsPage() {
         ) : null}
       </FilterBar>
       <DataTable
+        onRowClick={(trip) => { void navigate(`/trips/${String(trip.id)}`) }}
         caption={t('nav.trips')}
         columns={columns}
         rows={list.data?.results}

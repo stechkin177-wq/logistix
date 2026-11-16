@@ -9,7 +9,7 @@ import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
 import { EmptyState } from '../../../shared/ui/EmptyState'
-import { Boxes, FileText, History, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
+import { Boxes, FileText, History, Package, Paperclip, Route, Trash2, Wallet } from '../../../shared/ui/icons'
 import { SubjectLabels } from '../../labels/SubjectLabels'
 import { ComposeMailButton } from '../../mail/ComposeMailButton'
 import { PageHeader } from '../../../shared/ui/PageHeader'
@@ -80,6 +80,7 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-4">
       <PageHeader
+        icon={Package}
         back={{ to: '/orders', label: t('nav.orders') }}
         title={order.number}
         meta={
