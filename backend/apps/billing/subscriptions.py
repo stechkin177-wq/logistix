@@ -112,8 +112,11 @@ def preview_change(company, new_plan: Plan) -> dict:
     return {
         "from_plan": sub.plan.code,
         "to_plan": new_plan.code,
-        "price": {"current_period": str(period.price) if period else None,
-                  "new": str(new_plan.price), "currency": new_plan.currency},  # fmt: skip
+        "price": {
+            "current_period": str(period.price) if period else None,
+            "new": str(new_plan.price),
+            "currency": new_plan.currency,
+        },  # fmt: skip
         "lost_modules": lost_modules,  # закрываются, данные сохраняются
         "gained_modules": gained_modules,  # доступны, но сами не включаются
         "lost_features": sorted(set(old_f) - set(new_f)),
@@ -213,8 +216,10 @@ def set_blocked(company, blocked: bool, *, reason: str, user=None) -> Subscripti
             "Компания уже заблокирована" if blocked else "Компания не заблокирована вручную",
         )
     before = sub.status
-    sub.status = Subscription.BLOCKED if blocked else (
-        Subscription.TRIAL if sub.is_free_period else Subscription.ACTIVE
+    sub.status = (
+        Subscription.BLOCKED
+        if blocked
+        else (Subscription.TRIAL if sub.is_free_period else Subscription.ACTIVE)
     )
     sub.save(update_fields=["status"])
     events.record(

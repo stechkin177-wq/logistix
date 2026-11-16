@@ -300,7 +300,6 @@ class PasswordChangeView(PlatformAwareGate, APIView):
 
     throttle_classes = [PasswordChangeThrottle]
 
-
     def post(self, request):
         ser = PasswordChangeSerializer(data=request.data)
         ser.is_valid(raise_exception=True)

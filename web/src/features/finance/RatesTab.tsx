@@ -6,7 +6,9 @@ import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/ser
 import { useFocusInvalid } from '../../shared/forms/useFocusInvalid'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { useHandbookValues } from '../../shared/handbooks/useHandbook'
+import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
+import { Landmark } from '../../shared/ui/icons'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
@@ -18,7 +20,7 @@ import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
-import { useDeleteRate, useRates, useSaveRate } from './hooks'
+import { useDeleteRate, useNbrkRates, useRates, useSaveRate } from './hooks'
 import type { Rate } from './types'
 import { Plus } from '../../shared/ui/icons'
 
@@ -94,6 +96,7 @@ export function RatesTab() {
   const rates = useRates({ currency: state.currency, page: state.page, pageSize: state.pageSize })
   const currencies = useHandbookValues('currency', { activeOnly: true })
   const remove = useDeleteRate()
+  const nbrk = useNbrkRates()
   const [editor, setEditor] = useState<{ rate: Rate | null; nonce: number } | null>(null)
   const [toDelete, setToDelete] = useState<Rate | null>(null)
 
@@ -131,10 +134,22 @@ export function RatesTab() {
           options={currencies.values.filter((v) => v.code !== BASE_CURRENCY).map((v) => ({ value: String(v.id), label: v.code }))}
           onChange={(value) => { setState({ currency: value ? Number(value) : null }) }}
         />
-        <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setEditor({ rate: null, nonce: Date.now() }) }}>
-          {t('finance.rates.add')}
-        </WriteButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <WriteButton icon={Landmark} permission="finance.create" disabled={nbrk.isPending} onClick={() => { nbrk.mutate() }}>
+            {nbrk.isPending ? t('finance.rates.nbrkLoading') : t('finance.rates.nbrk')}
+          </WriteButton>
+          <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setEditor({ rate: null, nonce: Date.now() }) }}>
+            {t('finance.rates.add')}
+          </WriteButton>
+        </div>
       </div>
+      {nbrk.isError ? <Banner kind="error">{errorMessage(nbrk.error, t)}</Banner> : null}
+      {nbrk.data ? (
+        <Banner kind="info">
+          <b>{t('finance.rates.nbrkDone', { date: nbrk.data.date })}</b>{' '}
+          {nbrk.data.results.map((r) => `${r.currency.code} ${Number(r.rate).toLocaleString('ru-RU', { maximumFractionDigits: 4 })}`).join(' · ')}
+        </Banner>
+      ) : null}
       <DataTable
         caption={t('finance.tabs.rates')}
         columns={columns}

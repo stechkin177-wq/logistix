@@ -82,9 +82,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     # роль на уровне платформы (не связана с членством в компаниях и с is_superuser):
     # "" - нет, "owner" - владелец платформы, "admin" - администратор платформы (ограниченные права)
-    platform_role = models.CharField(
-        max_length=16, blank=True, default="", choices=PLATFORM_ROLES
-    )
+    platform_role = models.CharField(max_length=16, blank=True, default="", choices=PLATFORM_ROLES)
 
     # TOTP (обязателен для владельца платформы): секрет, признак подтверждения и последний
     # принятый шаг (защита от повторного использования кода)

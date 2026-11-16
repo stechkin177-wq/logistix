@@ -69,6 +69,7 @@ DEFAULTS: dict[str, dict] = {
             ("Российский рубль", "RUB"),
             ("Доллар США", "USD"),
             ("Евро", "EUR"),
+            ("Китайский юань", "CNY"),
         ),
     },
     "expense_category": {

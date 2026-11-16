@@ -25,9 +25,7 @@ VALID_MODULES = module_catalog.non_core_codes()
 FORWARDING_COMPANIONS = ("logistics", "finance", "documents")
 
 
-def with_default_companions(
-    codes: list[str], allowed=None, skip=()
-) -> list[str]:
+def with_default_companions(codes: list[str], allowed=None, skip=()) -> list[str]:
     """Набор для новой компании: logistics/forwarding тянут finance и documents (порядок тот же).
 
     Спутники - стартовая настройка, а не техническая зависимость. ``allowed`` - модули тарифа

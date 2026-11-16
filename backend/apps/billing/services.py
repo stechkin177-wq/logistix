@@ -11,7 +11,6 @@ GRACE_DAYS = 14
 READONLY_DAYS = 30
 
 
-
 class LimitExceeded(APIException):
     status_code = http.HTTP_402_PAYMENT_REQUIRED
     default_detail = "Достигнут лимит тарифа"

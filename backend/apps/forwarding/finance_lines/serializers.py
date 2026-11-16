@@ -69,9 +69,7 @@ class OrderServiceSerializer(serializers.ModelSerializer):
             order = attrs.get("order") or self.instance.order
             expense = attrs.get("expense", getattr(self.instance, "expense", 0))
             income = attrs.get("income", getattr(self.instance, "income", 0))
-            if not TripConsignment.objects.filter(
-                trip=trip, consignment__order=order
-            ).exists():
+            if not TripConsignment.objects.filter(trip=trip, consignment__order=order).exists():
                 raise serializers.ValidationError({"trip": "Рейс не перевозит грузы этого заказа"})
             if income or not expense:
                 raise serializers.ValidationError(

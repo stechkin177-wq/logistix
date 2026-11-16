@@ -43,8 +43,10 @@ class DocumentTypeSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        if self.instance is not None and "subject" in attrs and (
-            attrs["subject"] != self.instance.subject
+        if (
+            self.instance is not None
+            and "subject" in attrs
+            and (attrs["subject"] != self.instance.subject)
         ):
             raise serializers.ValidationError({"subject": "Вид объекта изменить нельзя"})
         keys = ("fields", "required", "extra", "remind", "remind_days")

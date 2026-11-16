@@ -1,15 +1,22 @@
 from decimal import Decimal
 
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from apps.billing.permissions import ModuleRequired
-from apps.core.api_permissions import SectionPermissionMixin
+from apps.core.api_permissions import SectionPermissionMixin, permission_required
 from apps.core.audit.mixins import AuditedMixin
+from apps.core.handbooks.models import Handbook, HandbookValue
+from apps.core.handbooks.system_codes import system_code_assignment
 from apps.core.pagination import StandardPagination
 from apps.forwarding.orders.filters import date_param, int_param
 from apps.forwarding.orders.services import BASE_CURRENCY_CODE
 
 from ..models import ExchangeRate
+from ..nbrk import NBRK_CODES, fetch_rates
 from .serializers import HandbookField, money
 
 
@@ -61,7 +68,47 @@ class RateViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_permissions(self):
+        if getattr(self, "action", None) == "nbrk":
+            return [ModuleRequired("finance")(), permission_required("finance.create")()]
         return [ModuleRequired("finance")(), *super().get_permissions()]
+
+    @action(detail=False, methods=["post"], url_path="nbrk")
+    def nbrk(self, request):
+        """Курсы USD, EUR, RUB, CNY на сегодня у Нацбанка: запрос и сохранение (запись на дату)."""
+        today = timezone.localdate()
+        fetched = fetch_rates(today)
+        with transaction.atomic():
+            handbook = Handbook.objects.get(code="currency")
+            saved = []
+            for code in NBRK_CODES:
+                if code not in fetched:
+                    continue
+                currency = HandbookValue.objects.filter(handbook=handbook, code=code).first()
+                if (
+                    currency is None
+                ):  # юань мог появиться в справочнике позже, чем была создана компания
+                    with system_code_assignment():
+                        currency = HandbookValue.objects.create(
+                            company_id=handbook.company_id,
+                            handbook=handbook,
+                            name={"CNY": "Китайский юань"}.get(code, code),
+                            code=code,
+                            order=handbook.values.count() + 1,
+                        )
+                row, _ = ExchangeRate.objects.update_or_create(
+                    currency=currency,
+                    quote_currency=None,
+                    date=today,
+                    defaults={"rate": fetched[code], "company_id": handbook.company_id},
+                )
+                saved.append(row)
+        return Response(
+            {
+                "date": today,
+                "source": "nationalbank.kz",
+                "results": [RateSerializer(r).data for r in saved],
+            }
+        )
 
     def get_queryset(self):
         qs = ExchangeRate.objects.select_related("currency").filter(quote_currency__isnull=True)

@@ -37,9 +37,7 @@ def _present(data: dict) -> dict:
         "suggestion": [
             {"order_id": s["order_id"], "amount": money(s["amount"])} for s in data["suggestion"]
         ],
-        "manual_unlinked": [
-            {**m, "expense": money(m["expense"])} for m in data["manual_unlinked"]
-        ],
+        "manual_unlinked": [{**m, "expense": money(m["expense"])} for m in data["manual_unlinked"]],
     }
 
 

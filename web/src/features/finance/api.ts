@@ -9,6 +9,9 @@ const id = (value: number) => String(value)
 
 export const listRates = (f: RateFilters, signal?: AbortSignal) =>
   api.get<Paginated<Rate>>('/finance/rates/', { currency: f.currency ?? undefined, page: f.page, page_size: f.pageSize }, { signal })
+export interface NbrkResult { date: string; source: string; results: Rate[] }
+/** Курсы USD, EUR, RUB, CNY на сегодня у Нацбанка РК: запрос и сохранение. */
+export const requestNbrkRates = () => api.post<NbrkResult>('/finance/rates/nbrk/', {})
 export const createRate = (body: RatePayload) => api.post<Rate>('/finance/rates/', body)
 export const updateRate = (rateId: number, body: Partial<RatePayload>) => api.patch<Rate>(`/finance/rates/${id(rateId)}/`, body)
 export const deleteRate = (rateId: number) => api.delete(`/finance/rates/${id(rateId)}/`)

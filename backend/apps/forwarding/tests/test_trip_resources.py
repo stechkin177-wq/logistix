@@ -192,9 +192,7 @@ def test_concurrent_starts_with_shared_resource_only_one_wins(make_company):
             from apps.forwarding.trips.services import create_trip
 
             trips.append(
-                create_trip(
-                    ids, None, {"vehicle": v, "driver": d}, User.objects.get(pk=admin.pk)
-                )
+                create_trip(ids, None, {"vehicle": v, "driver": d}, User.objects.get(pk=admin.pk))
             )
     outcomes = []
     barrier = threading.Barrier(2)

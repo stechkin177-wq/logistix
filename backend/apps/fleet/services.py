@@ -51,9 +51,7 @@ def check_odometer(vehicle: Vehicle, km: int, at: datetime, *, exclude_id=None) 
         )
     initial = vehicle.initial_odometer_km
     if before is None and initial is not None and km < initial:
-        raise ValidationError(
-            {"odometer_km": f"Пробег меньше начального ({initial} км)"}
-        )
+        raise ValidationError({"odometer_km": f"Пробег меньше начального ({initial} км)"})
     if after is not None and km > after.odometer_km:
         raise ValidationError(
             {"odometer_km": f"Пробег больше следующего показания ({after.odometer_km} км)"}
@@ -89,9 +87,7 @@ def record_trip_mileage(trip, vehicle: Vehicle, km: int, phase: str) -> MileageR
 
 def latest_official(vehicle_id: int) -> MileageReading | None:
     return (
-        MileageReading.objects.filter(vehicle_id=vehicle_id)
-        .order_by("-recorded_at", "-id")
-        .first()
+        MileageReading.objects.filter(vehicle_id=vehicle_id).order_by("-recorded_at", "-id").first()
     )
 
 

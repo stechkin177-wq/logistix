@@ -245,4 +245,3 @@ def connect_signals() -> None:
             weak=False,
             dispatch_uid=f"limit:{spec['code']}",
         )
-

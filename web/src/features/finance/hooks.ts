@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   addPayment, cancelInvoice, createInvoice, createRate, createTripExpense, deleteInvoice, deletePayment, deleteRate,
   getFinanceSummary, getInvoice, getTripExpense, issueInvoice, listDebts, listInvoicePayments, listInvoices,
-  listOperations, listPayments, listRates, updateInvoice, updateRate,
+  listOperations, listPayments, listRates, requestNbrkRates, updateInvoice, updateRate,
 } from './api'
 import type { InvoiceListFilters, InvoicePayload, OperationsFilters, PaymentPayload, RateFilters, RatePayload } from './types'
 
@@ -30,6 +30,18 @@ export function useSaveRate() {
   return useMutation({
     mutationFn: ({ id, body }: { id: number | null; body: RatePayload }) => (id === null ? createRate(body) : updateRate(id, body)),
     onSuccess: invalidate,
+  })
+}
+
+export function useNbrkRates() {
+  const invalidate = useInvalidateFinance()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: requestNbrkRates,
+    onSuccess: async () => {
+      await invalidate()
+      await qc.invalidateQueries({ queryKey: ['handbooks', 'currency'] }) // юань мог добавиться в справочник
+    },
   })
 }
 

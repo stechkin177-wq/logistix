@@ -97,6 +97,7 @@ class Subscription(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
     is_free_period = models.BooleanField(default=False)
+
     def __str__(self):
         return f"{self.company_id}:{self.plan_id}:{self.status}"
 
