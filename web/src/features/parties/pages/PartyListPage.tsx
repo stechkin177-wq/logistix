@@ -119,7 +119,7 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
         canReset={filtered}
         onReset={() => { setState({ q: '', type: null, status: '' }) }}
       >
-        <FilterItem className="w-56">
+        <FilterItem className="w-auto">
           <TextField label={t('common.search')} type="search" placeholder={t('parties.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
         </FilterItem>
         <FilterItem>
@@ -163,7 +163,7 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
           ) : (
             <EmptyState title={t(`parties.${kind}.empty`)} hint={t(`parties.${kind}.emptyHint`)}>
               {canCreate ? (
-                <Button variant="primary" onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
+                <Button variant="primary" icon={Plus} onClick={() => { setEditor({ party: null, nonce: Date.now() }) }}>
                   {t(`parties.${kind}.new`)}
                 </Button>
               ) : null}

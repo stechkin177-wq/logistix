@@ -6,6 +6,7 @@ import { WriteButton } from '../../../shared/ui/WriteButton'
 import { pushToast } from '../../../shared/ui/toast'
 import { useCreateTrip } from '../../trips/hooks'
 import type { Order } from '../types'
+import { Plus } from '../../../shared/ui/icons'
 
 /**
  * «Создать рейс» одной кнопкой из карточки заказа: тот же вызов POST /trips/, что и на странице рейсов
@@ -22,6 +23,7 @@ export function CreateTripButton({ order }: { order: Order }) {
   return (
     <WriteButton
       variant="primary"
+      icon={Plus}
       permission="trips.create"
       disabled={ids.length === 0 || create.isPending}
       title={ids.length === 0 ? t('orders.createTripNoCargo') : undefined}

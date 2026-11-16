@@ -281,6 +281,7 @@ export function FinanceSettingsPage() {
       <PageHeader
         icon={SlidersHorizontal}
         title={t('nav.financeSettings')}
+        hint="financeSettings"
         meta={
           <>
             <span className="text-sm text-muted">{t('finance.settings.engine')}:</span>

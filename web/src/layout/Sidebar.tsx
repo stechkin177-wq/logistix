@@ -1,9 +1,7 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, useLocation } from 'react-router'
 import { useBranding } from '../shared/branding/useBranding'
 import { useSession } from '../shared/auth/useSession'
-import { ChevronDown } from '../shared/ui/icons'
 import { visibleNav, type NavItem } from './nav'
 
 const LINK = 'flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors'
@@ -13,7 +11,6 @@ const IDLE = 'text-muted hover:bg-surface-2 hover:text-ink'
 function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const [manual, setManual] = useState<boolean | null>(null)
   const Icon = item.icon
   const iconCls = child ? 'size-4' : 'size-[18px]'
   // Группа настроек - одна строка меню: подразделы открываются слева на самой странице настроек
@@ -21,39 +18,16 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   const to = isSettingsHub ? '/settings' : item.path
   if (to === undefined) return null
   const hubActive = isSettingsHub && (pathname === '/settings' || (item.children ?? []).some((c) => c.section === 'data' && c.path !== undefined && pathname.startsWith(c.path)))
-  // «Данные и документы» - раскрывающийся список под «Настройки»; сам открывается, когда в нём работаем
-  const dataItems = isSettingsHub ? (item.children ?? []).filter((c) => c.section === 'data') : []
-  const inData = dataItems.some((c) => c.path !== undefined && pathname.startsWith(c.path))
-  const expanded = manual ?? inData
   return (
     <li className={child ? 'relative before:absolute before:-left-2 before:top-1/2 before:h-px before:w-2 before:bg-line' : 'relative'}>
       <NavLink
         to={to}
-        end={to === '/'}
+        end={to === '/' || isSettingsHub}
         className={({ isActive }) => `${LINK} ${child ? 'py-1.5 pl-2.5' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
         {Icon ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
         <span className="truncate">{t(item.labelKey)}</span>
       </NavLink>
-      {dataItems.length > 0 ? (
-        <>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-label={t('nav.sectionData')}
-            title={t('nav.sectionData')}
-            onClick={() => { setManual(!expanded) }}
-            className="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-ink"
-          >
-            <ChevronDown className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </button>
-          {expanded ? (
-            <ul className="mb-1 ml-[1.375rem] mt-0.5 space-y-0.5 border-l border-line pl-2">
-              {dataItems.map((c) => <NavEntry key={c.key} item={c} child />)}
-            </ul>
-          ) : null}
-        </>
-      ) : null}
       {!isSettingsHub && item.children ? (
         <ul className="mb-1 ml-[1.375rem] mt-0.5 space-y-0.5 border-l border-line pl-2">
           {item.children.map((c) => (

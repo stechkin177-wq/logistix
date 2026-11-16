@@ -1,7 +1,7 @@
 import type { Session } from '../shared/api/types'
 import {
   Blocks, BookOpen, Boxes, Building, Building2, CarFront, FileCog, FileStack, FileText, Hash, LayoutDashboard, Network,
-  KeyRound, Mail, Package, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet,
+  KeyRound, Mail, Package, Palette, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet,
   type LucideIcon,
 } from '../shared/ui/icons'
 
@@ -54,6 +54,7 @@ export const NAV: NavItem[] = [
     icon: Settings,
     children: [
       { key: 'company', labelKey: 'nav.company', path: '/settings/company', permission: 'company.view', icon: Building, section: 'organization' },
+      { key: 'branding', labelKey: 'nav.branding', path: '/settings/branding', permission: 'company.view', icon: Palette, section: 'organization' },
       { key: 'users', labelKey: 'nav.users', path: '/settings/users', permission: 'users.view', icon: Users, section: 'organization' },
       { key: 'departments', labelKey: 'nav.departments', path: '/settings/departments', permission: 'users.view', icon: Network, section: 'organization' },
       { key: 'roles', labelKey: 'nav.roles', path: '/settings/roles', permission: 'roles.view', icon: ShieldCheck, section: 'organization' },

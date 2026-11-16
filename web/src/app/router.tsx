@@ -28,6 +28,7 @@ import { LabelsPage } from '../features/labels/LabelsPage'
 import { MailPage } from '../features/mail/MailPage'
 import { MailSettingsPage } from '../features/mail/MailSettingsPage'
 import { LoginAuditPage } from '../features/settings/audit/LoginAuditPage'
+import { BrandingPage } from '../features/settings/company/BrandingPage'
 import { CompanyPage } from '../features/settings/company/CompanyPage'
 import { DepartmentsPage } from '../features/settings/departments/DepartmentsPage'
 import { HandbooksPage } from '../features/settings/handbooks/HandbooksPage'
@@ -61,6 +62,7 @@ const PAGES: Record<string, () => ReactElement> = {
   '/documents': DocumentsPage,
   '/trash': TrashPage,
   '/settings/company': CompanyPage,
+  '/settings/branding': BrandingPage,
   '/settings/users': UsersPage,
   '/settings/departments': DepartmentsPage,
   '/settings/roles': RolesPage,

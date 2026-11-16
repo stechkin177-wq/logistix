@@ -21,7 +21,7 @@ import { CreateTripDrawer } from '../components/CreateTripDrawer'
 import { useConsignmentList } from '../hooks'
 import type { Consignment } from '../types'
 import { PageHeader } from '../../../shared/ui/PageHeader'
-import { Boxes } from '../../../shared/ui/icons'
+import { Boxes, Plus } from '../../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -118,7 +118,7 @@ export function ConsignmentsPage() {
                   <Button variant="ghost" onClick={() => { setSelected(new Map()) }}>{t('consignments.clearSelection')}</Button>
                 </>
               ) : null}
-              <WriteButton permission="trips.create" variant="primary" disabled={selected.size === 0} onClick={() => { setCreating(true) }}>
+              <WriteButton permission="trips.create" variant="primary" icon={Plus} disabled={selected.size === 0} onClick={() => { setCreating(true) }}>
                 {t('consignments.createTrip')}
               </WriteButton>
             </div>
@@ -126,7 +126,7 @@ export function ConsignmentsPage() {
         }
       />
       <FilterBar canReset={filtered} onReset={reset}>
-        <FilterItem className="w-48">
+        <FilterItem className="w-auto">
           <TextField label={t('common.search')} type="search" placeholder={t('consignments.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
         </FilterItem>
         <FilterItem className="w-56">

@@ -79,7 +79,7 @@ describe('Настройки компании', () => {
 describe('Оформление', () => {
   const brandingForm = async () => {
     const m = loggedIn([['PATCH', '/api/company/branding/', { body: branding }], ...base])
-    renderApp('/settings/company')
+    renderApp('/settings/branding')
     await screen.findByLabelText('Название приложения')
     return m
   }
@@ -152,7 +152,7 @@ describe('Оформление', () => {
       ['GET', '/api/company/branding/', { body: { ...branding, logo_url: '/media/branding/x/y.png' } }],
       ...base,
     ])
-    renderApp('/settings/company')
+    renderApp('/settings/branding')
     await userEvent.click(await screen.findByRole('button', { name: 'Убрать логотип' }))
     await save()
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'PATCH')).toBe(true) })

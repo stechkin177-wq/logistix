@@ -5,7 +5,7 @@ import { Info } from './icons'
 export function PageHint({ hint }: { hint: string }) {
   const { t } = useTranslation()
   return (
-    <aside className="flex items-start gap-3 rounded-card border border-brand-200/70 bg-brand-50/60 px-3 py-2.5 dark:border-brand-800/50 dark:bg-brand-900/20">
+    <aside className="flex min-h-[4.25rem] items-start gap-3 rounded-card border border-brand-200/70 bg-brand-50/60 px-3 py-2.5 dark:border-brand-800/50 dark:bg-brand-900/20">
       <Info className="mt-0.5 size-4 shrink-0 text-brand-600 dark:text-brand-300" aria-hidden="true" />
       <div className="min-w-0 text-sm">
         <p className="font-semibold text-ink">{t(`hints.${hint}.title`)}</p>

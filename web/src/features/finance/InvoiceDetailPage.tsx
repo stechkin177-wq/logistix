@@ -16,7 +16,7 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { FormBanner } from '../../shared/ui/FormBanner'
 import { Money } from '../../shared/ui/Money'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { ReceiptText } from '../../shared/ui/icons'
+import { ReceiptText, Plus } from '../../shared/ui/icons'
 import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
@@ -199,7 +199,7 @@ export function InvoiceDetailPage() {
               ) : null}
               <WriteButton permission="finance.update" onClick={() => { setDialog('edit') }}>{t('finance.invoices.dueEdit')}</WriteButton>
               {Number(invoice.balance) > 0 && hasPermission('finance.create') ? (
-                <WriteButton variant="primary" permission="finance.create" onClick={() => { setDialog('payment') }}>{t('finance.invoices.addPayment')}</WriteButton>
+                <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { setDialog('payment') }}>{t('finance.invoices.addPayment')}</WriteButton>
               ) : null}
               {hasPermission('finance.cancel_invoice') ? (
                 <WriteButton permission="finance.cancel_invoice" onClick={() => { setDialog('cancel') }}>{t('finance.invoices.cancelInvoice')}</WriteButton>

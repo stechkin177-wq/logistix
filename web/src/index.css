@@ -113,3 +113,62 @@ main {
     radial-gradient(farthest-side at 0 50%, rgb(15 23 42 / 0.16), transparent) left center / 0.75rem 100% no-repeat scroll,
     radial-gradient(farthest-side at 100% 50%, rgb(15 23 42 / 0.16), transparent) right center / 0.75rem 100% no-repeat scroll;
 }
+
+
+/* Раскрывающиеся списки в стиле сайта: в браузерах с поддержкой настраиваемого select
+   (Chrome/Edge 135+) стилизуем сам список; в остальных остаётся системный. */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  select {
+    align-items: center;
+  }
+  select::picker-icon {
+    display: none; /* свой шеврон рисует SelectBox */
+  }
+  ::picker(select) {
+    margin-top: 4px;
+    padding: 0.25rem;
+    border: 1px solid var(--ui-line);
+    border-radius: 0.75rem;
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    box-shadow: 0 12px 32px -8px rgb(15 23 42 / 0.22), 0 2px 6px rgb(15 23 42 / 0.06);
+    min-width: anchor-size(width);
+    max-height: min(22rem, 60dvh);
+  }
+  select option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    cursor: pointer;
+    transition: background-color 0.12s;
+  }
+  select option::checkmark {
+    display: none;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background: var(--ui-surface-2);
+    outline: none;
+  }
+  select option:checked {
+    background: var(--brand-50, #eff6ff);
+    color: var(--brand-700, #1d4ed8);
+    font-weight: 500;
+  }
+  .dark select option:checked {
+    background: color-mix(in srgb, var(--brand-900, #1e3a8a) 50%, transparent);
+    color: var(--brand-100, #dbeafe);
+  }
+  select option:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

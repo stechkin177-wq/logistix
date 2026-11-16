@@ -99,7 +99,7 @@ export function DocumentsPage() {
         <FilterItem>
           <DateInput label={t('documents.issued.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
         </FilterItem>
-        <FilterItem className="w-48">
+        <FilterItem className="w-auto">
           <TextField label={t('documents.issued.search')} type="search" value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
         </FilterItem>
       </FilterBar>

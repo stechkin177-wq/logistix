@@ -8,7 +8,7 @@ import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { Button } from '../../shared/ui/Button'
 import { Dialog } from '../../shared/ui/Dialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
-import { Mail, RotateCcw } from '../../shared/ui/icons'
+import { Mail, RotateCcw, Plus } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Pagination } from '../../shared/ui/Pagination'
 import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
@@ -62,12 +62,12 @@ export function MailPage() {
         icon={Mail}
         title={t('nav.mail')}
         subtitle={t('mail.intro')}
-        actions={<WriteButton permission="mail.send" variant="primary" disabled={!configured} title={configured ? undefined : t('mail.notConfigured')} onClick={() => { setComposing(Date.now()) }}>{t('mail.write')}</WriteButton>}
+        actions={<WriteButton permission="mail.send" variant="primary" icon={Plus} disabled={!configured} title={configured ? undefined : t('mail.notConfigured')} onClick={() => { setComposing(Date.now()) }}>{t('mail.write')}</WriteButton>}
       />
       {!configured ? <Banner kind="warning">{t('mail.notConfigured')}</Banner> : null}
       {resend.isError ? <Banner kind="error">{errorMessage(resend.error, t)}</Banner> : null}
       <FilterBar>
-        <FilterItem className="w-56">
+        <FilterItem className="w-auto">
           <TextField label={t('mail.search')} type="search" placeholder={t('mail.searchPlaceholder')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
         </FilterItem>
         <FilterItem className="w-48">

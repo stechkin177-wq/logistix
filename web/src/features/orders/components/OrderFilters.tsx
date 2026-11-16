@@ -112,7 +112,7 @@ export function OrderFilters({ value, onChange, actions }: Props) {
       onReset={() => { onChange(EMPTY_FILTERS) }}
       actions={actions}
     >
-      <FilterItem className="w-48">
+      <FilterItem className="w-auto">
         <TextField label={t('common.search')} type="search" placeholder={t('orders.searchPlaceholder')} value={value.q} onChange={(e) => { onChange({ q: e.target.value }, { replace: true }) }} />
       </FilterItem>
       <FilterItem className="w-44">

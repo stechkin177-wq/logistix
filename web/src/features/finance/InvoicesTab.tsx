@@ -93,8 +93,8 @@ export function InvoicesTab() {
             onChange={(value) => { setState({ status: value as typeof state.status }) }}
           />
         </FilterItem>
-        <FilterItem className="w-48">
-          <TextField label={t('finance.invoices.search')} type="search" value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
+        <FilterItem className="w-auto">
+          <TextField label={t('common.search')} type="search" placeholder={t('finance.invoices.search')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
         </FilterItem>
         <FilterItem>
           <DateInput label={t('finance.invoices.dateFrom')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />

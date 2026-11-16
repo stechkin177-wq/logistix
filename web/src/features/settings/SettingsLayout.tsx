@@ -7,6 +7,7 @@ import { useSession } from '../../shared/auth/useSession'
 /** Вкладки профиля слева направо; подпись «Финансы» короче названия страницы. */
 const PROFILE_TABS: { key: string; labelKey: string }[] = [
   { key: 'company', labelKey: 'nav.company' },
+  { key: 'branding', labelKey: 'nav.branding' },
   { key: 'users', labelKey: 'nav.users' },
   { key: 'roles', labelKey: 'nav.roles' },
   { key: 'departments', labelKey: 'nav.departments' },

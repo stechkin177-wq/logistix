@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { matchPath, useLocation } from 'react-router'
+import { Link, matchPath, useLocation } from 'react-router'
 import { useSession } from '../shared/auth/useSession'
 import { ChevronRight, UserRound } from '../shared/ui/icons'
 import { ThemeToggle } from '../shared/ui/ThemeToggle'
@@ -39,7 +39,11 @@ export function TopBar() {
           {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
           {parent ? (
             <>
-              <span className="truncate">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
+              {parent.key === 'settings' && !inProfile ? (
+                <Link to="/settings" className="truncate hover:underline">{t(parent.labelKey)}</Link>
+              ) : (
+                <span className="truncate">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
+              )}
               <ChevronRight className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
             </>
           ) : null}
@@ -47,7 +51,7 @@ export function TopBar() {
         </p>
       ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <LanguageSwitch className="h-9 shadow-card md:bg-surface" />
+        <LanguageSwitch />
         <ThemeToggle />
         <ProfileMenu />
       </div>

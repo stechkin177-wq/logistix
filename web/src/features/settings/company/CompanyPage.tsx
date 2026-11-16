@@ -14,7 +14,6 @@ import { Spinner } from '../../../shared/ui/Spinner'
 import { TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
 import { WriteButton } from '../../../shared/ui/WriteButton'
-import { BrandingBlock } from './BrandingBlock'
 import { useSession } from '../../../shared/auth/useSession'
 import { UsageBlock } from '../../billing/UsageBlock'
 import { SubscriptionBlock } from './SubscriptionBlock'
@@ -112,8 +111,8 @@ export function CompanyPage() {
   const canSeeLicense = hasPermission('company.manage_modules')
   const query = useQuery({ queryKey: ['company', 'settings'], queryFn: ({ signal }) => api.get<CompanySettings>('/company/settings/', undefined, { signal }) })
   return (
-    <div className="max-w-3xl space-y-4">
-      <PageHeader icon={Building} title={t('nav.company')} />
+    <div className="space-y-3">
+      <PageHeader icon={Building} title={t('nav.company')} hint="company" />
       <section aria-labelledby="company-main" className="space-y-2 rounded-card border border-line bg-surface p-4 shadow-card">
         <h2 id="company-main" className="text-sm font-semibold">{t('company.main')}</h2>
         {query.isError ? (
@@ -123,7 +122,6 @@ export function CompanyPage() {
           </>
         ) : query.data ? <CompanyForm settings={query.data} /> : <Spinner label={t('table.loading')} />}
       </section>
-      <BrandingBlock />
       <SecurityBlock />
       {/* тариф, срок и лимиты видны только тем, кто управляет модулями (администратору компании) */}
       {canSeeLicense ? <SubscriptionBlock /> : null}

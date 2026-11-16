@@ -87,7 +87,7 @@ export function LoginAuditPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon={KeyRound} title={t('audit.title')} subtitle={t('audit.intro')} />
+      <PageHeader icon={KeyRound} title={t('audit.title')} hint="audit" />
       <FilterBar canReset={filtered} onReset={reset}>
         <FilterItem>
           <Select
