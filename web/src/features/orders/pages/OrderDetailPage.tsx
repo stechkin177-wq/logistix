@@ -106,7 +106,7 @@ export function OrderDetailPage() {
         }
       />
       <OrderSummary order={order} trips={trips} showMargin={canFinance} />
-      <Tabs tabs={tabs} active={active} label={t('orders.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'overview' }, { replace: true }) }} />
+      <Tabs tabs={tabs} pinned active={active} label={t('orders.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'overview' }, { replace: true }) }} />
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
         {active === 'overview' ? <OverviewTab order={order} /> : null}
         {active === 'cargo' ? <CargoTab order={order} /> : null}

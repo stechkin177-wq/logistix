@@ -35,7 +35,7 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions, h
     return () => { document.title = appName }
   }, [text, appName])
   const header = (
-    <header className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 ${slot ? 'rounded-card border border-line bg-surface px-3 py-2 shadow-card md:px-4' : 'pb-2 pt-3'}`}>
+    <header className={`${slot ? 'order-1 ' : ''}flex flex-wrap items-center justify-between gap-x-3 gap-y-2 ${slot ? 'rounded-card border border-line bg-surface px-3 py-2 shadow-card md:px-4' : 'pb-2 pt-3'}`}>
       <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-x-3 gap-y-1">
         {back ? (
           <Link

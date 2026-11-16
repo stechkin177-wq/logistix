@@ -165,7 +165,7 @@ export function DocumentTypesPage() {
     <div className="space-y-3">
       <PageHeader icon={FileCog} title={t('doctypes.title')} />
       <p className="text-sm text-muted">{t('doctypes.intro')}</p>
-      <Tabs label={t('doctypes.title')} tabs={subjects.map((s) => ({ key: s, label: t(`doctypes.subjects.${s}`) }))} active={active} onChange={(k) => { setTab(k as DocSubject) }} />
+      <Tabs pinned label={t('doctypes.title')} tabs={subjects.map((s) => ({ key: s, label: t(`doctypes.subjects.${s}`) }))} active={active} onChange={(k) => { setTab(k as DocSubject) }} />
       <SubjectTab key={active} subject={active} />
     </div>
   )

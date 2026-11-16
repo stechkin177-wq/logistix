@@ -125,7 +125,7 @@ function Content({ trip }: { trip: Trip }) {
         }
       />
       <Summary trip={trip} />
-      <Tabs tabs={tabs} active={active} label={t('trips.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'main' }, { replace: true }) }} />
+      <Tabs tabs={tabs} pinned active={active} label={t('trips.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'main' }, { replace: true }) }} />
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
         {active === 'main' ? (
           <Card><CardBody><TripMainForm key={`${String(trip.id)}-${trip.carrier_price}-${String(trip.carrier)}`} trip={trip} /></CardBody></Card>

@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { LucideIcon } from './icons'
+import { MobilePinned } from './MobilePinned'
 
 export interface TabDef {
   key: string
@@ -13,11 +14,18 @@ export interface TabDef {
 
 /** Вкладки (role=tablist); панель рендерит вызывающий. Выбранная вкладка хранится снаружи (URL). */
 export function Tabs({
-  tabs, active, onChange, label, variant = 'underline',
-}: { tabs: TabDef[]; active: string; onChange: (key: string) => void; label: string; variant?: 'underline' | 'pills' }): ReactNode {
+  tabs, active, onChange, label, variant = 'underline', pinned = false,
+}: { tabs: TabDef[]; active: string; onChange: (key: string) => void; label: string; variant?: 'underline' | 'pills'; pinned?: boolean }): ReactNode {
   const pills = variant === 'pills'
-  return (
+  const [node, setNode] = useState<HTMLDivElement | null>(null)
+  // активная вкладка всегда в видимой части ленты (узкий экран)
+  useEffect(() => {
+    const el = node?.querySelector('[aria-selected="true"]')
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [active, node])
+  const list = (
     <div
+      ref={setNode}
       role="tablist"
       aria-label={label}
       className={`thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto [--scroll-bg:var(--ui-canvas)] ${pills ? 'rounded-card border border-line bg-surface p-1 shadow-card' : 'border-b border-line'}`}
@@ -59,4 +67,6 @@ export function Tabs({
       })}
     </div>
   )
+  // pinned: на телефоне вкладки неподвижны под шапкой страницы
+  return pinned ? <MobilePinned>{list}</MobilePinned> : list
 }

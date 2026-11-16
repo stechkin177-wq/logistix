@@ -15,7 +15,7 @@ import type { DocTemplate } from './types'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Download, Ellipsis, FileStack, ListChecks, RotateCcw, Upload } from '../../shared/ui/icons'
 
-const ICON_BTN = 'inline-flex size-8 items-center justify-center rounded-control border border-line bg-surface text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50'
+const ICON_BTN = 'inline-flex size-8 items-center justify-center p-0! rounded-control border border-line bg-surface text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50'
 
 /** Меню «⋯» у строки: редкие действия (вернуть стартовую, отключить). Закрывается по клику вне и Esc. */
 function RowMenu({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {

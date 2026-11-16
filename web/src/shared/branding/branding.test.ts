@@ -61,19 +61,14 @@ describe('applyBranding', () => {
     applyBranding({ theme: 'light' })
   })
 
-  it('theme=system следует за prefers-color-scheme', () => {
-    let listener: ((e: { matches: boolean }) => void) | undefined
+  it('theme=system без личного выбора даёт светлую тему, даже если система тёмная', () => {
     window.matchMedia = ((query: string) => ({
       matches: true,
       media: query,
-      addEventListener: (_: string, fn: (e: { matches: boolean }) => void) => {
-        listener = fn
-      },
+      addEventListener: () => undefined,
       removeEventListener: () => undefined,
     })) as unknown as typeof window.matchMedia
     applyBranding({ theme: 'system' })
-    expect(root.classList.contains('dark')).toBe(true)
-    listener?.({ matches: false })
     expect(root.classList.contains('dark')).toBe(false)
     // @ts-expect-error возвращаем окружение jsdom без matchMedia
     delete window.matchMedia

@@ -49,7 +49,7 @@ export function FinancePage() {
       <Tabs
         label={t('finance.tabsLabel')}
         active={active}
-        variant="pills"
+        variant="pills" pinned
         tabs={visible.map((key) => ({ key, label: t(`finance.tabs.${key}`), icon: TAB_ICONS[key] }))}
         onChange={(tab) => { setState({ tab: tab as TabKey }) }}
       />

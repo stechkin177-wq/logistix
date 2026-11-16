@@ -162,7 +162,7 @@ function Content({ kind, party, onSaved }: { kind: PartyKind; party: Party; onSa
           </>
         }
       />
-      <Tabs tabs={tabs} active={active} label={t('parties.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'main' }, { replace: true }) }} />
+      <Tabs tabs={tabs} pinned active={active} label={t('parties.tabs')} onChange={(tab) => { setState({ tab: TABS.find((x) => x === tab) ?? 'main' }, { replace: true }) }} />
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
         {/* форма одна на три вкладки: введённое не теряется при переключении, «Сохранить» отправляет всё сразу */}
         <form id={FORM_ID} ref={formRef} noValidate onSubmit={(event) => { event.preventDefault(); if (api.canSave) api.submit() }} hidden={!inForm}>

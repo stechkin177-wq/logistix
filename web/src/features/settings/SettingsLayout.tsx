@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { isAllowed, NAV } from '../../layout/nav'
 import { useSession } from '../../shared/auth/useSession'
+import { MobilePinned } from '../../shared/ui/MobilePinned'
 
 /** Вкладки профиля слева направо; подпись «Финансы» короче названия страницы. */
 const PROFILE_TABS: { key: string; labelKey: string }[] = [
@@ -43,6 +44,7 @@ export function SettingsLayout() {
   return (
     <div className="space-y-3">
       {inProfile ? (
+        <MobilePinned>
         <nav
           ref={navRef}
           aria-label={t('nav.settingsLabel')}
@@ -66,6 +68,7 @@ export function SettingsLayout() {
             )
           })}
         </nav>
+        </MobilePinned>
       ) : null}
       <div className="min-w-0">
         <Outlet />

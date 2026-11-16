@@ -61,16 +61,20 @@ export function setScreenDefaultTheme(value: 'light' | 'dark' | null): void {
 }
 
 /** Личный выбор светлой/тёмной темы на этом устройстве: перекрывает тему компании. */
+let memoryTheme: 'light' | 'dark' | null = null
+
 function storedTheme(): 'light' | 'dark' | null {
   try {
     const v = localStorage.getItem(THEME_KEY)
-    return v === 'light' || v === 'dark' ? v : null
+    if (v === 'light' || v === 'dark') return v
   } catch {
-    return null
+    // хранилище недоступно (приватный режим): работает выбор из памяти
   }
+  return memoryTheme
 }
 
 export function setThemeOverride(value: 'light' | 'dark'): void {
+  memoryTheme = value
   try { localStorage.setItem(THEME_KEY, value) } catch { /* хранилище недоступно: действует до перезагрузки */ }
   applyTheme(value)
 }
@@ -91,7 +95,8 @@ export function holdLightTheme(): () => void {
 
 function applyTheme(companyTheme: Theme): void {
   lastTheme = companyTheme
-  const theme: Theme = storedTheme() ?? screenDefault ?? companyTheme
+  // без личного выбора: светлая; тема компании «как в системе» тоже даёт светлую (тёмная - только по выбору)
+  const theme: Theme = storedTheme() ?? screenDefault ?? (companyTheme === 'system' ? 'light' : companyTheme)
   stopSystemWatch?.()
   stopSystemWatch = null
   if (theme !== 'system') {

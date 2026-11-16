@@ -40,11 +40,11 @@ export function TopBar() {
           {parent ? (
             <>
               {parent.key === 'settings' && !inProfile ? (
-                <Link to="/settings" className="truncate hover:underline">{t(parent.labelKey)}</Link>
+                <Link to="/settings" className="truncate hover:underline max-md:hidden">{t(parent.labelKey)}</Link>
               ) : (
-                <span className="truncate">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
+                <span className="truncate max-md:hidden">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
               )}
-              <ChevronRight className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+              <ChevronRight className="size-3.5 shrink-0 opacity-60 max-md:hidden" aria-hidden="true" />
             </>
           ) : null}
           <span className="truncate">{t(section.labelKey)}</span>
