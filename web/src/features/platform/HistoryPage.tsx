@@ -14,7 +14,7 @@ import { PageHeader } from '../../shared/ui/PageHeader'
 import { History } from '../../shared/ui/icons'
 
 const SCHEMA = {
-  kind: codecs.oneOf(['', 'plan', 'subscription'] as const, ''),
+  kind: codecs.oneOf(['', 'plan', 'subscription', 'auth', 'company'] as const, ''),
   key: codecs.string(''),
   page: codecs.positiveInt(1),
   pageSize: codecs.choiceInt(PAGE_SIZES, 50),
@@ -68,8 +68,8 @@ export function HistoryPage() {
             label={t('platform.history.object')}
             value={state.kind}
             placeholder={t('common.all')}
-            options={[{ value: 'plan', label: t('platform.history.kind.plan') }, { value: 'subscription', label: t('platform.history.kind.subscription') }]}
-            onChange={(v) => { setState({ kind: v === 'plan' || v === 'subscription' ? v : '' }) }}
+            options={(['plan', 'subscription', 'company', 'auth'] as const).map((k) => ({ value: k, label: t(`platform.history.kind.${k}`) }))}
+            onChange={(v) => { setState({ kind: v === 'plan' || v === 'subscription' || v === 'auth' || v === 'company' ? v : '' }) }}
           />
         </FilterItem>
         <FilterItem className="w-56">
@@ -77,6 +77,7 @@ export function HistoryPage() {
         </FilterItem>
       </FilterBar>
       <DataTable
+        fit
         caption={t('nav.platformHistory')}
         columns={columns}
         rows={list.data?.results}

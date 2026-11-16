@@ -1653,7 +1653,9 @@
       "emptyHint": "Правки тарифов и подписок появятся здесь",
       "kind": {
         "plan": "Тариф",
-        "subscription": "Подписка компании"
+        "subscription": "Подписка компании",
+        "auth": "Вход и доступ",
+        "company": "Компания"
       },
       "actions": {
         "create": "создание",
@@ -1668,7 +1670,21 @@
         "change_plan": "смена тарифа",
         "renew": "продление",
         "block": "блокировка",
-        "unblock": "снятие блокировки"
+        "unblock": "снятие блокировки",
+        "login": "вход",
+        "password_ok": "пароль принят",
+        "switch_to_platform": "переход в Центр управления",
+        "switch_to_company": "переход в компанию",
+        "login_failed": "неудачная попытка входа",
+        "password_set": "пароль установлен",
+        "switch": "смена компании",
+        "totp_enabled": "включён TOTP",
+        "totp_failed": "неверный код TOTP",
+        "logout": "выход",
+        "password_link_issued": "выдана ссылка для пароля",
+        "totp_reset": "сброс кода TOTP",
+        "owner_created": "создан владелец платформы",
+        "platform_role": "смена платформенной роли"
       },
       "fields": {
         "name": "Название",
@@ -1691,7 +1707,12 @@
         "reason": "Причина",
         "order": "Порядок",
         "limits_exceeded": "Превышены лимиты",
-        "lost_modules": "Потеряны модули"
+        "lost_modules": "Потеряны модули",
+        "ip": "IP-адрес",
+        "role": "Роль",
+        "company_id": "Компания (id)",
+        "email": "Эл. почта",
+        "platform_role": "Платформенная роль"
       }
     }
   },

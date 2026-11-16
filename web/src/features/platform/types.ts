@@ -62,7 +62,7 @@ export interface ChangePreview {
 
 export interface HistoryRow {
   id: number
-  kind: 'plan' | 'subscription'
+  kind: 'plan' | 'subscription' | 'auth' | 'company'
   key: string
   action: string
   changes: Record<string, unknown>

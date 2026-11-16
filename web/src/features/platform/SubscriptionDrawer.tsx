@@ -111,7 +111,7 @@ export function SubscriptionDrawer({ company, onClose }: { company: PlatformComp
             <ul className="mt-2 divide-y divide-line rounded-control border border-line text-sm">
               {[...sub.data.periods].reverse().map((x, i) => (
                 <li key={`${x.starts_at}-${String(i)}`} className="px-3 py-2">
-                  {x.starts_at.slice(0, 10)} — {x.ends_at ? x.ends_at.slice(0, 10) : t('company.unlimited')} · {x.plan} · <b>{money(x.price, x.currency)}</b> · {t(`platform.companies.reason.${x.reason}`)}
+                  <DateTime value={x.starts_at} dateOnly /> — {x.ends_at ? <DateTime value={x.ends_at} dateOnly /> : t('company.unlimited')} · <span className="text-muted">{x.plan}</span> · <b>{money(x.price, x.currency)}</b> · {t(`platform.companies.reason.${x.reason}`, { defaultValue: x.reason })}
                 </li>
               ))}
             </ul>

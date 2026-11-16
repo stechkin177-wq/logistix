@@ -84,7 +84,7 @@ export function PlansPage() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       align: 'right',
       cell: (p) => (
-        <span className="flex flex-wrap justify-end gap-1 md:flex-nowrap">
+        <span className="flex flex-wrap justify-end gap-1">
           {p.status === 'draft' ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
           {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
           {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
@@ -107,6 +107,7 @@ export function PlansPage() {
       />
       {error ? <Banner kind="error">{error}</Banner> : null}
       <DataTable
+        fit
         caption={t('nav.platformPlans')}
         columns={columns}
         rows={plans.data}
