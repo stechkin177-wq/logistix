@@ -46,7 +46,6 @@ export function sanitizeBranding(raw: Partial<Record<keyof Branding, unknown>>):
   }
 }
 
-let stopSystemWatch: (() => void) | null = null
 // пока открыта страница с принудительно светлой темой (вход на телефоне), класс dark не ставится
 let lightHolds = 0
 let lastTheme: Theme = 'system'
@@ -96,26 +95,8 @@ export function holdLightTheme(): () => void {
 function applyTheme(companyTheme: Theme): void {
   lastTheme = companyTheme
   // без личного выбора: светлая; тема компании «как в системе» тоже даёт светлую (тёмная - только по выбору)
-  const theme: Theme = storedTheme() ?? screenDefault ?? (companyTheme === 'system' ? 'light' : companyTheme)
-  stopSystemWatch?.()
-  stopSystemWatch = null
-  if (theme !== 'system') {
-    setDark(theme === 'dark')
-    return
-  }
-  if (typeof window.matchMedia !== 'function') {
-    setDark(false)
-    return
-  }
-  const query = window.matchMedia('(prefers-color-scheme: dark)')
-  setDark(query.matches)
-  const listener = (event: MediaQueryListEvent): void => {
-    setDark(event.matches)
-  }
-  query.addEventListener('change', listener)
-  stopSystemWatch = () => {
-    query.removeEventListener('change', listener)
-  }
+  const theme = storedTheme() ?? screenDefault ?? (companyTheme === 'system' ? 'light' : companyTheme)
+  setDark(theme === 'dark')
 }
 
 /** Выставляет CSS-переменные --brand-50..950, --brand-fg, --brand-solid-hover, класс dark и заголовок страницы. */
