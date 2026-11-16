@@ -16,7 +16,7 @@ import { Combobox, type ComboOption } from '../../shared/ui/Combobox'
 import { DateInput } from '../../shared/ui/DateInput'
 import { FormBanner } from '../../shared/ui/FormBanner'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { ReceiptText } from '../../shared/ui/icons'
+import { ReceiptText, Plus } from '../../shared/ui/icons'
 import type { Paginated } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
@@ -217,7 +217,7 @@ function InvoiceForm({ invoice, direction, orderId: initialOrder, tripId: initia
             {noExpense ? (
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm text-muted">{t('finance.invoices.noTripLines')}</p>
-                <WriteButton permission="finance.create" onClick={() => { setExpenseOpen(true) }}>{t('finance.tripExpense.button')}</WriteButton>
+                <WriteButton icon={Plus} permission="finance.create" onClick={() => { setExpenseOpen(true) }}>{t('finance.tripExpense.button')}</WriteButton>
               </div>
             ) : null}
             {f.items ? <p role="alert" className="text-xs text-red-600 dark:text-red-400">{f.items}</p> : null}

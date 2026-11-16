@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/ui/Button'
 import { TextField } from '../../../shared/ui/TextField'
+import { Plus } from '../../../shared/ui/icons'
 
 export interface ContactRow {
   key: string
@@ -90,7 +91,7 @@ export function ContactsEditor({ rows, onChange, errors, disabled }: Props) {
           </div>
         </div>
       ))}
-      <Button
+      <Button icon={Plus}
         onClick={() => {
           onChange([...rows, newContactRow()])
         }}

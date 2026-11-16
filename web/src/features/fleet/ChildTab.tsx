@@ -7,6 +7,7 @@ import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { useChildList, useCreateChild, useDeleteChild } from './hooks'
+import { Plus } from '../../shared/ui/icons'
 
 export interface FieldDef {
   key: string
@@ -94,7 +95,7 @@ export function ChildTab({ path, vehicle, fields, summary, emptyText, header, re
             )
           })}
           <div className="col-span-2">
-            <WriteButton permission="fleet.create" onClick={submit} disabled={create.isPending}>{t('fleet.add')}</WriteButton>
+            <WriteButton icon={Plus} permission="fleet.create" onClick={submit} disabled={create.isPending}>{t('fleet.add')}</WriteButton>
           </div>
         </div>
       )}

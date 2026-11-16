@@ -8,6 +8,7 @@ import type { HandbookValue } from '../../../shared/api/types'
 import { Button } from '../../../shared/ui/Button'
 import { canSimplify, emptyStop, toStops, type ConsignmentForm, type PointForm, type StopForm } from '../orderForm'
 import type { StopKind } from '../types'
+import { Plus } from '../../../shared/ui/icons'
 
 interface Props {
   value: ConsignmentForm
@@ -61,18 +62,20 @@ function PointFields({ point, base, err, patch, compact }: PointFieldsProps) {
   // подробности открыты сами, если в них уже есть значения или ошибки проверки
   const showDetails = !compact || open || DETAIL_KEYS.some((k) => point[k] !== '' || err(`${base}${k}`))
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="@container">
+    <div className="grid grid-cols-1 gap-2 @lg:grid-cols-[repeat(2,minmax(0,1fr))]">
       <DateInput withTime label={t('orders.windowFrom')} required value={point.window_from} error={err(`${base}window_from`)} onChange={(v) => { patch({ window_from: v }) }} />
       <TextField label={t('orders.city')} required value={point.city} error={err(`${base}city`)} onChange={(e) => { patch({ city: e.target.value }) }} />
-      <TextField fieldClassName="col-span-2" label={t('orders.street')} value={point.street} error={err(`${base}street`)} onChange={(e) => { patch({ street: e.target.value }) }} />
+      <TextField fieldClassName="@lg:col-span-2" label={t('orders.street')} value={point.street} error={err(`${base}street`)} onChange={(e) => { patch({ street: e.target.value }) }} />
       {compact ? (
-        <div className="col-span-2">
-          <Button variant="ghost" aria-expanded={showDetails} onClick={() => { setOpen(!showDetails) }}>
+        <div className="@lg:col-span-2">
+          <Button variant="ghost" className="h-auto! whitespace-normal! py-1.5! text-left" aria-expanded={showDetails} onClick={() => { setOpen(!showDetails) }}>
             {showDetails ? '▾' : '▸'} {t('orders.pointDetails')}
           </Button>
         </div>
       ) : null}
       {showDetails ? <PointDetails point={point} base={base} err={err} patch={patch} countries={countries.all} methods={methods.all} /> : null}
+    </div>
     </div>
   )
 }
@@ -90,7 +93,7 @@ function PointDetails({ point, base, err, patch, countries, methods }: Omit<Poin
         <TextField label={t('orders.lat')} inputMode="decimal" value={point.lat} error={err(`${base}lat`)} onChange={(e) => { patch({ lat: e.target.value }) }} />
         <TextField label={t('orders.lng')} inputMode="decimal" value={point.lng} error={err(`${base}lng`)} onChange={(e) => { patch({ lng: e.target.value }) }} />
       </div>
-      <TextArea fieldClassName="col-span-2" label={t('orders.pointNote')} value={point.note} error={err(`${base}note`)} onChange={(e) => { patch({ note: e.target.value }) }} />
+      <TextArea fieldClassName="@lg:col-span-2" label={t('orders.pointNote')} value={point.note} error={err(`${base}note`)} onChange={(e) => { patch({ note: e.target.value }) }} />
     </>
   )
 }
@@ -158,7 +161,7 @@ function StopsEditor({ value, onChange, prefix, errors }: Props & { value: Consi
         })}
       </ol>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={add}>{t('orders.addStop')}</Button>
+        <Button icon={Plus} onClick={add}>{t('orders.addStop')}</Button>
         <Button variant="ghost" disabled={!canSimplify(stops)} onClick={() => {
           const [first, second] = stops
           if (first && second) onChange({ ...value, points: [first, second], stops: null })

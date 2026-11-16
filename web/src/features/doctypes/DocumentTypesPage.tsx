@@ -94,7 +94,7 @@ function TypeDrawer({ subject, type, onClose }: { subject: DocSubject; type: Doc
             </li>
           ))}
         </ul>
-        {extra.length < 10 ? <Button onClick={() => { setExtra((s) => [...s, { key: `f${String(Date.now() % 100000)}`, label: '', required: false }]) }}>{t('doctypes.addExtra')}</Button> : null}
+        {extra.length < 10 ? <Button icon={Plus} onClick={() => { setExtra((s) => [...s, { key: `f${String(Date.now() % 100000)}`, label: '', required: false }]) }}>{t('doctypes.addExtra')}</Button> : null}
         <h3 className="text-sm font-semibold">{t('doctypes.remindTitle')}</h3>
         <Checkbox label={t('doctypes.remind')} checked={remind} onChange={(e) => { setRemind(e.target.checked) }} />
         {remind ? <TextField label={t('doctypes.remindDays')} hint={t('doctypes.remindDaysHint')} value={days} onChange={(e) => { setDays(e.target.value) }} /> : null}

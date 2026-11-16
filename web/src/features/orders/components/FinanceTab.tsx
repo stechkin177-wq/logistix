@@ -25,6 +25,7 @@ import { OrderFinanceBlock } from '../../finance/OrderFinanceBlock'
 import { useFinanceEngine } from '../../finance/ledgerHooks'
 import { OrderInvoicesBlock } from './OrderInvoicesBlock'
 import type { Order, OrderLine } from '../types'
+import { Plus } from '../../../shared/ui/icons'
 
 const MONEY_RE = /^\d{1,12}(\.\d{1,2})?$/
 const KNOWN = /^(title|category|income|expense|date|trip)$/
@@ -169,7 +170,7 @@ export function FinanceTab({ order }: { order: Order }) {
       {isNew ? <OrderFinanceBlock orderId={order.id} /> : null}
       <Banner kind="info">{isNew ? t('finance.ledger.legacyReadonly') : t('orders.baseLineHint')}</Banner>
       {hasPermission('finance.create') && !isNew ? (
-        <WriteButton permission="finance.create" onClick={() => { setEditor({ line: null, nonce: Date.now() }) }}>
+        <WriteButton icon={Plus} permission="finance.create" onClick={() => { setEditor({ line: null, nonce: Date.now() }) }}>
           {t('orders.addLine')}
         </WriteButton>
       ) : null}

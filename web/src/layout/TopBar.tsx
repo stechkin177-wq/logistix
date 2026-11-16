@@ -35,19 +35,21 @@ export function TopBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
       {section ? (
-        <p className="flex min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-100">
+        <p className="flex min-w-0 items-center gap-1.5 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-100">
           {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
           {parent ? (
             <>
-              {parent.key === 'settings' && !inProfile ? (
-                <Link to="/settings" className="truncate hover:underline max-md:hidden">{t(parent.labelKey)}</Link>
-              ) : (
-                <span className="truncate max-md:hidden">{inProfile ? t('nav.profileTitle') : t(parent.labelKey)}</span>
-              )}
-              <ChevronRight className="size-3.5 shrink-0 opacity-60 max-md:hidden" aria-hidden="true" />
+              <Link to={parent.path ?? (inProfile ? '/settings/company' : '/settings')} className="shrink-0 hover:underline">
+                {inProfile ? t('nav.profileTitle') : t(parent.labelKey)}
+              </Link>
+              <ChevronRight className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
             </>
           ) : null}
-          <span className="truncate">{t(section.labelKey)}</span>
+          {section.path !== undefined && pathname !== section.path ? (
+            <Link to={section.path} className="truncate hover:underline">{t(section.labelKey)}</Link>
+          ) : (
+            <span className="truncate">{t(section.labelKey)}</span>
+          )}
         </p>
       ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-2">

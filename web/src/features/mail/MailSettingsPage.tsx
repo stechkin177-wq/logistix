@@ -6,7 +6,7 @@ import { Button } from '../../shared/ui/Button'
 import { Card, CardHeader } from '../../shared/ui/Card'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { Dialog } from '../../shared/ui/Dialog'
-import { Pencil, Trash2, Mail } from '../../shared/ui/icons'
+import { Pencil, Trash2, Mail, Plus } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Checkbox } from '../../shared/ui/Checkbox'
 import { Select } from '../../shared/ui/Select'
@@ -119,7 +119,7 @@ function Templates() {
   const [toDelete, setToDelete] = useState<MailTemplate | null>(null)
   return (
     <Card>
-      <CardHeader title={t('mail.templatesTitle')} actions={<WriteButton permission="mail.manage_account" onClick={() => { setEditor({ template: null, nonce: Date.now() }) }}>{t('mail.templateNew')}</WriteButton>} />
+      <CardHeader title={t('mail.templatesTitle')} actions={<WriteButton icon={Plus} permission="mail.manage_account" onClick={() => { setEditor({ template: null, nonce: Date.now() }) }}>{t('mail.templateNew')}</WriteButton>} />
       {list.isPending ? <div className="p-4"><Spinner label={t('common.loading')} /></div> : null}
       {list.isError ? <div className="p-4"><Banner kind="error">{errorMessage(list.error, t)}</Banner></div> : null}
       {list.data && list.data.length === 0 ? <p className="p-4 text-sm text-muted">{t('mail.templatesEmpty')}</p> : null}

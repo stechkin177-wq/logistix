@@ -28,7 +28,7 @@ export function Tabs({
       ref={setNode}
       role="tablist"
       aria-label={label}
-      className={`thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto [--scroll-bg:var(--ui-canvas)] ${pills ? 'rounded-card border border-line bg-surface p-1 shadow-card' : 'border-b border-line'}`}
+      className={`thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto [--scroll-bg:var(--ui-canvas)] ${pills ? 'rounded-card border border-line bg-surface p-1 shadow-card max-md:p-0.5' : 'border-b border-line'}`}
     >
       {tabs.map((tab) => {
         const Icon = tab.icon
@@ -47,7 +47,7 @@ export function Tabs({
             }}
             className={
               pills
-                ? `inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-3 py-1.5 text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                ? `inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-3 py-1.5 text-[13px] transition-colors max-md:py-1 disabled:cursor-not-allowed disabled:opacity-50 ${
                     active === tab.key ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
                   }`
                 : `-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${

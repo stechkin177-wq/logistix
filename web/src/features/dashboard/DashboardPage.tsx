@@ -8,6 +8,7 @@ import { useFormat } from '../../shared/format/useFormat'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { EmptyState } from '../../shared/ui/EmptyState'
+import { Plus } from '../../shared/ui/icons'
 import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Spinner } from '../../shared/ui/Spinner'
 import { Stat } from '../../shared/ui/Stat'
@@ -124,7 +125,8 @@ export function DashboardPage() {
           {empty ? (
             <EmptyState title={t('dashboard.emptyTitle')} hint={t('dashboard.emptyHint')}>
               {canCreate ? (
-                <Link to="/orders/new" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+                <Link to="/orders/new" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-control bg-brand-600 px-3.5 text-sm font-medium text-brand-fg shadow-sm transition-colors hover:bg-brand-solid-hover">
+                  <Plus className="size-4" aria-hidden="true" />
                   {t('orders.new')}
                 </Link>
               ) : null}

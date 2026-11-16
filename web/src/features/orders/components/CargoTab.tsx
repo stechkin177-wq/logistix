@@ -23,6 +23,7 @@ import { LocationBadge } from '../../tracking/components/LocationBadge'
 import { ConsignmentFields } from './ConsignmentFields'
 import { RouteChain } from './RouteChain'
 import { RouteLane } from './RouteLane'
+import { Plus } from '../../../shared/ui/icons'
 
 function ConsignmentDrawer({ order, consignment, onClose }: { order: Order; consignment: OrderConsignment | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -86,7 +87,7 @@ export function CargoTab({ order }: { order: Order }) {
   return (
     <div className="space-y-3">
       {hasPermission('consignments.create') ? (
-        <WriteButton permission="consignments.create" onClick={() => { setEditor({ consignment: null, nonce: Date.now() }) }}>
+        <WriteButton icon={Plus} permission="consignments.create" onClick={() => { setEditor({ consignment: null, nonce: Date.now() }) }}>
           {t('orders.addCargo')}
         </WriteButton>
       ) : null}

@@ -30,7 +30,7 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
       <NavLink
         to={to}
         end={to === '/' || isSettingsHub}
-        className={({ isActive }) => `${LINK} ${child ? 'gap-2 py-1.5 pl-2 pr-1.5 text-[13px]' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
+        className={({ isActive }) => `${LINK} ${child ? 'gap-2 py-1.5 pl-2 pr-1.5 text-[13px]' : ''} ${dataItems.length > 0 ? 'pr-12' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
         {Icon ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
         <span className="truncate">{t(item.labelKey)}</span>
@@ -42,8 +42,8 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
             aria-expanded={expanded}
             aria-label={t('nav.sectionData')}
             title={t('nav.sectionData')}
-            onClick={() => { setManual(!expanded) }}
-            className="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded text-muted hover:bg-surface-2 hover:text-ink"
+            onClick={(event) => { event.preventDefault(); event.stopPropagation(); setManual(!expanded) }}
+            className="absolute right-0 top-0 inline-flex h-9 w-11 items-center justify-center rounded-control text-muted hover:text-ink md:h-9"
           >
             <ChevronDown className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>

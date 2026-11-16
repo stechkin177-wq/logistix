@@ -11,5 +11,5 @@ export function MobilePinned({ children }: { children: ReactNode }) {
   const mobile = useIsMobile()
   const slot = useContext(HeaderSlotContext)
   if (!mobile || slot === undefined) return <>{children}</>
-  return slot ? createPortal(<div className="order-2 mt-2">{children}</div>, slot) : null
+  return slot ? createPortal(<div className="order-2 mt-1.5">{children}</div>, slot) : null
 }

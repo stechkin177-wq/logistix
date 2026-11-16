@@ -66,7 +66,7 @@ export function InvoicesTab() {
         onReset={() => { setState({ direction: '', status: '', search: '', date_from: '', date_to: '', client: null, carrier: null, order: null }) }}
         actions={
           <>
-            <WriteButton permission="finance.create" onClick={() => { void navigate('/finance/invoices/new?direction=in') }}>
+            <WriteButton icon={Plus} permission="finance.create" onClick={() => { void navigate('/finance/invoices/new?direction=in') }}>
               {t('finance.invoices.newIn')}
             </WriteButton>
             <WriteButton variant="primary" icon={Plus} permission="finance.create" onClick={() => { void navigate('/finance/invoices/new') }}>

@@ -46,11 +46,11 @@ export function AppLayout() {
         <TopBar />
         {/* шапка страницы живёт здесь, вне прокрутки: основной экран начинается строго под ней */}
         <div className="thin-scroll shrink-0 overflow-y-hidden [scrollbar-gutter:stable] empty:hidden">
-          <div ref={setSlot} className="mx-auto flex w-full max-w-[1500px] flex-col px-3 pt-3 empty:hidden md:px-5 md:pt-2" />
+          <div ref={setSlot} className="mx-auto flex w-full max-w-[1500px] flex-col px-3 pt-2 empty:hidden md:px-5 md:pt-2" />
         </div>
         <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
           <div className="mx-auto w-full max-w-[1500px] space-y-3 pt-3">
-            <div ref={setHintSlot} className="empty:hidden" />
+            <div ref={setHintSlot} className="space-y-3 empty:hidden" />
             {/* предупреждения - в колонке страницы, ровно по её краям */}
             <div className="space-y-3 pt-3 empty:hidden">
               <ReadonlyBanner />

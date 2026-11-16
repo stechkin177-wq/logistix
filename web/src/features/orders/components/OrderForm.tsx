@@ -22,6 +22,7 @@ import {
 import type { Order } from '../types'
 import { ContractSelect } from '../../contracts/ContractSelect'
 import { CargoFields, RouteFields } from './ConsignmentFields'
+import { Plus, Trash2 } from '../../../shared/ui/icons'
 
 interface Props {
   mode: 'create' | 'edit'
@@ -211,7 +212,9 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium">{t('orders.cargoN', { n: index + 1 })}</h3>
                   <Button
-                    variant="ghost"
+                    variant="dangerSoft"
+                    icon={Trash2}
+                    className="h-8! gap-1.5! px-2.5! text-xs!"
                     aria-label={t('orders.removeCargoN', { n: index + 1 })}
                     onClick={() => { set('consignments', form.consignments.filter((_, i) => i !== index)) }}
                   >
@@ -221,7 +224,7 @@ export function OrderForm({ mode, order, submitting, error, onSubmit, onCancel }
                 <CargoFields value={c} prefix={`consignments.${String(index)}.`} errors={errors} onChange={(next) => { setCargo(index, next) }} />
               </div>
             ))}
-            <Button onClick={() => { set('consignments', [...form.consignments, emptyConsignment()]) }}>{t('orders.addCargo')}</Button>
+            <Button icon={Plus} className="w-full border-dashed! text-brand-700! hover:bg-brand-50!" onClick={() => { set('consignments', [...form.consignments, emptyConsignment()]) }}>{t('orders.addCargo')}</Button>
           </Block>
           <Block title={t('orders.blockRoute')}>
             {form.consignments.length === 0 ? <p className="text-xs text-muted">{t('orders.routeNeedsCargo')}</p> : null}
