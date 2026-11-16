@@ -28,7 +28,7 @@ const SCHEMA = {
 }
 
 /** Список передач груза: фильтры в адресе, подтверждение и сторно (право consignments.transfer). */
-export function TransfersPage() {
+export function TransfersPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
@@ -64,7 +64,7 @@ export function TransfersPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={ArrowLeftRight} title={t('tracking.transfersTitle')} />
+      {embedded ? null : <PageHeader icon={ArrowLeftRight} title={t('tracking.transfersTitle')} />}
       <FilterBar>
         <FilterItem>
           <Select label={t('tracking.kind')} value={state.kind} placeholder={t('tracking.allKinds')} options={TRANSFER_KINDS.map((k) => ({ value: k, label: t(`tracking.kinds.${k}`) }))} onChange={(kind) => { setState({ kind, page: 1 }) }} />

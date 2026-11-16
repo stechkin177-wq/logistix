@@ -107,7 +107,7 @@ describe('Список передач', () => {
   it('без права consignments.transfer кнопок действий нет', async () => {
     loggedIn(
       [['GET', /^\/api\/transfers\/\?/, { body: page([transfer()]) }]],
-      { session: { permissions: ['consignments.view'] } },
+      { session: { permissions: ['consignments.view', 'trips.view'] } },
     )
     renderApp('/transfers')
     await screen.findByText('Ждёт подтверждения')

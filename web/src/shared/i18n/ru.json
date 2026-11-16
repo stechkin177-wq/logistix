@@ -386,6 +386,8 @@
     "noCarrier": "Без перевозчика",
     "unassigned": "Без перевозчика",
     "searchPlaceholder": "Номер, клиент или груз",
+    "statusGroupWork": "В работе",
+    "statusGroupDone": "Завершённые",
     "statusFilter": "Статусы",
     "statusOf": "Статус заказа {{number}}",
     "loadingFrom": "Погрузка с",
@@ -551,6 +553,7 @@
     "emptyHint": "Грузы появляются в заказах"
   },
   "trips": {
+    "viewLabel": "Вид списка",
     "carrier": "Перевозчик",
     "vehiclePlate": "Госномер",
     "driverName": "Водитель",

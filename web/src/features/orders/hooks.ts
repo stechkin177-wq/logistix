@@ -121,10 +121,10 @@ export function useOrderStatuses() {
   const canHandbooks = hasPermission('handbooks.view')
   const summary = useDashboardSummary(!canHandbooks)
   if (canHandbooks) {
-    return { statuses: handbook.values.map((v) => ({ id: v.id, name: v.name, code: v.code, isActive: v.is_active })), isLoading: handbook.isLoading }
+    return { statuses: handbook.values.map((v) => ({ id: v.id, name: v.name, code: v.code, isActive: v.is_active, order: v.order, isFinal: v.is_final })), isLoading: handbook.isLoading }
   }
   return {
-    statuses: (summary.data?.orders_by_status ?? []).map((s) => ({ id: s.status_id, name: s.status, code: '', isActive: true })),
+    statuses: (summary.data?.orders_by_status ?? []).map((s) => ({ id: s.status_id, name: s.status, code: '', isActive: true, order: 0, isFinal: false })),
     isLoading: summary.isPending,
   }
 }

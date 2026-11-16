@@ -38,7 +38,6 @@ import { SettingsIndex } from '../features/settings/SettingsIndex'
 import { SettingsLayout } from '../features/settings/SettingsLayout'
 import { UsersPage } from '../features/settings/users/UsersPage'
 import { TrashPage } from '../features/trash/TrashPage'
-import { TransfersPage } from '../features/tracking/pages/TransfersPage'
 import { PartyDetailPage } from '../features/parties/pages/PartyDetailPage'
 import { TripDetailPage } from '../features/trips/pages/TripDetailPage'
 import { TripsPage } from '../features/trips/pages/TripsPage'
@@ -56,7 +55,6 @@ const PAGES: Record<string, () => ReactElement> = {
   '/orders': OrdersPage,
   '/consignments': ConsignmentsPage,
   '/trips': TripsPage,
-  '/transfers': TransfersPage,
   '/vehicles': VehiclesPage,
   '/drivers': DriversPage,
   '/finance': FinancePage,
@@ -144,7 +142,7 @@ export function createRoutes(): RouteObject[] {
         },
         {
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, ...partyPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
+          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, { path: '/transfers', element: <Navigate to="/trips?view=transfers" replace /> }, ...partyPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
         },
       ],
     },

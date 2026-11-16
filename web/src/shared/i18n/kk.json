@@ -386,6 +386,8 @@
     "noCarrier": "Тасымалдаушысыз",
     "unassigned": "Тасымалдаушысыз",
     "searchPlaceholder": "Нөмір, клиент немесе жүк",
+    "statusGroupWork": "Жұмыста",
+    "statusGroupDone": "Аяқталған",
     "statusFilter": "Күйлері",
     "statusOf": "{{number}} тапсырыс күйі",
     "loadingFrom": "Тиеу (бастап)",
@@ -551,6 +553,7 @@
     "emptyHint": "Жүктер тапсырыстарда пайда болады"
   },
   "trips": {
+    "viewLabel": "Тізім түрі",
     "carrier": "Тасымалдаушы",
     "vehiclePlate": "Мемлекеттік нөмір",
     "driverName": "Жүргізуші",

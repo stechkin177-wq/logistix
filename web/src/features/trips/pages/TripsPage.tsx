@@ -13,7 +13,9 @@ import { EmptyState } from '../../../shared/ui/EmptyState'
 import { FilterBar, FilterItem } from '../../../shared/ui/FilterBar'
 import { Money } from '../../../shared/ui/Money'
 import { PAGE_SIZES, Pagination } from '../../../shared/ui/Pagination'
+import { SegmentedControl } from '../../../shared/ui/SegmentedControl'
 import { Select } from '../../../shared/ui/Select'
+import { TransfersPage } from '../../tracking/pages/TransfersPage'
 import { TextField } from '../../../shared/ui/TextField'
 import { searchCarriers } from '../../carriers/api'
 import { useCurrencies, usePartyOption } from '../../orders/hooks'
@@ -26,6 +28,7 @@ import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Route } from '../../../shared/ui/icons'
 
 const SCHEMA = {
+  view: codecs.oneOf(['trips', 'transfers'] as const, 'trips'),
   q: codecs.string(''),
   order: codecs.id(),
   status: codecs.id(),
@@ -86,9 +89,26 @@ export function TripsPage() {
   // прежние ссылки /trips?open=ID ведут на страницу рейса
   if (state.open !== null) return <Navigate to={`/trips/${String(state.open)}`} replace />
 
+  const switcher = (
+    <SegmentedControl
+      label={t('trips.viewLabel')}
+      value={state.view}
+      options={[{ value: 'trips', label: t('nav.trips') }, { value: 'transfers', label: t('nav.transfers') }]}
+      onChange={(view) => { setState({ view: view === 'transfers' ? 'transfers' : 'trips', page: 1 }) }}
+    />
+  )
+  if (state.view === 'transfers') {
+    return (
+      <div className="space-y-3">
+        <PageHeader icon={Route} title={t('nav.transfers')} actions={switcher} />
+        <TransfersPage embedded />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
-      <PageHeader icon={Route} title={t('nav.trips')} />
+      <PageHeader icon={Route} title={t('nav.trips')} actions={switcher} />
       <FilterBar canReset={filtered} onReset={reset}>
         <FilterItem className="w-60">
           <TextField label={t('common.search')} type="search" placeholder={t('trips.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
