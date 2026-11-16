@@ -11,6 +11,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { useCreateTripExpense, useTripExpense } from './hooks'
 import { fromCents, toCents } from './invoiceMath'
 import type { TripExpenseData } from './types'
+import { Plus } from '../../shared/ui/icons'
 
 function Body({ data, currency, onClose }: { data: TripExpenseData; currency: string; onClose: () => void }) {
   const { t } = useTranslation()
@@ -41,7 +42,7 @@ function Body({ data, currency, onClose }: { data: TripExpenseData; currency: st
       footer={
         <>
           <Button onClick={onClose} disabled={create.isPending}>{t('common.cancel')}</Button>
-          <WriteButton variant="primary" permission="finance.create" disabled={create.isPending || mismatch} onClick={submit}>
+          <WriteButton variant="primary" icon={Plus} permission="finance.create" disabled={create.isPending || mismatch} onClick={submit}>
             {t('finance.tripExpense.create')}
           </WriteButton>
         </>

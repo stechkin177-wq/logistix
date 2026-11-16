@@ -7,6 +7,7 @@ import { Spinner } from '../../shared/ui/Spinner'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { ExpenseStatusBadge, ReviewBadge } from './LedgerBadges'
 import { useCreateCarrierExpense, useTripFinance } from './ledgerHooks'
+import { Plus } from '../../shared/ui/icons'
 
 /** «Финансы рейса» (engine = new): расход перевозчика, расхождение со счётом, кнопка создания расхода. */
 export function TripFinanceBlock({ tripId }: { tripId: number }) {
@@ -44,7 +45,7 @@ export function TripFinanceBlock({ tripId }: { tripId: number }) {
         <p className="text-sm text-muted">{t('finance.ledger.noCarrierExpense')}</p>
       )}
       {d.can_create_expense ? (
-        <WriteButton variant="primary" permission="finance.create" disabled={create.isPending} onClick={submit}>
+        <WriteButton variant="primary" icon={Plus} permission="finance.create" disabled={create.isPending} onClick={submit}>
           {t('finance.ledger.createFromPrice')}
         </WriteButton>
       ) : null}

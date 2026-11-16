@@ -17,6 +17,7 @@ import { TripFields, defaultCurrency, validateTrip, type TripFormState } from '.
 import { useCreateTrip } from '../../trips/hooks'
 import type { TripLegInput } from '../../trips/types'
 import type { Consignment } from '../types'
+import { Plus } from '../../../shared/ui/icons'
 
 const KNOWN = /^(carrier|vehicle|trailer|driver|vehicle_plate|driver_name|carrier_price|currency|consignments|legs)$/
 
@@ -112,7 +113,7 @@ export function CreateTripDrawer({ selected, onClose, onCreated }: Props) {
       footer={
         <>
           <Button onClick={onClose} disabled={create.isPending}>{t('common.cancel')}</Button>
-          <WriteButton permission="trips.create" variant="primary" onClick={submit} disabled={create.isPending || selected.length === 0}>
+          <WriteButton permission="trips.create" variant="primary" icon={Plus} onClick={submit} disabled={create.isPending || selected.length === 0}>
             {create.isPending ? t('common.saving') : t('trips.create')}
           </WriteButton>
         </>

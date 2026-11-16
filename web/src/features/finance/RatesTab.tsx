@@ -8,7 +8,7 @@ import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { useHandbookValues } from '../../shared/handbooks/useHandbook'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
-import { Landmark } from '../../shared/ui/icons'
+import { Landmark, Pencil, Trash2 } from '../../shared/ui/icons'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { DateInput } from '../../shared/ui/DateInput'
@@ -109,12 +109,12 @@ export function RatesTab() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       align: 'right',
       cell: (r) => (
-        <span className="flex justify-end gap-1">
-          <WriteButton variant="ghost" permission="finance.update" aria-label={t('finance.rates.editNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setEditor({ rate: r, nonce: Date.now() }) }}>
+        <span className="flex justify-end gap-1.5">
+          <WriteButton variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Pencil} permission="finance.update" aria-label={t('finance.rates.editNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setEditor({ rate: r, nonce: Date.now() }) }}>
             {t('common.edit')}
           </WriteButton>
           {hasPermission('finance.delete') ? (
-            <WriteButton variant="dangerGhost" permission="finance.delete" aria-label={t('finance.rates.deleteNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setToDelete(r) }}>
+            <WriteButton variant="dangerSoft" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Trash2} permission="finance.delete" aria-label={t('finance.rates.deleteNamed', { name: `${r.currency.code} ${r.date}` })} onClick={() => { setToDelete(r) }}>
               {t('common.delete')}
             </WriteButton>
           ) : null}
