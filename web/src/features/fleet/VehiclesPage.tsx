@@ -14,10 +14,10 @@ import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { useDeleteVehicle, useReminders, useVehicleList } from './hooks'
-import { VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle } from './types'
+import { SELECTABLE_KINDS, VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle } from './types'
 import { VehicleDrawer } from './VehicleDrawer'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { CarFront } from '../../shared/ui/icons'
+import { CarFront, TriangleAlert } from '../../shared/ui/icons'
 
 const SCHEMA = {
   q: codecs.string(''),
@@ -89,20 +89,26 @@ export function VehiclesPage() {
         }
       />
       {warnings.length > 0 ? (
-        <section aria-label={t('fleet.warnings')} className="rounded border border-amber-300 bg-amber-50 p-2 text-sm dark:border-amber-700 dark:bg-amber-950">
-          <div className="font-medium">{t('fleet.warnings')}</div>
-          <ul className="mt-1 space-y-0.5">
+        <section aria-label={t('fleet.warnings')} className="overflow-hidden rounded-card border border-amber-300/70 bg-amber-50/70 shadow-card dark:border-amber-700/60 dark:bg-amber-950/40">
+          <header className="flex items-center gap-2 border-b border-amber-200/70 px-3 py-2 dark:border-amber-800/50">
+            <TriangleAlert className="size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <h2 className="text-sm font-semibold">{t('fleet.warnings')}</h2>
+            <span className="rounded-full bg-amber-200/80 px-2 text-xs font-medium text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">{warnings.length}</span>
+          </header>
+          <ul className="divide-y divide-amber-200/60 dark:divide-amber-800/40">
             {warnings.slice(0, 8).map((r, i) => (
               <li key={`${String(r.vehicle)}-${String(i)}`}>
-                <button type="button" className="text-left hover:underline" onClick={() => {
+                <button type="button" className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-1.5 text-left text-sm hover:bg-amber-100/70 dark:hover:bg-amber-900/30" onClick={() => {
                   const v = list.data?.results.find((x) => x.id === r.vehicle)
                   if (v) setEditor({ vehicle: v, nonce: Date.now() })
                 }}>
-                  <b>{r.plate}</b> · {r.title}
-                  {r.due_date ? ` · ${t('fleet.until')} ${r.due_date}` : ''}
-                  {r.due_km != null ? ` · ${String(r.due_km)} ${t('fleet.km')}` : ''}
-                </button>{' '}
-                <Badge tone={r.state === 'overdue' ? 'danger' : 'warning'}>{r.state === 'overdue' ? t('fleet.overdue') : t('fleet.dueSoon')}</Badge>
+                  <b className="font-semibold">{r.plate}</b>
+                  <span className="text-muted">{r.title}
+                    {r.due_date ? ` · ${t('fleet.until')} ${r.due_date}` : ''}
+                    {r.due_km != null ? ` · ${String(r.due_km)} ${t('fleet.km')}` : ''}
+                  </span>
+                  <Badge tone={r.state === 'overdue' ? 'danger' : 'warning'}>{r.state === 'overdue' ? t('fleet.overdue') : t('fleet.dueSoon')}</Badge>
+                </button>
               </li>
             ))}
           </ul>
@@ -126,7 +132,7 @@ export function VehiclesPage() {
             label={t('fleet.kind')}
             value={state.kind}
             placeholder={t('common.all')}
-            options={VEHICLE_KINDS.map((k) => ({ value: k, label: t(`fleet.kinds.${k}`) }))}
+            options={SELECTABLE_KINDS.map((k) => ({ value: k, label: t(`fleet.kinds.${k}`) }))}
             onChange={(v) => { setState({ kind: VEHICLE_KINDS.find((k) => k === v) ?? '' }) }}
           />
         </FilterItem>

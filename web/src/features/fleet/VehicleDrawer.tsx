@@ -17,7 +17,7 @@ import { VehicleDocuments } from './VehicleDocuments'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
 import { ChildTab, type FieldDef } from './ChildTab'
 import { useFuelStats, useMileageCheck, useReminders, useSaveVehicle } from './hooks'
-import { VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle, type VehicleKind, type VehicleStatus } from './types'
+import { SELECTABLE_KINDS, VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type Vehicle, type VehicleKind, type VehicleStatus } from './types'
 
 type TabKey = 'main' | 'documents' | 'insurance' | 'service' | 'fuel' | 'history'
 const TAB_KEYS: TabKey[] = ['main', 'documents', 'insurance', 'service', 'fuel', 'history']
@@ -40,7 +40,7 @@ interface FormState {
 }
 
 const initial = (v: Vehicle | null): FormState => ({
-  kind: v?.kind ?? 'truck',
+  kind: v?.kind ?? 'tractor',
   plate: v?.plate ?? '',
   vin: v?.vin ?? '',
   make: v?.make ?? '',
@@ -91,10 +91,12 @@ export function VehicleDrawer({ vehicle, onClose, onDelete }: { vehicle: Vehicle
     key,
     label: `${t(`fleet.tabs.${key}`)}${count(key) > 0 ? ` (${String(count(key))})` : ''}`,
     disabled: vehicle === null && key !== 'main',
+    title: vehicle === null && key !== 'main' ? t('fleet.tabNeedsSave') : undefined,
   }))
   return (
     <Drawer open title={vehicle ? vehicle.plate : t('fleet.new')} onClose={onClose} width="max-w-2xl">
       {vehicle ? <VehicleWarnings vehicle={vehicle} onOpen={setTab} /> : null}
+      {vehicle === null ? <p className="mb-2 text-xs text-muted">{t('fleet.tabNeedsSaveHint')}</p> : null}
       <Tabs label={t('fleet.tabsLabel')} tabs={tabs} active={tab} onChange={(k) => { setTab(k as TabKey) }} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-3">
         {tab === 'main' ? <MainTab vehicle={vehicle} onClose={onClose} onDelete={onDelete} /> : null}
@@ -116,7 +118,10 @@ function MainTab({ vehicle, onClose, onDelete }: { vehicle: Vehicle | null; onCl
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => { setForm((f) => ({ ...f, [key]: value })) }
 
   const submit = () => {
-    if (!form.plate.trim()) { setErrors({ fields: { plate: t('errors.requiredField') }, banner: undefined }); return }
+    const missing: Record<string, string> = {}
+    if (!form.plate.trim()) missing.plate = t('errors.requiredField')
+    if (form.kind === 'other' && !form.body_type.trim()) missing.body_type = t('errors.requiredField')
+    if (Object.keys(missing).length > 0) { setErrors({ fields: missing, banner: undefined }); return }
     setErrors(NO_ERRORS)
     save.mutate(
       {
@@ -139,13 +144,17 @@ function MainTab({ vehicle, onClose, onDelete }: { vehicle: Vehicle | null; onCl
     <form ref={formRef} className="space-y-3" onSubmit={(e) => { e.preventDefault(); submit() }}>
       <FormBanner message={errors.banner} />
       <div className="grid grid-cols-2 gap-3">
-        <Select label={t('fleet.kind')} value={form.kind} options={VEHICLE_KINDS.map((k) => ({ value: k, label: t(`fleet.kinds.${k}`) }))} onChange={(v) => { set('kind', v as VehicleKind) }} />
+        <Select label={t('fleet.kind')} value={form.kind} options={VEHICLE_KINDS.filter((k) => SELECTABLE_KINDS.includes(k) || k === vehicle?.kind).map((k) => ({ value: k, label: t(`fleet.kinds.${k}`) }))} onChange={(v) => { set('kind', v as VehicleKind) }} />
         <TextField label={t('fleet.plate')} required value={form.plate} error={f.plate} onChange={(e) => { set('plate', e.target.value) }} />
         <TextField label={t('fleet.make')} value={form.make} error={f.make} onChange={(e) => { set('make', e.target.value) }} />
         <TextField label={t('fleet.model')} value={form.model} error={f.model} onChange={(e) => { set('model', e.target.value) }} />
         <TextField label={t('fleet.year')} inputMode="numeric" value={form.year} error={f.year} onChange={(e) => { set('year', e.target.value) }} />
         <TextField label={t('fleet.vin')} value={form.vin} error={f.vin} onChange={(e) => { set('vin', e.target.value) }} />
-        <TextField label={t('fleet.bodyType')} value={form.body_type} error={f.body_type} onChange={(e) => { set('body_type', e.target.value) }} />
+        {form.kind === 'other' ? (
+          <TextField label={t('fleet.otherName')} required maxLength={64} value={form.body_type} error={f.body_type} onChange={(e) => { set('body_type', e.target.value) }} />
+        ) : (
+          <TextField label={t('fleet.bodyType')} value={form.body_type} error={f.body_type} onChange={(e) => { set('body_type', e.target.value) }} />
+        )}
         <TextField label={t('fleet.capacityKg')} inputMode="numeric" value={form.capacity_kg} error={f.capacity_kg} onChange={(e) => { set('capacity_kg', e.target.value) }} />
         <TextField label={t('fleet.volumeM3')} inputMode="decimal" value={form.volume_m3} error={f.volume_m3} onChange={(e) => { set('volume_m3', e.target.value) }} />
         <Select label={t('common.status')} value={form.status} options={VEHICLE_STATUSES.map((s) => ({ value: s, label: t(`fleet.status.${s}`) }))} onChange={(v) => { set('status', v as VehicleStatus) }} />

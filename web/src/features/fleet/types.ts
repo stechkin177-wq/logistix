@@ -67,3 +67,6 @@ export interface FuelStats {
   average_l_per_100km: string | null
   distance_km: number
 }
+
+/** Типы, доступные при выборе (прежние записи «грузовик» показываются, но новый выбрать нельзя). */
+export const SELECTABLE_KINDS: readonly VehicleKind[] = ['tractor', 'trailer', 'other']
