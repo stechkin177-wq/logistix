@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -258,11 +259,14 @@ class MessageViewSet(AuditedMixin, viewsets.ReadOnlyModelViewSet):
                     raise ValidationError({field: "Ожидается числовой id"})
                 qs = qs.filter(**{f"{field}_id": int(value)})
         if state := params.get("state"):
+            if state == "received":
+                # входящая почта пока не поддерживается: фильтр «Получено» допустим, список пуст
+                return qs.none()
             if state not in dict(MailMessage.STATES):
-                raise ValidationError({"state": "Допустимо: draft, sent, failed"})
+                raise ValidationError({"state": "Допустимо: draft, sent, received"})
             qs = qs.filter(state=state)
         if q := (params.get("q") or "").strip():
-            qs = qs.filter(subject__icontains=q)
+            qs = qs.filter(Q(subject__icontains=q) | Q(body__icontains=q) | Q(to__icontains=q))
         return qs
 
     def create(self, request, *args, **kwargs):

@@ -13,7 +13,7 @@ const SENT = {
 const FAILED = { ...SENT, id: 2, subject: 'Не ушло', state: 'failed', error: 'SMTPAuthenticationError: bad credentials', sent_at: null }
 
 describe('Почта', () => {
-  it('список писем: статусы, ошибка отправки и повторная отправка', async () => {
+  it('список писем: статусы, ошибка не в списке, открытие письма и повторная отправка', async () => {
     const m = loggedIn([
       ['GET', '/api/mail/status/', { body: { configured: true, from_email: 'o@c.kz' } }],
       ['GET', /^\/api\/mail\/messages\//, { body: page([SENT, FAILED]) }],
@@ -21,7 +21,10 @@ describe('Почта', () => {
     ])
     renderApp('/mail')
     expect(await screen.findByText('Счёт по заказу')).toBeInTheDocument()
-    expect(screen.getByText('SMTPAuthenticationError: bad credentials')).toBeInTheDocument()
+    expect(screen.queryByText('SMTPAuthenticationError: bad credentials')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByText('Счёт по заказу'))
+    expect(await screen.findByRole('dialog', { name: 'Счёт по заказу' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
     expect(screen.getAllByText('Отправлено').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: 'Отправить повторно: Не ушло' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/mail/messages/2/send/')).toBe(true) })

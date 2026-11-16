@@ -5,6 +5,8 @@ import { errorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
 import { Banner } from '../../shared/ui/Banner'
 import { DataTable, type Column } from '../../shared/ui/DataTable'
+import { Button } from '../../shared/ui/Button'
+import { Dialog } from '../../shared/ui/Dialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { Mail, RotateCcw } from '../../shared/ui/icons'
 import { PageHeader } from '../../shared/ui/PageHeader'
@@ -17,7 +19,8 @@ import { ComposeMailDialog } from './ComposeMailDialog'
 import { useMailMessages, useMailStatus, useResendMail } from './hooks'
 import type { MailMessage, MailState } from './types'
 
-const STATE_TONE: Record<MailState, 'neutral' | 'success' | 'danger'> = { draft: 'neutral', sent: 'success', failed: 'danger' }
+const STATE_TONE: Record<MailState, 'neutral' | 'success' | 'warning'> = { draft: 'neutral', sent: 'success', failed: 'warning' }
+const FILTER_STATES = ['draft', 'sent', 'received'] as const
 
 /** Письма компании: список, фильтры, повторная отправка; новое письмо. */
 export function MailPage() {
@@ -26,6 +29,7 @@ export function MailPage() {
   const [q, setQ] = useState('')
   const [state, setState] = useState('')
   const [composing, setComposing] = useState<number | null>(null)
+  const [opened, setOpened] = useState<MailMessage | null>(null)
   const list = useMailMessages({ page, q, state })
   const resend = useResendMail()
   const { configured } = useMailStatus()
@@ -34,7 +38,6 @@ export function MailPage() {
     { key: 'subject', header: t('mail.subject'), cell: (m) => (
       <span>
         <span className="font-medium">{m.subject}</span>
-        {m.error ? <span title={m.error} className="block max-w-xs truncate text-xs text-red-700 dark:text-red-300 md:max-w-md">{m.error}</span> : null}
       </span>
     ) },
     { key: 'to', header: t('mail.to'), cell: (m) => m.to.join(', ') },
@@ -65,14 +68,15 @@ export function MailPage() {
       {resend.isError ? <Banner kind="error">{errorMessage(resend.error, t)}</Banner> : null}
       <FilterBar>
         <FilterItem className="w-56">
-          <TextField label={t('mail.search')} type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
+          <TextField label={t('mail.search')} type="search" placeholder={t('mail.searchPlaceholder')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
         </FilterItem>
         <FilterItem className="w-48">
-          <Select label={t('mail.state')} value={state} placeholder={t('mail.allStates')} options={(['draft', 'sent', 'failed'] as const).map((s) => ({ value: s, label: t(`mail.states.${s}`) }))} onChange={(v) => { setState(v); setPage(1) }} />
+          <Select label={t('mail.state')} value={state} placeholder={t('mail.allStates')} options={FILTER_STATES.map((s) => ({ value: s, label: t(`mail.states.${s}`) }))} onChange={(v) => { setState(v); setPage(1) }} />
         </FilterItem>
       </FilterBar>
       <DataTable
         caption={t('nav.mail')}
+        onRowClick={setOpened}
         columns={columns}
         rows={list.data?.results}
         rowKey={(m) => m.id}
@@ -82,6 +86,22 @@ export function MailPage() {
         empty={<EmptyState icon={Mail} title={t('mail.empty')} hint={t('mail.emptyHint')} />}
       />
       {list.data ? <Pagination page={page} pageSize={50} count={list.data.count} onPage={setPage} /> : null}
+      {opened ? (
+        <Dialog open title={opened.subject} onClose={() => { setOpened(null) }} footer={<Button onClick={() => { setOpened(null) }}>{t('common.close')}</Button>}>
+          <div className="space-y-3 text-sm">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              <dt className="text-muted">{t('mail.to')}</dt><dd className="break-all">{opened.to.join(', ')}</dd>
+              {opened.cc.length > 0 ? <><dt className="text-muted">{t('mail.cc')}</dt><dd className="break-all">{opened.cc.join(', ')}</dd></> : null}
+              <dt className="text-muted">{t('mail.date')}</dt><dd>{fmt(opened.sent_at ?? opened.created_at)}</dd>
+              <dt className="text-muted">{t('mail.author')}</dt><dd>{opened.created_by_name}</dd>
+              <dt className="text-muted">{t('mail.state')}</dt><dd><Badge tone={STATE_TONE[opened.state]}>{t(`mail.states.${opened.state}`)}</Badge></dd>
+            </dl>
+            {opened.state === 'failed' && opened.error ? <Banner kind="warning">{opened.error}</Banner> : null}
+            <div className="whitespace-pre-wrap rounded-control border border-line bg-surface-2 p-3">{opened.body || '—'}</div>
+            {opened.attachments.length > 0 ? <p className="text-muted">{t('mail.attachments')}: {opened.attachments.map((a) => a.filename).join(', ')}</p> : null}
+          </div>
+        </Dialog>
+      ) : null}
       {composing !== null ? <ComposeMailDialog key={composing} onClose={() => { setComposing(null) }} /> : null}
     </div>
   )
