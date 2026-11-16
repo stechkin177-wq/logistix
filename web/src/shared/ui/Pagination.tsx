@@ -29,9 +29,9 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
   return (
     <nav aria-label={t('pagination.label')} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted">
       <span>{t('pagination.range', { from, to, total: count })}</span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {onPageSize ? (
-          <label className="flex items-center gap-1">
+          <label className="flex items-center gap-1 whitespace-nowrap">
             {t('pagination.pageSize')}
             <SelectBox>
             <select
@@ -58,7 +58,7 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
         >
           {t('pagination.prev')}
         </Button>
-        <span aria-live="polite">{t('pagination.page', { page, pages })}</span>
+        <span aria-live="polite" className="whitespace-nowrap">{t('pagination.page', { page, pages })}</span>
         <Button
           disabled={page >= pages}
           onClick={() => {

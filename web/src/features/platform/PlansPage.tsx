@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../shared/api/errors'
+import { useFormat } from '../../shared/format/useFormat'
 import { Badge } from '../../shared/ui/Badge'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
@@ -18,6 +19,7 @@ const TONE: Record<PlanStatus, 'neutral' | 'success' | 'warning'> = { draft: 'ne
 /** Администратор платформы: тарифы - создание, состав, лимиты, статусы, порядок, тариф по умолчанию. */
 export function PlansPage() {
   const { t } = useTranslation()
+  const { money } = useFormat()
   const plans = usePlans()
   const action = usePlanAction()
   const remove = useDeletePlan()
@@ -65,7 +67,7 @@ export function PlansPage() {
         </button>
       ),
     },
-    { key: 'price', header: t('platform.plans.price'), align: 'right', cell: (p) => `${p.price} ${p.currency} / ${t(`platform.plans.periods.${p.billing_type}`)}` },
+    { key: 'price', header: t('platform.plans.price'), align: 'right', cell: (p) => <span className="whitespace-nowrap">{money(p.price, p.currency)} / {t(`platform.plans.periods.${p.billing_type}`)}</span> },
     {
       key: 'status',
       header: t('common.status'),
@@ -82,12 +84,12 @@ export function PlansPage() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       align: 'right',
       cell: (p) => (
-        <span className="flex flex-wrap justify-end gap-1">
-          {p.status === 'draft' ? <Button variant="ghost" onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="ghost" onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="ghost" onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
-          {p.status !== 'archived' && !p.is_default ? <Button variant="ghost" onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
-          {p.status === 'archived' ? <Button variant="ghost" onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
+        <span className="flex flex-wrap justify-end gap-1 md:flex-nowrap">
+          {p.status === 'draft' ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
+          {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
+          {p.status === 'active' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
+          {p.status !== 'archived' && !p.is_default ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
+          {p.status === 'archived' ? <Button variant="ghost" className="px-2.5" onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
           {!p.is_default ? <Button variant="dangerGhost" aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
         </span>
       ),
@@ -96,14 +98,13 @@ export function PlansPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={CreditCard} title={t('nav.platformPlans')}
+      <PageHeader icon={CreditCard} title={t('nav.platformPlans')} subtitle={t('platform.plans.intro')}
         actions={
           <>
             <Button variant="primary" onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
           </>
         }
       />
-      <p className="text-sm text-muted">{t('platform.plans.intro')}</p>
       {error ? <Banner kind="error">{error}</Banner> : null}
       <DataTable
         caption={t('nav.platformPlans')}

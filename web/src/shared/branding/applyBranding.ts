@@ -47,12 +47,26 @@ export function sanitizeBranding(raw: Partial<Record<keyof Branding, unknown>>):
 }
 
 let stopSystemWatch: (() => void) | null = null
+// пока открыта страница с принудительно светлой темой (вход на телефоне), класс dark не ставится
+let lightHolds = 0
+let lastTheme: Theme = 'system'
 
 function setDark(on: boolean): void {
-  document.documentElement.classList.toggle('dark', on)
+  document.documentElement.classList.toggle('dark', on && lightHolds === 0)
+}
+
+/** Принудительно светлая тема, пока вызвавший экран открыт; возвращает функцию, снимающую удержание. */
+export function holdLightTheme(): () => void {
+  lightHolds += 1
+  setDark(false)
+  return () => {
+    lightHolds = Math.max(0, lightHolds - 1)
+    if (lightHolds === 0) applyTheme(lastTheme)
+  }
 }
 
 function applyTheme(theme: Theme): void {
+  lastTheme = theme
   stopSystemWatch?.()
   stopSystemWatch = null
   if (theme !== 'system') {

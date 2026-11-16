@@ -128,6 +128,7 @@ export function DebtsTab() {
       {exportError ? <Banner kind="error">{exportError}</Banner> : null}
       {base ? <DebtsExcludedHint excluded={debts.data?.excluded} /> : null}
       <DataTable
+        fit
         caption={t('finance.tabs.debts')}
         columns={columns}
         rows={debts.data?.results}

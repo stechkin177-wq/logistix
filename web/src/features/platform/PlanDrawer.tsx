@@ -136,7 +136,7 @@ export function PlanDrawer({ plan, onClose }: { plan: AdminPlan | null; onClose:
                 const available = f.module === 'core' || modules.includes(f.module)
                 return (
                   <li key={f.code} className="flex items-center justify-between gap-2">
-                    <span className={available ? '' : 'text-slate-400'}>
+                    <span className={available ? '' : 'text-muted'}>
                       {f.name}
                       {!available ? ` (${t('platform.plans.needsModule', { module: f.module })})` : ''}
                     </span>

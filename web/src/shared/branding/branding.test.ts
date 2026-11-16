@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyBranding, safeAppName, safeLogoUrl } from './applyBranding'
+import { applyBranding, holdLightTheme, safeAppName, safeLogoUrl } from './applyBranding'
 import { DARK_FG, LIGHT_FG, SHADE_KEYS, contrastRatio, readableForeground, shadeScale } from './palette'
 
 const root = document.documentElement
@@ -47,6 +47,18 @@ describe('applyBranding', () => {
     expect(root.classList.contains('dark')).toBe(true)
     applyBranding({ theme: 'light' })
     expect(root.classList.contains('dark')).toBe(false)
+  })
+
+  it('holdLightTheme: пока удержание активно, dark не ставится; после снятия тема возвращается', () => {
+    applyBranding({ theme: 'dark' })
+    expect(root.classList.contains('dark')).toBe(true)
+    const release = holdLightTheme()
+    expect(root.classList.contains('dark')).toBe(false)
+    applyBranding({ theme: 'dark' })
+    expect(root.classList.contains('dark')).toBe(false)
+    release()
+    expect(root.classList.contains('dark')).toBe(true)
+    applyBranding({ theme: 'light' })
   })
 
   it('theme=system следует за prefers-color-scheme', () => {

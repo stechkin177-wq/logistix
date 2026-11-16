@@ -1,10 +1,11 @@
-import { useState, type SyntheticEvent } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../../shared/api/errors'
 import { safeRedirect } from '../../shared/auth/redirect'
 import { useAuth } from '../../shared/auth/useAuth'
 import { useSession } from '../../shared/auth/useSession'
+import { holdLightTheme } from '../../shared/branding/applyBranding'
 import { useBranding } from '../../shared/branding/useBranding'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
@@ -35,6 +36,12 @@ export function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [totp, setTotp] = useState<{ challenge: string; setup: boolean } | null>(null)
+
+  // на телефоне вход всегда светлый, даже при тёмной системной теме; после входа действует тема компании
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(max-width: 767px)').matches) return
+    return holdLightTheme()
+  }, [])
 
   const target = safeRedirect(params.get('next'))
   if (hasTokens && context === 'platform' && !busy) return <Navigate to="/platform" replace />

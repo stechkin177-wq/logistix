@@ -77,7 +77,9 @@ describe('Панель платформы', () => {
     expect(within(nav).getByText('Подписки компаний')).toBeInTheDocument()
     expect(within(nav).getByText('История изменений')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
-    expect(await screen.findByText('Владелец · Владелец платформы')).toBeInTheDocument()
+    // имя и роль в блоке аккаунта идут отдельными строками
+    expect(await screen.findByText('Владелец')).toBeInTheDocument()
+    expect(screen.getAllByText('Владелец платформы').length).toBeGreaterThan(0)
   })
 
   it('несколько компаний аккаунта: «Администратор компании» выбирается из списка', async () => {

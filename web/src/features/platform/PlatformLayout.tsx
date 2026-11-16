@@ -30,10 +30,19 @@ export function PlatformLayout() {
   const companies = session?.companies ?? []
 
   const panel = (flat: boolean) => (
-    <aside className={`flex h-full w-60 shrink-0 flex-col bg-surface ${flat ? '' : 'rounded-card border border-line shadow-card'}`}>
-      <div className="px-4 py-3">
-        <p className="truncate text-sm font-semibold">{branding.app_name}</p>
-        <p className="text-xs text-muted">{t('platformShell.title')}</p>
+    <aside className={`flex h-full shrink-0 flex-col bg-surface ${flat ? 'w-full' : 'w-60 rounded-card border border-line shadow-card'}`}>
+      <div className="flex min-h-14 items-center gap-2.5 px-4 py-2">
+        {branding.logo_url ? (
+          <img src={branding.logo_url} alt="" className="size-7 rounded-md object-contain" />
+        ) : (
+          <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-brand-fg">
+            {branding.app_name.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold leading-tight">{branding.app_name}</p>
+          <p className="text-xs leading-tight text-muted">{t('platformShell.title')}</p>
+        </div>
       </div>
       <nav aria-label={t('platformShell.nav')} className="thin-scroll flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" onClick={() => { setOpen(false) }}>
         {LINKS.map((link) => (
@@ -70,9 +79,9 @@ export function PlatformLayout() {
           </select>
         </SelectBox>
         <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-xs text-muted">
-            {session?.user.full_name || session?.user.email}
-            {session ? ` · ${t(`platformShell.role.${session.user.platform_role}`)}` : ''}
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">{session?.user.full_name || session?.user.email}</span>
+            {session ? <span className="block truncate text-xs text-muted">{t(`platformShell.role.${session.user.platform_role}`)}</span> : null}
           </span>
           <Button variant="ghost" icon={LogOut} onClick={logout}>
             {t('auth.logout')}
@@ -110,15 +119,40 @@ export function PlatformLayout() {
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
-          <Button variant="ghost" icon={Menu} aria-label={t('nav.menu')} onClick={() => { setOpen(true) }} />
-          <span className="truncate text-sm font-semibold">{t('platformShell.title')}</span>
+          <span className="truncate text-sm font-semibold">{branding.app_name}</span>
+          <span className="ml-auto truncate text-xs text-muted">{t('platformShell.title')}</span>
         </header>
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-5">
+        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 md:p-5 md:pb-5">
           <div className="mx-auto w-full max-w-[1500px]">
             <Outlet />
           </div>
         </main>
       </div>
+      <nav
+        aria-label={t('nav.mobileLabel')}
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {LINKS.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            className={({ isActive }) =>
+              `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] ${isActive ? 'font-medium text-brand-700 dark:text-brand-200' : 'text-muted'}`
+            }
+          >
+            <link.icon className="size-5" aria-hidden="true" />
+            <span className="max-w-full truncate">{t(link.labelKey)}</span>
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          onClick={() => { setOpen(true) }}
+          className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] text-muted"
+        >
+          <Menu className="size-5" aria-hidden="true" />
+          <span>{t('nav.menu')}</span>
+        </button>
+      </nav>
       <Toaster />
     </div>
   )

@@ -34,11 +34,13 @@ interface Props<T> {
   caption: string
   /** Таблица внутри Card: без собственной рамки, скругления и тени. */
   bare?: boolean
+  /** Колонки сжимаются под ширину карточки (заголовки переносятся по словам), а не уходят в прокрутку. */
+  fit?: boolean
 }
 
 /** Плотная таблица: горизонтальный скролл, состояния loading/error/empty, сортировка через ordering API. */
 export function DataTable<T>({
-  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false,
+  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false, fit = false,
 }: Props<T>) {
   const { t } = useTranslation()
 
@@ -68,7 +70,7 @@ export function DataTable<T>({
     <div className={`relative overflow-hidden ${bare ? '' : 'rounded-card border border-line bg-surface shadow-card'}`}>
       <div className="thin-scroll scroll-shadow-x overflow-x-auto">
         {/* на узком экране строки превращаются в карточки: подпись колонки берётся из data-label */}
-        <table className="w-full border-collapse text-left text-sm max-md:block md:min-w-max" aria-busy={loading ? true : undefined}>
+        <table className={`w-full border-collapse text-left text-sm max-md:block ${fit ? '' : 'md:min-w-max'}`} aria-busy={loading ? true : undefined}>
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted max-md:sr-only">
             <tr>
@@ -86,7 +88,7 @@ export function DataTable<T>({
                     key={column.key}
                     scope="col"
                     aria-sort={sorted}
-                    className={`whitespace-nowrap px-3 py-2.5 font-semibold ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                    className={`${fit ? 'px-2.5' : 'px-3'} py-2.5 align-bottom font-semibold [overflow-wrap:normal] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                   >
                     {column.sortKey !== undefined && onOrderingChange ? (
                       <button
@@ -118,7 +120,7 @@ export function DataTable<T>({
                     <td
                       key={column.key}
                       data-label={column.mobileLabel ?? column.headerLabel ?? (typeof column.header === 'string' ? column.header : '')}
-                      className={`px-3 py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                      className={`${fit ? 'px-2.5' : 'px-3'} py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                     >
                       {column.cell(row)}
                     </td>

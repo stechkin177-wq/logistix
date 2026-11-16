@@ -44,17 +44,18 @@ export function InvoicesTab() {
   const columns: Column<Invoice>[] = [
     {
       key: 'number',
+      className: 'whitespace-nowrap',
       header: t('finance.invoices.number'),
       cell: (i) => <Link className="text-brand-700 underline dark:text-brand-300" to={`/finance/invoices/${String(i.id)}`}>{invoiceLabel(i, t)}</Link>,
     },
-    { key: 'direction', header: t('finance.invoices.direction'), cell: (i) => <Badge tone={i.direction === 'out' ? 'info' : 'neutral'}>{t(`finance.direction.${i.direction}`)}</Badge> },
+    { key: 'direction', className: 'whitespace-nowrap', header: t('finance.invoices.typeShort'), cell: (i) => <Badge tone={i.direction === 'out' ? 'info' : 'neutral'}>{t(`finance.direction.${i.direction}`)}</Badge> },
     { key: 'party', header: t('finance.invoices.party'), cell: (i) => i.client?.name ?? i.carrier?.name ?? '—' },
-    { key: 'order', header: t('finance.invoices.order'), cell: (i) => i.order?.number ?? i.trip?.number ?? '—' },
-    { key: 'issue', header: t('finance.invoices.issueDate'), cell: (i) => (i.issue_date ? <DateTime value={i.issue_date} dateOnly /> : '—') },
-    { key: 'due', header: t('finance.invoices.dueDate'), cell: (i) => (i.due_date ? <DateTime value={i.due_date} dateOnly /> : '—') },
+    { key: 'order', className: 'whitespace-nowrap', header: t('finance.invoices.order'), cell: (i) => i.order?.number ?? i.trip?.number ?? '—' },
+    { key: 'issue', className: 'whitespace-nowrap', header: t('finance.invoices.issuedShort'), cell: (i) => (i.issue_date ? <DateTime value={i.issue_date} dateOnly /> : '—') },
+    { key: 'due', className: 'whitespace-nowrap', header: t('finance.invoices.dueDate'), cell: (i) => (i.due_date ? <DateTime value={i.due_date} dateOnly /> : '—') },
     { key: 'gross', header: t('finance.invoices.gross'), align: 'right', cell: (i) => (i.status === 'draft' ? '—' : <Money value={i.totals.gross} currency={i.currency.code} />) },
     { key: 'balance', header: t('finance.invoices.balance'), align: 'right', cell: (i) => (i.status === 'draft' ? '—' : <Money value={i.balance} currency={i.currency.code} />) },
-    { key: 'status', header: t('finance.invoices.status'), cell: (i) => <StatusBadge status={i.display_status} /> },
+    { key: 'status', className: 'whitespace-nowrap', header: t('finance.invoices.status'), cell: (i) => <StatusBadge status={i.display_status} /> },
   ]
 
   return (
@@ -102,6 +103,7 @@ export function InvoicesTab() {
         </FilterItem>
       </FilterBar>
       <DataTable
+        fit
         caption={t('finance.tabs.invoices')}
         columns={columns}
         rows={list.data?.results}

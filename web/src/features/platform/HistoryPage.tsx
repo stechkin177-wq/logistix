@@ -30,6 +30,13 @@ export function HistoryPage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
   const list = useHistory(state.kind, state.key, state.page, state.pageSize)
+  // статусы в изменениях показываем словами, а не кодами; неизвестные значения остаются как есть
+  const shown = (field: string, v: unknown) => {
+    if (field === 'status' && typeof v === 'string') {
+      return t(`company.statuses.${v}`, { defaultValue: t(`platform.plans.status.${v}`, { defaultValue: v }) })
+    }
+    return short(v)
+  }
 
   const columns: Column<HistoryRow>[] = [
     { key: 'when', header: t('platform.history.when'), cell: (e) => <DateTime value={e.created_at} /> },
@@ -43,8 +50,8 @@ export function HistoryPage() {
         <ul className="space-y-0.5 text-xs">
           {Object.entries(e.changes).map(([field, value]) => (
             <li key={field}>
-              <b>{field}</b>:{' '}
-              {Array.isArray(value) && value.length === 2 ? `${short(value[0])} → ${short(value[1])}` : short(value)}
+              <b>{t(`platform.history.fields.${field}`, { defaultValue: field })}</b>:{' '}
+              {Array.isArray(value) && value.length === 2 ? `${shown(field, value[0])} → ${shown(field, value[1])}` : shown(field, value)}
             </li>
           ))}
         </ul>

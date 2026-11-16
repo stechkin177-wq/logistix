@@ -14,6 +14,7 @@ import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { SetupPasswordPage } from '../features/auth/SetupPasswordPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { RouteErrorPage } from '../features/errors/RouteErrorPage'
 import { NotFoundPage } from '../features/errors/NotFoundPage'
 import { RequireAccess } from '../features/errors/RequireAccess'
 import { ConsignmentsPage } from '../features/consignments/pages/ConsignmentsPage'
@@ -120,6 +121,7 @@ export function createRoutes(): RouteObject[] {
   return [
     {
       element: <RootRoute />,
+      errorElement: <RouteErrorPage />,
       children: [
         { path: '/login', element: <LoginPage /> },
         { path: '/setup-password', element: <SetupPasswordPage /> },

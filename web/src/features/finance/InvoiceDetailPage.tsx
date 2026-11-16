@@ -233,7 +233,7 @@ export function InvoiceDetailPage() {
           <dt>{t('finance.invoices.net')}</dt><dd className="text-right"><Money value={totals.net} currency={code} /></dd>
           <dt>{t('finance.invoices.vat')}</dt><dd className="text-right"><Money value={totals.vat} currency={code} /></dd>
           <dt className="font-semibold">{t('finance.invoices.gross')}</dt><dd className="text-right font-semibold"><Money value={totals.gross} currency={code} /></dd>
-          {isDraft ? null : (
+          {isDraft || invoice.status === 'cancelled' ? null : (
             <>
               <dt>{t('finance.invoices.paid')}</dt><dd className="text-right"><Money value={invoice.paid} currency={code} /></dd>
               <dt>{t('finance.invoices.balance')}</dt><dd className="text-right"><Money value={invoice.balance} currency={code} /></dd>
