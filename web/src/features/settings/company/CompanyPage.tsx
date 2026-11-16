@@ -10,7 +10,6 @@ import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { FormBanner } from '../../../shared/ui/FormBanner'
-import { Select } from '../../../shared/ui/Select'
 import { Spinner } from '../../../shared/ui/Spinner'
 import { TextField } from '../../../shared/ui/TextField'
 import { pushToast } from '../../../shared/ui/toast'
@@ -81,7 +80,6 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
           <TextField label={t('company.timezone')} list="tz-list" value={form.timezone} disabled={!canSave} error={f.timezone} hint={t('company.timezoneHint')} onChange={(e) => { setForm((s) => ({ ...s, timezone: e.target.value })) }} />
           <datalist id="tz-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>
         </div>
-        <Select label={t('company.language')} value={form.language} disabled={!canSave} error={f.language} options={[{ value: 'ru', label: t('languages.ru') }, { value: 'kk', label: t('languages.kk') }]} onChange={(v) => { setForm((s) => ({ ...s, language: v === 'kk' ? 'kk' : 'ru' })) }} />
         <TextField label={t('company.loginAuditRetention')} type="number" min={30} max={1095} inputMode="numeric" value={form.retention} disabled={!canSave} error={f.login_audit_retention_days} hint={t('company.loginAuditRetentionHint')} onChange={(e) => { setForm((s) => ({ ...s, retention: e.target.value })) }} />
         <DateInput label={t('company.accountingStart')} value={form.accounting_start} disabled={!canSave} error={f.accounting_start} onChange={(v) => { setForm((s) => ({ ...s, accounting_start: v })) }} />
       </div>

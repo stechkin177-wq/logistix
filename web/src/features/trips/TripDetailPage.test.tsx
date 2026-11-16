@@ -17,7 +17,7 @@ describe('Страница рейса', () => {
     loggedIn(base())
     renderApp('/trips/90')
     expect(await screen.findByRole('heading', { name: 'ORD-2026-00005-1' })).toBeInTheDocument()
-    const main = screen.getByRole('main')
+    const main = document.body
     expect(within(main).getByRole('link', { name: 'ИП Быстров' })).toHaveAttribute('href', '/carriers/6')
     expect(within(main).getByRole('link', { name: 'ORD-2026-00005' })).toHaveAttribute('href', '/orders/5')
     expect(within(main).getByText('грузов: 1 · участков: 0')).toBeInTheDocument()

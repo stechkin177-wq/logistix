@@ -47,14 +47,14 @@ export function ProfileMenu() {
   const person = user.full_name || user.email || user.phone || ''
 
   return (
-    <div ref={root} className="relative flex items-center gap-1">
+    <div ref={root} className="relative flex items-center gap-2">
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t('nav.profile')}
         onClick={() => { setOpen(!open) }}
-        className="flex items-center gap-2 rounded-control p-1 text-left hover:bg-surface-2 md:pr-2"
+        className="flex h-9 items-center gap-2 rounded-control border border-line bg-surface p-0.5 text-left shadow-card hover:bg-surface-2 md:pr-2"
       >
         <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800 dark:bg-brand-900 dark:text-brand-100">
           {initials(person)}
@@ -110,7 +110,7 @@ export function ProfileMenu() {
       <button
         type="button"
         onClick={logout}
-        className="hidden h-8 items-center gap-1.5 rounded-control px-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink md:inline-flex"
+        className="hidden h-9 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-sm font-medium text-muted shadow-card transition-colors hover:bg-surface-2 hover:text-ink md:inline-flex"
       >
         <LogOut className="size-4" aria-hidden="true" />
         {t('auth.logout')}

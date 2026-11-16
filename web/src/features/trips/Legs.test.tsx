@@ -51,7 +51,7 @@ describe('Карточка рейса: участки', () => {
     renderApp('/trips')
     await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-00005-1' }))
     // страница рейса: участки лежат на вкладке «Маршрут»
-    const main = await screen.findByRole('main')
+    const main = await screen.findByRole('main').then(() => document.body)
     await userEvent.click(await within(main).findByRole('tab', { name: /Маршрут/ }))
     return main
   }

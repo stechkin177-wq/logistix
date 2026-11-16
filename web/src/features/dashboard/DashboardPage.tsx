@@ -80,7 +80,7 @@ export function DashboardPage() {
       ) : null}
       {data ? (
         <>
-          <div className="flex flex-wrap items-start gap-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] items-stretch gap-2">
             <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
             <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
             <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />

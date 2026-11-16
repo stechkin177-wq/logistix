@@ -17,7 +17,7 @@ export function FinanceSummaryCards() {
   const payable = base ? finance.payable_base : finance.payable_kzt
   return (
     <section aria-label={t('finance.summaryTitle')} className="space-y-2">
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] items-stretch gap-2">
         <Stat
           label={t('dashboard.monthProfit')}
           value={money(finance.month_profit_kzt, finance.currency)}

@@ -1,4 +1,7 @@
 import { createContext } from 'react'
 
-/** Залипающая шапка страницы выступает за поля прокручиваемой области (true) либо стоит ровно в своей колонке (false). */
-export const HeaderBleedContext = createContext(true)
+/**
+ * Место под шапку страницы вне прокручиваемой области (создаёт AppLayout).
+ * undefined - слота нет, шапка рисуется на месте; null - слот ещё не смонтирован.
+ */
+export const HeaderSlotContext = createContext<HTMLElement | null | undefined>(undefined)

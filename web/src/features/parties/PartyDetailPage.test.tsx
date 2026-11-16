@@ -22,7 +22,7 @@ describe('Карточка клиента', () => {
     ])
     renderApp('/clients/7?tab=work')
     expect(await screen.findByRole('heading', { name: 'ТОО Ромашка' })).toBeInTheDocument()
-    const main = screen.getByRole('main')
+    const main = document.body
     expect(within(main).getByRole('tab', { name: /Контакты\s*1/ })).toBeInTheDocument()
     expect(within(main).getByRole('tab', { name: /Заказы\s*2/ })).toBeInTheDocument()
     expect(await within(main).findByRole('link', { name: 'ORD-11' })).toHaveAttribute('href', '/orders/11')

@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { HeaderBleedContext } from '../../shared/ui/headerBleed'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { isAllowed, NAV, type NavItem } from '../../layout/nav'
 import { useSession } from '../../shared/auth/useSession'
 
+// раздел «Данные и документы» открывается из бокового меню (список под «Настройки»)
 const SECTIONS: { key: NonNullable<NavItem['section']>; labelKey: string }[] = [
   { key: 'organization', labelKey: 'nav.sectionOrganization' },
-  { key: 'data', labelKey: 'nav.sectionData' },
   { key: 'finance', labelKey: 'nav.sectionFinance' },
 ]
 
@@ -30,18 +29,18 @@ export function SettingsLayout() {
   const allowed = session ? (group?.children ?? []).filter((item) => isAllowed(item, session)) : []
 
   return (
-    <div className="grid items-start gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+    <div className="grid items-start gap-4 md:grid-cols-[12.5rem_minmax(0,1fr)]">
       <nav
         ref={navRef}
         aria-label={t('nav.settingsLabel')}
-        className="thin-scroll scroll-shadow-x flex items-start gap-2 overflow-x-auto pb-1 pt-3 [--scroll-bg:var(--ui-canvas)] md:sticky md:top-0 md:max-h-[calc(100dvh-4rem)] md:pt-5 md:flex-col md:gap-3 md:overflow-y-auto md:pb-0"
+        className="thin-scroll scroll-shadow-x flex items-start gap-2 overflow-x-auto pb-1 [--scroll-bg:var(--ui-canvas)] md:sticky md:top-3 md:max-h-[calc(100dvh-9rem)] md:flex-col md:gap-2 md:overflow-y-auto md:pb-0"
       >
         {SECTIONS.map((section) => {
           const items = allowed.filter((item) => item.section === section.key)
           if (items.length === 0) return null
           return (
-            <div key={section.key} className="flex shrink-0 gap-1 rounded-card border border-line bg-surface p-1.5 shadow-card md:w-full md:flex-col md:p-2">
-              <p className="mb-1 hidden border-b border-line px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted md:block">
+            <div key={section.key} className="flex shrink-0 gap-0.5 rounded-card border border-line bg-surface p-1 shadow-card md:w-full md:flex-col md:p-1.5">
+              <p className="mb-0.5 hidden border-b border-line px-2.5 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted md:block">
                 {t(section.labelKey)}
               </p>
               {items.map((item) => {
@@ -51,12 +50,12 @@ export function SettingsLayout() {
                     key={item.key}
                     to={item.path ?? '/settings'}
                     className={({ isActive }) =>
-                      `flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-control px-3 py-2 text-sm transition-colors ${
+                      `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-2.5 py-1.5 text-[13px] transition-colors ${
                         isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
                       }`
                     }
                   >
-                    {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
+                    {Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
                     {t(item.labelKey)}
                   </NavLink>
                 )
@@ -66,9 +65,7 @@ export function SettingsLayout() {
         })}
       </nav>
       <div className="min-w-0">
-        <HeaderBleedContext.Provider value={false}>
-          <Outlet />
-        </HeaderBleedContext.Provider>
+        <Outlet />
       </div>
     </div>
   )

@@ -50,6 +50,22 @@ let stopSystemWatch: (() => void) | null = null
 // пока открыта страница с принудительно светлой темой (вход на телефоне), класс dark не ставится
 let lightHolds = 0
 let lastTheme: Theme = 'system'
+const THEME_KEY = 'logistix.theme'
+
+/** Личный выбор светлой/тёмной темы на этом устройстве: перекрывает тему компании. */
+function storedTheme(): 'light' | 'dark' | null {
+  try {
+    const v = localStorage.getItem(THEME_KEY)
+    return v === 'light' || v === 'dark' ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setThemeOverride(value: 'light' | 'dark'): void {
+  try { localStorage.setItem(THEME_KEY, value) } catch { /* хранилище недоступно: действует до перезагрузки */ }
+  applyTheme(value)
+}
 
 function setDark(on: boolean): void {
   document.documentElement.classList.toggle('dark', on && lightHolds === 0)
@@ -65,8 +81,9 @@ export function holdLightTheme(): () => void {
   }
 }
 
-function applyTheme(theme: Theme): void {
-  lastTheme = theme
+function applyTheme(companyTheme: Theme): void {
+  lastTheme = companyTheme
+  const theme: Theme = storedTheme() ?? companyTheme
   stopSystemWatch?.()
   stopSystemWatch = null
   if (theme !== 'system') {

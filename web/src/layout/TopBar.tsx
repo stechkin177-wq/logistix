@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { matchPath, useLocation } from 'react-router'
 import { useSession } from '../shared/auth/useSession'
 import { ChevronRight } from '../shared/ui/icons'
+import { ThemeToggle } from '../shared/ui/ThemeToggle'
 import { LanguageSwitch } from '../shared/ui/LanguageSwitch'
 import { flattenNav, visibleNav, type NavItem } from './nav'
 import { ProfileMenu } from './ProfileMenu'
@@ -43,9 +44,9 @@ export function TopBar() {
           <span className="truncate">{t(section.labelKey)}</span>
         </p>
       ) : null}
-      <div className="ml-auto flex shrink-0 items-center gap-2 md:rounded-card md:border md:border-line md:bg-surface md:px-2 md:py-1 md:shadow-card">
-        <LanguageSwitch />
-        <span aria-hidden="true" className="hidden h-6 w-px bg-line md:block" />
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <LanguageSwitch className="h-9 shadow-card md:bg-surface" />
+        <ThemeToggle />
         <ProfileMenu />
       </div>
     </header>

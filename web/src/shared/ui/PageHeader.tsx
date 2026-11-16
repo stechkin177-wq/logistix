@@ -2,7 +2,8 @@ import { useContext, useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useBranding } from '../branding/useBranding'
-import { HeaderBleedContext } from './headerBleed'
+import { createPortal } from 'react-dom'
+import { HeaderSlotContext } from './headerBleed'
 import { ArrowLeft, type LucideIcon } from './icons'
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }: Props) {
   const { t } = useTranslation()
   const { app_name: appName } = useBranding()
-  const bleed = useContext(HeaderBleedContext)
+  const slot = useContext(HeaderSlotContext)
   // заголовок вкладки браузера повторяет название раздела: вкладки и история различимы
   const text = typeof title === 'string' ? title : null
   useEffect(() => {
@@ -29,8 +30,8 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
     document.title = `${text} · ${appName}`
     return () => { document.title = appName }
   }, [text, appName])
-  return (
-    <header className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 bg-canvas pb-2 pt-3 md:pb-2.5 md:pt-5 ${bleed ? '-mx-3 px-3 md:-mx-5 md:px-5' : ''}`}>
+  const header = (
+    <header className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 ${slot ? 'rounded-card border border-line bg-surface px-3 py-2 shadow-card md:px-4' : 'pb-2 pt-3'}`}>
       <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-x-3 gap-y-1">
         {back ? (
           <Link
@@ -56,4 +57,6 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions }:
       {actions ? <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">{actions}</div> : null}
     </header>
   )
+  if (slot === undefined) return header
+  return slot ? createPortal(header, slot) : null
 }

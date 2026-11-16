@@ -48,7 +48,7 @@ export function ProfitTile({ data, period, onChange }: { data: DashboardSummary;
   ) : null
 
   return (
-    <div ref={root} className="relative w-fit max-w-full">
+    <div ref={root} className="relative h-full w-full">
       <Stat
         label={t(`dashboard.profitLabel.${period.preset}`)}
         value={money(data.month_profit, data.currency ?? undefined)}
