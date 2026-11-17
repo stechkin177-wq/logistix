@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useTranslation } from 'react-i18next'
 import { Banner } from './Banner'
 import { Button } from './Button'
@@ -17,6 +18,8 @@ export interface Column<T> {
   align?: 'left' | 'right'
   /** Подпись значения в карточке на телефоне; пустая строка скрывает подпись. */
   mobileLabel?: string
+  /** На телефоне колонка не показывается в карточке списка (остальное - в самой записи). */
+  hideOnMobile?: boolean
 }
 
 interface Props<T> {
@@ -39,12 +42,15 @@ interface Props<T> {
   fit?: boolean
   /** Клик по строке (вне ссылок, кнопок и полей) открывает запись. Клавиатурный путь - ссылка или кнопка в самой строке. */
   onRowClick?: (row: T) => void
+  /** Короткая строка записи на телефоне (вместо карточки «подпись: значение»); на компьютере не используется. */
+  mobileRow?: (row: T) => ReactNode
 }
 
 /** Плотная таблица: горизонтальный скролл, состояния loading/error/empty, сортировка через ordering API. */
 export function DataTable<T>({
-  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false, fit = false, onRowClick,
+  columns, rows, rowKey, loading, error, onRetry, empty, ordering, onOrderingChange, caption, bare = false, fit = false, onRowClick, mobileRow,
 }: Props<T>) {
+  const isMobile = useIsMobile()
   const { t } = useTranslation()
 
   const toggle = (sortKey: string) => {
@@ -142,18 +148,19 @@ export function DataTable<T>({
               {rows.map((row) => (
                 <tr
                   key={rowKey(row)}
-                  className={`border-t border-line transition-colors hover:bg-surface-2 max-md:block max-md:px-3 max-md:py-2 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={`border-t border-line transition-colors hover:bg-surface-2 max-md:block max-md:px-3 max-md:py-1.5 ${onRowClick ? 'cursor-pointer' : ''}`}
                   onClick={onRowClick ? (event) => {
                     // клики по ссылкам, кнопкам и полям внутри строки работают как обычно
                     if ((event.target as HTMLElement).closest('a, button, input, select, textarea, label, summary, [role=button]')) return
                     onRowClick(row)
                   } : undefined}
                 >
+                  {mobileRow && isMobile ? <td className="block px-0 py-0.5 md:hidden">{mobileRow(row)}</td> : null}
                   {columns.map((column) => (
                     <td
                       key={column.key}
                       data-label={column.mobileLabel ?? column.headerLabel ?? (typeof column.header === 'string' ? column.header : '')}
-                      className={`${fit ? 'px-2.5' : 'px-3'} py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+                      className={`${column.hideOnMobile || (mobileRow && isMobile) ? 'max-md:hidden ' : ''}${fit ? 'px-2.5' : 'px-3'} py-2.5 align-middle max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:px-0 max-md:py-0.5 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-xs max-md:before:text-muted max-md:before:content-[attr(data-label)] ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
                     >
                       {column.cell(row)}
                     </td>

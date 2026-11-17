@@ -1,5 +1,5 @@
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import F
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -10,6 +10,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
+from apps.core.search import search
 
 from . import services
 from .models import FuelFill, Insurance, MileageReading, ServiceRecord, Vehicle, VehicleDocument
@@ -43,12 +44,7 @@ class VehicleViewSet(AuditedMixin, _FleetPermissions, viewsets.ModelViewSet):
             return qs
         p = self.request.query_params
         if q := (p.get("q") or "").strip():
-            qs = qs.filter(
-                Q(plate__icontains=q.replace(" ", "").upper())
-                | Q(make__icontains=q)
-                | Q(model__icontains=q)
-                | Q(vin__icontains=q)
-            )
+            qs = search(qs, q, fields=("make", "model", "vin"), plates=("plate",))
         if kind := p.get("kind"):
             if kind not in dict(Vehicle.KINDS):
                 raise ValidationError({"kind": "Допустимо: tractor, trailer, truck, other"})

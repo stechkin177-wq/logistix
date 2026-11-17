@@ -13,6 +13,7 @@ from apps.core.audit.mixins import AuditedMixin
 from apps.core.audit.services import client_ip
 from apps.core.labels import apply_label_filter
 from apps.core.pagination import StandardPagination
+from apps.core.search import search
 
 from ..models import Consignment, Trip, TripConsignment
 from ..orders.filters import flag_param, int_param
@@ -64,10 +65,21 @@ def filter_trips(qs, params):
     if flag_param(params, "only_consolidated"):
         qs = qs.filter(is_consolidated=True)
     if q := (params.get("q") or "").strip():
-        by_cargo = Exists(
-            Consignment.objects.filter(trip_links__trip=OuterRef("pk"), name__icontains=q)
+        # по частям слов: номер рейса, перевозчик, машина, прицеп, водитель, груз, заказ
+        def extra(term):
+            return Exists(
+                Consignment.objects.filter(trip_links__trip=OuterRef("pk")).filter(
+                    Q(name__icontains=term) | Q(order__number__icontains=term)
+                )
+            )
+
+        qs = search(
+            qs,
+            q,
+            fields=("number", "carrier__name", "driver_name", "driver__full_name"),
+            plates=("vehicle_plate", "vehicle__plate", "trailer__plate"),
+            extra=extra,
         )
-        qs = qs.filter(Q(number__icontains=q) | Q(carrier__name__icontains=q) | by_cargo)
     return qs.order_by("-created_at", "-id")
 
 

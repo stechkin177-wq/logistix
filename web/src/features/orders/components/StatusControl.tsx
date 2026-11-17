@@ -45,7 +45,7 @@ export function StatusControl({ orderId, number, statusId, statusName, compact }
           { onError: (error) => { pushToast('error', errorMessage(error, t)) } },
         )
       }}
-      className={`appearance-none rounded-full border border-line bg-surface text-xs font-medium ${compact ? 'h-7 max-w-full pl-2.5 pr-7' : 'h-8 pl-3 pr-8'}`}
+      className={`appearance-none max-md:text-[12px]! rounded-full border border-line bg-surface text-xs font-medium ${compact ? 'h-7 max-w-full pl-2.5 pr-7' : 'h-8 pl-3 pr-8'}`}
     >
       {options.map((s) => (
         <option key={s.id} value={s.id}>

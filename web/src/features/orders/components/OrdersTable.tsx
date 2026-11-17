@@ -62,6 +62,7 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
     { key: 'route', header: t('orders.route'), cell: (o) => o.route || '—' },
     {
       key: 'carrier',
+      hideOnMobile: true,
       header: t('orders.carrier'),
       cell: (o) => (o.has_carrier ? <Badge tone="success">{t('orders.carrierAssigned')}</Badge> : <Badge tone="warning">{t('orders.noCarrier')}</Badge>),
     },
@@ -70,9 +71,10 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
       header: t('common.status'),
       cell: (o) => <StatusControl orderId={o.id} number={o.number} statusId={o.status} statusName={o.status_name} />,
     },
-    { key: 'loading', header: t('orders.loading'), cell: (o) => <DateTime value={loadingAt(o)} /> },
+    { key: 'loading', hideOnMobile: true, header: t('orders.loading'), cell: (o) => <DateTime value={loadingAt(o)} /> },
     {
       key: 'rate',
+      hideOnMobile: true,
       header: t('orders.rate'),
       align: 'right',
       cell: (o) => <Money value={o.client_rate} currency={codeOf(o.currency)} />,
@@ -83,13 +85,22 @@ export function OrdersTable({ params, filtered, onChange, onReset }: Props) {
           { key: 'profit', header: t('orders.profit'), align: 'right', cell: (o: Order) => <Money value={o.profit} /> },
         ] satisfies Column<Order>[])
       : []),
-    { key: 'created', header: t('parties.created'), sortKey: 'created_at', cell: (o) => <DateTime value={o.created_at} dateOnly /> },
+    { key: 'created', hideOnMobile: true, header: t('parties.created'), sortKey: 'created_at', cell: (o) => <DateTime value={o.created_at} dateOnly /> },
   ]
 
   return (
     <>
       <DataTable
         onRowClick={(o) => { void navigate(`/orders/${String(o.id)}`) }}
+        mobileRow={(o) => (
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <Link to={`/orders/${String(o.id)}`} className="shrink-0 whitespace-nowrap font-medium text-brand-700 dark:text-brand-300">{o.number}</Link>
+              <span className="ml-auto flex shrink-0 items-center gap-1.5">{columns.find((c) => c.key === 'status')?.cell(o)}</span>
+            </div>
+            <p className="truncate text-xs text-muted">{[o.client_name, o.route].filter(Boolean).join(' · ')}</p>
+          </div>
+        )}
         caption={t('nav.orders')}
         columns={columns}
         rows={rows}

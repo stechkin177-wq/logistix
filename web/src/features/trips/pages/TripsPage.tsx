@@ -68,10 +68,11 @@ export function TripsPage() {
       ),
     },
     { key: 'status', header: t('common.status'), cell: (trip) => <TripStatusControl trip={trip} /> },
-    { key: 'carrier', header: t('trips.carrier'), cell: (trip) => trip.carrier_name ?? <Badge tone="warning">{t('orders.noCarrier')}</Badge> },
+    { key: 'carrier', hideOnMobile: true, header: t('trips.carrier'), cell: (trip) => trip.carrier_name ?? <Badge tone="warning">{t('orders.noCarrier')}</Badge> },
     { key: 'vehicle', header: t('trips.vehicleDriver'), cell: (trip) => [trip.vehicle_plate, trip.driver_name].filter(Boolean).join(' / ') || '—' },
     {
       key: 'orders',
+      hideOnMobile: true,
       header: t('trips.orders'),
       cell: (trip) => (
         <span className="flex flex-wrap items-center gap-x-2">
@@ -82,8 +83,8 @@ export function TripsPage() {
         </span>
       ),
     },
-    { key: 'cargo', header: t('trips.cargo'), cell: (trip) => trip.consignments.map((c) => c.name).join(', ') || '—' },
-    { key: 'carrier_price', header: t('trips.carrierPrice'), align: 'right', cell: (trip) => <Money value={trip.carrier_price} currency={codeOf(trip.currency) || undefined} /> },
+    { key: 'cargo', hideOnMobile: true, header: t('trips.cargo'), cell: (trip) => trip.consignments.map((c) => c.name).join(', ') || '—' },
+    { key: 'carrier_price', hideOnMobile: true, header: t('trips.carrierPrice'), align: 'right', cell: (trip) => <Money value={trip.carrier_price} currency={codeOf(trip.currency) || undefined} /> },
   ]
 
   // прежние ссылки /trips?open=ID ведут на страницу рейса
@@ -130,6 +131,15 @@ export function TripsPage() {
       </FilterBar>
       <DataTable
         onRowClick={(trip) => { void navigate(`/trips/${String(trip.id)}`) }}
+        mobileRow={(trip) => (
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <Link to={`/trips/${String(trip.id)}`} className="shrink-0 whitespace-nowrap font-medium text-brand-700 dark:text-brand-300">{trip.number}</Link>
+              <span className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">{columns.find((c) => c.key === 'status')?.cell(trip)}</span>
+            </div>
+            <p className="truncate text-xs text-muted">{[trip.vehicle_plate, trip.driver_name].filter(Boolean).join(' / ') || '—'}</p>
+          </div>
+        )}
         caption={t('nav.trips')}
         columns={columns}
         rows={list.data?.results}

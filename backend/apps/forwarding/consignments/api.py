@@ -5,6 +5,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
+from apps.core.search import search
 
 from ..models import Consignment, ConsignmentPoint, TripConsignment
 from ..orders.filters import flag_param, int_param
@@ -68,7 +69,16 @@ class ConsignmentViewSet(
             ):
                 qs = qs.filter(location_status=location)
             if q := (params.get("q") or "").strip():
-                qs = qs.filter(name__icontains=q)
+                qs = search(
+                    qs,
+                    q,
+                    fields=("name", "order__number", "order__client__name"),
+                    extra=lambda term: Exists(
+                        ConsignmentPoint.objects.filter(
+                            consignment=OuterRef("pk"), city__icontains=term
+                        )
+                    ),
+                )
             qs = qs.order_by("id")
         return qs
 

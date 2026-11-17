@@ -1,9 +1,10 @@
 """Фильтры и сортировка списков клиентов и перевозчиков (по образцу handbooks.api)."""
 
-from django.db.models import F, Q
+from django.db.models import F
 from rest_framework.exceptions import ValidationError
 
 from apps.core.labels import apply_label_filter
+from apps.core.search import search
 
 STATUS_VALUES = ("active", "inactive")
 DEFAULT_ORDERING = "name"
@@ -20,7 +21,7 @@ def _ordering_expression(field: str):
 def filter_parties(qs, params, ordering_fields):
     """q (название или БИН/ИИН, без учёта регистра), type (id), status, ordering."""
     if q := (params.get("q") or "").strip():
-        qs = qs.filter(Q(name__icontains=q) | Q(bin_iin__icontains=q))
+        qs = search(qs, q, fields=("name", "bin_iin"))
     if (type_id := params.get("type")) not in (None, ""):
         if not type_id.isascii() or not type_id.isdigit():
             raise ValidationError({"type": "Ожидается числовой id"})

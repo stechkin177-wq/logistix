@@ -1,5 +1,5 @@
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import F
 from rest_framework import serializers, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -9,6 +9,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin, permission_required
 from apps.core.audit.mixins import AuditedMixin
 from apps.core.pagination import StandardPagination
+from apps.core.search import search
 
 from . import reminders
 from .models import Driver, DriverDocument
@@ -32,7 +33,7 @@ class DriverViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet)
             return qs
         p = self.request.query_params
         if q := (p.get("q") or "").strip():
-            qs = qs.filter(Q(full_name__icontains=q) | Q(phone__icontains=q) | Q(iin__icontains=q))
+            qs = search(qs, q, fields=("full_name", "phone", "iin"))
         if status := p.get("status"):
             if status not in dict(Driver.STATUSES):
                 raise ValidationError({"status": "Допустимо: active, on_leave, inactive"})

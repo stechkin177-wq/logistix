@@ -80,7 +80,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
 
   return (
     <>
-      <div className="inline-flex flex-wrap items-center gap-1.5" onClick={(e) => { e.stopPropagation() }}>
+      <div className="inline-flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => { e.stopPropagation() }}>
       {nextStatus ? (
         <Button variant="primary" className="h-7! rounded-full! px-2.5! text-xs!" onClick={stepForward} disabled={change.isPending}>
           {t('trips.nextStep', { status: nextStatus.name })}
@@ -100,7 +100,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           }
           change.mutate({ id: trip.id, status: next }, { onError: (e) => { pushToast('error', errorMessage(e, t)) } })
         }}
-        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full border border-line bg-surface pl-2.5 pr-7 text-xs font-medium max-md:text-xs!"
+        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full max-md:text-[12px]! border border-line bg-surface pl-2.5 pr-7 text-xs font-medium max-md:text-xs!"
       >
         {selectableValues(statuses.all, trip.status).map((s) => (
           <option key={s.id} value={s.id} disabled={leavingLocked && s.id !== trip.status}>{s.name}</option>

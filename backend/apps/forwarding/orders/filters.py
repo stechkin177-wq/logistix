@@ -1,7 +1,8 @@
 """Фильтры списка заказов (список, канбан и Excel используют одни и те же).
 
-Параметры: q (номер, клиент, название груза), client (id), status (несколько id: через запятую
-и/или повторением параметра), carrier (id; заказ с не удалённым рейсом этого перевозчика,
+Параметры: q (слова по частям: номер, клиент, груз, город, рейс, водитель, машина), client (id),
+status (несколько id: через запятую и/или повтором),
+carrier (id; заказ с не удалённым рейсом этого перевозчика,
 везущим любой не удалённый груз заказа), loading_from/loading_to (дата самой ранней точки
 погрузки заказа), created_from/created_to, completed_from/completed_to, unassigned=1 (заказы
 без перевозчика). Даты - YYYY-MM-DD, сравниваются как локальные даты в часовом поясе компании,
@@ -17,10 +18,11 @@ from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
 
 from apps.core.labels import apply_label_filter
+from apps.core.search import compact, norm_expr, search
 from apps.core.tenancy import get_current_company_id
 
 from ..finance_lines.models import company_zone
-from ..models import Consignment, ConsignmentPoint
+from ..models import Consignment, ConsignmentPoint, TripConsignment
 from .services import carried_with_carrier
 
 ORDERING_FIELDS = ("created_at", "number")
@@ -117,6 +119,30 @@ def loading_at_subquery():
     )
 
 
+def _order_extra(term):
+    """Слово есть в грузе, городе маршрута или рейсе заказа (номер рейса, перевозчик, водитель,
+    номер машины или прицепа - без учёта пробелов и дефисов)."""
+    by_cargo = Exists(Consignment.objects.filter(order=OuterRef("pk"), name__icontains=term))
+    by_city = Exists(Consignment.objects.filter(order=OuterRef("pk"), points__city__icontains=term))
+    legs = TripConsignment.objects.filter(
+        consignment__order=OuterRef("pk"), consignment__deleted_at__isnull=True
+    ).alias(
+        _p1=norm_expr("trip__vehicle_plate"),
+        _p2=norm_expr("trip__vehicle__plate"),
+        _p3=norm_expr("trip__trailer__plate"),
+    )
+    c = compact(term)
+    cond = (
+        Q(trip__number__icontains=term)
+        | Q(trip__carrier__name__icontains=term)
+        | Q(trip__driver_name__icontains=term)
+        | Q(trip__driver__full_name__icontains=term)
+    )
+    if c:
+        cond |= Q(_p1__icontains=c) | Q(_p2__icontains=c) | Q(_p3__icontains=c)
+    return by_cargo | by_city | Exists(legs.filter(cond))
+
+
 def apply_filters(qs, params, zone=None):
     """Все фильтры списка, кроме сортировки. zone - пояс компании (по умолчанию - текущей)."""
     if zone is None:
@@ -130,8 +156,7 @@ def apply_filters(qs, params, zone=None):
     if flag_param(params, "unassigned"):
         qs = qs.filter(~Exists(carried_with_carrier()))
     if q := (params.get("q") or "").strip():
-        by_cargo = Exists(Consignment.objects.filter(order=OuterRef("pk"), name__icontains=q))
-        qs = qs.filter(Q(number__icontains=q) | Q(client__name__icontains=q) | by_cargo)
+        qs = search(qs, q, fields=("number", "client__name"), extra=_order_extra)
     if any(params.get(f"loading_{side}") for side in ("from", "to")):
         qs = filter_local_dates(
             qs.alias(loading_at_filter=loading_at_subquery()),
