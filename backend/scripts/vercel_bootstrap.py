@@ -116,6 +116,8 @@ def main() -> int:
                 "bootstrap_company",
                 "--name",
                 os.environ.get("DEMO_COMPANY_NAME", "Демо Логистикс"),
+                "--bin",
+                os.environ.get("DEMO_COMPANY_BIN", "123456789012"),
                 "--owner-login",
                 login,
                 "--owner-name",

@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.decorators import action
@@ -10,7 +11,7 @@ from rest_framework.viewsets import ViewSet
 from apps.core.platform import COMPANIES, PLANS, SUBSCRIPTIONS, PlatformAccess
 
 from . import features, limits, plans, subscriptions
-from .models import BillingEvent, Plan
+from .models import BillingEvent, Plan, Subscription
 from .services import days_left, effective_status, get_subscription
 
 
@@ -293,13 +294,27 @@ class PlatformCompaniesView(APIView):
 
         qs = Company.objects.select_related("subscription__plan").filter(subscription__isnull=False)
         if q := (request.query_params.get("q") or "").strip():
-            qs = qs.filter(name__icontains=q)
-        paginator = StandardPagination()
-        page = paginator.paginate_queryset(qs.order_by("name", "id"), request)
+            digits = "".join(ch for ch in q if ch.isdigit())
+            cond = Q(name__icontains=q)
+            if digits:  # ИИН/БИН ищем по цифрам и по частям
+                cond |= Q(bin__contains=digits)
+            qs = qs.filter(cond)
+        if plan := (request.query_params.get("plan") or "").strip():
+            qs = qs.filter(subscription__plan__code=plan)
+        active_state = (request.query_params.get("state") or "").strip()
+        if active_state not in ("", "active", "inactive"):
+            raise ValidationError({"state": "Допустимо: active, inactive"})
         now = timezone.now()
+        items = list(qs.order_by("name", "id"))
+        if active_state:  # «активна» - подписка действует (в т.ч. пробная), остальное - неактивна
+            on = {Subscription.ACTIVE, Subscription.TRIAL}
+            want = active_state == "active"
+            items = [c for c in items if (effective_status(c.subscription, now) in on) == want]
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(items, request)
         rows = [
             {
-                "id": c.pk, "name": c.name, "plan": c.subscription.plan.code,
+                "id": c.pk, "name": c.name, "bin": c.bin, "plan": c.subscription.plan.code,
                 "plan_name": c.subscription.plan.name,
                 "status": effective_status(c.subscription, now),
                 "is_free_period": c.subscription.is_free_period, "ends_at": c.subscription.ends_at,
@@ -325,6 +340,8 @@ class PlatformHistoryView(APIView):
             qs = qs.filter(kind=kind)
         if key := request.query_params.get("key"):
             qs = qs.filter(key=key)
+        if q := (request.query_params.get("q") or "").strip():  # логин автора или id компании
+            qs = qs.filter(Q(actor__icontains=q) | Q(key__iexact=q))
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request)
         rows = [

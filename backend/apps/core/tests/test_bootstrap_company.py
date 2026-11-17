@@ -17,6 +17,8 @@ def run(monkeypatch, capsys, *extra, password=STRONG, name="ТОО Альфа", 
         "bootstrap_company",
         "--name",
         name,
+        "--bin",
+        "123456789012",
         "--owner-login",
         login,
         "--owner-name",
@@ -99,7 +101,10 @@ def test_invalid_login(monkeypatch, capsys, login):
 @pytest.mark.django_db
 def test_interactive_password(monkeypatch, capsys):
     monkeypatch.setattr("getpass.getpass", lambda prompt="": STRONG)
-    call_command("bootstrap_company", "--name", "ТОО Гамма", "--owner-login", "g@gamma.kz")
+    call_command(
+        "bootstrap_company", "--name", "ТОО Гамма", "--bin", "123456789012",
+        "--owner-login", "g@gamma.kz",
+    )  # fmt: skip
     assert User.objects.get(email="g@gamma.kz").check_password(STRONG)
 
 
@@ -108,7 +113,10 @@ def test_interactive_password_mismatch(monkeypatch):
     answers = iter([STRONG, "other-Str0ng-pass"])
     monkeypatch.setattr("getpass.getpass", lambda prompt="": next(answers))
     with pytest.raises(CommandError, match="не совпадают"):
-        call_command("bootstrap_company", "--name", "X", "--owner-login", "x@x.kz")
+        call_command(
+            "bootstrap_company", "--name", "X", "--bin", "123456789012",
+            "--owner-login", "x@x.kz",
+        )  # fmt: skip
 
 
 @pytest.mark.django_db
@@ -128,3 +136,20 @@ def test_profile_unknown_or_with_modules_is_rejected(monkeypatch, capsys):
     with pytest.raises(CommandError, match="либо"):
         run(monkeypatch, capsys, "--profile", "carrier", "--modules", "fleet")
     assert not Company.objects.filter(name="ТОО Альфа").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bad", ["", "123", "12345678901a", "1234567890123"])
+def test_bin_required_and_validated(monkeypatch, bad):
+    monkeypatch.setenv(PW_ENV, STRONG)
+    with pytest.raises(CommandError, match="12 цифр"):
+        call_command(
+            "bootstrap_company", "--name", "ТОО Бета", "--bin", bad,
+            "--owner-login", "b@beta.kz", "--password-env", PW_ENV,
+        )  # fmt: skip
+
+
+@pytest.mark.django_db
+def test_bin_saved_on_company(monkeypatch, capsys):
+    run(monkeypatch, capsys)
+    assert Company.objects.get(name="ТОО Альфа").bin == "123456789012"

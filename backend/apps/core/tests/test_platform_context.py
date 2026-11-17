@@ -601,7 +601,8 @@ def test_single_account_is_platform_owner_and_company_admin_with_independent_con
         SETUP, {"uid": uid, "token": token, "new_password": "My-own-pass-2026!"}, format="json"
     )
     call_command(
-        "bootstrap_company", "--name", "Моя транспортная", "--owner-login", "me@example.kz",
+        "bootstrap_company", "--name", "Моя транспортная", "--bin", "123456789012",
+        "--owner-login", "me@example.kz",
         "--allow-existing-user", "--profile", "carrier",
     )  # fmt: skip
     me = User.objects.get(email="me@example.kz")

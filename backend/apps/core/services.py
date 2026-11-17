@@ -19,7 +19,12 @@ from .tenancy import tenant_context
 
 
 @transaction.atomic
-def create_company_with_defaults(name: str, owner, modules: list[str]) -> Company:
+def create_company_with_defaults(
+    name: str,
+    owner,
+    modules: list[str],
+    bin: str = "",  # noqa: A002 - поле модели называется bin
+) -> Company:
     """Компания + модули + системные роли + юрлицо + членство владельца (Администратор).
 
     Контекст компании после возврата не остаётся: записи создаются с явным company_id
@@ -36,7 +41,7 @@ def create_company_with_defaults(name: str, owner, modules: list[str]) -> Compan
     unmet = unmet_requirements(modules)
     if unmet:
         raise ValueError("Не выполнены зависимости модулей: " + "; ".join(unmet))
-    company = Company.objects.create(name=name, modules=[])
+    company = Company.objects.create(name=name, bin=bin, modules=[])
     set_company_modules(company, modules, audit_changes=False)  # CompanyModule + проекция
     with tenant_context(company.id):  # RLS: строки пишутся в контексте новой компании
         roles = {

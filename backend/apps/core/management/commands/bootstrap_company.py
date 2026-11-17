@@ -36,6 +36,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--name", required=True, help="Название компании")
+        parser.add_argument("--bin", required=True, help="ИИН/БИН компании (12 цифр)")
         parser.add_argument("--owner-login", required=True, help="Email или телефон владельца")
         parser.add_argument("--owner-name", default="", help="ФИО владельца")
         parser.add_argument(
@@ -74,6 +75,7 @@ class Command(BaseCommand):
         self,
         *args,
         name,
+        bin,  # noqa: A002
         owner_login,
         owner_name,
         modules,
@@ -85,6 +87,9 @@ class Command(BaseCommand):
         name = name.strip()
         if not name:
             raise CommandError("--name не может быть пустым")
+        bin = (bin or "").strip()  # noqa: A001
+        if not (bin.isdigit() and len(bin) == 12):
+            raise CommandError("--bin: ИИН/БИН - ровно 12 цифр")
         if profile and modules is not None:
             raise CommandError("Укажите либо --profile, либо --modules")
         if profile:
@@ -126,7 +131,7 @@ class Command(BaseCommand):
                 owner = User.objects.create_user(
                     **{kind: login}, password=password, full_name=owner_name.strip()
                 )
-            company = create_company_with_defaults(name, owner, module_list)
+            company = create_company_with_defaults(name, owner, module_list, bin)
 
         self.stdout.write(
             self.style.SUCCESS(f"Компания создана: id={company.id}, название={company.name}")
