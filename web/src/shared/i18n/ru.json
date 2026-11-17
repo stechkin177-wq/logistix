@@ -261,9 +261,15 @@
     }
   },
   "dashboard": {
+    "moneyTitle": "Деньги",
+    "totalIncome": "Общий доход",
+    "totalExpense": "Общий расход",
+    "profit": "Прибыль",
+    "debtsAsOfEnd": "Долги и просрочка показаны на конец выбранного периода.",
+    "workTitle": "Работа",
     "marginInline": "Маржа {{value}} %",
-    "periodConfigure": "Настроить период прибыли",
-    "periodTitle": "Период прибыли",
+    "periodConfigure": "Выбрать период для финансовых показателей",
+    "periodTitle": "Период",
     "periodFrom": "С",
     "periodTo": "По",
     "periodApply": "Применить",

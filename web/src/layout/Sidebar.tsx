@@ -34,7 +34,7 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
         end={to === '/' || isSettingsHub}
         // на телефоне нажатие на «Настройки» раскрывает список подразделов вниз, а не уходит на страницу
         onClick={(event) => {
-          if (isSettingsHub && mobile && dataItems.length > 0) { event.preventDefault(); setManual(!expanded) }
+          if (isSettingsHub && mobile && dataItems.length > 0) { event.preventDefault(); (event.currentTarget as HTMLElement).dataset.keepOpen = '1'; setManual(!expanded) }
         }}
         className={({ isActive }) => `${LINK} ${child ? 'gap-2 py-1.5 pl-2 pr-1.5 text-[13px]' : ''} ${dataItems.length > 0 ? 'pr-12' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
@@ -92,7 +92,10 @@ export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void;
         )}
         <span className="truncate text-sm font-semibold">{branding.app_name}</span>
       </div>
-      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={(event) => { if (!event.defaultPrevented && (event.target as HTMLElement).closest('a')) onNavigate?.() }}>
+      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={(event) => { const link = (event.target as HTMLElement).closest('a')
+          // Link сам вызывает preventDefault при переходе, поэтому признак «не закрывать» - отдельная метка у раскрывающей строки
+          if (link && !link.dataset.keepOpen) onNavigate?.()
+          if (link) delete link.dataset.keepOpen }}>
         <ul className="space-y-0.5">
           {items.map((item) => (
             <NavEntry key={item.key} item={item} />

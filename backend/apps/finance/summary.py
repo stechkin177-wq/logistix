@@ -15,9 +15,19 @@ from .money import ZERO
 from .payments import payment_fx_difference
 
 
-def finance_summary(today) -> dict:
-    clients, carriers = debts.client_debts(today), debts.carrier_debts(today)
-    first, nxt = month_bounds(today)
+def finance_summary(today, period=None) -> dict:
+    """Финансовая сводка за период [первый день, последний день] (по умолчанию - текущий месяц).
+
+    Доход, расход, прибыль, маржа и курсовая разница считаются за период; долги, просрочка и
+    долг перевозчикам - на конец периода (для текущего - на сегодня)."""
+    if period:
+        first, last = period
+        nxt = last + timedelta(days=1)
+    else:
+        first, nxt = month_bounds(today)
+        last = nxt - timedelta(days=1)
+    as_of = min(last, today)
+    clients, carriers = debts.client_debts(as_of), debts.carrier_debts(as_of)
     company = Company.objects.get(pk=get_current_company_id())
     month = operations.journal_summary(
         company.pk,
@@ -39,6 +49,10 @@ def finance_summary(today) -> dict:
         "client_debt_kzt": debts.total(clients, "balance_kzt"),
         "overdue_kzt": debts.total(clients, "overdue_kzt"),
         "payable_kzt": debts.total(carriers, "balance_kzt"),
+        "period_from": first.isoformat(),
+        "period_to": last.isoformat(),
+        "income_kzt": month["income_kzt"],
+        "expense_kzt": month["expense_kzt"],
         "month_profit_kzt": month["diff_kzt"],
         "month_margin_pct": margin_pct(month["income_kzt"], month["diff_kzt"]),
         "fx_difference_kzt": fx,
@@ -46,5 +60,5 @@ def finance_summary(today) -> dict:
     }
     if use_new_engine(company.pk):
         # 1.4.14: долги/просрочка в базе, реализованная и нереализованная разницы - РАЗДЕЛЬНО
-        out.update(debts_base.summary_extras(today, first, nxt - timedelta(days=1)))
+        out.update(debts_base.summary_extras(as_of, first, last))
     return out

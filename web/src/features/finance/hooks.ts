@@ -134,8 +134,9 @@ export function useDebts(kind: 'clients' | 'carriers') {
   return useQuery({ queryKey: ['finance', 'debts', kind], queryFn: ({ signal }) => listDebts(kind, signal) })
 }
 
-export function useFinanceSummary(enabled = true) {
-  return useQuery({ queryKey: ['finance', 'summary'], queryFn: ({ signal }) => getFinanceSummary(signal), enabled })
+/** Сводка финансов за период (query: date_from/date_to); без него - текущий месяц. */
+export function useFinanceSummary(enabled = true, query?: Record<string, string>) {
+  return useQuery({ queryKey: ['finance', 'summary', query ?? null], queryFn: ({ signal }) => getFinanceSummary(query, signal), enabled })
 }
 
 export function useTripExpense(tripId: number | null) {

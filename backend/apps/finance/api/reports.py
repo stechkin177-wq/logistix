@@ -89,7 +89,10 @@ class CarrierDebtsView(ReportView):
 
 class SummaryView(ReportView):
     def get(self, request):
-        data = summary.finance_summary(self.today(request))
+        from apps.forwarding.dashboard import parse_profit_period
+
+        period = parse_profit_period(request.query_params, ("date_from", "date_to"))
+        data = summary.finance_summary(self.today(request), period)
         excluded = excluded_data(data.pop("excluded", None))
         out = {
             k: (money(v) if k.endswith("_kzt") else (None if v is None else v))

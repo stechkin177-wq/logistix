@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { Tabs } from '../../shared/ui/Tabs'
+import { PeriodPicker } from '../dashboard/PeriodPicker'
 import { FinanceSummaryCards } from './FinanceSummaryCards'
 import { DebtsTab } from './DebtsTab'
 import { ExpensesTab } from './ExpensesTab'
@@ -44,7 +45,7 @@ export function FinancePage() {
   const active: TabKey = visible.includes(state.tab) ? state.tab : 'invoices'
   return (
     <div className="space-y-3">
-      <PageHeader icon={Wallet} title={t('nav.finance')} hint="finance" />
+      <PageHeader icon={Wallet} title={t('nav.finance')} hint="finance" actions={<PeriodPicker />} />
       <FinanceSummaryCards />
       <Tabs
         label={t('finance.tabsLabel')}

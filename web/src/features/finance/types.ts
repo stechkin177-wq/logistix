@@ -249,6 +249,11 @@ export interface FinanceSummary {
   client_debt_kzt: string
   overdue_kzt: string
   payable_kzt: string
+  /** Период сводки (включительно); доход, расход и прибыль - за него, долги - на его конец. */
+  period_from?: string
+  period_to?: string
+  income_kzt?: string
+  expense_kzt?: string
   month_profit_kzt: string
   month_margin_pct: string | null
   fx_difference_kzt: string

@@ -261,9 +261,15 @@
     }
   },
   "dashboard": {
+    "moneyTitle": "Ақша",
+    "totalIncome": "Жалпы кіріс",
+    "totalExpense": "Жалпы шығыс",
+    "profit": "Пайда",
+    "debtsAsOfEnd": "Қарыздар мен мерзімі өткендер таңдалған кезеңнің соңына көрсетілген.",
+    "workTitle": "Жұмыс",
     "marginInline": "Маржа {{value}} %",
-    "periodConfigure": "Пайда кезеңін баптау",
-    "periodTitle": "Пайда кезеңі",
+    "periodConfigure": "Қаржы көрсеткіштері үшін кезеңді таңдау",
+    "periodTitle": "Кезең",
     "periodFrom": "Бастап",
     "periodTo": "Дейін",
     "periodApply": "Қолдану",

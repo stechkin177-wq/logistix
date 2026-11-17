@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loggedIn, type MockRoutes } from '../../test/harness'
@@ -18,7 +18,7 @@ const SUMMARY = {
 
 describe('Дашборд', () => {
   it('заказы в другой валюте: пометка с числом рядом с прибылью', async () => {
-    loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, excluded_orders: 3 } }]])
+    loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, excluded_orders: 3 } }]], { session: { modules: ['logistics', 'forwarding', 'documents'] } })
     renderApp('/')
     expect(await screen.findByText(/^1\s234\s567,80\sKZT$/)).toBeInTheDocument()
     expect(screen.getByText('В прибыль не вошли заказы в другой валюте (не KZT): 3')).toBeInTheDocument()
@@ -30,7 +30,7 @@ describe('Дашборд', () => {
       prior_base: { count: 2, by_currency: { KZT: { income: '1000.00', expense: '300.00' } } },
       no_rate: { count: 1, by_currency: { EUR: { income: '5.00', expense: '0.00' } } },
     }
-    loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: '60.00', currency: 'USD', excluded_orders: 2, excluded } }]])
+    loggedIn([['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: '60.00', currency: 'USD', excluded_orders: 2, excluded } }]], { session: { modules: ['logistics', 'forwarding', 'documents'] } })
     renderApp('/')
     expect(await screen.findByText(/^60,00\sUSD$/)).toBeInTheDocument()
     expect(screen.queryByText(/KZT\b.*тенге/)).not.toBeInTheDocument()
@@ -49,7 +49,7 @@ describe('Дашборд', () => {
   })
 
   it('показывает карточки, все статусы и финансы', async () => {
-    loggedIn([['GET', '/api/dashboard/summary/', { body: SUMMARY }]])
+    loggedIn([['GET', '/api/dashboard/summary/', { body: SUMMARY }]], { session: { modules: ['logistics', 'forwarding', 'documents'] } })
     renderApp('/')
     expect(await screen.findByText('Активные заказы')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
@@ -73,19 +73,35 @@ describe('Дашборд', () => {
     expect(screen.queryByText('NaN')).not.toBeInTheDocument()
   })
 
-  it('период прибыли настраивается: выбор уходит в запрос и запоминается', async () => {
+  it('период выбирается значком-фильтром: уходит в финансовую сводку и запоминается', async () => {
     window.localStorage.removeItem('logistix.dashboard.profitPeriod')
-    const m = loggedIn([['GET', /^\/api\/dashboard\/summary\//, { body: SUMMARY }]])
+    const m = loggedIn([
+      ['GET', /^\/api\/dashboard\/summary\//, { body: SUMMARY }],
+      ['GET', /^\/api\/finance\/summary\//, { body: { currency: 'KZT', client_debt_kzt: '0.00', overdue_kzt: '0.00', payable_kzt: '0.00', income_kzt: '900.00', expense_kzt: '300.00', month_profit_kzt: '600.00', month_margin_pct: '66.67', fx_difference_kzt: '0.00', unconverted: 0 } }],
+    ])
     renderApp('/')
-    expect(await screen.findByText('Прибыль за месяц')).toBeInTheDocument()
+    expect(await screen.findByText('Общий доход')).toBeInTheDocument()
+    expect(screen.getByText('Общий расход')).toBeInTheDocument()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Настроить период прибыли' }))
+    await user.click(screen.getByRole('button', { name: 'Выбрать период для финансовых показателей' }))
     await user.click(screen.getByRole('button', { name: 'Год' }))
-    expect(await screen.findByText('Прибыль за год')).toBeInTheDocument()
-    const last = m.calls.filter((c) => c.path.startsWith('/api/dashboard/summary/')).at(-1)
-    expect(last?.path).toMatch(/profit_from=\d{4}-01-01&profit_to=\d{4}-12-31/)
+    await waitFor(() => {
+      const last = m.calls.filter((c) => c.path.startsWith('/api/finance/summary/')).at(-1)
+      expect(last?.path).toMatch(/date_from=\d{4}-01-01&date_to=\d{4}-12-31/)
+    })
     expect(JSON.parse(window.localStorage.getItem('logistix.dashboard.profitPeriod') ?? '{}')).toEqual({ preset: 'year' })
     window.localStorage.removeItem('logistix.dashboard.profitPeriod')
+  })
+
+  it('деньги идут выше блока «Работа»', async () => {
+    loggedIn([
+      ['GET', '/api/dashboard/summary/', { body: SUMMARY }],
+      ['GET', /^\/api\/finance\/summary\//, { body: { currency: 'KZT', client_debt_kzt: '0.00', overdue_kzt: '0.00', payable_kzt: '0.00', income_kzt: '1.00', expense_kzt: '0.00', month_profit_kzt: '1.00', month_margin_pct: null, fx_difference_kzt: '0.00', unconverted: 0 } }],
+    ])
+    renderApp('/')
+    const money = await screen.findByRole('region', { name: 'Сводка' })
+    const work = screen.getByRole('region', { name: 'Работа' })
+    expect(money.compareDocumentPosition(work) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('без finance.view финансовых карточек нет', async () => {
@@ -125,7 +141,7 @@ describe('Дашборд: финансовые плитки', () => {
   it('база USD: прибыль в USD, долги по-прежнему в валюте долгов (debts_currency)', async () => {
     loggedIn([
       ['GET', '/api/dashboard/summary/', { body: { ...SUMMARY, month_profit: '60.00', currency: 'USD' } }],
-      ['GET', '/api/finance/summary/', { body: { ...finance, currency: 'USD', debts_currency: 'KZT' } }],
+      ['GET', '/api/finance/summary/', { body: { ...finance, currency: 'USD', debts_currency: 'KZT', month_profit_kzt: '60.00' } }],
     ])
     renderApp('/')
     const debt = await screen.findByText('Долг клиентов')

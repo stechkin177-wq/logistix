@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react'
+
 /** Период прибыли на дашборде: пресеты и произвольный диапазон; выбор хранится в браузере. */
 export type ProfitPreset = 'month' | 'prev_month' | 'quarter' | 'year' | 'custom'
 
@@ -67,4 +69,35 @@ export function periodQuery(period: ProfitPeriod, timeZone: string, now = new Da
     case 'custom':
       return period.from && period.to ? { profit_from: period.from, profit_to: period.to } : null
   }
+}
+
+// --- общее хранилище периода: дашборд и финансы показывают один и тот же период ---
+const EVENT = 'logistix:period'
+let cachedRaw: string | null | undefined
+let cached: ProfitPeriod = DEFAULT_PERIOD
+
+function snapshot(): ProfitPeriod {
+  let raw: string | null = null
+  try { raw = window.localStorage.getItem(STORAGE_KEY) } catch { /* хранилище недоступно */ }
+  if (raw !== cachedRaw) { cachedRaw = raw; cached = readPeriod() }
+  return cached
+}
+
+function subscribe(listener: () => void): () => void {
+  window.addEventListener(EVENT, listener)
+  window.addEventListener('storage', listener)
+  return () => { window.removeEventListener(EVENT, listener); window.removeEventListener('storage', listener) }
+}
+
+/** Выбранный период и его установка (запоминается в браузере, меняется сразу во всех разделах). */
+export function usePeriod(): [ProfitPeriod, (next: ProfitPeriod) => void] {
+  const period = useSyncExternalStore(subscribe, snapshot, () => DEFAULT_PERIOD)
+  const set = (next: ProfitPeriod) => { savePeriod(next); window.dispatchEvent(new Event(EVENT)) }
+  return [period, set]
+}
+
+/** Параметры финансовой сводки (date_from/date_to); null - текущий месяц. */
+export function financePeriodQuery(period: ProfitPeriod, timeZone: string): { date_from: string; date_to: string } | null {
+  const q = periodQuery(period, timeZone)
+  return q ? { date_from: q.profit_from, date_to: q.profit_to } : null
 }

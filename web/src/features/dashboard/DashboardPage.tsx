@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '../../shared/api/errors'
@@ -13,11 +12,10 @@ import { ExcludedHint } from '../../shared/ui/ExcludedHint'
 import { Spinner } from '../../shared/ui/Spinner'
 import { Stat } from '../../shared/ui/Stat'
 import { useSession } from '../../shared/auth/useSession'
-import { DebtsExcludedHint } from '../finance/DebtsExcludedHint'
-import { useFinanceSummary } from '../finance/hooks'
+import { FinanceSummaryCards } from '../finance/FinanceSummaryCards'
 import { useDashboardSummary } from './hooks'
-import { ProfitTile } from './ProfitTile'
-import { periodQuery, readPeriod, savePeriod, type ProfitPeriod } from './profitPeriod'
+import { PeriodPicker } from './PeriodPicker'
+import { periodQuery, usePeriod } from './profitPeriod'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { LayoutDashboard } from '../../shared/ui/icons'
 
@@ -54,12 +52,12 @@ export function DashboardPage() {
   const { money } = useFormat()
   const canCreate = useCanWrite('orders.create')
   const { hasPermission, hasModule, session } = useSession()
-  const [period, setPeriodState] = useState<ProfitPeriod>(readPeriod)
-  const setPeriod = (next: ProfitPeriod) => { savePeriod(next); setPeriodState(next) }
+  const [period] = usePeriod()
   const query = useDashboardSummary(true, periodQuery(period, session?.company.timezone ?? 'UTC') ?? undefined)
   const canFinance = hasPermission('finance.view') && hasModule('finance')
-  const finance = useFinanceSummary(canFinance).data
   const data = query.data
+  // без модуля финансов остаётся прибыль из сводки заказов (за тот же период)
+  const profitOnly = !canFinance && data !== undefined && data.month_profit !== null
 
   const empty =
     data !== undefined &&
@@ -70,8 +68,8 @@ export function DashboardPage() {
     data.orders_by_status.every((s) => s.count === 0)
 
   return (
-    <div className="space-y-3">
-      <PageHeader icon={LayoutDashboard} title={t('nav.dashboard')} />
+    <div className="space-y-4">
+      <PageHeader icon={LayoutDashboard} title={t('nav.dashboard')} actions={canFinance || profitOnly ? <PeriodPicker /> : undefined} />
       {query.isPending ? <Spinner label={t('common.loading')} /> : null}
       {query.isError ? (
         <div className="space-y-2">
@@ -81,47 +79,43 @@ export function DashboardPage() {
       ) : null}
       {data ? (
         <>
-          <div className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
-            <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
-            <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
-            <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />
-            <Stat label={t('dashboard.carriers')} value={String(data.carriers)} to="/carriers" />
-            {data.month_profit !== null ? <ProfitTile data={data} period={period} onChange={setPeriod} /> : null}
-            {canFinance && finance ? (
-              finance.base_currency ? (
-                <>
-                  <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_base, finance.base_currency)} to="/finance?tab=debts" />
-                  <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_base, finance.base_currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
-                  <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_base, finance.base_currency)} to="/finance?tab=debts&kind=carriers" />
-                  <Stat label={t('finance.fx.dashboardRealized')} value={money(finance.fx_realized_base, finance.base_currency)} to="/finance?tab=payments" />
-                  <Stat label={t('finance.fx.dashboardUnrealized')} value={money(finance.fx_unrealized_base, finance.base_currency)} to="/finance?tab=debts" />
-                </>
-              ) : (
-                <>
-                  <Stat label={t('finance.dashboard.clientDebt')} value={money(finance.client_debt_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts" />
-                  <Stat label={t('finance.dashboard.overdue')} value={money(finance.overdue_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=invoices&status=overdue&direction=out" />
-                  <Stat label={t('finance.dashboard.payable')} value={money(finance.payable_kzt, finance.debts_currency ?? finance.currency)} to="/finance?tab=debts&kind=carriers" />
-                </>
-              )
-            ) : null}
-          </div>
-          {canFinance && finance?.base_currency ? <DebtsExcludedHint excluded={finance.debts_excluded} /> : null}
-          {canFinance && finance?.fx_realized_partial ? <p className="text-xs text-amber-700 dark:text-amber-300">{t('finance.fx.realizedPartial')}</p> : null}
-          {data.month_profit !== null && data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
-          {data.month_profit !== null && !data.excluded && (data.excluded_orders ?? 0) > 0 ? (
-            <p className="text-xs text-muted">
-              {t('dashboard.excludedOrders', { count: data.excluded_orders ?? 0, currency: data.currency ?? '' })}
-            </p>
+          {/* сначала деньги: доход, расход, прибыль, просрочка, долги - за выбранный период */}
+          {canFinance ? <FinanceSummaryCards withFx /> : null}
+          {profitOnly ? (
+            <section aria-label={t('dashboard.moneyTitle')} className="space-y-2">
+              <h2 className="text-sm font-semibold">{t('dashboard.moneyTitle')}</h2>
+              <div className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
+                <Stat
+                  label={t('dashboard.profit')}
+                  value={money(data.month_profit, data.currency ?? undefined)}
+                  sub={data.month_margin_pct === null ? undefined : t('dashboard.marginInline', { value: money(data.month_margin_pct) })}
+                />
+              </div>
+              {data.excluded ? <ExcludedHint excluded={data.excluded} /> : null}
+              {!data.excluded && (data.excluded_orders ?? 0) > 0 ? (
+                <p className="text-xs text-muted">{t('dashboard.excludedOrders', { count: data.excluded_orders ?? 0, currency: data.currency ?? '' })}</p>
+              ) : null}
+            </section>
           ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/orders?unassigned=1"
-              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-100"
-            >
-              {t('dashboard.unassignedOrders')}
-              <span className="tabular-nums">{data.unassigned_orders}</span>
-            </Link>
-          </div>
+          {/* ниже - работа: заказы, клиенты, перевозчики */}
+          <section aria-label={t('dashboard.workTitle')} className="space-y-2">
+            <h2 className="text-sm font-semibold">{t('dashboard.workTitle')}</h2>
+            <div className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
+              <Stat label={t('dashboard.activeOrders')} value={String(data.active_orders)} to="/orders" />
+              <Stat label={t('dashboard.completedOrders')} value={String(data.completed_orders)} />
+              <Stat label={t('dashboard.clients')} value={String(data.clients)} to="/clients" />
+              <Stat label={t('dashboard.carriers')} value={String(data.carriers)} to="/carriers" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/orders?unassigned=1"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-100"
+              >
+                {t('dashboard.unassignedOrders')}
+                <span className="tabular-nums">{data.unassigned_orders}</span>
+              </Link>
+            </div>
+          </section>
           {empty ? (
             <EmptyState title={t('dashboard.emptyTitle')} hint={t('dashboard.emptyHint')}>
               {canCreate ? (

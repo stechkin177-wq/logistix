@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from decimal import Decimal
 
 from apps.finance.nbrk import parse_rates

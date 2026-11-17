@@ -69,7 +69,7 @@ export const exportOperations = (f: OperationsFilters) => api.download('/finance
 export const listDebts = (kind: 'clients' | 'carriers', signal?: AbortSignal) =>
   api.get<DebtsResponse>(`/finance/debts/${kind}/`, undefined, { signal })
 export const exportDebts = (kind: 'clients' | 'carriers') => api.download(`/finance/debts/${kind}/export/`)
-export const getFinanceSummary = (signal?: AbortSignal) => api.get<FinanceSummary>('/finance/summary/', undefined, { signal })
+export const getFinanceSummary = (query?: Record<string, string>, signal?: AbortSignal) => api.get<FinanceSummary>('/finance/summary/', query, { signal })
 
 export const getTripExpense = (tripId: number, signal?: AbortSignal) =>
   api.get<TripExpenseData>(`/finance/trips/${id(tripId)}/expense-lines/`, undefined, { signal })

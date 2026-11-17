@@ -138,21 +138,25 @@ def dashboard_summary(company: Company, *, with_finance: bool, period=None) -> d
     return result
 
 
-def parse_profit_period(params) -> tuple[date, date] | None:
-    """Период прибыли из query-параметров; ни одного параметра - None (текущий месяц)."""
-    raw_from, raw_to = params.get("profit_from"), params.get("profit_to")
+def parse_profit_period(
+    params, keys: tuple[str, str] = ("profit_from", "profit_to")
+) -> tuple[date, date] | None:
+    """Период из query-параметров (по умолчанию profit_from/profit_to; для финансовой сводки
+    date_from/date_to); ни одного параметра - None (текущий месяц)."""
+    key_from, key_to = keys
+    raw_from, raw_to = params.get(key_from), params.get(key_to)
     if not raw_from and not raw_to:
         return None
     if not (raw_from and raw_to):
-        raise ValidationError({"profit_from": ["Укажите обе даты: profit_from и profit_to"]})
+        raise ValidationError({key_from: [f"Укажите обе даты: {key_from} и {key_to}"]})
     try:
         first, last = date.fromisoformat(raw_from), date.fromisoformat(raw_to)
     except ValueError:
-        raise ValidationError({"profit_from": ["Дата в формате ГГГГ-ММ-ДД"]}) from None
+        raise ValidationError({key_from: ["Дата в формате ГГГГ-ММ-ДД"]}) from None
     if first > last:
-        raise ValidationError({"profit_to": ["Конец периода раньше начала"]})
+        raise ValidationError({key_to: ["Конец периода раньше начала"]})
     if (last - first).days > MAX_PROFIT_PERIOD_DAYS:
-        raise ValidationError({"profit_to": ["Период не может быть длиннее трёх лет"]})
+        raise ValidationError({key_to: ["Период не может быть длиннее трёх лет"]})
     return first, last
 
 

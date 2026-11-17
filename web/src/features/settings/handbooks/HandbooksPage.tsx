@@ -235,11 +235,11 @@ export function HandbooksPage() {
         <Spinner label={t('table.loading')} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[13rem_minmax(0,1fr)]">
-          <nav aria-label={t('handbooks.list')} className="space-y-2 rounded-card border border-line bg-surface p-3 shadow-card">
+          <nav aria-label={t('handbooks.list')} className="space-y-3">
             {[...groups.entries()].map(([group, books]) => (
-              <div key={group}>
-                <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{group}</p>
-                <ul>
+              <section key={group} className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+                <p className="border-b border-line bg-surface-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{group}</p>
+                <ul className="p-1">
                   {books.map((b) => (
                     <li key={b.code}>
                       <button
@@ -254,7 +254,7 @@ export function HandbooksPage() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </section>
             ))}
           </nav>
           <div className="min-w-0">{selected ? <ValuesPanel key={selected} code={selected} /> : <EmptyState title={t('handbooks.empty')} />}</div>
