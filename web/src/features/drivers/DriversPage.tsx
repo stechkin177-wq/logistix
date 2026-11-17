@@ -70,10 +70,7 @@ export function DriversPage() {
           </>
         }
       />
-      <FilterBar canReset={filtered} onReset={() => { setState({ q: '', status: '' }) }}>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('drivers.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('drivers.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={filtered} onReset={() => { setState({ q: '', status: '' }) }}>
         <FilterItem>
           <Select
             label={t('common.status')}

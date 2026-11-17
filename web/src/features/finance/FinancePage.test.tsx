@@ -73,7 +73,7 @@ describe('Финансы: курсы', () => {
     const select = within(dialog).getByLabelText(/^Валюта/)
     expect(within(select).queryByRole('option', { name: /KZT|Тенге/ })).not.toBeInTheDocument()
     await user.selectOptions(select, '12')
-    await user.type(within(dialog).getByLabelText(/^Дата/), '2026-10-05')
+    await user.type(within(dialog).getByLabelText(/^Дата/), '05.10.2026')
     await user.type(within(dialog).getByLabelText(/^Курс к тенге/), '455.25')
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => {
@@ -92,7 +92,7 @@ describe('Финансы: курсы', () => {
     await user.click(await screen.findByRole('button', { name: 'Добавить курс' }))
     const dialog = await screen.findByRole('dialog')
     await user.selectOptions(within(dialog).getByLabelText(/^Валюта/), '12')
-    await user.type(within(dialog).getByLabelText(/^Дата/), '2026-10-05')
+    await user.type(within(dialog).getByLabelText(/^Дата/), '05.10.2026')
     await user.type(within(dialog).getByLabelText(/^Курс к тенге/), '455')
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     expect(await within(dialog).findByText('Курс на эту дату уже задан')).toBeInTheDocument()

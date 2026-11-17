@@ -1,5 +1,8 @@
 {
   "common": {
+    "datePlaceholder": "дд.мм.гггг",
+    "dateTimePlaceholder": "дд.мм.гггг чч:мм",
+    "openCalendar": "Открыть календарь",
     "themeLight": "Включить светлую тему",
     "themeDark": "Включить тёмную тему",
     "loading": "Загрузка...",
@@ -539,6 +542,7 @@
   "consignments": {
     "createTrip": "Создать рейс",
     "selectedCargo": "Выбранные грузы: {{count}}",
+      "selectShort": "Выбрать",
     "selectPage": "Выбрать все на странице",
     "selectNamed": "Выбрать груз {{name}}",
     "cargo": "Груз",

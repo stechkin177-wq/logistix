@@ -109,10 +109,7 @@ export function TripsPage() {
   return (
     <div className="space-y-3">
       <PageHeader icon={Route} title={t('nav.trips')} hint="trips" actions={switcher} />
-      <FilterBar canReset={filtered} onReset={reset}>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('trips.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('trips.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={filtered} onReset={reset}>
         <FilterItem>
           <Select label={t('common.status')} value={state.status === null ? '' : String(state.status)} placeholder={t('common.all')} options={statuses.values.map((s) => ({ value: String(s.id), label: s.name }))} onChange={(v) => { setState({ status: v ? Number(v) : null }) }} />
         </FilterItem>

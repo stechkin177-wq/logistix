@@ -66,10 +66,7 @@ export function MailPage() {
       />
       {!configured ? <Banner kind="warning">{t('mail.notConfigured')}</Banner> : null}
       {resend.isError ? <Banner kind="error">{errorMessage(resend.error, t)}</Banner> : null}
-      <FilterBar>
-        <FilterItem className="w-auto">
-          <TextField label={t('mail.search')} type="search" placeholder={t('mail.searchPlaceholder')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('mail.search')} type="search" placeholder={t('mail.searchPlaceholder')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} /> </FilterItem>}>
         <FilterItem className="w-48">
           <Select label={t('mail.state')} value={state} placeholder={t('mail.allStates')} options={FILTER_STATES.map((s) => ({ value: s, label: t(`mail.states.${s}`) }))} onChange={(v) => { setState(v); setPage(1) }} />
         </FilterItem>

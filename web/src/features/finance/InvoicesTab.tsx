@@ -61,7 +61,7 @@ export function InvoicesTab() {
 
   return (
     <div className="space-y-3">
-      <FilterBar
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('finance.invoices.search')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} /> </FilterItem>}
         canReset={hasFilters}
         onReset={() => { setState({ direction: '', status: '', search: '', date_from: '', date_to: '', client: null, carrier: null, order: null }) }}
         actions={
@@ -92,9 +92,6 @@ export function InvoicesTab() {
             options={STATUSES.filter(Boolean).map((s) => ({ value: s, label: t(`finance.status.${s}`) }))}
             onChange={(value) => { setState({ status: value as typeof state.status }) }}
           />
-        </FilterItem>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('finance.invoices.search')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
         </FilterItem>
         <FilterItem>
           <DateInput label={t('finance.invoices.dateFrom')} value={state.date_from} onChange={(value) => { setState({ date_from: value }) }} />

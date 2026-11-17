@@ -107,14 +107,11 @@ export function OrderFilters({ value, onChange, actions }: Props) {
   const showMore = more || extraCount > 0
 
   return (
-    <FilterBar
+    <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('orders.searchPlaceholder')} value={value.q} onChange={(e) => { onChange({ q: e.target.value }, { replace: true }) }} /> </FilterItem>}
       canReset={hasFilters(value)}
       onReset={() => { onChange(EMPTY_FILTERS) }}
       actions={actions}
     >
-      <FilterItem className="w-auto">
-        <TextField label={t('common.search')} type="search" placeholder={t('orders.searchPlaceholder')} value={value.q} onChange={(e) => { onChange({ q: e.target.value }, { replace: true }) }} />
-      </FilterItem>
       <FilterItem className="w-44">
         <Combobox label={t('orders.client')} queryKey={['clients', 'search']} fetchOptions={searchClients} value={client} onChange={(o) => { onChange({ client: o?.id ?? null }) }} />
       </FilterItem>

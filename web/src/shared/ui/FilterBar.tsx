@@ -5,9 +5,11 @@ import { SlidersHorizontal } from './icons'
 
 /** Строка фильтров: поля переносятся на узких экранах; «Сбросить» очищает всё. */
 export function FilterBar({
-  children, onReset, canReset = true, actions,
+  children, onReset, canReset = true, actions, search,
 }: {
-  children: ReactNode
+  children?: ReactNode
+  /** Поле поиска: на телефоне остаётся на виду, остальные фильтры - под кнопкой «Фильтры». */
+  search?: ReactNode
   onReset?: () => void
   canReset?: boolean
   actions?: ReactNode
@@ -23,6 +25,7 @@ export function FilterBar({
       }}
       className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-surface p-3 shadow-card"
     >
+      {search}
       <Button className="h-8! gap-1! px-2.5! text-xs! md:hidden" icon={SlidersHorizontal} aria-expanded={open} onClick={() => { setOpen(!open) }}>
         {t('common.filters')}
       </Button>

@@ -72,7 +72,7 @@ export function ConsignmentsPage() {
       key: 'select',
       header: <Checkbox className="min-h-0!" label={t('consignments.selectPage')} hideLabel checked={allOnPage} disabled={(rows ?? []).length === 0} onChange={togglePage} />,
       headerLabel: t('consignments.selectPage'),
-      mobileLabel: '',
+      mobileLabel: t('consignments.selectShort'),
       cell: (c) => <Checkbox label={t('consignments.selectNamed', { name: c.name })} hideLabel checked={selected.has(c.id)} onChange={() => { toggle(c) }} />,
     },
     { key: 'name', header: t('consignments.cargo'), cell: (c) => <span className="font-medium">{c.name}</span> },
@@ -125,10 +125,7 @@ export function ConsignmentsPage() {
           </>
         }
       />
-      <FilterBar canReset={filtered} onReset={reset}>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('consignments.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('consignments.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={filtered} onReset={reset}>
         <FilterItem className="w-56">
           <Combobox label={t('consignments.client')} queryKey={['clients', 'search']} fetchOptions={searchClients} value={client} onChange={(o) => { setState({ client: o?.id ?? null }) }} />
         </FilterItem>

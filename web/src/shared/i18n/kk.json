@@ -1,5 +1,8 @@
 {
   "common": {
+    "datePlaceholder": "кк.аа.жжжж",
+    "dateTimePlaceholder": "кк.аа.жжжж сс:мм",
+    "openCalendar": "Күнтізбені ашу",
     "themeLight": "Жарық тақырыпты қосу",
     "themeDark": "Қараңғы тақырыпты қосу",
     "loading": "Жүктелуде...",
@@ -539,6 +542,7 @@
   "consignments": {
     "createTrip": "Рейс құру",
     "selectedCargo": "Таңдалған жүктер: {{count}}",
+      "selectShort": "Таңдау",
     "selectPage": "Беттегі барлығын таңдау",
     "selectNamed": "{{name}} жүгін таңдау",
     "cargo": "Жүк",

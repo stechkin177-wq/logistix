@@ -68,7 +68,7 @@ describe('Счёт: карточка', () => {
     await user.type(amount, '500.50')
     const date = within(dialog).getByLabelText(/^Дата оплаты/)
     await user.clear(date)
-    await user.type(date, '2026-10-31')
+    await user.type(date, '31.10.2026')
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => {
       expect(m.calls.find((c) => c.method === 'POST')?.body).toMatchObject({ amount: '500.50', date: '2026-10-31', method: 'bank' })

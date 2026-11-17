@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { page } from '../../test/fixtures'
@@ -108,7 +108,7 @@ describe('Техника', () => {
     expect(await within(drawer).findByText('28.75 л/100 км')).toBeInTheDocument()
     await userEvent.click(within(drawer).getByRole('button', { name: 'Добавить' }))
     expect(await within(drawer).findByText(/Дата и время заправки: Обязательное поле/)).toBeInTheDocument()
-    await userEvent.type(within(drawer).getByLabelText('Дата и время заправки'), '2026-06-01T08:00')
+    fireEvent.change(within(drawer).getByLabelText('Дата и время заправки'), { target: { value: '2026-06-01T08:00' } })
     await userEvent.type(within(drawer).getByLabelText('Литры'), '120')
     await userEvent.click(within(drawer).getByRole('button', { name: 'Добавить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/fuel-fills/')).toBe(true) })

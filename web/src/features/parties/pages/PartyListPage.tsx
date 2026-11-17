@@ -115,13 +115,10 @@ export function PartyListPage({ kind }: { kind: PartyKind }) {
           </>
         }
       />
-      <FilterBar
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('parties.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>}
         canReset={filtered}
         onReset={() => { setState({ q: '', type: null, status: '' }) }}
       >
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('parties.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
         <FilterItem>
           <Select
             label={t('parties.type')}

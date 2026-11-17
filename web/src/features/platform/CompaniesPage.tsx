@@ -51,10 +51,7 @@ export function CompaniesPage() {
   return (
     <div className="space-y-3">
       <PageHeader icon={Landmark} title={t('nav.platformCompanies')} />
-      <FilterBar canReset={state.q !== ''} onReset={() => { setState({ q: '' }) }}>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('platform.companies.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('platform.companies.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={state.q !== ''} onReset={() => { setState({ q: '' }) }}>
       </FilterBar>
       <DataTable
         onRowClick={(c) => { setOpen({ company: c, nonce: Date.now() }) }}

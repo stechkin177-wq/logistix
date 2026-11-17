@@ -114,10 +114,7 @@ export function VehiclesPage() {
           </ul>
         </section>
       ) : null}
-      <FilterBar canReset={filtered} onReset={() => { setState({ q: '', kind: '', status: '' }) }}>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('fleet.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} />
-        </FilterItem>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('fleet.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={filtered} onReset={() => { setState({ q: '', kind: '', status: '' }) }}>
         <FilterItem>
           <Select
             label={t('common.status')}

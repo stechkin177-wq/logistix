@@ -83,7 +83,7 @@ export function DocumentsPage() {
           </>
         }
       />
-      <FilterBar>
+      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('documents.issued.searchPlaceholder')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} /> </FilterItem>}>
         <FilterItem className="w-48">
           <Select
             label={t('documents.issued.kind')}
@@ -98,9 +98,6 @@ export function DocumentsPage() {
         </FilterItem>
         <FilterItem>
           <DateInput label={t('documents.issued.dateTo')} value={state.date_to} onChange={(value) => { setState({ date_to: value }) }} />
-        </FilterItem>
-        <FilterItem className="w-auto">
-          <TextField label={t('common.search')} type="search" placeholder={t('documents.issued.searchPlaceholder')} value={state.search} onChange={(e) => { setState({ search: e.target.value }) }} />
         </FilterItem>
       </FilterBar>
       {downloadError ? <Banner kind="error">{downloadError}</Banner> : null}

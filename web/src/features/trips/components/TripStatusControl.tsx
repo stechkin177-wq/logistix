@@ -100,7 +100,7 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           }
           change.mutate({ id: trip.id, status: next }, { onError: (e) => { pushToast('error', errorMessage(e, t)) } })
         }}
-        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full border border-line bg-surface pl-2.5 pr-7 text-xs font-medium"
+        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full border border-line bg-surface pl-2.5 pr-7 text-xs font-medium max-md:text-xs!"
       >
         {selectableValues(statuses.all, trip.status).map((s) => (
           <option key={s.id} value={s.id} disabled={leavingLocked && s.id !== trip.status}>{s.name}</option>
