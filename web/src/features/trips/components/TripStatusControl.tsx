@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../../shared/api/errors'
 import { useCanWrite } from '../../../shared/auth/useCanWrite'
@@ -26,7 +26,11 @@ const ODOMETER_STEPS = ['IN_PROGRESS', 'COMPLETED']
  * Статус рейса: с правом trips.update - выпадающий список (POST /trips/{id}/status/), иначе значок.
  * Выход из «Завершён» доступен только с правом trips.revert_completed и запрашивает причину.
  */
-export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' | 'status' | 'status_name'> }) {
+export function TripStatusControl({ trip, layout }: {
+  trip: Pick<Trip, 'id' | 'number' | 'status' | 'status_name'>
+  /** Своя раскладка: кнопка следующего шага и список статусов выдаются раздельно (короткая строка на телефоне). */
+  layout?: (parts: { next: ReactNode; select: ReactNode }) => ReactNode
+}) {
   const { t } = useTranslation()
   const { hasPermission } = useSession()
   const canUpdate = useCanWrite('trips.update')
@@ -38,7 +42,10 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
   const [odo, setOdo] = useState<{ status: number; code: string } | null>(null)
   const [vehicleKm, setVehicleKm] = useState('')
   const [trailerKm, setTrailerKm] = useState('')
-  if (!canUpdate || statuses.all.length === 0) return <Badge tone="info">{trip.status_name}</Badge>
+  if (!canUpdate || statuses.all.length === 0) {
+    const badge = <Badge tone="info">{trip.status_name}</Badge>
+    return layout ? <>{layout({ next: null, select: badge })}</> : badge
+  }
 
   const current = statuses.all.find((s) => s.id === trip.status)
   const leavingLocked = current?.code === COMPLETED && !hasPermission(REVERT_PERMISSION)
@@ -78,15 +85,13 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
     )
   }
 
-  return (
-    <>
-      <div className="inline-flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => { e.stopPropagation() }}>
-      {nextStatus ? (
-        <Button variant="primary" className="h-7! rounded-full! px-2.5! text-xs!" onClick={stepForward} disabled={change.isPending}>
-          {t('trips.nextStep', { status: nextStatus.name })}
-        </Button>
-      ) : null}
-      <SelectBox className="inline-block [&>svg]:right-2 [&>svg]:size-3.5">
+  const nextNode = nextStatus ? (
+    <Button variant="primary" className="h-7! shrink-0 rounded-full! px-2.5! text-xs!" onClick={stepForward} disabled={change.isPending}>
+      {t('trips.nextStep', { status: nextStatus.name })}
+    </Button>
+  ) : null
+  const selectNode = (
+    <SelectBox className="inline-block [&>svg]:right-2 [&>svg]:size-3.5">
       <select
         aria-label={t('trips.statusOf', { number: trip.number })}
         value={trip.status}
@@ -100,14 +105,25 @@ export function TripStatusControl({ trip }: { trip: Pick<Trip, 'id' | 'number' |
           }
           change.mutate({ id: trip.id, status: next }, { onError: (e) => { pushToast('error', errorMessage(e, t)) } })
         }}
-        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full max-md:text-[12px]! border border-line bg-surface pl-2.5 pr-7 text-xs font-medium max-md:text-xs!"
+        className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-full border border-line bg-surface pl-2.5 pr-7 text-xs font-medium max-md:text-[12px]!"
       >
         {selectableValues(statuses.all, trip.status).map((s) => (
           <option key={s.id} value={s.id} disabled={leavingLocked && s.id !== trip.status}>{s.name}</option>
         ))}
       </select>
-      </SelectBox>
-      </div>
+    </SelectBox>
+  )
+
+  return (
+    <>
+      {layout ? (
+        <div onClick={(e) => { e.stopPropagation() }}>{layout({ next: nextNode, select: selectNode })}</div>
+      ) : (
+        <div className="inline-flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => { e.stopPropagation() }}>
+          {nextNode}
+          {selectNode}
+        </div>
+      )}
       <Dialog
         open={odo !== null}
         title={t('trips.odometerTitle', { status: statuses.all.find((x) => x.id === odo?.status)?.name ?? '' })}

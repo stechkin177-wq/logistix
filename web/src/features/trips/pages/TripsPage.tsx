@@ -132,13 +132,21 @@ export function TripsPage() {
       <DataTable
         onRowClick={(trip) => { void navigate(`/trips/${String(trip.id)}`) }}
         mobileRow={(trip) => (
-          <div className="space-y-0.5">
-            <div className="flex items-center justify-between gap-2">
-              <Link to={`/trips/${String(trip.id)}`} className="shrink-0 whitespace-nowrap font-medium text-brand-700 dark:text-brand-300">{trip.number}</Link>
-              <span className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">{columns.find((c) => c.key === 'status')?.cell(trip)}</span>
-            </div>
-            <p className="truncate text-xs text-muted">{[trip.vehicle_plate, trip.driver_name].filter(Boolean).join(' / ') || '—'}</p>
-          </div>
+          <TripStatusControl
+            trip={trip}
+            layout={({ next, select }) => (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Link to={`/trips/${String(trip.id)}`} className="min-w-0 truncate font-medium text-brand-700 dark:text-brand-300">{trip.number}</Link>
+                  {select}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-xs text-muted">{[trip.vehicle_plate, trip.driver_name].filter(Boolean).join(' / ') || '—'}</p>
+                  {next}
+                </div>
+              </div>
+            )}
+          />
         )}
         caption={t('nav.trips')}
         columns={columns}
