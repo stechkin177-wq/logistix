@@ -31,7 +31,7 @@ export function FinanceSummaryCards({ withFx = false, className = '' }: { withFx
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h2 className="text-sm font-semibold">{t('dashboard.moneyTitle')}</h2>
         <p className="text-xs text-muted">
-          {t(`dashboard.periodPreset.${period.preset}`)}
+          {period.preset === 'custom' ? t('dashboard.periodCustomName') : t(`dashboard.periodPreset.${period.preset}`)}
           {range ? ` · ${range}` : ''}
         </p>
       </div>

@@ -77,7 +77,7 @@ export function DocumentsPage() {
       <PageHeader icon={FileText} title={t('nav.documents')} hint="documents"
         actions={
           <>
-            <WriteButton variant="primary" permission="documents.create" title={t('documents.letter.hint')} onClick={() => { setLetterOpen(true) }}>
+            <WriteButton variant="primary" icon={FileText} permission="documents.create" title={t('documents.letter.hint')} onClick={() => { setLetterOpen(true) }}>
               {t('documents.letter.open')}
             </WriteButton>
           </>

@@ -274,12 +274,13 @@
     "periodTo": "Дейін",
     "periodApply": "Қолдану",
     "periodReset": "Ағымдағы айға қайту",
+    "periodCustomName": "Өз кезеңі",
     "periodPreset": {
       "month": "Ағымдағы ай",
       "prev_month": "Өткен ай",
       "quarter": "Тоқсан",
       "year": "Жыл",
-      "custom": "Өз кезеңім"
+      "custom": "Кезеңді таңдау"
     },
     "profitLabel": {
       "month": "Айдағы пайда",

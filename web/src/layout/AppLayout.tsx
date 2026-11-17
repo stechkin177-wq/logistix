@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { HeaderSlotContext, HintSlotContext } from '../shared/ui/headerBleed'
 import { useTranslation } from 'react-i18next'
 import { Outlet } from 'react-router'
@@ -15,6 +15,19 @@ export function AppLayout() {
   const { session } = useSession()
   const [open, setOpen] = useState(false)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
+  // ширина полосы прокрутки основной области: шапка выравнивается по ней без обрезки всплывающих окон
+  const mainRef = useRef<HTMLElement>(null)
+  const [scrollbar, setScrollbar] = useState(0)
+  useLayoutEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const measure = () => { setScrollbar(el.offsetWidth - el.clientWidth) }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => { observer.disconnect() }
+  }, [])
   const [hintSlot, setHintSlot] = useState<HTMLElement | null>(null)
 
   return (
@@ -45,10 +58,10 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         {/* шапка страницы живёт здесь, вне прокрутки: основной экран начинается строго под ней */}
-        <div className="thin-scroll shrink-0 touch-none overflow-y-hidden [scrollbar-gutter:stable] empty:hidden">
+        <div style={{ paddingRight: scrollbar }} className="shrink-0 touch-none empty:hidden">
           <div ref={setSlot} className="mx-auto flex w-full max-w-[1500px] flex-col px-3 pt-2 empty:hidden md:px-5 md:pt-2" />
         </div>
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
+        <main ref={mainRef} className="thin-scroll min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
           <div className="mx-auto w-full max-w-[1500px] space-y-3 pt-3">
             <div ref={setHintSlot} className="space-y-3 empty:hidden" />
             {/* предупреждения - в колонке страницы, ровно по её краям */}

@@ -274,12 +274,13 @@
     "periodTo": "По",
     "periodApply": "Применить",
     "periodReset": "Вернуть текущий месяц",
+    "periodCustomName": "Свой период",
     "periodPreset": {
       "month": "Текущий месяц",
       "prev_month": "Прошлый месяц",
       "quarter": "Квартал",
       "year": "Год",
-      "custom": "Свой период"
+      "custom": "Выбрать период"
     },
     "profitLabel": {
       "month": "Прибыль за месяц",

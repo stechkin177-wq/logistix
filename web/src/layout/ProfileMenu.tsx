@@ -69,6 +69,11 @@ export function ProfileMenu() {
       {/* не размонтируем при закрытии: окно ввода кода переключателя пространства живёт внутри и не должно пропадать */}
       {
         <div role="menu" hidden={!open} className="absolute right-0 top-full z-40 mt-2 w-72 max-w-[calc(100vw-1.5rem)] space-y-3 rounded-card border border-line bg-surface p-3 shadow-pop">
+          {/* на телефоне в самой плашке видны только инициалы: компания и пользователь - здесь */}
+          <div className="border-b border-line pb-2 md:hidden">
+            <p className="truncate text-sm font-medium text-ink">{company.name}</p>
+            <p className="truncate text-xs text-muted">{person}</p>
+          </div>
           {companies.length >= 2 ? (
             <label className="block space-y-1 text-xs font-medium text-muted">
               {t('company.switch')}
