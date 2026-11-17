@@ -45,12 +45,13 @@
 }
 
 .dark {
-  --ui-canvas: #0a0f1c;
-  --ui-surface: #111827;
-  --ui-surface-2: #172033;
-  --ui-line: #25304a;
-  --ui-ink: #e5e9f2;
-  --ui-muted: #94a3b8;
+  /* тёмная тема: тёплые серые оттенки */
+  --ui-canvas: #262624;
+  --ui-surface: #30302e;
+  --ui-surface-2: #3a3936;
+  --ui-line: #4a4945;
+  --ui-ink: #faf9f5;
+  --ui-muted: #a8a69e;
 }
 
 :root {

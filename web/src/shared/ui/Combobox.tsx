@@ -156,7 +156,7 @@ export function Combobox({
                     onMouseEnter={() => {
                       setActive(index)
                     }}
-                    className={`cursor-pointer px-3 py-2 ${index === active ? 'bg-brand-50 text-brand-900 dark:bg-slate-700 dark:text-white' : ''}`}
+                    className={`cursor-pointer px-3 py-2 ${index === active ? 'bg-brand-50 text-brand-900 dark:bg-surface-2 dark:text-white' : ''}`}
                   >
                     {option.label}
                   </li>

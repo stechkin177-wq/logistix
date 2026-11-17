@@ -8,7 +8,7 @@ import { ChevronDown } from '../shared/ui/icons'
 import { visibleNav, type NavItem } from './nav'
 
 const LINK = 'flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors'
-const ACTIVE = 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100'
+const ACTIVE = 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100'
 const IDLE = 'text-muted hover:bg-surface-2 hover:text-ink'
 
 function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {

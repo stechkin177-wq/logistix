@@ -79,7 +79,7 @@ export function ProfitTile({ data, period, onChange }: { data: DashboardSummary;
                   if (preset === 'custom') onChange({ preset: 'custom', from: from || undefined, to: to || undefined })
                   else { onChange({ preset }); setOpen(false) }
                 }}
-                className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-left text-sm ${period.preset === preset ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'hover:bg-surface-2'}`}
+                className={`flex w-full items-center rounded-control px-2.5 py-1.5 text-left text-sm ${period.preset === preset ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'hover:bg-surface-2'}`}
               >
                 {t(`dashboard.periodPreset.${preset}`)}
               </button>

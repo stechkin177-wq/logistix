@@ -60,7 +60,7 @@ export function SettingsLayout() {
                 title={t(tab.labelKey)}
                 className={({ isActive }) =>
                   `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-3 py-1.5 text-[13px] transition-colors max-md:flex-1 max-md:justify-center max-md:px-0 ${
-                    isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
+                    isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
                   }`
                 }
               >

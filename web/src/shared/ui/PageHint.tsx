@@ -37,7 +37,7 @@ export function PageHint({ hint }: { hint: string }) {
       {mobile ? <ChevronDown className={`mt-0.5 size-4 shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" /> : null}
     </>
   )
-  const cls = `flex items-start gap-3 rounded-card border border-brand-200/70 bg-brand-50/60 px-3 py-2.5 dark:border-brand-800/50 dark:bg-brand-900/20 ${mobile ? '' : 'min-h-[4.25rem]'}`
+  const cls = `flex items-start gap-3 rounded-card border border-brand-200/70 bg-brand-50/60 px-3 py-2.5 dark:border-line dark:bg-white/5 ${mobile ? '' : 'min-h-[4.25rem]'}`
   return mobile ? (
     <aside>
       <button type="button" aria-expanded={open} onClick={toggle} className={`${cls} w-full text-left`}>{body}</button>

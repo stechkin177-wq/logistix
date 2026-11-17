@@ -71,7 +71,7 @@ export function PlatformLayout() {
             to={link.to}
             className={({ isActive }) =>
               `flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors ${
-                isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/50 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
+                isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
               }`
             }
           >
@@ -98,7 +98,7 @@ export function PlatformLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 touch-none select-none items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
           {current ? (
-            <p className="flex min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-100">
+            <p className="flex min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-white/10 dark:text-brand-100">
               <current.icon className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">{t(current.labelKey)}</span>
             </p>

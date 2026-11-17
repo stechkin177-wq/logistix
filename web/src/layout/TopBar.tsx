@@ -35,7 +35,7 @@ export function TopBar() {
   return (
     <header className="flex h-12 shrink-0 touch-none select-none items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
       {section ? (
-        <p className="flex min-w-0 items-center gap-1.5 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-100">
+        <p className="flex min-w-0 items-center gap-1.5 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-white/10 dark:text-brand-100">
           {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
           {parent ? (
             <>
