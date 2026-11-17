@@ -23,7 +23,7 @@ export function FilterBar({
       }}
       className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-surface p-3 shadow-card"
     >
-      <Button className="md:hidden" icon={SlidersHorizontal} aria-expanded={open} onClick={() => { setOpen(!open) }}>
+      <Button className="h-8! gap-1! px-2.5! text-xs! md:hidden" icon={SlidersHorizontal} aria-expanded={open} onClick={() => { setOpen(!open) }}>
         {t('common.filters')}
       </Button>
       <div className={open ? 'contents' : 'hidden md:contents'}>

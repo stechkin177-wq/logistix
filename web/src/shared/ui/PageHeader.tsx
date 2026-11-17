@@ -69,7 +69,7 @@ export function PageHeader({ title, icon: Icon, subtitle, back, meta, actions, h
   const moved = compact && (actions || subtitle) ? (
     <div className="space-y-2">
       {subtitle ? <p className="text-xs text-muted">{subtitle}</p> : null}
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
     </div>
   ) : null
   return (
