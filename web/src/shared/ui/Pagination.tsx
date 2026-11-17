@@ -29,9 +29,9 @@ export function Pagination({ page, pageSize, count, onPage, onPageSize }: Props)
   return (
     <nav aria-label={t('pagination.label')} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted">
       <span>{t('pagination.range', { from, to, total: count })}</span>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 max-md:gap-1.5">
         {onPageSize ? (
-          <label className="flex items-center gap-1 whitespace-nowrap">
+          <label className="flex items-center gap-1 whitespace-nowrap max-md:hidden">
             {t('pagination.pageSize')}
             <SelectBox>
             <select

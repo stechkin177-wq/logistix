@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useIsMobile } from '../shared/hooks/useIsMobile'
 import { NavLink, useLocation } from 'react-router'
 import { useBranding } from '../shared/branding/useBranding'
 import { useSession } from '../shared/auth/useSession'
@@ -14,6 +15,7 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const [manual, setManual] = useState<boolean | null>(null)
+  const mobile = useIsMobile()
   const Icon = item.icon
   const iconCls = child ? 'size-4' : 'size-[18px]'
   // Группа настроек - одна строка меню: подразделы открываются слева на самой странице настроек
@@ -30,6 +32,10 @@ function NavEntry({ item, child = false }: { item: NavItem; child?: boolean }) {
       <NavLink
         to={to}
         end={to === '/' || isSettingsHub}
+        // на телефоне нажатие на «Настройки» раскрывает список подразделов вниз, а не уходит на страницу
+        onClick={(event) => {
+          if (isSettingsHub && mobile && dataItems.length > 0) { event.preventDefault(); setManual(!expanded) }
+        }}
         className={({ isActive }) => `${LINK} ${child ? 'gap-2 py-1.5 pl-2 pr-1.5 text-[13px]' : ''} ${dataItems.length > 0 ? 'pr-12' : ''} ${isActive || hubActive ? ACTIVE : IDLE}`}
       >
         {Icon ? <Icon className={`${iconCls} shrink-0`} aria-hidden="true" /> : null}
@@ -86,7 +92,7 @@ export function Sidebar({ onNavigate, flat = false }: { onNavigate?: () => void;
         )}
         <span className="truncate text-sm font-semibold">{branding.app_name}</span>
       </div>
-      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={(event) => { if ((event.target as HTMLElement).closest('a')) onNavigate?.() }}>
+      <nav aria-label={t('nav.label')} className="thin-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2" onClick={(event) => { if (!event.defaultPrevented && (event.target as HTMLElement).closest('a')) onNavigate?.() }}>
         <ul className="space-y-0.5">
           {items.map((item) => (
             <NavEntry key={item.key} item={item} />

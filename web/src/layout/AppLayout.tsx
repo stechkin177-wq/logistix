@@ -18,7 +18,7 @@ export function AppLayout() {
   const [hintSlot, setHintSlot] = useState<HTMLElement | null>(null)
 
   return (
-    <div className="flex h-dvh bg-canvas text-ink">
+    <div className="fixed inset-0 flex overscroll-none bg-canvas text-ink">
       <div className="hidden p-3 pr-0 md:block">
         <Sidebar />
       </div>
@@ -45,10 +45,10 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         {/* шапка страницы живёт здесь, вне прокрутки: основной экран начинается строго под ней */}
-        <div className="thin-scroll shrink-0 overflow-y-hidden [scrollbar-gutter:stable] empty:hidden">
+        <div className="thin-scroll shrink-0 touch-none overflow-y-hidden [scrollbar-gutter:stable] empty:hidden">
           <div ref={setSlot} className="mx-auto flex w-full max-w-[1500px] flex-col px-3 pt-2 empty:hidden md:px-5 md:pt-2" />
         </div>
-        <main className="thin-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
+        <main className="thin-scroll min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] p-3 pb-20 pt-0 md:p-5 md:pb-5 md:pt-0">
           <div className="mx-auto w-full max-w-[1500px] space-y-3 pt-3">
             <div ref={setHintSlot} className="space-y-3 empty:hidden" />
             {/* предупреждения - в колонке страницы, ровно по её краям */}

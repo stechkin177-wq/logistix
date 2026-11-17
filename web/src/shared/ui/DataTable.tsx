@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Banner } from './Banner'
 import { Button } from './Button'
+import { SelectBox } from './SelectBox'
 import { Spinner } from './Spinner'
 
 export interface Column<T> {
@@ -70,6 +71,28 @@ export function DataTable<T>({
 
   return (
     <div className={`relative overflow-hidden ${bare ? '' : 'rounded-card border border-line bg-surface shadow-card'}`}>
+      {onOrderingChange && columns.some((c) => c.sortKey !== undefined) ? (
+        // на телефоне заголовков столбцов нет: сортировка выбирается списком
+        <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 md:hidden">
+          <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
+            <span className="shrink-0">{t('table.sortLabel')}</span>
+            <SelectBox className="min-w-0 flex-1">
+              <select
+                aria-label={t('table.sortLabel')}
+                value={ordering ?? ''}
+                onChange={(event) => { onOrderingChange(event.target.value) }}
+                className="h-9 w-full appearance-none rounded-control border border-line bg-surface pl-2 pr-8 text-sm text-ink"
+              >
+                {ordering === undefined || !columns.some((c) => c.sortKey !== undefined && (ordering === c.sortKey || ordering === `-${c.sortKey}`)) ? <option value="">—</option> : null}
+                {columns.flatMap((c) => c.sortKey === undefined ? [] : [
+                  <option key={`${c.key}-a`} value={c.sortKey}>{`${c.headerLabel ?? (typeof c.header === 'string' ? c.header : c.key)} ↑`}</option>,
+                  <option key={`${c.key}-d`} value={`-${c.sortKey}`}>{`${c.headerLabel ?? (typeof c.header === 'string' ? c.header : c.key)} ↓`}</option>,
+                ])}
+              </select>
+            </SelectBox>
+          </label>
+        </div>
+      ) : null}
       <div className="thin-scroll scroll-shadow-x overflow-x-auto">
         {/* на узком экране строки превращаются в карточки: подпись колонки берётся из data-label */}
         <table className={`w-full border-collapse text-left text-sm max-md:block ${fit ? '' : 'md:min-w-max'}`} aria-busy={loading ? true : undefined}>
