@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../shared/api/errors'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
-import { DataTable, type Column } from '../../shared/ui/DataTable'
+import { Badge } from '../../shared/ui/Badge'
+import { Banner } from '../../shared/ui/Banner'
+import { Button } from '../../shared/ui/Button'
 import { DateTime } from '../../shared/ui/DateTime'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
@@ -9,9 +11,14 @@ import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { Select } from '../../shared/ui/Select'
 import { TextField } from '../../shared/ui/TextField'
 import { useHistory } from './hooks'
-import type { HistoryRow } from './types'
-import { PageHeader } from '../../shared/ui/PageHeader'
-import { History } from '../../shared/ui/icons'
+import { ManageHeader } from './ManageHeader'
+
+const TONE: Record<string, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
+  create: 'success', publish: 'success', renew: 'success', unblock: 'success', restore: 'success',
+  delete: 'danger', block: 'danger', login_failed: 'danger', totp_failed: 'danger',
+  archive: 'warning', unpublish: 'warning',
+  update: 'info', change_plan: 'info', set_default: 'info',
+}
 
 const SCHEMA = {
   kind: codecs.oneOf(['', 'plan', 'subscription', 'auth', 'company'] as const, ''),
@@ -29,7 +36,8 @@ const short = (v: unknown) => {
 export function HistoryPage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
-  const list = useHistory(state.kind, state.key, state.page, state.pageSize)
+  const list = useHistory(state.kind, state.key.trim(), state.page, state.pageSize)
+  const rows = list.data?.results ?? []
   // статусы в изменениях показываем словами, а не кодами; неизвестные значения остаются как есть
   const shown = (field: string, v: unknown) => {
     if (field === 'status' && typeof v === 'string') {
@@ -38,31 +46,14 @@ export function HistoryPage() {
     return short(v)
   }
 
-  const columns: Column<HistoryRow>[] = [
-    { key: 'when', header: t('platform.history.when'), cell: (e) => <DateTime value={e.created_at} /> },
-    { key: 'who', header: t('platform.history.who'), cell: (e) => e.actor || '—' },
-    { key: 'object', header: t('platform.history.object'), cell: (e) => `${t(`platform.history.kind.${e.kind}`)}: ${e.key}` },
-    { key: 'action', header: t('platform.history.action'), cell: (e) => t(`platform.history.actions.${e.action}`, { defaultValue: e.action }) },
-    {
-      key: 'changes',
-      header: t('platform.history.changes'),
-      cell: (e) => (
-        <ul className="space-y-0.5 text-xs">
-          {Object.entries(e.changes).map(([field, value]) => (
-            <li key={field}>
-              <b>{t(`platform.history.fields.${field}`, { defaultValue: field })}</b>:{' '}
-              {Array.isArray(value) && value.length === 2 ? `${shown(field, value[0])} → ${shown(field, value[1])}` : shown(field, value)}
-            </li>
-          ))}
-        </ul>
-      ),
-    },
-  ]
-
   return (
     <div className="space-y-3">
-      <PageHeader icon={History} title={t('nav.platformHistory')} />
-      <FilterBar canReset={state.kind !== '' || state.key !== ''} onReset={() => { setState({ kind: '', key: '' }) }}>
+      <ManageHeader active="history" />
+      <FilterBar
+        search={<FilterItem className="w-auto"> <TextField label={t('platform.history.key')} type="search" placeholder={t('platform.history.keyHint')} value={state.key} onChange={(e) => { setState({ key: e.target.value }, { replace: true }) }} /> </FilterItem>}
+        canReset={state.kind !== '' || state.key !== ''}
+        onReset={() => { setState({ kind: '', key: '' }) }}
+      >
         <FilterItem>
           <Select
             label={t('platform.history.object')}
@@ -72,21 +63,51 @@ export function HistoryPage() {
             onChange={(v) => { setState({ kind: v === 'plan' || v === 'subscription' || v === 'auth' || v === 'company' ? v : '' }) }}
           />
         </FilterItem>
-        <FilterItem className="w-56">
-          <TextField label={t('platform.history.key')} placeholder={t('platform.history.keyHint')} value={state.key} onChange={(e) => { setState({ key: e.target.value }, { replace: true }) }} />
-        </FilterItem>
       </FilterBar>
-      <DataTable
-        fit
-        caption={t('nav.platformHistory')}
-        columns={columns}
-        rows={list.data?.results}
-        rowKey={(e) => e.id}
-        loading={list.isFetching}
-        error={list.isError ? errorMessage(list.error, t) : undefined}
-        onRetry={() => void list.refetch()}
-        empty={<EmptyState title={t('platform.history.empty')} hint={t('platform.history.emptyHint')} />}
-      />
+      {list.isError ? (
+        <Banner kind="error">{errorMessage(list.error, t)} <Button onClick={() => void list.refetch()}>{t('common.retry')}</Button></Banner>
+      ) : rows.length === 0 && !list.isFetching ? (
+        <EmptyState title={t('platform.history.empty')} hint={t('platform.history.emptyHint')} />
+      ) : (
+        <ul aria-label={t('nav.platformHistory')} className="space-y-2">
+          {rows.map((e) => {
+            const companyId = e.kind === 'subscription' || e.kind === 'company' ? e.key : null
+            return (
+              <li key={e.id} className="rounded-card border border-line bg-surface px-3 py-2.5 shadow-card">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Badge tone={TONE[e.action] ?? 'neutral'}>{t(`platform.history.actions.${e.action}`, { defaultValue: e.action })}</Badge>
+                  <span className="text-sm font-medium text-ink">
+                    {t(`platform.history.kind.${e.kind}`)}
+                    {companyId === null && e.key !== '*' ? <span className="font-normal text-muted">: {e.key}</span> : null}
+                  </span>
+                </div>
+                <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                  <dt className="text-muted">{t('platform.history.when')}</dt>
+                  <dd className="text-ink"><DateTime value={e.created_at} /></dd>
+                  <dt className="text-muted">{t('platform.history.who')}</dt>
+                  <dd className="min-w-0 break-words text-ink">{e.actor || '—'}</dd>
+                  {companyId !== null ? (
+                    <>
+                      <dt className="text-muted">{t('platform.history.companyId')}</dt>
+                      <dd className="text-ink">{companyId}</dd>
+                    </>
+                  ) : null}
+                </dl>
+                {Object.keys(e.changes).length > 0 ? (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {Object.entries(e.changes).map(([field, value]) => (
+                      <li key={field} className="max-w-full rounded-control bg-surface-2 px-2 py-0.5 text-xs text-ink">
+                        <span className="text-muted">{t(`platform.history.fields.${field}`, { defaultValue: field })}:</span>{' '}
+                        {Array.isArray(value) && value.length === 2 ? `${shown(field, value[0])} → ${shown(field, value[1])}` : shown(field, value)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      )}
       <Pagination
         page={state.page}
         pageSize={state.pageSize}

@@ -11,8 +11,8 @@ export const planAction = (code: string, action: 'publish' | 'unpublish' | 'arch
   api.post<AdminPlan>(`/platform/plans/${code}/${action}/`, {})
 export const reorderPlans = (codes: string[]) => api.post<AdminPlan[]>('/platform/plans/reorder/', { codes })
 
-export const listCompanies = (q: string, page: number, pageSize: number, signal?: AbortSignal) =>
-  api.get<Paginated<PlatformCompany>>('/platform/companies/', { q, page, page_size: pageSize }, { signal })
+export const listCompanies = (q: string, plan: string, state: string, page: number, pageSize: number, signal?: AbortSignal) =>
+  api.get<Paginated<PlatformCompany>>('/platform/companies/', { q, plan, state, page, page_size: pageSize }, { signal })
 export const getSubscription = (company: number, signal?: AbortSignal) =>
   api.get<SubscriptionInfo>(`/platform/subscriptions/${String(company)}/`, undefined, { signal })
 export const previewChange = (company: number, plan: string, signal?: AbortSignal) =>
@@ -22,5 +22,5 @@ export const changePlan = (company: number, plan: string, period: 'keep' | 'rest
 export const renew = (company: number, periods: number) =>
   api.post<SubscriptionInfo>(`/platform/subscriptions/${String(company)}/renew/`, { periods })
 
-export const listHistory = (kind: string, key: string, page: number, pageSize: number, signal?: AbortSignal) =>
-  api.get<Paginated<HistoryRow>>('/platform/history/', { kind, key, page, page_size: pageSize }, { signal })
+export const listHistory = (kind: string, q: string, page: number, pageSize: number, signal?: AbortSignal) =>
+  api.get<Paginated<HistoryRow>>('/platform/history/', { kind, q, page, page_size: pageSize }, { signal })

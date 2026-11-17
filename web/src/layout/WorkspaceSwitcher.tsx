@@ -7,6 +7,7 @@ import { Button } from '../shared/ui/Button'
 import { Dialog } from '../shared/ui/Dialog'
 import { Select } from '../shared/ui/Select'
 import { TextField } from '../shared/ui/TextField'
+import { Building2, ShieldCheck } from '../shared/ui/icons'
 import { pushToast } from '../shared/ui/toast'
 
 interface Props {
@@ -50,30 +51,36 @@ export function WorkspaceSwitcher({ mode, companies, needsCode = false }: Props)
   }
 
   const seg = (active: boolean) =>
-    `flex-1 rounded px-2 py-1 text-xs ${active ? 'bg-brand-600 font-medium text-brand-fg' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'} disabled:opacity-50`
+    `flex min-w-0 flex-1 items-center justify-center gap-1 rounded-[7px] px-2 py-1 text-[11px] font-medium leading-tight transition-all disabled:cursor-default ${
+      active ? 'bg-surface text-brand-700 shadow-card ring-1 ring-line dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:text-ink disabled:opacity-50'
+    }`
   const single = companies.length === 1 ? companies[0] : undefined
 
   return (
-    <div className="space-y-1">
-      <div role="group" aria-label={t('workspace.title')} className="flex gap-1 rounded border border-slate-300 p-0.5">
+    <div className="space-y-1.5">
+      <div role="group" aria-label={t('workspace.title')} className="flex gap-0.5 rounded-control bg-surface-2 p-0.5 ring-1 ring-inset ring-line">
         <button
           type="button"
           aria-pressed={mode === 'platform'}
+          aria-label={t('workspace.owner')}
           disabled={busy || mode === 'platform'}
           className={seg(mode === 'platform')}
           onClick={() => { if (needsCode) { setCode(''); setError(undefined); setAsking(true) } else toPlatform() }}
         >
-          {t('workspace.owner')}
+          <ShieldCheck className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{t('workspace.ownerShort')}</span>
         </button>
         <button
           type="button"
           aria-pressed={mode === 'company'}
+          aria-label={t('workspace.admin')}
           disabled={busy || mode === 'company' || companies.length === 0}
-          title={mode === 'platform' && companies.length === 0 ? t('workspace.noCompany') : undefined}
+          title={mode === 'platform' && companies.length === 0 ? t('workspace.noCompany') : t('workspace.admin')}
           className={seg(mode === 'company')}
           onClick={() => { if (single) toCompany(single.id) }}
         >
-          {t('workspace.admin')}
+          <Building2 className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{t('workspace.adminShort')}</span>
         </button>
       </div>
       {mode === 'platform' && companies.length > 1 ? (

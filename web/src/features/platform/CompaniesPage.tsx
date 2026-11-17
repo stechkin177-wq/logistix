@@ -9,19 +9,20 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { FilterBar, FilterItem } from '../../shared/ui/FilterBar'
 import { PAGE_SIZES, Pagination } from '../../shared/ui/Pagination'
 import { TextField } from '../../shared/ui/TextField'
-import { useCompanies } from './hooks'
+import { useCompanies, usePlans } from './hooks'
+import { ManageHeader } from './ManageHeader'
+import { Select } from '../../shared/ui/Select'
 import { SubscriptionDrawer } from './SubscriptionDrawer'
 import type { PlatformCompany } from './types'
-import { PageHeader } from '../../shared/ui/PageHeader'
-import { Landmark } from '../../shared/ui/icons'
 
-const SCHEMA = { q: codecs.string(''), page: codecs.positiveInt(1), pageSize: codecs.choiceInt(PAGE_SIZES, 50) }
+const SCHEMA = { q: codecs.string(''), plan: codecs.string(''), state: codecs.oneOf(['', 'active', 'inactive'] as const, ''), page: codecs.positiveInt(1), pageSize: codecs.choiceInt(PAGE_SIZES, 50) }
 
 /** Администратор платформы: компании и их подписки. */
 export function CompaniesPage() {
   const { t } = useTranslation()
   const [state, setState] = useUrlState(SCHEMA, { pageKey: 'page' })
-  const list = useCompanies(state.q, state.page, state.pageSize)
+  const plans = usePlans()
+  const list = useCompanies(state.q, state.plan, state.state, state.page, state.pageSize)
   const [open, setOpen] = useState<{ company: PlatformCompany; nonce: number } | null>(null)
 
   const columns: Column<PlatformCompany>[] = [
@@ -34,6 +35,7 @@ export function CompaniesPage() {
         </button>
       ),
     },
+    { key: 'bin', header: t('platform.companies.bin'), cell: (c) => c.bin || '—' },
     { key: 'plan', header: t('platform.companies.plan'), cell: (c) => c.plan_name },
     {
       key: 'status',
@@ -50,8 +52,30 @@ export function CompaniesPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={Landmark} title={t('nav.platformCompanies')} />
-      <FilterBar search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('platform.companies.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>} canReset={state.q !== ''} onReset={() => { setState({ q: '' }) }}>
+      <ManageHeader active="companies" />
+      <FilterBar
+        search={<FilterItem className="w-auto"> <TextField label={t('common.search')} type="search" placeholder={t('platform.companies.searchPlaceholder')} value={state.q} onChange={(e) => { setState({ q: e.target.value }, { replace: true }) }} /> </FilterItem>}
+        canReset={state.q !== '' || state.plan !== '' || state.state !== ''}
+        onReset={() => { setState({ q: '', plan: '', state: '' }) }}
+      >
+        <FilterItem>
+          <Select
+            label={t('platform.companies.filterPlan')}
+            value={state.plan}
+            placeholder={t('common.all')}
+            options={(plans.data ?? []).map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(v) => { setState({ plan: v }) }}
+          />
+        </FilterItem>
+        <FilterItem>
+          <Select
+            label={t('platform.companies.filterState')}
+            value={state.state}
+            placeholder={t('common.all')}
+            options={(['active', 'inactive'] as const).map((k) => ({ value: k, label: t(`platform.companies.states.${k}`) }))}
+            onChange={(v) => { setState({ state: v === 'active' || v === 'inactive' ? v : '' }) }}
+          />
+        </FilterItem>
       </FilterBar>
       <DataTable
         onRowClick={(c) => { setOpen({ company: c, nonce: Date.now() }) }}

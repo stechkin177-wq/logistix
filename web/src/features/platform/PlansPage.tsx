@@ -6,13 +6,12 @@ import { Badge } from '../../shared/ui/Badge'
 import { Banner } from '../../shared/ui/Banner'
 import { Button } from '../../shared/ui/Button'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
-import { DataTable, type Column } from '../../shared/ui/DataTable'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { PlanDrawer } from './PlanDrawer'
 import { useDeletePlan, usePlanAction, usePlans, useReorder } from './hooks'
 import type { AdminPlan, PlanStatus } from './types'
-import { PageHeader } from '../../shared/ui/PageHeader'
-import { CreditCard, Plus, Archive, ArchiveRestore, ArrowDown, ArrowUp, EyeOff, Rocket, Star, Trash2 } from '../../shared/ui/icons'
+import { ManageHeader } from './ManageHeader'
+import { Plus, Archive, ArchiveRestore, ArrowDown, ArrowUp, EyeOff, Rocket, Star, Trash2 } from '../../shared/ui/icons'
 
 const TONE: Record<PlanStatus, 'neutral' | 'success' | 'warning'> = { draft: 'neutral', active: 'success', archived: 'warning' }
 
@@ -44,80 +43,50 @@ export function PlansPage() {
     reorder.mutate(codes, { onError: (e) => { setError(errorMessage(e, t)) } })
   }
 
-  const columns: Column<AdminPlan>[] = [
-    {
-      key: 'order',
-      header: t('platform.plans.order'),
-      cell: (p) => {
-        const index = rows.findIndex((x) => x.code === p.code)
-        return (
-          <span className="flex gap-1">
-            <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveUp', { name: p.name })} disabled={index === 0 || reorder.isPending} onClick={() => { move(index, -1) }}><ArrowUp className="size-4" aria-hidden="true" /></Button>
-            <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveDown', { name: p.name })} disabled={index === rows.length - 1 || reorder.isPending} onClick={() => { move(index, 1) }}><ArrowDown className="size-4" aria-hidden="true" /></Button>
-          </span>
-        )
-      },
-    },
-    {
-      key: 'name',
-      header: t('platform.plans.name'),
-      cell: (p) => (
-        <button type="button" className="text-left font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setEditor({ plan: p, nonce: Date.now() }) }}>
-          {p.name} <span className="text-xs text-muted">({p.code})</span>
-        </button>
-      ),
-    },
-    { key: 'price', header: t('platform.plans.price'), align: 'right', cell: (p) => <span className="whitespace-nowrap">{money(p.price, p.currency)} / {t(`platform.plans.periods.${p.billing_type}`)}</span> },
-    {
-      key: 'status',
-      header: t('common.status'),
-      cell: (p) => (
-        <span className="flex flex-wrap gap-1">
-          <Badge tone={TONE[p.status]}>{t(`platform.plans.status.${p.status}`)}</Badge>
-          {p.is_default ? <Badge tone="info">{t('platform.plans.default')}</Badge> : null}
-        </span>
-      ),
-    },
-    { key: 'subs', header: t('platform.plans.subscriptions'), align: 'right', cell: (p) => p.subscriptions_count },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'right',
-      cell: (p) => (
-        <span className="flex flex-wrap justify-end gap-1.5">
-          {p.status === 'draft' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Rocket} onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={EyeOff} onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
-          {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Star} onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
-          {p.status !== 'archived' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Archive} onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
-          {p.status === 'archived' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={ArchiveRestore} onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
-          {!p.is_default ? <Button variant="dangerSoft" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Trash2} aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
-        </span>
-      ),
-    },
-  ]
-
   return (
     <div className="space-y-3">
-      <PageHeader icon={CreditCard} title={t('nav.platformPlans')} subtitle={t('platform.plans.intro')}
-        actions={
-          <>
-            <Button variant="primary" icon={Plus} onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>
-          </>
-        }
+      <ManageHeader
+        active="plans"
+        actions={<Button variant="primary" icon={Plus} onClick={() => { setEditor({ plan: null, nonce: Date.now() }) }}>{t('platform.plans.new')}</Button>}
       />
       {error ? <Banner kind="error">{error}</Banner> : null}
-      <DataTable
-        fit
-        onRowClick={(p) => { setEditor({ plan: p, nonce: Date.now() }) }}
-        caption={t('nav.platformPlans')}
-        columns={columns}
-        rows={plans.data}
-        rowKey={(p) => p.code}
-        loading={plans.isFetching}
-        error={plans.isError ? errorMessage(plans.error, t) : undefined}
-        onRetry={() => void plans.refetch()}
-        empty={<EmptyState title={t('platform.plans.empty')} hint={t('platform.plans.emptyHint')} />}
-      />
+      {plans.isError ? (
+        <Banner kind="error">{errorMessage(plans.error, t)} <Button onClick={() => void plans.refetch()}>{t('common.retry')}</Button></Banner>
+      ) : rows.length === 0 && !plans.isFetching ? (
+        <EmptyState title={t('platform.plans.empty')} hint={t('platform.plans.emptyHint')} />
+      ) : (
+        <ul aria-label={t('nav.platformPlans')} className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          {rows.map((p, index) => (
+            <li key={p.code} className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3 shadow-card md:p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <button type="button" className="block max-w-full truncate text-left text-base font-semibold text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setEditor({ plan: p, nonce: Date.now() }) }}>
+                    {p.name} <span className="text-xs font-normal text-muted">({p.code})</span>
+                  </button>
+                  <p className="mt-0.5 text-sm text-ink">{money(p.price, p.currency)} / {t(`platform.plans.periods.${p.billing_type}`)}</p>
+                </div>
+                <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                  <Badge tone={TONE[p.status]}>{t(`platform.plans.status.${p.status}`)}</Badge>
+                  {p.is_default ? <Badge tone="info">{t('platform.plans.default')}</Badge> : null}
+                </span>
+              </div>
+              <p className="text-xs text-muted">{t('platform.plans.subscriptions')}: <b className="text-ink">{p.subscriptions_count}</b></p>
+              <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
+                <span className="flex gap-1">
+                  <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveUp', { name: p.name })} disabled={index === 0 || reorder.isPending} onClick={() => { move(index, -1) }}><ArrowUp className="size-4" aria-hidden="true" /></Button>
+                  <Button variant="secondary" className="size-8! p-0!" aria-label={t('platform.plans.moveDown', { name: p.name })} disabled={index === rows.length - 1 || reorder.isPending} onClick={() => { move(index, 1) }}><ArrowDown className="size-4" aria-hidden="true" /></Button>
+                </span>
+                {p.status === 'draft' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Rocket} onClick={() => { run(p.code, 'publish') }}>{t('platform.plans.publish')}</Button> : null}
+                {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={EyeOff} onClick={() => { run(p.code, 'unpublish') }}>{t('platform.plans.unpublish')}</Button> : null}
+                {p.status === 'active' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Star} onClick={() => { run(p.code, 'set-default') }}>{t('platform.plans.makeDefault')}</Button> : null}
+                {p.status !== 'archived' && !p.is_default ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={Archive} onClick={() => { run(p.code, 'archive') }}>{t('platform.plans.archive')}</Button> : null}
+                {p.status === 'archived' ? <Button variant="secondary" className="h-8! gap-1.5! px-2.5! text-xs!" icon={ArchiveRestore} onClick={() => { run(p.code, 'restore') }}>{t('platform.plans.restore')}</Button> : null}
+                {!p.is_default ? <Button variant="dangerSoft" className="ml-auto h-8! gap-1.5! px-2.5! text-xs!" icon={Trash2} aria-label={t('platform.plans.deleteNamed', { name: p.name })} onClick={() => { setToDelete(p) }}>{t('common.delete')}</Button> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
       {editor ? <PlanDrawer key={editor.nonce} plan={editor.plan} onClose={() => { setEditor(null) }} /> : null}
       <ConfirmDialog
         open={toDelete !== null}

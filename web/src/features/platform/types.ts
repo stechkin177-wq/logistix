@@ -28,6 +28,7 @@ export interface Catalog { modules: CatalogModule[]; features: CatalogFeature[];
 export interface PlatformCompany {
   id: number
   name: string
+  bin: string
   plan: string
   plan_name: string
   status: string

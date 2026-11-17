@@ -133,7 +133,7 @@ export function createRoutes(): RouteObject[] {
             {
               element: <PlatformLayout />,
               children: [
-                { index: true, element: <Navigate to="/platform/plans" replace /> },
+                { index: true, element: <Navigate to="/platform/companies" replace /> },
                 { path: 'plans', element: <PlansPage /> },
                 { path: 'companies', element: <CompaniesPage /> },
                 { path: 'history', element: <HistoryPage /> },

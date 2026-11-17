@@ -6,12 +6,12 @@ import {
 
 export const usePlans = () => useQuery({ queryKey: ['platform', 'plans'], queryFn: ({ signal }) => listPlans(signal) })
 export const useCatalog = () => useQuery({ queryKey: ['platform', 'catalog'], queryFn: ({ signal }) => getCatalog(signal), staleTime: 5 * 60_000 })
-export const useCompanies = (q: string, page: number, pageSize: number) =>
-  useQuery({ queryKey: ['platform', 'companies', q, page, pageSize], queryFn: ({ signal }) => listCompanies(q, page, pageSize, signal), placeholderData: keepPreviousData })
+export const useCompanies = (q: string, plan: string, state: string, page: number, pageSize: number) =>
+  useQuery({ queryKey: ['platform', 'companies', q, plan, state, page, pageSize], queryFn: ({ signal }) => listCompanies(q, plan, state, page, pageSize, signal), placeholderData: keepPreviousData })
 export const useSubscription = (company: number) =>
   useQuery({ queryKey: ['platform', 'subscription', company], queryFn: ({ signal }) => getSubscription(company, signal) })
-export const useHistory = (kind: string, key: string, page: number, pageSize: number) =>
-  useQuery({ queryKey: ['platform', 'history', kind, key, page, pageSize], queryFn: ({ signal }) => listHistory(kind, key, page, pageSize, signal), placeholderData: keepPreviousData })
+export const useHistory = (kind: string, q: string, page: number, pageSize: number) =>
+  useQuery({ queryKey: ['platform', 'history', kind, q, page, pageSize], queryFn: ({ signal }) => listHistory(kind, q, page, pageSize, signal), placeholderData: keepPreviousData })
 export const usePreview = (company: number, plan: string) =>
   useQuery({ queryKey: ['platform', 'preview', company, plan], queryFn: ({ signal }) => previewChange(company, plan, signal), enabled: plan !== '' })
 

@@ -35,7 +35,7 @@ describe('Панель платформы', () => {
     loggedIn([...base])
     renderApp('/')
     const nav = await screen.findByRole('navigation', { name: 'Основное меню' })
-    expect(within(nav).queryByText('Подписки компаний')).not.toBeInTheDocument()
+    expect(within(nav).queryByText('Подписки')).not.toBeInTheDocument()
     expect(within(nav).queryByText('История изменений')).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Рабочее пространство' })).not.toBeInTheDocument()
   })
@@ -73,9 +73,13 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     renderApp('/platform')
     const nav = await screen.findByRole('navigation', { name: 'Центр управления' })
-    expect(within(nav).getByText('Тарифы')).toBeInTheDocument()
-    expect(within(nav).getByText('Подписки компаний')).toBeInTheDocument()
-    expect(within(nav).getByText('История изменений')).toBeInTheDocument()
+    expect(within(nav).getByText('Управление')).toBeInTheDocument()
+    expect(within(nav).queryByText('Тарифы')).not.toBeInTheDocument()
+    // три вкладки раздела, как в «Финансах»
+    const tabs = await screen.findByRole('tablist', { name: 'Разделы управления' })
+    expect(within(tabs).getByRole('tab', { name: 'Подписки' })).toBeInTheDocument()
+    expect(within(tabs).getByRole('tab', { name: 'Тарифы' })).toBeInTheDocument()
+    expect(within(tabs).getByRole('tab', { name: 'История изменений' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
     // имя и роль в блоке аккаунта идут отдельными строками
     expect(await screen.findByText('Владелец')).toBeInTheDocument()
@@ -101,7 +105,7 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     const { router } = renderApp('/orders')
     await screen.findByRole('navigation', { name: 'Центр управления' })
-    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/plans') })
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/companies') })
   })
 
   it('пользователь компании не попадает в Центр управления', async () => {
@@ -133,7 +137,7 @@ describe('Панель платформы', () => {
   it('список тарифов: статусы, по умолчанию, действия и смена порядка', async () => {
     const m = platformLoggedIn([...base, ['POST', '/api/platform/plans/reorder/', { body: [] }], ['POST', '/api/platform/plans/pro/publish/', { body: PLAN() }]])
     renderApp('/platform/plans')
-    const table = await screen.findByRole('table')
+    const table = await screen.findByRole('list', { name: 'Тарифы' })
     expect(await within(table).findByText('Старт')).toBeInTheDocument()
     expect(within(table).getByText('по умолчанию')).toBeInTheDocument()
     expect(within(table).getByText('черновик')).toBeInTheDocument()
@@ -153,7 +157,7 @@ describe('Панель платформы', () => {
     const drawer = await screen.findByRole('dialog')
     await userEvent.type(within(drawer).getByLabelText(/Код/), 'gold')
     await userEvent.type(within(drawer).getByLabelText(/Название/), 'Золото')
-    await userEvent.click(within(drawer).getByRole('tab', { name: 'Модули и функции' }))
+    await userEvent.click(within(drawer).getByRole('tab', { name: 'Опции' }))
     await userEvent.click(await within(drawer).findByLabelText(/Финансы/))  // тянет «Перевозки»
     expect(within(drawer).getByLabelText(/Перевозки/)).toBeChecked()
     expect(within(drawer).getByLabelText('Аналитика')).toBeDisabled()  // нужен модуль analytics
@@ -172,7 +176,7 @@ describe('Панель платформы', () => {
     renderApp('/platform/plans')
     await userEvent.click(await screen.findByRole('button', { name: 'Старт (start)' }))
     const drawer = await screen.findByRole('dialog')
-    await userEvent.click(within(drawer).getByRole('tab', { name: 'Модули и функции' }))
+    await userEvent.click(within(drawer).getByRole('tab', { name: 'Опции' }))
     await userEvent.click(await within(drawer).findByLabelText(/Финансы/))
     expect(within(drawer).getByLabelText(/Перевозки/)).toBeChecked()
     await userEvent.click(within(drawer).getByLabelText(/Перевозки/))
@@ -220,8 +224,29 @@ describe('Панель платформы', () => {
     ])
     renderApp('/platform/history')
     expect(await screen.findByText('admin@x.kz')).toBeInTheDocument()
-    expect(screen.getByText('Тариф: start')).toBeInTheDocument()
+    expect(screen.getByText(': start')).toBeInTheDocument()
+    expect(screen.getByText('Дата и время')).toBeInTheDocument()
+    expect(screen.getByText('Логин')).toBeInTheDocument()
     expect(screen.getByText('изменение')).toBeInTheDocument()
     expect(screen.getByText(/0\.00 → 500\.00/)).toBeInTheDocument()
+  })
+  it('подписки: ИИН/БИН в строке, поиск по названию или ИИН/БИН, фильтры по тарифу и статусу', async () => {
+    const m = platformLoggedIn([
+      ['GET', /^\/api\/platform\/companies\/\?/, { body: page([{ id: 7, name: 'ТОО Альфа', bin: '123456789012', plan: 'start', plan_name: 'Старт', status: 'active', is_free_period: false, ends_at: null }]) }],
+      ...base,
+    ])
+    renderApp('/platform/companies')
+    expect(await screen.findByText('123456789012')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'ИИН/БИН' })).toBeInTheDocument()
+    const search = screen.getByPlaceholderText('Название компании или ИИН/БИН')
+    await userEvent.type(search, '1234')
+    await userEvent.selectOptions(screen.getByLabelText('Тариф'), 'start')
+    await userEvent.selectOptions(screen.getByLabelText('Статус'), 'inactive')
+    await waitFor(() => {
+      const last = m.calls.filter((c) => c.path.startsWith('/api/platform/companies/')).at(-1)
+      expect(last?.path).toMatch(/q=1234/)
+      expect(last?.path).toMatch(/plan=start/)
+      expect(last?.path).toMatch(/state=inactive/)
+    })
   })
 })

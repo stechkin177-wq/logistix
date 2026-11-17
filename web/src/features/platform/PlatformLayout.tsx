@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet, useLocation } from 'react-router'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../../shared/auth/useAuth'
 import { usePlatformSession } from '../../shared/auth/usePlatformSession'
 import { useBranding } from '../../shared/branding/useBranding'
@@ -9,27 +9,23 @@ import { HeaderSlotContext, HintSlotContext } from '../../shared/ui/headerBleed'
 import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
 import { ThemeToggle } from '../../shared/ui/ThemeToggle'
 import { initials } from '../../layout/ProfileMenu'
-import { ChevronDown, CreditCard, History, KeyRound, Landmark, LogOut, Menu } from '../../shared/ui/icons'
+import { ChevronDown, KeyRound, LogOut, Settings } from '../../shared/ui/icons'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
 
-const LINKS = [
-  { to: '/platform/plans', labelKey: 'nav.platformPlans', icon: CreditCard },
-  { to: '/platform/companies', labelKey: 'nav.platformCompanies', icon: Landmark },
-  { to: '/platform/history', labelKey: 'nav.platformHistory', icon: History },
-]
+/** Один пункт «Управление»: подписки, тарифы и история - вкладки внутри раздела. */
+const MANAGE = { to: '/platform', labelKey: 'platformShell.manage', icon: Settings }
 
 /** Оболочка Центра управления платформы: не зависит от тарифов и модулей компаний. */
 export function PlatformLayout() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const current = LINKS.find((l) => pathname.startsWith(l.to))
+  const current = pathname.startsWith(MANAGE.to) ? MANAGE : undefined
   const { session } = usePlatformSession()
   const { logout } = useAuth()
   const branding = useBranding()
   const [changingPassword, setChangingPassword] = useState(false)
-  const [open, setOpen] = useState(false)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   // ширина полосы прокрутки основной области: шапка выравнивается по ней без обрезки всплывающих окон
   const mainRef = useRef<HTMLElement>(null)
@@ -62,8 +58,8 @@ export function PlatformLayout() {
   }, [menuOpen])
   const companies = session?.companies ?? []
 
-  const panel = (flat: boolean) => (
-    <aside className={`flex h-full shrink-0 flex-col bg-surface ${flat ? 'w-full' : 'w-60 rounded-card border border-line shadow-card'}`}>
+  const panel = () => (
+    <aside className="flex h-full w-60 shrink-0 flex-col rounded-card border border-line bg-surface shadow-card">
       <div className="flex min-h-14 items-center gap-2.5 px-4 py-2">
         {branding.logo_url ? (
           <img src={branding.logo_url} alt="" className="size-7 rounded-md object-contain" />
@@ -77,21 +73,18 @@ export function PlatformLayout() {
           <p className="text-xs leading-tight text-muted">{t('platformShell.title')}</p>
         </div>
       </div>
-      <nav aria-label={t('platformShell.nav')} className="thin-scroll flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" onClick={() => { setOpen(false) }}>
-        {LINKS.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors ${
-                isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
-              }`
-            }
-          >
-            <link.icon className="size-[18px] shrink-0" aria-hidden="true" />
-            {t(link.labelKey)}
-          </NavLink>
-        ))}
+      <nav aria-label={t('platformShell.nav')} className="thin-scroll flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" >
+        <NavLink
+          to={MANAGE.to}
+          className={({ isActive }) =>
+            `flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors ${
+              isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
+            }`
+          }
+        >
+          <MANAGE.icon className="size-[18px] shrink-0" aria-hidden="true" />
+          {t(MANAGE.labelKey)}
+        </NavLink>
       </nav>
       <div className="space-y-2 border-t border-line p-3">
         <WorkspaceSwitcher mode="platform" companies={companies} />
@@ -101,17 +94,24 @@ export function PlatformLayout() {
 
   return (
     <div className="fixed inset-0 flex overscroll-none bg-canvas text-ink">
-      <div className="hidden p-3 pr-0 md:block">{panel(false)}</div>
-      {open ? (
-        <div className="fixed inset-0 z-40 flex md:hidden">
-          <div className="w-72 max-w-[85vw] bg-surface shadow-pop">{panel(true)}</div>
-          <button type="button" aria-label={t('common.close')} className="flex-1 bg-slate-950/50" onClick={() => { setOpen(false) }} />
-        </div>
-      ) : null}
+      <div className="hidden p-3 pr-0 md:block">{panel()}</div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 touch-none select-none items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
+        <header className="flex h-14 shrink-0 touch-none select-none items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
+          <div className="flex min-w-0 items-center gap-2 md:hidden">
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt="" className="size-7 shrink-0 rounded-md object-contain" />
+            ) : (
+              <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-brand-fg">
+                {branding.app_name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight">{branding.app_name}</p>
+              <p className="truncate text-[11px] leading-tight text-muted">{t('platformShell.title')}</p>
+            </div>
+          </div>
           {current ? (
-            <p className="flex min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-white/10 dark:text-brand-100">
+            <p className="hidden min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-white/10 dark:text-brand-100">
               <current.icon className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">{t(current.labelKey)}</span>
             </p>
@@ -139,6 +139,15 @@ export function PlatformLayout() {
               </button>
               {menuOpen ? (
                 <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-60 space-y-0.5 rounded-card border border-line bg-surface p-1.5 shadow-pop">
+                  <Link
+                    to={MANAGE.to}
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false) }}
+                    className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-ink hover:bg-surface-2 md:hidden"
+                  >
+                    <Settings className="size-4" aria-hidden="true" />
+                    {t(MANAGE.labelKey)}
+                  </Link>
                   <button
                     type="button"
                     role="menuitem"
@@ -148,6 +157,7 @@ export function PlatformLayout() {
                     <KeyRound className="size-4" aria-hidden="true" />
                     {t('account.changePassword')}
                   </button>
+                  <div className="px-1 py-1 md:hidden"><WorkspaceSwitcher mode="platform" companies={companies} /></div>
                   <button
                     type="button"
                     role="menuitem"
@@ -166,7 +176,7 @@ export function PlatformLayout() {
         <div style={{ paddingRight: scrollbar }} className="shrink-0 touch-none empty:hidden">
           <div ref={setSlot} className="mx-auto flex w-full max-w-[1500px] flex-col px-3 pt-2 empty:hidden md:px-5 md:pt-2" />
         </div>
-        <main ref={mainRef} className="thin-scroll min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-3 pb-20 pt-0 [scrollbar-gutter:stable] md:p-5 md:pb-5 md:pt-0">
+        <main ref={mainRef} className="thin-scroll min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-3 pt-0 [scrollbar-gutter:stable] md:p-5 md:pt-0">
           <div className="mx-auto w-full max-w-[1500px] space-y-3 pt-3">
             <div ref={setHintSlot} className="space-y-3 empty:hidden" />
             <HeaderSlotContext.Provider value={slot}>
@@ -177,31 +187,6 @@ export function PlatformLayout() {
           </div>
         </main>
       </div>
-      <nav
-        aria-label={t('nav.mobileLabel')}
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
-      >
-        {LINKS.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) =>
-              `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] ${isActive ? 'font-medium text-brand-700 dark:text-brand-200' : 'text-muted'}`
-            }
-          >
-            <link.icon className="size-5" aria-hidden="true" />
-            <span className="max-w-full truncate">{t(link.labelKey)}</span>
-          </NavLink>
-        ))}
-        <button
-          type="button"
-          onClick={() => { setOpen(true) }}
-          className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] text-muted"
-        >
-          <Menu className="size-5" aria-hidden="true" />
-          <span>{t('nav.menu')}</span>
-        </button>
-      </nav>
       {changingPassword ? <ChangePasswordDialog onClose={() => { setChangingPassword(false) }} /> : null}
       <Toaster />
     </div>

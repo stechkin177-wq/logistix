@@ -48,7 +48,7 @@ export function SettingsLayout() {
         <nav
           ref={navRef}
           aria-label={t('nav.settingsLabel')}
-          className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto max-md:touch-none max-md:overflow-x-hidden rounded-card border border-line bg-surface p-1 shadow-card [--scroll-bg:var(--ui-canvas)]"
+          className="thin-scroll scroll-shadow-x flex gap-1 overflow-x-auto max-md:touch-pan-x rounded-card border border-line bg-surface p-1 shadow-card [--scroll-bg:var(--ui-canvas)]"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon
@@ -59,13 +59,13 @@ export function SettingsLayout() {
                 aria-label={t(tab.labelKey)}
                 title={t(tab.labelKey)}
                 className={({ isActive }) =>
-                  `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-3 py-1.5 text-[13px] transition-colors max-md:flex-1 max-md:justify-center max-md:px-0 ${
+                  `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control px-3 py-1.5 text-[13px] transition-colors max-md:flex-col max-md:justify-center max-md:gap-0.5 max-md:px-2.5 max-md:py-1 max-md:text-[11px] ${
                     isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
                   }`
                 }
               >
                 {Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
-                <span className="max-md:sr-only">{t(tab.labelKey)}</span>
+                <span>{t(tab.labelKey)}</span>
               </NavLink>
             )
           })}
