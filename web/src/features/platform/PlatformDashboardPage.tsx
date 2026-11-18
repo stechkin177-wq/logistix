@@ -75,7 +75,7 @@ function RevenueChart({ data, granularity }: { data: PlatformDashboard['revenue'
                 <span className="w-1/2 max-w-4 rounded-t bg-brand-500" style={{ height: `${Math.max(h, Number(m.revenue) === 0 ? 2 : 4)}%` }} />
                 <span className="w-1/2 max-w-4 rounded-t bg-emerald-400" style={{ height: `${Math.max(nh, m.new === 0 ? 2 : 4)}%` }} />
               </div>
-              <span className={`h-2.5 text-[10px] leading-none text-muted ${i % step === 0 ? '' : 'invisible'}`}>{label(m.bucket, granularity)}</span>
+              <span className={`h-2.5 whitespace-nowrap text-[10px] leading-none text-muted ${i % step === 0 ? '' : 'invisible'}`}>{label(m.bucket, granularity)}</span>
             </li>
           )
         })}
