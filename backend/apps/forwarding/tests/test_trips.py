@@ -735,7 +735,10 @@ def test_list_default_order_pagination_and_filters(admin_client, company):
         ("карго", 1),
         ("ORD-2026-00001-2", 1),
         ("c1", 1),
-        ("Груз 0", 2),  # по названию груза; рейс с двумя «Груз 0» не дублируется
+        (
+            "Груз 0",
+            4,
+        ),  # слова ищутся независимо («Груз» в грузе, «0» где угодно); рейс не дублируется
         ("нет такого", 0),
     ):
         assert admin_client.get(TRIPS, {"q": q}).data["count"] == expected, q
