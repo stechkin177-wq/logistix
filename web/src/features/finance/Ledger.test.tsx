@@ -41,10 +41,10 @@ describe('Разделы «Доходы» и «Расходы» по режим�
     expect(screen.getByRole('tab', { name: 'Расходы' })).toBeInTheDocument()
   })
 
-  it('прямая ссылка на вкладку доходов при legacy возвращает к счетам', async () => {
+  it('прямая ссылка на вкладку доходов при legacy возвращает к аналитике', async () => {
     loggedIn([engine('legacy'), ['GET', /^\/api\/finance\/invoices\//, { body: empty }]])
     renderApp('/finance?tab=incomes')
-    expect(await screen.findByRole('tab', { name: 'Счета', selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Аналитика', selected: true })).toBeInTheDocument()
   })
 })
 

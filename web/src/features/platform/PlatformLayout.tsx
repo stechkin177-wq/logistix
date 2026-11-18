@@ -9,19 +9,22 @@ import { HeaderSlotContext, HintSlotContext } from '../../shared/ui/headerBleed'
 import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
 import { ThemeToggle } from '../../shared/ui/ThemeToggle'
 import { initials } from '../../layout/ProfileMenu'
-import { ChevronDown, KeyRound, LogOut, Settings } from '../../shared/ui/icons'
+import { ChevronDown, KeyRound, LayoutDashboard, LogOut, Settings } from '../../shared/ui/icons'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
 
-/** Один пункт «Управление»: подписки, тарифы и история - вкладки внутри раздела. */
-const MANAGE = { to: '/platform', labelKey: 'platformShell.manage', icon: Settings }
+/** Дашборд и «Управление» (подписки, тарифы, история - вкладки внутри раздела). */
+const DASHBOARD = { to: '/platform/dashboard', labelKey: 'nav.platformDashboard', icon: LayoutDashboard, match: ['/platform/dashboard'] }
+const MANAGE = { to: '/platform/companies', labelKey: 'platformShell.manage', icon: Settings, match: ['/platform/companies', '/platform/plans', '/platform/history'] }
+const LINKS = [DASHBOARD, MANAGE]
+const matches = (link: (typeof LINKS)[number], pathname: string) => link.match.some((m) => pathname.startsWith(m))
 
 /** Оболочка Центра управления платформы: не зависит от тарифов и модулей компаний. */
 export function PlatformLayout() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const current = pathname.startsWith(MANAGE.to) ? MANAGE : undefined
+  const current = LINKS.find((l) => matches(l, pathname))
   const { session } = usePlatformSession()
   const { logout } = useAuth()
   const branding = useBranding()
@@ -74,17 +77,20 @@ export function PlatformLayout() {
         </div>
       </div>
       <nav aria-label={t('platformShell.nav')} className="thin-scroll flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" >
-        <NavLink
-          to={MANAGE.to}
-          className={({ isActive }) =>
-            `flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors ${
-              isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
-            }`
-          }
-        >
-          <MANAGE.icon className="size-[18px] shrink-0" aria-hidden="true" />
-          {t(MANAGE.labelKey)}
-        </NavLink>
+        {LINKS.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            className={() =>
+              `flex items-center gap-2.5 rounded-control px-3 py-2 text-sm transition-colors ${
+                matches(link, pathname) ? 'bg-brand-50 font-medium text-brand-700 dark:bg-white/10 dark:text-brand-100' : 'text-muted hover:bg-surface-2 hover:text-ink'
+              }`
+            }
+          >
+            <link.icon className="size-[18px] shrink-0" aria-hidden="true" />
+            {t(link.labelKey)}
+          </NavLink>
+        ))}
       </nav>
       <div className="space-y-2 border-t border-line p-3">
         <WorkspaceSwitcher mode="platform" companies={companies} />
@@ -139,15 +145,18 @@ export function PlatformLayout() {
               </button>
               {menuOpen ? (
                 <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-60 space-y-0.5 rounded-card border border-line bg-surface p-1.5 shadow-pop">
-                  <Link
-                    to={MANAGE.to}
-                    role="menuitem"
-                    onClick={() => { setMenuOpen(false) }}
-                    className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-ink hover:bg-surface-2 md:hidden"
-                  >
-                    <Settings className="size-4" aria-hidden="true" />
-                    {t(MANAGE.labelKey)}
-                  </Link>
+                  {LINKS.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      role="menuitem"
+                      onClick={() => { setMenuOpen(false) }}
+                      className={`flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm hover:bg-surface-2 md:hidden ${matches(link, pathname) ? 'font-medium text-brand-700 dark:text-brand-200' : 'text-ink'}`}
+                    >
+                      <link.icon className="size-4" aria-hidden="true" />
+                      {t(link.labelKey)}
+                    </Link>
+                  ))}
                   <button
                     type="button"
                     role="menuitem"

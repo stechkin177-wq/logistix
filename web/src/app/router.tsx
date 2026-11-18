@@ -3,6 +3,7 @@ import { Navigate, createBrowserRouter, type RouteObject } from 'react-router'
 import { CarriersPage } from '../features/carriers/CarriersPage'
 import { CompaniesPage } from '../features/platform/CompaniesPage'
 import { HistoryPage } from '../features/platform/HistoryPage'
+import { PlatformDashboardPage } from '../features/platform/PlatformDashboardPage'
 import { PlansPage } from '../features/platform/PlansPage'
 import { DocumentTypesPage } from '../features/doctypes/DocumentTypesPage'
 import { DriversPage } from '../features/drivers/DriversPage'
@@ -133,7 +134,8 @@ export function createRoutes(): RouteObject[] {
             {
               element: <PlatformLayout />,
               children: [
-                { index: true, element: <Navigate to="/platform/companies" replace /> },
+                { index: true, element: <Navigate to="/platform/dashboard" replace /> },
+                { path: 'dashboard', element: <PlatformDashboardPage /> },
                 { path: 'plans', element: <PlansPage /> },
                 { path: 'companies', element: <CompaniesPage /> },
                 { path: 'history', element: <HistoryPage /> },

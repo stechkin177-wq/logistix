@@ -1,6 +1,6 @@
 import { api } from '../../shared/api/client'
 import type { Paginated } from '../../shared/ui/Pagination'
-import type { AdminPlan, Catalog, ChangePreview, HistoryRow, PlatformCompany, SubscriptionInfo } from './types'
+import type { AdminPlan, Catalog, ChangePreview, HistoryRow, PlatformCompany, PlatformDashboard, SubscriptionInfo } from './types'
 
 export const listPlans = (signal?: AbortSignal) => api.get<AdminPlan[]>('/platform/plans/', undefined, { signal })
 export const getCatalog = (signal?: AbortSignal) => api.get<Catalog>('/platform/catalog/', undefined, { signal })
@@ -24,3 +24,5 @@ export const renew = (company: number, periods: number) =>
 
 export const listHistory = (kind: string, q: string, page: number, pageSize: number, signal?: AbortSignal) =>
   api.get<Paginated<HistoryRow>>('/platform/history/', { kind, q, page, page_size: pageSize }, { signal })
+
+export const getDashboard = (signal?: AbortSignal) => api.get<PlatformDashboard>('/platform/dashboard/', undefined, { signal })

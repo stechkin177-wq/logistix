@@ -228,3 +228,16 @@ def test_rls_role_flow(admin_client, company, order):
         )
         assert r.status_code == 201, r.content
         assert admin_client.get(INV).data["count"] == 1
+
+
+def test_search_by_counterparty_invoice_or_order_number(admin_client, company):
+    order = make_order(company)
+    line = add_line(company, order, income=100)
+    a = create(admin_client, company, order, [(line, 100)])
+    admin_client.post(url(a["id"], "issue/"), {}, format="json")
+    ids = lambda q: {x["id"] for x in admin_client.get(INV + "?search=" + q).data["results"]}  # noqa: E731
+    name = order.client.name
+    assert ids(name[:3].lower()) == {a["id"]}  # контрагент, по части названия
+    assert ids(order.number) == {a["id"]}  # номер заказа
+    assert ids("СЧ-") == {a["id"]}  # номер счёта
+    assert ids("нет-такого-zzz") == set()

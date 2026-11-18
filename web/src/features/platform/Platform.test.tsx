@@ -73,13 +73,9 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     renderApp('/platform')
     const nav = await screen.findByRole('navigation', { name: 'Центр управления' })
+    expect(within(nav).getByText('Дашборд')).toBeInTheDocument()
     expect(within(nav).getByText('Управление')).toBeInTheDocument()
     expect(within(nav).queryByText('Тарифы')).not.toBeInTheDocument()
-    // три вкладки раздела, как в «Финансах»
-    const tabs = await screen.findByRole('tablist', { name: 'Разделы управления' })
-    expect(within(tabs).getByRole('tab', { name: 'Подписки' })).toBeInTheDocument()
-    expect(within(tabs).getByRole('tab', { name: 'Тарифы' })).toBeInTheDocument()
-    expect(within(tabs).getByRole('tab', { name: 'История изменений' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
     // имя и роль в блоке аккаунта идут отдельными строками
     expect(await screen.findByText('Владелец')).toBeInTheDocument()
@@ -105,7 +101,7 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     const { router } = renderApp('/orders')
     await screen.findByRole('navigation', { name: 'Центр управления' })
-    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/companies') })
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/dashboard') })
   })
 
   it('пользователь компании не попадает в Центр управления', async () => {
@@ -237,6 +233,11 @@ describe('Панель платформы', () => {
     ])
     renderApp('/platform/companies')
     expect(await screen.findByText('123456789012')).toBeInTheDocument()
+    // три вкладки раздела, как в «Финансах»
+    const tabs = screen.getByRole('tablist', { name: 'Разделы управления' })
+    expect(within(tabs).getByRole('tab', { name: 'Подписки' })).toBeInTheDocument()
+    expect(within(tabs).getByRole('tab', { name: 'Тарифы' })).toBeInTheDocument()
+    expect(within(tabs).getByRole('tab', { name: 'История изменений' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'ИИН/БИН' })).toBeInTheDocument()
     const search = screen.getByPlaceholderText('Название компании или ИИН/БИН')
     await userEvent.type(search, '1234')
@@ -248,5 +249,30 @@ describe('Панель платформы', () => {
       expect(last?.path).toMatch(/plan=start/)
       expect(last?.path).toMatch(/state=inactive/)
     })
+  })
+  it('дашборд админки: показатели, статусы, тарифы и последние действия', async () => {
+    const row = { id: 3, name: 'ТОО Эпсилон', plan_name: 'Старт', status: 'active', ends_at: '2026-12-01T00:00:00Z' }
+    platformLoggedIn([
+      ['GET', '/api/platform/dashboard/', { body: {
+        generated_at: '2026-11-18T08:00:00Z',
+        companies: { total: 5, with_bin: 2, new_30d: 1 },
+        subscriptions: { total: 5, by_status: { trial: 1, active: 2, grace: 1, readonly: 0, blocked: 1 }, free_period: 2, expiring: [row], expiring_count: 1, problem: [{ ...row, id: 4, name: 'ТОО Дзета', status: 'blocked' }], problem_count: 2 },
+        revenue: { currency: 'KZT', mrr: '150000.00', month: '90000.00', year: '1200000.00', by_month: Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(i + 1).padStart(2, '0')}`, revenue: String(i * 1000), new: i % 3 })) },
+        plans: [{ code: 'start', name: 'Старт', status: 'active', subscriptions: 3, price: '0.00', currency: 'KZT', billing_type: 'monthly' }],
+        users: { total: 12, platform: 1, memberships: 10, per_company_avg: 2 },
+        activity: { logins_7d: 4, changes_7d: 2, recent: [{ id: 1, kind: 'plan', key: 'start', action: 'update', actor: 'owner@x.kz', created_at: '2026-11-17T10:00:00Z' }] },
+      } }],
+      ...base,
+    ])
+    renderApp('/platform/dashboard')
+    const kpi = await screen.findByRole('region', { name: 'Ключевые показатели' })
+    expect(within(kpi).getByText('Компаний')).toBeInTheDocument()
+    expect(within(kpi).getByRole('link', { name: /Действующих подписок/ })).toHaveAttribute('href', '/platform/companies?state=active')
+    expect(within(kpi).getByRole('link', { name: /Требуют внимания/ })).toHaveAttribute('href', '/platform/companies?state=inactive')
+    expect(within(kpi).getByText(/90\s000,00/)).toBeInTheDocument()
+    expect(screen.getByText('ТОО Эпсилон')).toBeInTheDocument()
+    expect(screen.getByText('ТОО Дзета')).toBeInTheDocument()
+    expect(screen.getByText('Подписки по тарифам')).toBeInTheDocument()
+    expect(screen.getByText(/Входов за 7 дней/)).toBeInTheDocument()
   })
 })

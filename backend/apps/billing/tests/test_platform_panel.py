@@ -98,3 +98,56 @@ def test_session_exposes_platform_role(admin_client, admin_user):
     assert admin_client.get("/api/session/").json()["user"]["platform_role"] == ""
     User.objects.filter(pk=admin_user.pk).update(platform_role="admin")
     assert admin_client.get("/api/session/").json()["user"]["platform_role"] == "admin"
+
+
+def test_companies_bin_search_and_filters(platform_api, make_company, company):
+    from apps.billing.models import Subscription
+    from apps.core.models import Company
+
+    c = make_company("Гамма")[0]
+    Company.objects.filter(pk=c.pk).update(bin="123456789012")
+    api = platform_api
+    got = api.get("/api/platform/companies/", {"q": "3456"}).json()
+    assert got["count"] == 1 and got["results"][0]["bin"] == "123456789012"
+    assert api.get("/api/platform/companies/", {"q": "1234-5678"}).json()["count"] == 1
+    plan_code = c.subscription.plan.code
+    by_plan = api.get("/api/platform/companies/", {"plan": plan_code}).json()
+    assert by_plan["count"] >= 1
+    assert api.get("/api/platform/companies/", {"plan": "no-such"}).json()["count"] == 0
+    assert api.get("/api/platform/companies/", {"state": "active"}).json()["count"] >= 1
+    Subscription.objects.filter(company=c).update(status=Subscription.BLOCKED)
+    off = api.get("/api/platform/companies/", {"state": "inactive"}).json()
+    assert [r["name"] for r in off["results"]] == ["Гамма"]
+    assert api.get("/api/platform/companies/", {"state": "zzz"}).status_code == 400
+
+
+def test_history_search_by_login_or_company_id(platform_api, company):
+    api = platform_api
+    BillingEvent.objects.create(
+        kind="subscription", key=str(company.pk), action="renew", actor="x@y.kz"
+    )
+    BillingEvent.objects.create(kind="plan", key="start", action="update", actor="boss@z.kz")
+    by_login = api.get("/api/platform/history/", {"q": "boss"}).json()["results"]
+    assert [e["key"] for e in by_login] == ["start"]
+    by_id = api.get("/api/platform/history/", {"q": str(company.pk)}).json()["results"]
+    assert any(e["action"] == "renew" for e in by_id)
+
+
+def test_platform_dashboard_shape_and_access(platform_api, admin_client, make_company, company):
+    make_company("Дельта")
+    assert admin_client.get("/api/platform/dashboard/").status_code == 403
+    d = platform_api.get("/api/platform/dashboard/").json()
+    assert d["companies"]["total"] >= 2 and d["subscriptions"]["total"] >= 2
+    assert set(d["subscriptions"]["by_status"]) == {
+        "trial",
+        "active",
+        "grace",
+        "readonly",
+        "blocked",
+    }
+    assert sum(d["subscriptions"]["by_status"].values()) == d["subscriptions"]["total"]
+    assert len(d["revenue"]["by_month"]) == 12 and d["revenue"]["currency"] == "KZT"
+    assert d["revenue"]["by_month"][-1]["new"] >= 2  # компании созданы в этом месяце
+    assert sum(p["subscriptions"] for p in d["plans"]) == d["subscriptions"]["total"]
+    assert {"logins_7d", "changes_7d", "recent"} <= set(d["activity"])
+    assert d["users"]["memberships"] >= 2

@@ -1,9 +1,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  changePlan, createPlan, deletePlan, getCatalog, getSubscription, listCompanies, listHistory, listPlans,
+  changePlan, createPlan, deletePlan, getCatalog, getDashboard, getSubscription, listCompanies, listHistory, listPlans,
   planAction, previewChange, renew, reorderPlans, updatePlan,
 } from './api'
 
+export const useDashboard = () => useQuery({ queryKey: ['platform', 'dashboard'], queryFn: ({ signal }) => getDashboard(signal), staleTime: 30_000 })
 export const usePlans = () => useQuery({ queryKey: ['platform', 'plans'], queryFn: ({ signal }) => listPlans(signal) })
 export const useCatalog = () => useQuery({ queryKey: ['platform', 'catalog'], queryFn: ({ signal }) => getCatalog(signal), staleTime: 5 * 60_000 })
 export const useCompanies = (q: string, plan: string, state: string, page: number, pageSize: number) =>

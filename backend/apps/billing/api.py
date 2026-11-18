@@ -350,3 +350,14 @@ class PlatformHistoryView(APIView):
             for e in page
         ]  # fmt: skip
         return paginator.get_paginated_response(rows)
+
+
+class PlatformDashboardView(APIView):
+    """Главная страница Центра управления: сводная аналитика платформы (только чтение)."""
+
+    permission_classes = [PlatformAccess]
+
+    def get(self, request):
+        from .dashboard import platform_dashboard
+
+        return Response(platform_dashboard())

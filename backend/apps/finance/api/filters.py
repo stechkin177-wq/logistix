@@ -3,6 +3,7 @@
 from django.db.models import F, Q
 from rest_framework.exceptions import ValidationError
 
+from apps.core.search import search
 from apps.forwarding.orders.filters import date_param, flag_param, int_param
 
 STATUSES = ("draft", "issued", "partial", "paid", "overdue", "cancelled")
@@ -45,7 +46,10 @@ def filter_invoices(qs, params, today):
     if (day := date_param(params, "date_to")) is not None:
         qs = qs.filter(issue_date__lte=day)
     if term := (params.get("search") or "").strip():
-        qs = qs.filter(Q(number__icontains=term) | Q(external_number__icontains=term))
+        qs = search(
+            qs, term,
+            fields=("number", "external_number", "client__name", "carrier__name", "order__number"),
+        )  # fmt: skip
     return qs
 
 

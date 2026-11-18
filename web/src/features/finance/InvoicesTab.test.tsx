@@ -16,7 +16,7 @@ afterEach(() => {
 describe('Счета: список', () => {
   it('выводит номер-ссылку, контрагента, суммы и статус', async () => {
     loggedIn([listRoute()])
-    renderApp('/finance')
+    renderApp('/finance?tab=invoices')
     const link = await screen.findByRole('link', { name: 'СЧ-2026-00001' })
     expect(link).toHaveAttribute('href', '/finance/invoices/1')
     const row = link.closest('tr')!
@@ -27,7 +27,7 @@ describe('Счета: список', () => {
 
   it('черновик без номера показывается как «Черновик №id»', async () => {
     loggedIn([listRoute([makeInvoice({ id: 9, number: '', status: 'draft', display_status: 'draft' })])])
-    renderApp('/finance')
+    renderApp('/finance?tab=invoices')
     expect(await screen.findByRole('link', { name: 'Черновик №9' })).toBeInTheDocument()
   })
 
@@ -46,7 +46,7 @@ describe('Счета: список', () => {
   it('смена статуса в фильтре обновляет запрос', async () => {
     const m = loggedIn([listRoute()])
     const user = userEvent.setup()
-    renderApp('/finance')
+    renderApp('/finance?tab=invoices')
     await screen.findByRole('link', { name: 'СЧ-2026-00001' })
     await user.selectOptions(screen.getByLabelText('Статус'), 'overdue')
     await waitFor(() => {
@@ -56,13 +56,13 @@ describe('Счета: список', () => {
 
   it('пустой список показывает подсказку', async () => {
     loggedIn([listRoute([])])
-    renderApp('/finance')
+    renderApp('/finance?tab=invoices')
     expect(await screen.findByText('Счетов пока нет')).toBeInTheDocument()
   })
 
   it('кнопки создания отключены без finance.create', async () => {
     loggedIn([listRoute()], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.create') } })
-    renderApp('/finance')
+    renderApp('/finance?tab=invoices')
     await screen.findByRole('link', { name: 'СЧ-2026-00001' })
     expect(screen.getByRole('button', { name: 'Выставить счёт' })).toBeDisabled()
   })

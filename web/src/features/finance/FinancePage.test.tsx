@@ -38,6 +38,20 @@ describe('Финансы: оболочка', () => {
     expect(screen.getByRole('tab', { name: 'Курсы' })).toBeInTheDocument() // вкладки на месте под сводкой
   })
 
+  it('«Аналитика» - первая вкладка; деньги показываются только в ней, в остальных вкладках сводки нет', async () => {
+    loggedIn([
+      ['GET', '/api/finance/summary/', { body: { currency: 'KZT', client_debt_kzt: '1.00', overdue_kzt: '2.00', payable_kzt: '3.00', month_profit_kzt: '4.00', month_margin_pct: '5.00', fx_difference_kzt: '0.00', unconverted: 0 } }],
+      ratesRoute(), ...common,
+    ])
+    renderApp('/finance')
+    const tabs = await screen.findAllByRole('tab')
+    expect(tabs[0]).toHaveAccessibleName('Аналитика')
+    expect(tabs[1]).toHaveAccessibleName('Счета')
+    expect(await screen.findByRole('region', { name: 'Сводка' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Курсы' }))
+    await waitFor(() => { expect(screen.queryByRole('region', { name: 'Сводка' })).not.toBeInTheDocument() })
+  })
+
   it('без права finance.view страница недоступна', async () => {
     loggedIn([ratesRoute(), ...common], { session: { permissions: ALL_PERMISSIONS.filter((p) => p !== 'finance.view') } })
     renderApp('/finance')

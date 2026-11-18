@@ -13,14 +13,15 @@ import { OperationsTab } from './OperationsTab'
 import { PaymentsTab } from './PaymentsTab'
 import { RatesTab } from './RatesTab'
 import { PageHeader } from '../../shared/ui/PageHeader'
-import { ClipboardList, Coins, CreditCard, ReceiptText, Scale, TrendingDown, TrendingUp, Wallet, type LucideIcon } from '../../shared/ui/icons'
+import { ChartColumn, ClipboardList, Coins, CreditCard, ReceiptText, Scale, TrendingDown, TrendingUp, Wallet, type LucideIcon } from '../../shared/ui/icons'
 
-const TAB_KEYS = ['invoices', 'payments', 'operations', 'debts', 'rates', 'incomes', 'expenses'] as const
+const TAB_KEYS = ['analytics', 'invoices', 'payments', 'operations', 'debts', 'rates', 'incomes', 'expenses'] as const
 /** Доходы и расходы показываются только при engine = new. */
 const NEW_ONLY: TabKey[] = ['incomes', 'expenses']
 type TabKey = (typeof TAB_KEYS)[number]
 
 const PANELS: Record<TabKey, () => ReactNode> = {
+  analytics: () => <FinanceSummaryCards withFx />,
   invoices: () => <InvoicesTab />,
   payments: () => <PaymentsTab />,
   operations: () => <OperationsTab />,
@@ -31,10 +32,10 @@ const PANELS: Record<TabKey, () => ReactNode> = {
 }
 
 const TAB_ICONS: Record<TabKey, LucideIcon> = {
-  invoices: ReceiptText, payments: CreditCard, operations: ClipboardList, debts: Scale, rates: Coins, incomes: TrendingUp, expenses: TrendingDown,
+  analytics: ChartColumn, invoices: ReceiptText, payments: CreditCard, operations: ClipboardList, debts: Scale, rates: Coins, incomes: TrendingUp, expenses: TrendingDown,
 }
 
-const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'invoices') }
+const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'analytics') }
 
 /** Финансы: вкладки раздела; выбранная вкладка хранится в адресе (?tab=). */
 export function FinancePage() {
@@ -42,11 +43,10 @@ export function FinancePage() {
   const [state, setState] = useUrlState(SCHEMA)
   const { engine } = useFinanceEngine()
   const visible = TAB_KEYS.filter((key) => engine === 'new' || !NEW_ONLY.includes(key))
-  const active: TabKey = visible.includes(state.tab) ? state.tab : 'invoices'
+  const active: TabKey = visible.includes(state.tab) ? state.tab : 'analytics'
   return (
     <div className="space-y-3">
-      <PageHeader icon={Wallet} title={t('nav.finance')} hint="finance" actions={<PeriodPicker />} />
-      <FinanceSummaryCards />
+      <PageHeader icon={Wallet} title={t('nav.finance')} hint="finance" actions={active === 'analytics' ? <PeriodPicker /> : undefined} />
       <Tabs
         label={t('finance.tabsLabel')}
         active={active}

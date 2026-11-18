@@ -8,11 +8,13 @@ import { FormBanner } from '../../shared/ui/FormBanner'
 import { Select } from '../../shared/ui/Select'
 import { Tabs } from '../../shared/ui/Tabs'
 import { TextArea, TextField } from '../../shared/ui/TextField'
+import { Blocks, Gauge, Settings, type LucideIcon } from '../../shared/ui/icons'
 import { useCatalog, useSavePlan } from './hooks'
 import type { AdminPlan, BillingType, Catalog } from './types'
 
 type TabKey = 'main' | 'content' | 'limits'
 const TABS: TabKey[] = ['main', 'content', 'limits']
+const TAB_ICONS: Record<TabKey, LucideIcon> = { main: Settings, content: Blocks, limits: Gauge }
 const PERIODS: BillingType[] = ['monthly', 'yearly', 'lifetime']
 const CODE_RE = /^[a-z0-9][a-z0-9_-]{0,49}$/
 
@@ -94,7 +96,7 @@ export function PlanDrawer({ plan, onClose }: { plan: AdminPlan | null; onClose:
         </>
       }
     >
-      <Tabs label={t('platform.plans.tabsLabel')} tabs={TABS.map((k) => ({ key: k, label: t(`platform.plans.tabs.${k}`) }))} active={tab} onChange={(k) => { setTab(k as TabKey) }} />
+      <Tabs variant="pills" label={t('platform.plans.tabsLabel')} tabs={TABS.map((k) => ({ key: k, icon: TAB_ICONS[k], label: t(`platform.plans.tabs.${k}`) }))} active={tab} onChange={(k) => { setTab(k as TabKey) }} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-3 space-y-3">
         <FormBanner message={error} />
         {tab === 'main' ? (

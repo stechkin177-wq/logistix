@@ -42,6 +42,7 @@ export function FinanceSummaryCards({ withFx = false, className = '' }: { withFx
           label={t('dashboard.profit')}
           value={money(finance.month_profit_kzt, finance.currency)}
           tone={Number(finance.month_profit_kzt) < 0 ? 'danger' : undefined}
+          to="/finance?tab=operations"
           sub={finance.month_margin_pct === null ? undefined : t('dashboard.marginInline', { value: money(finance.month_margin_pct) })}
         />
         <Stat label={t('finance.dashboard.overdue')} value={money(overdue, debtsCur)} to="/finance?tab=invoices&status=overdue&direction=out" />
