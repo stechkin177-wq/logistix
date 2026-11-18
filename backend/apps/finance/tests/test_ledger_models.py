@@ -172,10 +172,10 @@ def test_settings_clean_validates_currency_and_status(company, make_company, in_
     row = settings_of(company)
     row.base_currency = cur(company, "RUB")
     row.full_clean()  # допустимо
-    # справочник валют, но не из допустимых четырёх
+    # справочник валют, но не из допустимых
     with tenant_context(company.id):
         extra = HandbookValue.objects.create(
-            handbook=cur(company).handbook, name="Юань", code="CNY", order=9
+            handbook=cur(company).handbook, name="Иена", code="JPY", order=9
         )
     row.base_currency = extra
     with pytest.raises(ValidationError) as exc:

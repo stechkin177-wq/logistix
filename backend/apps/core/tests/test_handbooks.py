@@ -100,6 +100,7 @@ def test_other_seeded_contents(company):
         ("Российский рубль", "RUB"),
         ("Доллар США", "USD"),
         ("Евро", "EUR"),
+        ("Китайский юань", "CNY"),
     ]
     countries = {v.code: v.name for v in values_of(company, "country")}
     assert len(countries) == 20
@@ -215,12 +216,12 @@ def test_handbooks_cannot_be_created_or_changed_via_api(admin_client):
 
 def test_values_list_filters(admin_client):
     r = admin_client.get("/api/handbook-values/?handbook=currency")
-    assert [v["code"] for v in r.json()] == ["KZT", "RUB", "USD", "EUR"]
+    assert [v["code"] for v in r.json()] == ["KZT", "RUB", "USD", "EUR", "CNY"]
     assert r.json()[0]["handbook"] == "currency"
     vid = r.json()[1]["id"]
     admin_client.patch(f"/api/handbook-values/{vid}/", {"is_active": False}, format="json")
     r = admin_client.get("/api/handbook-values/?handbook=currency&is_active=true")
-    assert [v["code"] for v in r.json()] == ["KZT", "USD", "EUR"]
+    assert [v["code"] for v in r.json()] == ["KZT", "USD", "EUR", "CNY"]
     r = admin_client.get("/api/handbook-values/?handbook=currency&is_active=false")
     assert [v["code"] for v in r.json()] == ["RUB"]
 
@@ -445,10 +446,10 @@ def test_integrity_error_maps_to_409(admin_client, company, monkeypatch):
 def test_code_is_stripped_and_blank_code_rejected(admin_client, company):
     r = admin_client.post(
         "/api/handbook-values/",
-        {"handbook": "currency", "name": "Юань", "code": " CNY "},
+        {"handbook": "currency", "name": "Иена", "code": " JPY "},
         format="json",
     )
-    assert r.status_code == 201 and r.json()["code"] == "CNY"
+    assert r.status_code == 201 and r.json()["code"] == "JPY"
     r = admin_client.post(
         "/api/handbook-values/",
         {"handbook": "currency", "name": "Иена", "code": "   "},

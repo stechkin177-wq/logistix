@@ -299,7 +299,7 @@ def test_change_base_currency_validation(company):
     user = first_user(company)
     with tenant_context(company.id):
         cny = HandbookValue.objects.create(
-            handbook=cur(company).handbook, name="Юань", code="CNY", order=9
+            handbook=cur(company).handbook, name="Иена", code="JPY", order=9
         )
     raises_code("base_currency_invalid", lambda: change_base_currency(company, cny, user, "x"))
     raises_code(
