@@ -268,3 +268,29 @@ class WialonClient:
             return None
         ts, text = max(candidates, key=lambda c: c[0])
         return {"text": text, "timestamp": ts}
+
+    def get_track(self, unit_id: int, dt_from: int, dt_to: int) -> list[dict]:
+        """Трек юнита за период (unix): сообщения с позицией [{t, lat, lon, speed}] по времени.
+        Сообщения данных (flags=1, маска 0xFF01); сообщения без координат пропускаются."""
+        self.ensure_session()
+        data = self._request(
+            "messages/load_interval",
+            {
+                "itemId": unit_id, "timeFrom": dt_from, "timeTo": dt_to,
+                "flags": 1, "flagsMask": 65281, "loadCount": 4294967295,
+            },
+        )  # fmt: skip
+        points = []
+        for message in data.get("messages") or []:
+            pos = message.get("pos") or {}
+            if pos.get("y") is None or pos.get("x") is None or not message.get("t"):
+                continue
+            points.append(
+                {"t": message["t"], "lat": pos["y"], "lon": pos["x"], "speed": pos.get("s")}
+            )
+        try:
+            self._request("messages/unload", {})
+        except WialonAPIError:
+            pass
+        points.sort(key=lambda p: p["t"])
+        return points

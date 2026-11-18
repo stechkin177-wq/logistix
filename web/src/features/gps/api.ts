@@ -1,6 +1,6 @@
 import { api } from '../../shared/api/client'
 import type { Paginated } from '../../shared/ui/Pagination'
-import type { Geofence, GeofenceEvent, GeofencePayload, GpsAccount, GpsAccountForm, GpsUnit, SyncResult } from './types'
+import type { Geofence, GeofenceEvent, GeofencePayload, GpsAccount, GpsAccountForm, GpsUnit, SyncResult, TrackResult } from './types'
 
 export const getGpsAccount = (signal?: AbortSignal) => api.get<GpsAccount>('/gps/account/', undefined, { signal })
 export const saveGpsAccount = (body: Partial<GpsAccountForm>) => api.put<GpsAccount>('/gps/account/', body)
@@ -23,3 +23,6 @@ export const deleteGeofence = (id: number) => api.delete(`/gps/geofences/${Strin
 export interface EventFilters { page: number; event_type?: string; vehicle?: number; geofence?: number }
 export const listGeofenceEvents = (f: EventFilters, signal?: AbortSignal) =>
   api.get<Paginated<GeofenceEvent>>('/gps/events/', { page: f.page, event_type: f.event_type || undefined, vehicle: f.vehicle, geofence: f.geofence }, { signal })
+
+export const getUnitTrack = (id: number, dateFrom: string, dateTo: string, signal?: AbortSignal) =>
+  api.get<TrackResult>(`/gps/units/${String(id)}/track/`, { date_from: dateFrom || undefined, date_to: dateTo || undefined }, { signal })

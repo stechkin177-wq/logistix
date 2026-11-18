@@ -100,7 +100,7 @@ def test_web_vercel_json_security_headers():
     csp = headers["content-security-policy"]
     for directive in (
         "default-src 'self'",
-        "img-src 'self' data:",
+        "img-src 'self' data: https://*.tile.openstreetmap.org",  # плитки карты GPS
         "style-src 'self' 'unsafe-inline'",
         "connect-src 'self'",
         "frame-ancestors 'none'",

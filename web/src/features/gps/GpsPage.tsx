@@ -3,15 +3,16 @@ import { Link } from 'react-router'
 import { codecs, useUrlState } from '../../shared/hooks/useUrlState'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Tabs } from '../../shared/ui/Tabs'
-import { History, MapPin, Settings, Shield, type LucideIcon } from '../../shared/ui/icons'
+import { History, Map, MapPin, Settings, Shield, type LucideIcon } from '../../shared/ui/icons'
 import { useSession } from '../../shared/auth/useSession'
 import { EventsTab } from './EventsTab'
 import { GeofencesTab } from './GeofencesTab'
+import { MapTab } from './MapTab'
 import { UnitsTab } from './UnitsTab'
 
-const TAB_KEYS = ['units', 'geofences', 'events'] as const
-const TAB_ICONS: Record<(typeof TAB_KEYS)[number], LucideIcon> = { units: MapPin, geofences: Shield, events: History }
-const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'units') }
+const TAB_KEYS = ['map', 'units', 'geofences', 'events'] as const
+const TAB_ICONS: Record<(typeof TAB_KEYS)[number], LucideIcon> = { map: Map, units: MapPin, geofences: Shield, events: History }
+const SCHEMA = { tab: codecs.oneOf(TAB_KEYS, 'map') }
 
 /** GPS-мониторинг: техника из Wialon с привязкой к технике парка, геозоны и события въезда/выезда. */
 export function GpsPage() {
@@ -38,10 +39,10 @@ export function GpsPage() {
         variant="pills"
         pinned
         tabs={TAB_KEYS.map((key) => ({ key, icon: TAB_ICONS[key], label: t(`gps.tabs.${key}`) }))}
-        onChange={(tab) => { setState({ tab: TAB_KEYS.find((k) => k === tab) ?? 'units' }) }}
+        onChange={(tab) => { setState({ tab: TAB_KEYS.find((k) => k === tab) ?? 'map' }) }}
       />
       <div role="tabpanel" id={`panel-${state.tab}`} aria-labelledby={`tab-${state.tab}`}>
-        {state.tab === 'units' ? <UnitsTab /> : state.tab === 'geofences' ? <GeofencesTab /> : <EventsTab />}
+        {state.tab === 'map' ? <MapTab /> : state.tab === 'units' ? <UnitsTab /> : state.tab === 'geofences' ? <GeofencesTab /> : <EventsTab />}
       </div>
     </div>
   )

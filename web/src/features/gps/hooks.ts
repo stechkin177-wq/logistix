@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  autoLinkGpsUnits, createGeofence, deleteGeofence, getGpsAccount, linkGpsUnit, listGeofenceEvents, listGeofences, listGpsUnits,
+  autoLinkGpsUnits, createGeofence, deleteGeofence, getGpsAccount, getUnitTrack, linkGpsUnit, listGeofenceEvents, listGeofences, listGpsUnits,
   saveGpsAccount, syncGps, testGpsAccount, unlinkGpsUnit, updateGeofence, type EventFilters, type UnitFilters,
 } from './api'
 
@@ -49,3 +49,12 @@ export function useDeleteGeofence() {
   const invalidate = useInvalidateGps()
   return useMutation({ mutationFn: deleteGeofence, onSuccess: invalidate })
 }
+
+/** Трек юнита за период; запрашивается только по нажатию «Показать» (enabled). */
+export const useUnitTrack = (id: number | null, dateFrom: string, dateTo: string, enabled: boolean) =>
+  useQuery({
+    queryKey: ['gps', 'track', id, dateFrom, dateTo],
+    queryFn: ({ signal }) => getUnitTrack(id ?? 0, dateFrom, dateTo, signal),
+    enabled: enabled && id !== null,
+    staleTime: 60_000,
+  })

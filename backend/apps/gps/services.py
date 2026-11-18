@@ -369,3 +369,55 @@ def compare_fuel(reported_l, gps_l) -> dict:
     out["difference_l"] = diff
     out["warning"] = abs(diff) > max(FUEL_TOLERANCE_L, gps * FUEL_TOLERANCE_PCT / 100)
     return out
+
+
+# --- трек ---------------------------------------------------------------------------------------
+
+TRACK_MAX_POINTS = 800  # точек на карте не больше: длинные треки прореживаются равномерно
+
+
+def downsample(points: list[dict], limit: int = TRACK_MAX_POINTS) -> list[dict]:
+    """Равномерно оставляет не больше limit точек; первая и последняя сохраняются."""
+    if len(points) <= limit or limit < 2:
+        return points
+    step = (len(points) - 1) / (limit - 1)
+    return [points[round(i * step)] for i in range(limit)]
+
+
+def track_length_km(points: list[dict]) -> float:
+    return round(
+        sum(
+            geometry.distance_m(a["lat"], a["lon"], b["lat"], b["lon"])
+            for a, b in zip(points, points[1:], strict=False)
+        )
+        / 1000,
+        1,
+    )
+
+
+def unit_track(unit: GpsUnit, dt_from: datetime, dt_to: datetime, client=None) -> dict:
+    """Трек привязанного или любого юнита за период. Чтение: ничего не сохраняется.
+    available=False с причиной: нет аккаунта или Wialon недоступен."""
+    result = {"available": False, "reason": "", "points": [], "total_points": 0, "length_km": None}
+    account = WialonAccount.objects.filter(is_active=True).first()
+    if account is None or not account.token_enc:
+        result["reason"] = "no_account"
+        return result
+    try:
+        client = client or client_for(account)
+        raw = client.get_track(int(unit.unit_id), int(dt_from.timestamp()), int(dt_to.timestamp()))
+    except (WialonAPIError, ValueError) as exc:
+        logger.warning("Wialon: трек юнита %s: %s", unit.unit_id, exc)
+        result["reason"] = "wialon_error"
+        return result
+    result.update(
+        available=True,
+        total_points=len(raw),
+        length_km=track_length_km(raw),
+        points=[
+            {"t": _dt(p["t"]), "lat": round(float(p["lat"]), 6), "lon": round(float(p["lon"]), 6),
+             "speed": p.get("speed")}
+            for p in downsample(raw)
+        ],
+    )  # fmt: skip
+    return result

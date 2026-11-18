@@ -1,11 +1,18 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { makeSession, page } from '../../test/fixtures'
 import { loggedIn } from '../../test/harness'
 import { ALL_PERMISSIONS } from '../../test/permissions'
 import { renderApp } from '../../test/renderApp'
 import { parsePolygon } from './GeofencesTab'
+
+// Leaflet в jsdom не рисуется: вместо карты - заглушка, показывающая, что ей передали
+vi.mock('./GpsMap', () => ({
+  default: ({ units, geofences, track }: { units: unknown[]; geofences: unknown[]; track: unknown[] }) => (
+    <div data-testid="map-stub">{`units=${String(units.length)} zones=${String(geofences.length)} track=${String(track.length)}`}</div>
+  ),
+}))
 
 const MODULES = { modules: ['logistics', 'fleet', 'gps'] }
 const UNIT = {
@@ -30,7 +37,7 @@ describe('GPS', () => {
       ],
       { session: MODULES },
     )
-    renderApp('/gps')
+    renderApp('/gps?tab=units')
     expect(await screen.findByText('Volvo 886 AIA 14')).toBeInTheDocument()
     expect(screen.getByText(/123\s?456,7 км/)).toBeInTheDocument()
     expect(screen.getByText('310.5 л')).toBeInTheDocument()
@@ -43,6 +50,45 @@ describe('GPS', () => {
     await waitFor(() => { expect(m.calls.some((c) => c.path === '/api/gps/units/1/unlink/')).toBe(true) })
   })
 
+  it('карта: позиции и зоны передаются на карту, трек запрашивается по кнопке за выбранный период', async () => {
+    const m = loggedIn(
+      [
+        ['GET', /^\/api\/gps\/units\/\?/, { body: page([UNIT, FREE]) }],
+        ['GET', /^\/api\/gps\/geofences\//, { body: page([GEO]) }],
+        ['GET', /^\/api\/gps\/units\/1\/track\//, { body: { available: true, reason: '', total_points: 2, length_km: 12.3, points: [{ t: '2026-11-18T08:00:00Z', lat: 43.2, lon: 76.9, speed: 50 }, { t: '2026-11-18T09:00:00Z', lat: 43.3, lon: 77.0, speed: 60 }] } }],
+      ],
+      { session: MODULES },
+    )
+    renderApp('/gps')
+    expect(await screen.findByTestId('map-stub')).toHaveTextContent('units=2 zones=1 track=0')
+    await screen.findByRole('option', { name: /886AIA14/ })
+    const show = screen.getByRole('button', { name: 'Показать трек' })
+    expect(show).toBeDisabled() // юнит не выбран
+    await userEvent.selectOptions(screen.getByLabelText('Юнит Wialon'), '1')
+    await userEvent.click(show)
+    expect(await screen.findByText('Точек в треке: 2, длина около 12.3 км')).toBeInTheDocument()
+    expect(screen.getByTestId('map-stub')).toHaveTextContent('track=2')
+    expect(m.calls.some((c) => /\/api\/gps\/units\/1\/track\/\?date_from=/.test(c.path))).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Убрать трек' }))
+    await waitFor(() => { expect(screen.getByTestId('map-stub')).toHaveTextContent('track=0') })
+  })
+
+  it('карта: Wialon недоступен - понятное сообщение вместо трека', async () => {
+    loggedIn(
+      [
+        ['GET', /^\/api\/gps\/units\/\?/, { body: page([UNIT]) }],
+        ['GET', /^\/api\/gps\/geofences\//, { body: page([]) }],
+        ['GET', /^\/api\/gps\/units\/1\/track\//, { body: { available: false, reason: 'wialon_error', total_points: 0, length_km: null, points: [] } }],
+      ],
+      { session: MODULES },
+    )
+    renderApp('/gps')
+    await screen.findByRole('option', { name: /886AIA14/ })
+    await userEvent.selectOptions(screen.getByLabelText('Юнит Wialon'), '1')
+    await userEvent.click(screen.getByRole('button', { name: 'Показать трек' }))
+    expect(await screen.findByText('Wialon недоступен, повторите позже')).toBeInTheDocument()
+  })
+
   it('синхронизация и привязка по номеру вызывают сервер; без права управления кнопки отключены', async () => {
     const m = loggedIn(
       [
@@ -52,7 +98,7 @@ describe('GPS', () => {
       ],
       { session: MODULES },
     )
-    renderApp('/gps')
+    renderApp('/gps?tab=units')
     await userEvent.click(await screen.findByRole('button', { name: 'Синхронизировать' }))
     expect(await screen.findByText('Синхронизировано юнитов: 3')).toBeInTheDocument()
     expect(m.calls.some((c) => c.path === '/api/gps/sync/')).toBe(true)
@@ -62,7 +108,7 @@ describe('GPS', () => {
     loggedIn([...(base() as []), ['GET', /^\/api\/gps\/units\//, { body: page([UNIT]) }]], {
       session: { ...MODULES, permissions: ALL_PERMISSIONS.filter((p) => p !== 'gps.manage') },
     })
-    renderApp('/gps')
+    renderApp('/gps?tab=units')
     expect(await screen.findByText('Volvo 886 AIA 14')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Синхронизировать' })).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Настройки GPS' })).not.toBeInTheDocument()
@@ -70,7 +116,7 @@ describe('GPS', () => {
 
   it('без модуля gps страницы нет', async () => {
     loggedIn([...(base() as [])], { session: makeSession({ modules: ['logistics', 'fleet'] }) })
-    renderApp('/gps')
+    renderApp('/gps?tab=units')
     expect(await screen.findByText('Нет доступа')).toBeInTheDocument()
   })
 

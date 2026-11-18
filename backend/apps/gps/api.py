@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -179,6 +179,26 @@ class UnitViewSet(viewsets.ReadOnlyModelViewSet):
         unit.vehicle = vehicle
         unit.save(update_fields=["vehicle"])
         return Response(UnitSerializer(unit).data)
+
+    @action(detail=True, methods=["get"])
+    def track(self, request, pk=None):
+        """Трек юнита: ?date_from=ГГГГ-ММ-ДД&date_to=ГГГГ-ММ-ДД (по умолчанию - последние сутки)."""
+        unit = self.get_object()
+        p = request.query_params
+        try:
+            if p.get("date_from") or p.get("date_to"):
+                first = date.fromisoformat(p.get("date_from", ""))
+                last = date.fromisoformat(p.get("date_to", ""))
+                start = datetime.combine(first, time.min, tzinfo=UTC)
+                end = datetime.combine(last, time.max, tzinfo=UTC)
+            else:
+                end = datetime.now(tz=UTC)
+                start = end - timedelta(days=1)
+        except ValueError:
+            raise ValidationError({"date_from": "Даты в формате ГГГГ-ММ-ДД"}) from None
+        if end < start or (end - start).days > 31:
+            raise ValidationError({"date_to": "Период от одного дня до 31 дня"})
+        return Response(services.unit_track(unit, start, end))
 
     @action(detail=True, methods=["post"])
     def unlink(self, request, pk=None):

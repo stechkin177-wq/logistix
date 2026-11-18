@@ -73,6 +73,12 @@ class FakeClient:
 
     template = None
     fillings: list = []
+    track: list = []
+
+    def get_track(self, unit_id, dt_from, dt_to):
+        if self.fail:
+            raise WialonAPIError(self.fail)
+        return self.track
 
     def find_report_template(self):
         return self.template
@@ -563,3 +569,50 @@ def test_fuel_check_validation_and_permissions(gco):
     assert api.get(fuel_url(veh, reported_l="abc")).status_code == 400
     assert api_with_role(company, "Диспетчер").get(fuel_url(veh)).status_code == 200  # просмотр
     assert api_with_role(company, "Бухгалтер").get(fuel_url(veh)).status_code == 403  # нет gps.view
+
+
+# --- трек ---------------------------------------------------------------------------------
+
+
+def test_downsample_and_length():
+    pts = [{"t": i, "lat": 43.0 + i * 0.001, "lon": 76.0} for i in range(2000)]
+    small = services.downsample(pts, 800)
+    assert len(small) == 800 and small[0] == pts[0] and small[-1] == pts[-1]
+    assert services.downsample(pts[:10], 800) == pts[:10]
+    assert 220 < services.track_length_km(pts) < 225  # ~2 градуса по широте
+    assert services.track_length_km([]) == 0 and services.track_length_km(pts[:1]) == 0
+
+
+def test_unit_track_api(gco, fake):
+    company, _, api = gco
+    with tenant_context(company.id):
+        unit = GpsUnit.objects.create(unit_id="501", name="U")
+    url = f"{BASE}units/{unit.pk}/track/"
+    assert api.get(url).json()["reason"] == "no_account"
+    connect(api)
+    client = FakeClient()
+    client.track = [
+        {"t": 1_762_000_000 + i * 60, "lat": 43.2 + i * 0.01, "lon": 76.9, "speed": 50}
+        for i in range(5)
+    ]
+    fake["client"] = client
+    data = api.get(url + "?date_from=2026-11-01&date_to=2026-11-02").json()
+    assert data["available"] and data["total_points"] == 5 and len(data["points"]) == 5
+    assert data["points"][0]["lat"] == 43.2 and data["length_km"] > 4
+    assert api.get(url).json()["available"] is True  # по умолчанию - последние сутки
+    fake["client"] = FakeClient(fail="Wialon недоступен: URLError")
+    bad = api.get(url + "?date_from=2026-11-01&date_to=2026-11-02").json()
+    assert bad["available"] is False and bad["reason"] == "wialon_error" and bad["points"] == []
+
+
+def test_unit_track_validation_and_permissions(gco):
+    company, _, api = gco
+    with tenant_context(company.id):
+        unit = GpsUnit.objects.create(unit_id="501", name="U")
+    url = f"{BASE}units/{unit.pk}/track/"
+    assert api.get(url + "?date_from=junk&date_to=2026-11-02").status_code == 400
+    assert api.get(url + "?date_from=2026-11-02").status_code == 400  # одна дата
+    assert api.get(url + "?date_from=2026-11-05&date_to=2026-11-01").status_code == 400
+    assert api.get(url + "?date_from=2026-01-01&date_to=2026-11-01").status_code == 400
+    assert api_with_role(company, "Диспетчер").get(url).status_code == 200
+    assert api_with_role(company, "Бухгалтер").get(url).status_code == 403

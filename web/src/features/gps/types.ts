@@ -71,3 +71,12 @@ export interface SyncResult {
   units?: { units_seen: number; created: number; updated: number; auto_linked: number }
   geofences?: { zones_seen: number; created: number; updated: number; deactivated: number }
 }
+
+export interface TrackPoint { t: string; lat: number; lon: number; speed: number | null }
+export interface TrackResult {
+  available: boolean
+  reason: '' | 'no_account' | 'wialon_error'
+  points: TrackPoint[]
+  total_points: number
+  length_km: number | null
+}
