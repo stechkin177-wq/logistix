@@ -107,7 +107,7 @@ export function PlatformLayout() {
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-tight">{branding.app_name}</p>
-              <p className="truncate text-[11px] leading-tight text-muted">{t('platformShell.title')}</p>
+              <p className="text-[10px] leading-[1.15] text-muted">{t('platformShell.title')}</p>
             </div>
           </div>
           {current ? (
