@@ -9,15 +9,15 @@ import { HeaderSlotContext, HintSlotContext } from '../../shared/ui/headerBleed'
 import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
 import { ThemeToggle } from '../../shared/ui/ThemeToggle'
 import { initials } from '../../layout/ProfileMenu'
-import { ChevronDown, KeyRound, LayoutDashboard, LogOut, Settings } from '../../shared/ui/icons'
+import { ChevronDown, KeyRound, LogOut, Settings } from '../../shared/ui/icons'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
 
 /** Дашборд и «Управление» (подписки, тарифы, история - вкладки внутри раздела). */
-const DASHBOARD = { to: '/platform/dashboard', labelKey: 'nav.platformDashboard', icon: LayoutDashboard, match: ['/platform/dashboard'] }
+const HOME = '/platform/dashboard'
 const MANAGE = { to: '/platform/companies', labelKey: 'platformShell.manage', icon: Settings, match: ['/platform/companies', '/platform/plans', '/platform/history'] }
-const LINKS = [DASHBOARD, MANAGE]
+const LINKS = [MANAGE]  // главная (дашборд) открывается по умолчанию и по нажатию на «Logistix»
 const matches = (link: (typeof LINKS)[number], pathname: string) => link.match.some((m) => pathname.startsWith(m))
 
 /** Оболочка Центра управления платформы: не зависит от тарифов и модулей компаний. */
@@ -63,7 +63,7 @@ export function PlatformLayout() {
 
   const panel = () => (
     <aside className="flex h-full w-60 shrink-0 flex-col rounded-card border border-line bg-surface shadow-card">
-      <div className="flex min-h-14 items-center gap-2.5 px-4 py-2">
+      <Link to={HOME} aria-label={`${branding.app_name}: ${t('platformShell.title')}`} className="flex min-h-14 items-center gap-2.5 rounded-card px-4 py-2 transition-colors hover:bg-surface-2">
         {branding.logo_url ? (
           <img src={branding.logo_url} alt="" className="size-7 rounded-md object-contain" />
         ) : (
@@ -75,7 +75,7 @@ export function PlatformLayout() {
           <p className="truncate text-sm font-semibold leading-tight">{branding.app_name}</p>
           <p className="text-xs leading-tight text-muted">{t('platformShell.title')}</p>
         </div>
-      </div>
+      </Link>
       <nav aria-label={t('platformShell.nav')} className="thin-scroll flex-1 space-y-0.5 overflow-y-auto px-2 pb-2" >
         {LINKS.map((link) => (
           <NavLink
@@ -103,7 +103,7 @@ export function PlatformLayout() {
       <div className="hidden p-3 pr-0 md:block">{panel()}</div>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 touch-none select-none items-center gap-3 border-b border-line bg-surface px-3 md:h-auto md:border-b-0 md:bg-transparent md:px-5 md:pb-0 md:pt-3">
-          <div className="flex min-w-0 items-center gap-2 md:hidden">
+          <Link to={HOME} aria-label={`${branding.app_name}: ${t('platformShell.title')}`} className="flex min-w-0 items-center gap-2 md:hidden">
             {branding.logo_url ? (
               <img src={branding.logo_url} alt="" className="size-7 shrink-0 rounded-md object-contain" />
             ) : (
@@ -115,7 +115,7 @@ export function PlatformLayout() {
               <p className="truncate text-sm font-semibold leading-tight">{branding.app_name}</p>
               <p className="text-[10px] leading-[1.15] text-muted">{t('platformShell.title')}</p>
             </div>
-          </div>
+          </Link>
           {current ? (
             <p className="hidden min-w-0 items-center gap-2 rounded-control bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 dark:bg-white/10 dark:text-brand-100">
               <current.icon className="size-4 shrink-0" aria-hidden="true" />

@@ -73,7 +73,8 @@ describe('Панель платформы', () => {
     platformLoggedIn([...base])
     renderApp('/platform')
     const nav = await screen.findByRole('navigation', { name: 'Центр управления' })
-    expect(within(nav).getByText('Дашборд')).toBeInTheDocument()
+    expect(within(nav).queryByText('Дашборд')).not.toBeInTheDocument()  // главная открывается по умолчанию и по нажатию на «Logistix»
+    expect(screen.getAllByRole('link', { name: /Logistix/ })[0]).toHaveAttribute('href', '/platform/dashboard')
     expect(within(nav).getByText('Управление')).toBeInTheDocument()
     expect(within(nav).queryByText('Тарифы')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Основное меню' })).not.toBeInTheDocument()
@@ -277,5 +278,11 @@ describe('Панель платформы', () => {
     expect(screen.getByText('ТОО Дзета')).toBeInTheDocument()
     expect(screen.getByText('Подписки по тарифам')).toBeInTheDocument()
     expect(screen.getByText(/Входов за 7 дней/)).toBeInTheDocument()
+  })
+  it('нажатие на «Logistix · Центр управления платформой» ведёт на главную с дашбордом', async () => {
+    platformLoggedIn([...base, ['GET', /^\/api\/platform\/companies\//, { body: page([]) }]])
+    const { router } = renderApp('/platform/companies')
+    await userEvent.click((await screen.findAllByRole('link', { name: /Logistix/ }))[0]!)
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/platform/dashboard') })
   })
 })
