@@ -10,8 +10,14 @@ import { DateTime } from '../../shared/ui/DateTime'
 import { PageHeader } from '../../shared/ui/PageHeader'
 import { Stat } from '../../shared/ui/Stat'
 import { Activity, Building2, CircleAlert, Clock, Coins, LayoutDashboard, TrendingUp, Users, Wallet } from '../../shared/ui/icons'
+import { PeriodPicker } from '../dashboard/PeriodPicker'
+import { financePeriodQuery, usePeriod } from '../dashboard/profitPeriod'
 import { useDashboard } from './hooks'
 import type { DashboardCompanyRow, PlatformDashboard } from './types'
+
+/** У платформы нет своего пояса: границы периода считаются по Алматы (пояс компаний по умолчанию). */
+const PLATFORM_TZ = 'Asia/Almaty'
+const ruDate = (iso: string) => iso.split('-').reverse().join('.')
 
 const STATUS_ORDER = ['active', 'trial', 'grace', 'readonly', 'blocked'] as const
 const STATUS_COLOR: Record<(typeof STATUS_ORDER)[number], string> = {
@@ -36,34 +42,38 @@ function Card({ title, icon: Icon, children, action }: { title: string; icon: ty
   )
 }
 
-/** Месяц «2026-11» -> «ноя 26» по языку интерфейса. */
-function useMonthLabel() {
+/** Подпись столбца: день - число («05»), месяц - короткое название («ноя»). */
+function useBucketLabel() {
   const { i18n } = useTranslation()
-  return (ym: string) => {
-    const [y, m] = ym.split('-').map(Number)
+  return (bucket: string, granularity: 'day' | 'month') => {
+    if (granularity === 'day') return bucket.slice(8)
+    const [y, m] = bucket.split('-').map(Number)
     return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, 1)).toLocaleDateString(i18n.language, { month: 'short', timeZone: 'UTC' }).replace('.', '')
   }
 }
 
-function RevenueChart({ data }: { data: PlatformDashboard['revenue'] }) {
+function RevenueChart({ data, granularity }: { data: PlatformDashboard['revenue']; granularity: 'day' | 'month' }) {
   const { t } = useTranslation()
   const { money } = useFormat()
-  const label = useMonthLabel()
-  const max = Math.max(1, ...data.by_month.map((m) => Number(m.revenue)))
-  const maxNew = Math.max(1, ...data.by_month.map((m) => m.new))
+  const label = useBucketLabel()
+  const rows = data.by_bucket
+  const max = Math.max(1, ...rows.map((m) => Number(m.revenue)))
+  const maxNew = Math.max(1, ...rows.map((m) => m.new))
+  // при длинном периоде по дням подписи прореживаются, чтобы не слипались
+  const step = rows.length > 16 ? Math.ceil(rows.length / 12) : 1
   return (
     <div>
-      <ul aria-label={t('platform.dashboard.revenueByMonth')} className="grid h-40 grid-cols-12 items-end gap-1 sm:gap-2">
-        {data.by_month.map((m) => {
+      <ul aria-label={t('platform.dashboard.revenueByPeriod')} className="flex h-40 items-end gap-px sm:gap-1">
+        {rows.map((m, i) => {
           const h = Math.round((Number(m.revenue) / max) * 100)
           const nh = Math.round((m.new / maxNew) * 100)
           return (
-            <li key={m.month} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${m.month}: ${money(m.revenue, data.currency)}; ${t('platform.dashboard.newCompanies')}: ${m.new}`}>
-              <div className="flex h-full w-full items-end justify-center gap-0.5">
-                <span className="w-1/2 max-w-4 rounded-t bg-brand-500" style={{ height: `${Math.max(h, m.revenue === '0.00' || Number(m.revenue) === 0 ? 2 : 4)}%` }} />
+            <li key={m.bucket} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${m.bucket}: ${money(m.revenue, data.currency)}; ${t('platform.dashboard.newCompanies')}: ${m.new}`}>
+              <div className="flex h-full w-full items-end justify-center gap-px">
+                <span className="w-1/2 max-w-4 rounded-t bg-brand-500" style={{ height: `${Math.max(h, Number(m.revenue) === 0 ? 2 : 4)}%` }} />
                 <span className="w-1/2 max-w-4 rounded-t bg-emerald-400" style={{ height: `${Math.max(nh, m.new === 0 ? 2 : 4)}%` }} />
               </div>
-              <span className="text-[10px] leading-none text-muted">{label(m.month)}</span>
+              <span className={`h-2.5 text-[10px] leading-none text-muted ${i % step === 0 ? '' : 'invisible'}`}>{label(m.bucket, granularity)}</span>
             </li>
           )
         })}
@@ -101,7 +111,8 @@ function CompanyList({ rows, empty }: { rows: DashboardCompanyRow[]; empty: stri
 export function PlatformDashboardPage() {
   const { t } = useTranslation()
   const { money } = useFormat()
-  const q = useDashboard()
+  const [period] = usePeriod()
+  const q = useDashboard(financePeriodQuery(period, PLATFORM_TZ))
   const d = q.data
   const cur = d?.revenue.currency
   const live = d ? d.subscriptions.by_status.active + d.subscriptions.by_status.trial : 0
@@ -110,18 +121,19 @@ export function PlatformDashboardPage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader icon={LayoutDashboard} title={t('platform.dashboard.title')} subtitle={d ? <>{t('platform.dashboard.updated')} <DateTime value={d.generated_at} /></> : undefined} />
+      <PageHeader icon={LayoutDashboard} title={t('platform.dashboard.title')} actions={<PeriodPicker />}
+        subtitle={d ? <>{period.preset === 'custom' ? t('dashboard.periodCustomName') : t(`dashboard.periodPreset.${period.preset}`)} · {ruDate(d.period.from)} – {ruDate(d.period.to)} · {t('platform.dashboard.updated')} <DateTime value={d.generated_at} /></> : undefined} />
       {q.isError ? (
         <Banner kind="error">{errorMessage(q.error, t)} <Button onClick={() => void q.refetch()}>{t('common.retry')}</Button></Banner>
       ) : null}
       {d ? (
         <>
           <section aria-label={t('platform.dashboard.kpi')} className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
-            <Stat icon={Building2} label={t('platform.dashboard.companies')} value={String(d.companies.total)} to="/platform/companies" sub={t('platform.dashboard.newInMonth', { count: d.companies.new_30d })} />
+            <Stat icon={Building2} label={t('platform.dashboard.companies')} value={String(d.companies.total)} to="/platform/companies" sub={t('platform.dashboard.newInPeriod', { count: d.companies.new_period })} />
             <Stat icon={TrendingUp} label={t('platform.dashboard.liveSubs')} value={String(live)} to="/platform/companies?state=active" sub={t('platform.dashboard.ofTotal', { total })} />
-            <Stat icon={Wallet} label={t('platform.dashboard.revenueMonth')} value={money(d.revenue.month, cur)} />
+            <Stat icon={Wallet} label={t('platform.dashboard.revenuePeriod')} value={money(d.revenue.period, cur)} />
             <Stat icon={Coins} label={t('platform.dashboard.mrr')} value={money(d.revenue.mrr, cur)} sub={t('platform.dashboard.mrrHint')} />
-            <Stat icon={Wallet} label={t('platform.dashboard.revenueYear')} value={money(d.revenue.year, cur)} />
+            <Stat icon={Building2} label={t('platform.dashboard.newCompanies')} value={String(d.companies.new_period)} sub={t('platform.dashboard.forPeriod')} />
             <Stat icon={Clock} label={t('platform.dashboard.expiring')} value={String(d.subscriptions.expiring_count)} sub={t('platform.dashboard.expiringHint')} tone={d.subscriptions.expiring_count > 0 ? undefined : 'success'} />
             <Stat icon={CircleAlert} label={t('platform.dashboard.problem')} value={String(problem)} to="/platform/companies?state=inactive" tone={problem > 0 ? 'danger' : 'success'} sub={t('platform.dashboard.problemHint')} />
             <Stat icon={Users} label={t('platform.dashboard.users')} value={String(d.users.total)} sub={t('platform.dashboard.perCompany', { value: d.users.per_company_avg })} />
@@ -129,8 +141,8 @@ export function PlatformDashboardPage() {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Card title={t('platform.dashboard.revenueByMonth')} icon={TrendingUp}>
-                <RevenueChart data={d.revenue} />
+              <Card title={t('platform.dashboard.revenueByPeriod')} icon={TrendingUp}>
+                <RevenueChart data={d.revenue} granularity={d.period.granularity} />
               </Card>
             </div>
             <Card title={t('platform.dashboard.byStatus')} icon={Activity}>

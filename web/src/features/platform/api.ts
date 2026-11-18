@@ -25,4 +25,5 @@ export const renew = (company: number, periods: number) =>
 export const listHistory = (kind: string, q: string, page: number, pageSize: number, signal?: AbortSignal) =>
   api.get<Paginated<HistoryRow>>('/platform/history/', { kind, q, page, page_size: pageSize }, { signal })
 
-export const getDashboard = (signal?: AbortSignal) => api.get<PlatformDashboard>('/platform/dashboard/', undefined, { signal })
+export const getDashboard = (range: { date_from: string; date_to: string } | null, signal?: AbortSignal) =>
+  api.get<PlatformDashboard>('/platform/dashboard/', range ?? undefined, { signal })

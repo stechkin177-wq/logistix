@@ -358,6 +358,9 @@ class PlatformDashboardView(APIView):
     permission_classes = [PlatformAccess]
 
     def get(self, request):
+        from apps.forwarding.dashboard import parse_profit_period
+
         from .dashboard import platform_dashboard
 
-        return Response(platform_dashboard())
+        period = parse_profit_period(request.query_params, ("date_from", "date_to"))
+        return Response(platform_dashboard(period=period))

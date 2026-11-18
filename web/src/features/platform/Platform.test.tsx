@@ -255,9 +255,10 @@ describe('Панель платформы', () => {
     platformLoggedIn([
       ['GET', '/api/platform/dashboard/', { body: {
         generated_at: '2026-11-18T08:00:00Z',
-        companies: { total: 5, with_bin: 2, new_30d: 1 },
+        period: { from: '2026-11-01', to: '2026-11-30', granularity: 'day' },
+        companies: { total: 5, with_bin: 2, new_period: 1 },
         subscriptions: { total: 5, by_status: { trial: 1, active: 2, grace: 1, readonly: 0, blocked: 1 }, free_period: 2, expiring: [row], expiring_count: 1, problem: [{ ...row, id: 4, name: 'ТОО Дзета', status: 'blocked' }], problem_count: 2 },
-        revenue: { currency: 'KZT', mrr: '150000.00', month: '90000.00', year: '1200000.00', by_month: Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(i + 1).padStart(2, '0')}`, revenue: String(i * 1000), new: i % 3 })) },
+        revenue: { currency: 'KZT', mrr: '150000.00', period: '90000.00', by_bucket: Array.from({ length: 30 }, (_, i) => ({ bucket: `2026-11-${String(i + 1).padStart(2, '0')}`, revenue: String(i * 1000), new: i % 3 })) },
         plans: [{ code: 'start', name: 'Старт', status: 'active', subscriptions: 3, price: '0.00', currency: 'KZT', billing_type: 'monthly' }],
         users: { total: 12, platform: 1, memberships: 10, per_company_avg: 2 },
         activity: { logins_7d: 4, changes_7d: 2, recent: [{ id: 1, kind: 'plan', key: 'start', action: 'update', actor: 'owner@x.kz', created_at: '2026-11-17T10:00:00Z' }] },
@@ -267,6 +268,8 @@ describe('Панель платформы', () => {
     renderApp('/platform/dashboard')
     const kpi = await screen.findByRole('region', { name: 'Ключевые показатели' })
     expect(within(kpi).getByText('Компаний')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Выбрать период/ })).toBeInTheDocument()  // тот же выбор периода, что на дашборде основного сайта
+    expect(screen.getByRole('list', { name: 'Выручка и новые компании за период' }).children).toHaveLength(30)
     expect(within(kpi).getByRole('link', { name: /Действующих подписок/ })).toHaveAttribute('href', '/platform/companies?state=active')
     expect(within(kpi).getByRole('link', { name: /Требуют внимания/ })).toHaveAttribute('href', '/platform/companies?state=inactive')
     expect(within(kpi).getByText(/90\s000,00/)).toBeInTheDocument()

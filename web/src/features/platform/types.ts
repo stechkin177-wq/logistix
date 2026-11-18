@@ -74,7 +74,8 @@ export interface HistoryRow {
 export interface DashboardCompanyRow { id: number; name: string; plan_name: string; status: string; ends_at: string | null }
 export interface PlatformDashboard {
   generated_at: string
-  companies: { total: number; with_bin: number; new_30d: number }
+  period: { from: string; to: string; granularity: 'day' | 'month' }
+  companies: { total: number; with_bin: number; new_period: number }
   subscriptions: {
     total: number
     by_status: Record<'trial' | 'active' | 'grace' | 'readonly' | 'blocked', number>
@@ -84,7 +85,7 @@ export interface PlatformDashboard {
     problem: DashboardCompanyRow[]
     problem_count: number
   }
-  revenue: { currency: string; mrr: string; month: string; year: string; by_month: { month: string; revenue: string; new: number }[] }
+  revenue: { currency: string; mrr: string; period: string; by_bucket: { bucket: string; revenue: string; new: number }[] }
   plans: { code: string; name: string; status: PlanStatus; subscriptions: number; price: string; currency: string; billing_type: BillingType }[]
   users: { total: number; platform: number; memberships: number; per_company_avg: number }
   activity: {

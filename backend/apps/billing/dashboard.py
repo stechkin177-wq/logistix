@@ -5,7 +5,6 @@ from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.core.models import Company, Membership, User
@@ -14,16 +13,16 @@ from .models import BillingEvent, Plan, Subscription, SubscriptionPeriod
 from .services import effective_status
 
 EXPIRING_DAYS = 30
-MONTHS = 12
+DAILY_MAX_DAYS = 62  # до двух месяцев - график по дням, дальше - по месяцам
 LIST_LIMIT = 8
 
 
-def _month_start(dt, back=0):
-    """Первое число месяца (на `back` месяцев раньше) в часовом поясе сервера."""
-    y, m = dt.year, dt.month - back
-    while m <= 0:
-        y, m = y - 1, m + 12
-    return dt.replace(year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
+def _current_month(now):
+    """Текущий календарный месяц как (первый день, последний день) - период по умолчанию."""
+    today = timezone.localdate(now)
+    first = today.replace(day=1)
+    nxt = (first + timedelta(days=32)).replace(day=1)
+    return first, nxt - timedelta(days=1)
 
 
 def _monthly_price(plan: Plan) -> Decimal:
@@ -35,7 +34,7 @@ def _monthly_price(plan: Plan) -> Decimal:
     return Decimal(0)
 
 
-def platform_dashboard(now=None) -> dict:
+def platform_dashboard(now=None, period=None) -> dict:
     now = now or timezone.now()
     subs = list(Subscription.objects.select_related("company", "plan"))
     status_counts: Counter = Counter()
@@ -72,36 +71,55 @@ def platform_dashboard(now=None) -> dict:
         for p in Plan.objects.order_by("sort_order", "id")
     ]  # fmt: skip
 
-    first = _month_start(now, MONTHS - 1)
-    periods = SubscriptionPeriod.objects.filter(starts_at__gte=first)
-    months = []
-    for i in range(MONTHS - 1, -1, -1):
-        start, end = _month_start(now, i), _month_start(now, i - 1) if i else None
-        flt = Q(starts_at__gte=start) & (Q(starts_at__lt=end) if end else Q())
-        paid = periods.filter(flt, is_free=False, currency="KZT").aggregate(s=Sum("price"))["s"]
-        months.append(
-            {
-                "month": start.strftime("%Y-%m"),
-                "revenue": paid or Decimal(0),
-                "new": Company.objects.filter(
-                    Q(created_at__gte=start) & (Q(created_at__lt=end) if end else Q())
-                ).count(),
-            }
+    first, last = period or _current_month(now)
+    days = (last - first).days + 1
+    daily = days <= DAILY_MAX_DAYS
+    paid_rows = list(
+        SubscriptionPeriod.objects.filter(
+            starts_at__date__gte=first, starts_at__date__lte=last, is_free=False, currency="KZT"
+        ).values_list("starts_at", "price")
+    )
+    created_rows = list(
+        Company.objects.filter(created_at__date__gte=first, created_at__date__lte=last).values_list(
+            "created_at", flat=True
         )
-    year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    year_revenue = SubscriptionPeriod.objects.filter(
-        starts_at__gte=year_start, is_free=False, currency="KZT"
-    ).aggregate(s=Sum("price"))["s"] or Decimal(0)
+    )
+    tz = timezone.get_current_timezone()
+    bucket_of = (
+        (lambda dt: timezone.localtime(dt, tz).date().isoformat())
+        if daily
+        else (lambda dt: timezone.localtime(dt, tz).strftime("%Y-%m"))
+    )
+    revenue_by: dict[str, Decimal] = {}
+    new_by: Counter = Counter()
+    for starts_at, price in paid_rows:
+        revenue_by[bucket_of(starts_at)] = revenue_by.get(bucket_of(starts_at), Decimal(0)) + price
+    for created in created_rows:
+        new_by[bucket_of(created)] += 1
+    buckets, cursor = [], first
+    while cursor <= last:
+        key = cursor.isoformat() if daily else cursor.strftime("%Y-%m")
+        if not buckets or buckets[-1]["bucket"] != key:
+            buckets.append(
+                {
+                    "bucket": key,
+                    "revenue": revenue_by.get(key, Decimal(0)),
+                    "new": new_by.get(key, 0),
+                }
+            )
+        cursor += timedelta(days=1)
+    period_revenue = sum(revenue_by.values(), Decimal(0))
 
     companies_total = Company.objects.count()
     week = now - timedelta(days=7)
     recent = BillingEvent.objects.order_by("-id")[:LIST_LIMIT]
     return {
         "generated_at": now,
+        "period": {"from": first, "to": last, "granularity": "day" if daily else "month"},
         "companies": {
             "total": companies_total,
             "with_bin": Company.objects.exclude(bin="").count(),
-            "new_30d": Company.objects.filter(created_at__gte=now - timedelta(days=30)).count(),
+            "new_period": len(created_rows),
         },
         "subscriptions": {
             "total": len(subs),
@@ -115,10 +133,9 @@ def platform_dashboard(now=None) -> dict:
         "revenue": {
             "currency": "KZT",
             "mrr": mrr,
-            "month": months[-1]["revenue"],
-            "year": year_revenue,
-            "by_month": months,
-        },  # fmt: skip
+            "period": period_revenue,
+            "by_bucket": buckets,
+        },
         "plans": plans,
         "users": {
             "total": User.objects.filter(is_active=True).count(),

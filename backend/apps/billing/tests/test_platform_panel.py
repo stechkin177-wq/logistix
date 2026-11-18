@@ -146,8 +146,15 @@ def test_platform_dashboard_shape_and_access(platform_api, admin_client, make_co
         "blocked",
     }
     assert sum(d["subscriptions"]["by_status"].values()) == d["subscriptions"]["total"]
-    assert len(d["revenue"]["by_month"]) == 12 and d["revenue"]["currency"] == "KZT"
-    assert d["revenue"]["by_month"][-1]["new"] >= 2  # компании созданы в этом месяце
+    assert d["revenue"]["currency"] == "KZT" and d["period"]["granularity"] == "day"
+    assert sum(b["new"] for b in d["revenue"]["by_bucket"]) >= 2  # компании созданы в этом месяце
+    assert d["companies"]["new_period"] >= 2
+    year = platform_api.get(
+        "/api/platform/dashboard/", {"date_from": "2026-01-01", "date_to": "2026-12-31"}
+    ).json()
+    assert year["period"]["granularity"] == "month" and len(year["revenue"]["by_bucket"]) == 12
+    bad = platform_api.get("/api/platform/dashboard/", {"date_from": "2026-05-01"})
+    assert bad.status_code == 400
     assert sum(p["subscriptions"] for p in d["plans"]) == d["subscriptions"]["total"]
     assert {"logins_7d", "changes_7d", "recent"} <= set(d["activity"])
     assert d["users"]["memberships"] >= 2

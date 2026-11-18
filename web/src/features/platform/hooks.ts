@@ -4,7 +4,8 @@ import {
   planAction, previewChange, renew, reorderPlans, updatePlan,
 } from './api'
 
-export const useDashboard = () => useQuery({ queryKey: ['platform', 'dashboard'], queryFn: ({ signal }) => getDashboard(signal), staleTime: 30_000 })
+export const useDashboard = (range: { date_from: string; date_to: string } | null) =>
+  useQuery({ queryKey: ['platform', 'dashboard', range], queryFn: ({ signal }) => getDashboard(range, signal), staleTime: 30_000, placeholderData: keepPreviousData })
 export const usePlans = () => useQuery({ queryKey: ['platform', 'plans'], queryFn: ({ signal }) => listPlans(signal) })
 export const useCatalog = () => useQuery({ queryKey: ['platform', 'catalog'], queryFn: ({ signal }) => getCatalog(signal), staleTime: 5 * 60_000 })
 export const useCompanies = (q: string, plan: string, state: string, page: number, pageSize: number) =>
