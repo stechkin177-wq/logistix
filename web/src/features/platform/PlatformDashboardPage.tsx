@@ -124,7 +124,12 @@ export function PlatformDashboardPage() {
   return (
     <div className="space-y-3">
       <PageHeader icon={LayoutDashboard} title={t('platform.dashboard.title')} actions={<PeriodPicker />}
-        subtitle={d ? <>{period.preset === 'custom' ? t('dashboard.periodCustomName') : t(`dashboard.periodPreset.${period.preset}`)} · {ruDate(d.period.from)} – {ruDate(d.period.to)} · {t('platform.dashboard.updated')} <DateTime value={d.generated_at} /></> : undefined} />
+        subtitle={d ? (
+          <>
+            <span className="block">{period.preset === 'custom' ? t('dashboard.periodCustomName') : t(`dashboard.periodPreset.${period.preset}`)} · {ruDate(d.period.from)} – {ruDate(d.period.to)}</span>
+            <span className="block">{t('platform.dashboard.updated')} <DateTime value={d.generated_at} /></span>
+          </>
+        ) : undefined} />
       {q.isError ? (
         <Banner kind="error">{errorMessage(q.error, t)} <Button onClick={() => void q.refetch()}>{t('common.retry')}</Button></Banner>
       ) : null}
