@@ -312,3 +312,60 @@ def gps_mileage_source(vehicle, now):
     if unit is None:
         return None
     return int(unit.odometer_km), unit.odometer_at
+
+
+# --- сверка заправок отчёта с датчиком топлива ----------------------------------------------------
+
+FUEL_TOLERANCE_PCT = 5  # допустимое расхождение, % от литров по GPS
+FUEL_TOLERANCE_L = 20  # и не меньше этого числа литров (датчик неточен на малых объёмах)
+
+
+def fuel_fillings(vehicle: Vehicle, dt_from: datetime, dt_to: datetime, client=None) -> dict:
+    """Заправки техники за период по датчику Wialon. Чтение: ничего не сохраняется.
+
+    available=False с причиной: нет аккаунта, нет привязанного юнита, нет шаблона отчёта в Wialon
+    или Wialon недоступен. Причина не ошибка: сверка просто показывает «данные недоступны»."""
+    result = {"available": False, "reason": "", "fillings": [], "total_l": None}
+    account = WialonAccount.objects.filter(is_active=True).first()
+    if account is None or not account.token_enc:
+        result["reason"] = "no_account"
+        return result
+    unit = GpsUnit.objects.filter(vehicle=vehicle).first()
+    if unit is None:
+        result["reason"] = "no_unit"
+        return result
+    try:
+        client = client or client_for(account)
+        template = client.find_report_template()
+        if template is None:
+            result["reason"] = "no_report_template"
+            return result
+        rows = client.get_fuel_fillings(
+            *template, int(unit.unit_id), int(dt_from.timestamp()), int(dt_to.timestamp())
+        )
+    except (WialonAPIError, ValueError) as exc:
+        logger.warning("Wialon: заправки юнита %s: %s", unit.unit_id, exc)
+        result["reason"] = "wialon_error"
+        return result
+    result["fillings"] = [
+        {"at": _dt(r["timestamp"]), "liters": round(float(r["filled_l"]), 1)} for r in rows
+    ]
+    result["total_l"] = round(sum(r["liters"] for r in result["fillings"]), 1)
+    result["available"] = True
+    return result
+
+
+def compare_fuel(reported_l, gps_l) -> dict:
+    """Сравнение литров по отчёту с заправками по датчику.
+
+    Расхождение подсвечивается, если оно больше допуска: максимум из FUEL_TOLERANCE_L литров и
+    FUEL_TOLERANCE_PCT % от литров по GPS. Нет данных GPS - сравнения нет (warning=False)."""
+    reported = None if reported_l in (None, "") else round(float(reported_l), 1)
+    gps = None if gps_l is None else round(float(gps_l), 1)
+    out = {"reported_l": reported, "gps_l": gps, "difference_l": None, "warning": False}
+    if reported is None or gps is None:
+        return out
+    diff = round(reported - gps, 1)
+    out["difference_l"] = diff
+    out["warning"] = abs(diff) > max(FUEL_TOLERANCE_L, gps * FUEL_TOLERANCE_PCT / 100)
+    return out

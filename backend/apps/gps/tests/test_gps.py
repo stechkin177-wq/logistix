@@ -71,8 +71,16 @@ class FakeClient:
     def list_zones(self):
         return self.zones
 
+    template = None
+    fillings: list = []
+
     def find_report_template(self):
-        return None
+        return self.template
+
+    def get_fuel_fillings(self, resource_id, template_id, unit_id, dt_from, dt_to):
+        if self.fail:
+            raise WialonAPIError(self.fail)
+        return self.fillings
 
     extract_position = staticmethod(
         lambda item: __import__("apps.gps.wialon", fromlist=["x"]).WialonClient.extract_position(
@@ -492,3 +500,66 @@ def test_fleet_mileage_check_uses_gps_unit_without_changing_official(gco):
     assert data["warning"] is True and data["gps_received_at"].startswith("2026-11-01")
     with tenant_context(company.id):
         assert Vehicle.objects.get(pk=veh.pk).initial_odometer_km == 10000  # GPS ничего не меняет
+
+
+# --- сверка заправок отчёта с датчиком топлива --------------------------------------------
+
+
+def fuel_url(vehicle, **extra):
+    params = {"vehicle": vehicle.pk, "date_from": "2026-11-01", "date_to": "2026-11-10", **extra}
+    return BASE + "fuel-check/?" + "&".join(f"{k}={v}" for k, v in params.items())
+
+
+def test_compare_fuel_tolerance():
+    assert services.compare_fuel(500, 480)["warning"] is False  # 20 л: в допуске
+    assert services.compare_fuel(540, 500)["warning"] is True  # 40 л > max(20, 5% = 25)
+    assert services.compare_fuel(500, 500) == {
+        "reported_l": 500.0, "gps_l": 500.0, "difference_l": 0.0, "warning": False,
+    }  # fmt: skip
+    assert services.compare_fuel(None, 500)["difference_l"] is None
+    assert services.compare_fuel(500, None) == {
+        "reported_l": 500.0, "gps_l": None, "difference_l": None, "warning": False,
+    }  # fmt: skip
+    big = services.compare_fuel(1000, 2000)  # допуск растёт с объёмом: 5% от 2000 = 100 л
+    assert big["warning"] is True and services.compare_fuel(1950, 2000)["warning"] is False
+
+
+def test_fuel_check_reasons_and_data(gco, fake):
+    company, _, api = gco
+    veh = vehicle(company)
+    assert api.get(fuel_url(veh)).json()["reason"] == "no_account"
+    connect(api)
+    assert api.get(fuel_url(veh)).json()["reason"] == "no_unit"
+    with tenant_context(company.id):
+        GpsUnit.objects.create(unit_id="501", name="U", vehicle=veh)
+    fake["client"] = FakeClient()  # шаблона отчёта нет
+    assert api.get(fuel_url(veh)).json()["reason"] == "no_report_template"
+    client = FakeClient()
+    client.template = (1, 2)
+    client.fillings = [
+        {"timestamp": 1_762_000_000, "filled_l": 300.0},
+        {"timestamp": 1_762_100_000, "filled_l": 250.5},
+    ]
+    fake["client"] = client
+    data = api.get(fuel_url(veh, reported_l=600)).json()
+    assert data["available"] and data["total_l"] == 550.5 and len(data["fillings"]) == 2
+    assert data["difference_l"] == 49.5 and data["warning"] is True  # 49.5 > max(20, 27.5)
+    assert api.get(fuel_url(veh, reported_l=560)).json()["warning"] is False
+    fake["client"] = FakeClient(fail="Wialon недоступен: URLError")
+    fake["client"].template = (1, 2)
+    assert api.get(fuel_url(veh)).json() == {
+        "available": False, "reason": "wialon_error", "fillings": [], "total_l": None,
+        "reported_l": None, "gps_l": None, "difference_l": None, "warning": False,
+    }  # fmt: skip
+
+
+def test_fuel_check_validation_and_permissions(gco):
+    company, _, api = gco
+    veh = vehicle(company)
+    assert api.get(BASE + "fuel-check/").status_code == 400
+    assert api.get(fuel_url(veh, date_from="junk")).status_code == 400
+    assert api.get(fuel_url(veh, date_from="2026-11-10", date_to="2026-11-01")).status_code == 400
+    assert api.get(fuel_url(veh, date_from="2026-01-01", date_to="2026-11-01")).status_code == 400
+    assert api.get(fuel_url(veh, reported_l="abc")).status_code == 400
+    assert api_with_role(company, "Диспетчер").get(fuel_url(veh)).status_code == 200  # просмотр
+    assert api_with_role(company, "Бухгалтер").get(fuel_url(veh)).status_code == 403  # нет gps.view

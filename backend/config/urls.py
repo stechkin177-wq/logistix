@@ -99,6 +99,7 @@ from apps.forwarding.trips.api import TripViewSet
 from apps.gps.api import AccountTestView as GpsAccountTestView
 from apps.gps.api import AccountView as GpsAccountView
 from apps.gps.api import EventViewSet as GpsEventViewSet
+from apps.gps.api import FuelCheckView as GpsFuelCheckView
 from apps.gps.api import GeofenceViewSet as GpsGeofenceViewSet
 from apps.gps.api import SyncView as GpsSyncView
 from apps.gps.api import UnitViewSet as GpsUnitViewSet
@@ -160,6 +161,7 @@ urlpatterns = [
     path("api/gps/account/", GpsAccountView.as_view()),
     path("api/gps/account/test/", GpsAccountTestView.as_view()),
     path("api/gps/sync/", GpsSyncView.as_view()),
+    path("api/gps/fuel-check/", GpsFuelCheckView.as_view()),
     path("api/gps/wialon/webhook/<int:company_id>/<str:secret>/", GpsWebhookView.as_view()),
     path("api/mail/account/", MailAccountView.as_view()),
     path("api/mail/account/test/", MailAccountTestView.as_view()),

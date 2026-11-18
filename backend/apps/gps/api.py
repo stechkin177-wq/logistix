@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -311,6 +311,40 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
         if (kind := p.get("event_type")) in ("enter", "exit"):
             qs = qs.filter(event_type=kind)
         return qs
+
+
+class FuelCheckView(APIView):
+    """Заправки по датчику за период и сверка с литрами из отчёта:
+    ?vehicle=<id>&date_from=ГГГГ-ММ-ДД&date_to=ГГГГ-ММ-ДД[&reported_l=число]."""
+
+    get_permissions = _perms("gps.view", "gps.manage")
+
+    def get(self, request):
+        p = request.query_params
+        vehicle = (
+            Vehicle.objects.filter(pk=p["vehicle"]).first()
+            if (p.get("vehicle") or "").isdigit()
+            else None
+        )
+        if vehicle is None:
+            raise ValidationError({"vehicle": "Укажите технику"})
+        try:
+            first = date.fromisoformat(p.get("date_from", ""))
+            last = date.fromisoformat(p.get("date_to", ""))
+        except ValueError:
+            raise ValidationError({"date_from": "Даты в формате ГГГГ-ММ-ДД"}) from None
+        if last < first or (last - first).days > 92:
+            raise ValidationError({"date_to": "Период от одного дня до трёх месяцев"})
+        reported = p.get("reported_l")
+        if reported not in (None, ""):
+            try:
+                float(reported)
+            except ValueError:
+                raise ValidationError({"reported_l": "Ожидается число"}) from None
+        start = datetime.combine(first, time.min, tzinfo=UTC)
+        end = datetime.combine(last, time.max, tzinfo=UTC)
+        data = services.fuel_fillings(vehicle, start, end)
+        return Response({**data, **services.compare_fuel(reported, data["total_l"])})
 
 
 # --- вебхук Wialon ("Запрос по URL" в уведомлении) --------------------------------------------
