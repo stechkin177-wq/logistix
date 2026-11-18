@@ -17,6 +17,8 @@ import type { DashboardCompanyRow, PlatformDashboard } from './types'
 
 /** У платформы нет своего пояса: границы периода считаются по Алматы (пояс компаний по умолчанию). */
 const PLATFORM_TZ = 'Asia/Almaty'
+/** Сумма с сервера -> строка с двумя знаками (сервер может прислать «0» или число без дробной части). */
+const fix = (v: string | number) => Number(v).toFixed(2)
 const ruDate = (iso: string) => iso.split('-').reverse().join('.')
 
 const STATUS_ORDER = ['active', 'trial', 'grace', 'readonly', 'blocked'] as const
@@ -68,7 +70,7 @@ function RevenueChart({ data, granularity }: { data: PlatformDashboard['revenue'
           const h = Math.round((Number(m.revenue) / max) * 100)
           const nh = Math.round((m.new / maxNew) * 100)
           return (
-            <li key={m.bucket} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${m.bucket}: ${money(m.revenue, data.currency)}; ${t('platform.dashboard.newCompanies')}: ${m.new}`}>
+            <li key={m.bucket} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${m.bucket}: ${money(fix(m.revenue), data.currency)}; ${t('platform.dashboard.newCompanies')}: ${m.new}`}>
               <div className="flex h-full w-full items-end justify-center gap-px">
                 <span className="w-1/2 max-w-4 rounded-t bg-brand-500" style={{ height: `${Math.max(h, Number(m.revenue) === 0 ? 2 : 4)}%` }} />
                 <span className="w-1/2 max-w-4 rounded-t bg-emerald-400" style={{ height: `${Math.max(nh, m.new === 0 ? 2 : 4)}%` }} />
@@ -131,8 +133,8 @@ export function PlatformDashboardPage() {
           <section aria-label={t('platform.dashboard.kpi')} className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
             <Stat icon={Building2} label={t('platform.dashboard.companies')} value={String(d.companies.total)} to="/platform/companies" sub={t('platform.dashboard.newInPeriod', { count: d.companies.new_period })} />
             <Stat icon={TrendingUp} label={t('platform.dashboard.liveSubs')} value={String(live)} to="/platform/companies?state=active" sub={t('platform.dashboard.ofTotal', { total })} />
-            <Stat icon={Wallet} label={t('platform.dashboard.revenuePeriod')} value={money(d.revenue.period, cur)} />
-            <Stat icon={Coins} label={t('platform.dashboard.mrr')} value={money(d.revenue.mrr, cur)} sub={t('platform.dashboard.mrrHint')} />
+            <Stat icon={Wallet} label={t('platform.dashboard.revenuePeriod')} value={money(fix(d.revenue.period), cur)} />
+            <Stat icon={Coins} label={t('platform.dashboard.mrr')} value={money(fix(d.revenue.mrr), cur)} sub={t('platform.dashboard.mrrHint')} />
             <Stat icon={Building2} label={t('platform.dashboard.newCompanies')} value={String(d.companies.new_period)} sub={t('platform.dashboard.forPeriod')} />
             <Stat icon={Clock} label={t('platform.dashboard.expiring')} value={String(d.subscriptions.expiring_count)} sub={t('platform.dashboard.expiringHint')} tone={d.subscriptions.expiring_count > 0 ? undefined : 'success'} />
             <Stat icon={CircleAlert} label={t('platform.dashboard.problem')} value={String(problem)} to="/platform/companies?state=inactive" tone={problem > 0 ? 'danger' : 'success'} sub={t('platform.dashboard.problemHint')} />
@@ -170,7 +172,7 @@ export function PlatformDashboardPage() {
                 {d.plans.map((p) => (
                   <li key={p.code}>
                     <div className="flex items-baseline justify-between gap-2 text-sm">
-                      <span className="min-w-0 truncate font-medium">{p.name} <span className="text-xs font-normal text-muted">{money(p.price, p.currency)} / {t(`platform.plans.periods.${p.billing_type}`)}</span></span>
+                      <span className="min-w-0 truncate font-medium">{p.name} <span className="text-xs font-normal text-muted">{money(fix(p.price), p.currency)} / {t(`platform.plans.periods.${p.billing_type}`)}</span></span>
                       <span className="shrink-0 tabular-nums"><b>{p.subscriptions}</b> <span className="text-xs text-muted">({total ? Math.round((p.subscriptions / total) * 100) : 0}%)</span></span>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
