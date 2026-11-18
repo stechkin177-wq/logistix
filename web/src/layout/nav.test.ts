@@ -3,13 +3,21 @@ import { ALL_PERMISSIONS } from '../test/permissions'
 import { NAV, flattenNav, visibleNav, type NavItem } from './nav'
 
 const keys = (items: NavItem[]) => flattenNav(items).map((i) => i.key)
-const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers']
+const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers', 'gps']
 const admin = { permissions: ALL_PERMISSIONS, modules: ALL_MODULES }
 const platformAdmin = { ...admin, user: { is_platform_admin: true } }
 
 describe('visibleNav', () => {
   it('показывает всё администратору платформы со всеми модулями', () => {
     expect(keys(visibleNav(platformAdmin))).toEqual(keys(NAV))
+  })
+
+  it('GPS и его настройки зависят от модуля gps и прав gps.view / gps.manage', () => {
+    expect(keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['fleet'] }))).not.toContain('gps')
+    const viewer = keys(visibleNav({ permissions: ['gps.view'], modules: ['fleet', 'gps'] }))
+    expect(viewer).toContain('gps')
+    expect(viewer).not.toContain('gpssettings')
+    expect(keys(visibleNav(admin))).toEqual(expect.arrayContaining(['gps', 'gpssettings']))
   })
 
   it('администратору компании раздел «Платформа» не показывается', () => {

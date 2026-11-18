@@ -72,8 +72,8 @@ def admin_client(api_client, owner_a, company_a):
 def test_catalog_has_72_unique_codes():
     # 15 разделов x 4 действия + 12 особых прав (override_limit, cancel_invoice, revert_completed,
     # пять прав финансовой архитектуры, company.manage_modules, consignments.transfer,
-    # audit.view и labels.manage)
-    assert len(ALL_PERMISSIONS) == 75 == len(set(ALL_PERMISSIONS))
+    # audit.view и labels.manage) + права почты (3) + права GPS (gps.view, gps.manage)
+    assert len(ALL_PERMISSIONS) == 77 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
     assert "trips.revert_completed" in ALL_PERMISSIONS
 
@@ -89,7 +89,11 @@ def test_system_roles_content():
         "Водитель",
     ]
     assert SYSTEM_ROLES[ADMIN] == ALL_PERMISSIONS
-    assert SYSTEM_ROLES["Механик"] == ["trips.view", "fleet.view", "fleet.create", "fleet.update"]
+    assert SYSTEM_ROLES["Механик"] == [
+        "trips.view", "fleet.view", "fleet.create", "fleet.update", "gps.view",
+    ]  # fmt: skip
+    assert "gps.view" in SYSTEM_ROLES["Диспетчер"] and "gps.manage" not in SYSTEM_ROLES["Диспетчер"]
+    assert "gps.manage" in SYSTEM_ROLES[ADMIN] and "gps.view" in SYSTEM_ROLES["Наблюдатель"]
     assert SYSTEM_ROLES["Водитель"] == []
     # наблюдатель видит всё, кроме журнала аудита и переписки (audit.view, mail.view - отдельно)
     assert sorted(SYSTEM_ROLES["Наблюдатель"]) == sorted(

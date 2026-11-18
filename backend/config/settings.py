@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.drivers",
     "apps.fleet",
     "apps.mail",
+    "apps.gps",
 ]
 
 # Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP
@@ -159,6 +160,7 @@ REST_FRAMEWORK = {
         "password_setup": env("THROTTLE_PASSWORD_SETUP", "10/minute"),
         # исходящая почта: на пользователя (защита от рассылки)
         "mail_send": env("MAIL_SEND_THROTTLE_RATE", "30/hour"),
+        "gps_webhook": env("GPS_WEBHOOK_THROTTLE_RATE", "600/hour"),
     },
 }
 # Продакшен/serverless: только JSON (BrowsableAPI тянет статику и шаблоны, которых там нет).
@@ -253,3 +255,8 @@ MAIL_ENCRYPTION_KEY = env("MAIL_ENCRYPTION_KEY", "")
 MAIL_DAILY_LIMIT = int(env("MAIL_DAILY_LIMIT", "200"))
 MAIL_ALLOW_PRIVATE_HOSTS = env_bool("MAIL_ALLOW_PRIVATE_HOSTS", False)
 MAIL_SMTP_TIMEOUT = int(env("MAIL_SMTP_TIMEOUT", "15"))
+
+# GPS (apps.gps): ключ шифрования токена Wialon; адрес сервера Wialon должен быть публичным
+# (защита от SSRF; в разработке можно разрешить внутреннюю сеть и http).
+GPS_ENCRYPTION_KEY = env("GPS_ENCRYPTION_KEY", "")
+GPS_ALLOW_PRIVATE_HOSTS = env_bool("GPS_ALLOW_PRIVATE_HOSTS", False)

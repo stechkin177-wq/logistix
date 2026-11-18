@@ -96,6 +96,13 @@ from apps.forwarding.orders.api import OrderViewSet
 from apps.forwarding.requisites_api import BankAccountViewSet
 from apps.forwarding.tracking.api import TransferViewSet
 from apps.forwarding.trips.api import TripViewSet
+from apps.gps.api import AccountTestView as GpsAccountTestView
+from apps.gps.api import AccountView as GpsAccountView
+from apps.gps.api import EventViewSet as GpsEventViewSet
+from apps.gps.api import GeofenceViewSet as GpsGeofenceViewSet
+from apps.gps.api import SyncView as GpsSyncView
+from apps.gps.api import UnitViewSet as GpsUnitViewSet
+from apps.gps.api import WialonWebhookView as GpsWebhookView
 from apps.mail.api import AccountTestView as MailAccountTestView
 from apps.mail.api import AccountView as MailAccountView
 from apps.mail.api import MessageViewSet as MailMessageViewSet
@@ -110,6 +117,9 @@ router.register("handbooks", HandbookViewSet, basename="handbook")
 router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
 router.register("labels", LabelViewSet, basename="label")
+router.register("gps/units", GpsUnitViewSet, basename="gps-unit")
+router.register("gps/geofences", GpsGeofenceViewSet, basename="gps-geofence")
+router.register("gps/events", GpsEventViewSet, basename="gps-event")
 router.register("mail/templates", MailTemplateViewSet, basename="mail-template")
 router.register("mail/messages", MailMessageViewSet, basename="mail-message")
 router.register("handbook-values", HandbookValueViewSet, basename="handbook-value")
@@ -147,6 +157,10 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/gps/account/", GpsAccountView.as_view()),
+    path("api/gps/account/test/", GpsAccountTestView.as_view()),
+    path("api/gps/sync/", GpsSyncView.as_view()),
+    path("api/gps/wialon/webhook/<int:company_id>/<str:secret>/", GpsWebhookView.as_view()),
     path("api/mail/account/", MailAccountView.as_view()),
     path("api/mail/account/test/", MailAccountTestView.as_view()),
     path("api/mail/status/", MailStatusView.as_view()),

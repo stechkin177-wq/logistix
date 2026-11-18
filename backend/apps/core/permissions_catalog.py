@@ -63,6 +63,10 @@ LABEL_PERMISSIONS = ["labels.manage"]
 # умолчанию не выдаётся (переписка - персональные данные).
 MAIL_PERMISSIONS = ["mail.view", "mail.send", "mail.manage_account"]
 
+# GPS-мониторинг (apps.gps): просмотр позиций, юнитов, геозон и событий; настройка аккаунта Wialon,
+# привязки юнитов и геозон. Наблюдателю по умолчанию достаётся только просмотр (все *.view).
+GPS_PERMISSIONS = ["gps.view", "gps.manage"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
@@ -71,6 +75,7 @@ ALL_PERMISSIONS: list[str] = (
     + AUDIT_PERMISSIONS
     + LABEL_PERMISSIONS
     + MAIL_PERMISSIONS
+    + GPS_PERMISSIONS
 )
 
 
@@ -88,6 +93,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + MAIL_PERMISSIONS[:2]
     + TRANSFER_PERMISSIONS
     + _codes(["finance", "trash", "handbooks", "drivers", "fleet"], ["view"])
+    + GPS_PERMISSIONS[:1]
     + _codes(["documents"], ["view", "create"]),
     "Бухгалтер": _codes(["finance"], ACTIONS)
     + FINANCE_EXTRA_PERMISSIONS
@@ -99,8 +105,9 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + MAIL_PERMISSIONS[:2]
     + TRANSFER_PERMISSIONS
     + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
+    + GPS_PERMISSIONS[:1]
     + _codes(["documents"], ["view", "create"]),
-    "Механик": ["trips.view", *_codes(["fleet"], _VCU)],
+    "Механик": ["trips.view", *_codes(["fleet"], _VCU), *GPS_PERMISSIONS[:1]],
     "Наблюдатель": [
         p
         for p in ALL_PERMISSIONS

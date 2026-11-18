@@ -22,4 +22,6 @@ export const ALL_PERMISSIONS: string[] = [
   'mail.view',
   'mail.send',
   'mail.manage_account',
+  'gps.view',
+  'gps.manage',
 ]

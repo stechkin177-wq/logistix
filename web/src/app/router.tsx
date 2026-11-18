@@ -26,6 +26,8 @@ import { InvoiceDetailPage } from '../features/finance/InvoiceDetailPage'
 import { InvoiceFormPage } from '../features/finance/InvoiceFormPage'
 import { FinanceSettingsPage } from '../features/finance/FinanceSettingsPage'
 import { LabelsPage } from '../features/labels/LabelsPage'
+import { GpsPage } from '../features/gps/GpsPage'
+import { GpsSettingsPage } from '../features/gps/GpsSettingsPage'
 import { MailPage } from '../features/mail/MailPage'
 import { MailSettingsPage } from '../features/mail/MailSettingsPage'
 import { LoginAuditPage } from '../features/settings/audit/LoginAuditPage'
@@ -71,6 +73,8 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/finance': FinanceSettingsPage,
   '/settings/audit': LoginAuditPage,
   '/settings/labels': LabelsPage,
+  '/gps': GpsPage,
+  '/settings/gps': GpsSettingsPage,
   '/mail': MailPage,
   '/settings/mail': MailSettingsPage,
   '/settings/modules': ModulesPage,

@@ -95,6 +95,11 @@ if STEP == "M6":
         "mail_mailtemplate",
         "mail_mailmessage",
         "mail_mailattachment",
+        "gps_wialonaccount",  # модуль GPS (Wialon, геозоны)
+        "gps_gpsunit",
+        "gps_geofence",
+        "gps_vehiclegeofencestate",
+        "gps_geofenceevent",
         "finance_fxrevaluation",
         "finance_fxrevaluationline",
         "core_companymodule",
