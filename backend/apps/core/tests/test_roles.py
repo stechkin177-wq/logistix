@@ -73,8 +73,8 @@ def test_catalog_has_72_unique_codes():
     # 15 разделов x 4 действия + 12 особых прав (override_limit, cancel_invoice, revert_completed,
     # пять прав финансовой архитектуры, company.manage_modules, consignments.transfer,
     # audit.view и labels.manage) + права почты (3) + права GPS (gps.view, gps.manage)
-    # + распознавание: раздел ocr (4 действия) и ocr.manage
-    assert len(ALL_PERMISSIONS) == 82 == len(set(ALL_PERMISSIONS))
+    # + распознавание: раздел ocr (4 действия) и ocr.manage; + driver.use (мобильная версия)
+    assert len(ALL_PERMISSIONS) == 83 == len(set(ALL_PERMISSIONS))
     assert "orders.create" in ALL_PERMISSIONS and "numbering.delete" in ALL_PERMISSIONS
     assert "trips.revert_completed" in ALL_PERMISSIONS
 
@@ -96,7 +96,7 @@ def test_system_roles_content():
     ]  # fmt: skip
     assert "gps.view" in SYSTEM_ROLES["Диспетчер"] and "gps.manage" not in SYSTEM_ROLES["Диспетчер"]
     assert "gps.manage" in SYSTEM_ROLES[ADMIN] and "gps.view" in SYSTEM_ROLES["Наблюдатель"]
-    assert SYSTEM_ROLES["Водитель"] == []
+    assert SYSTEM_ROLES["Водитель"] == ["driver.use"]
     # наблюдатель видит всё, кроме журнала аудита и переписки (audit.view, mail.view - отдельно)
     assert sorted(SYSTEM_ROLES["Наблюдатель"]) == sorted(
         p for p in ALL_PERMISSIONS if p.endswith(".view") and p not in ("audit.view", "mail.view")

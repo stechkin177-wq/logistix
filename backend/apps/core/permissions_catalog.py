@@ -72,6 +72,10 @@ GPS_PERMISSIONS = ["gps.view", "gps.manage"]
 # отдельное право - настройка движков и ключей компании.
 OCR_PERMISSIONS = ["ocr.manage"]
 
+# Мобильная версия водителя (модуль driver_app): одно право - вход в интерфейс водителя; рейсы
+# водитель видит только свои (проверка по привязке Driver.user), офисные разделы ему не даются.
+DRIVER_APP_PERMISSIONS = ["driver.use"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
@@ -82,6 +86,7 @@ ALL_PERMISSIONS: list[str] = (
     + MAIL_PERMISSIONS
     + GPS_PERMISSIONS
     + OCR_PERMISSIONS
+    + DRIVER_APP_PERMISSIONS
 )
 
 
@@ -127,7 +132,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         for p in ALL_PERMISSIONS
         if p.endswith(".view") and p not in AUDIT_PERMISSIONS and p != "mail.view"
     ],
-    "Водитель": [],
+    "Водитель": list(DRIVER_APP_PERMISSIONS),
 }
 
 ADMIN_ROLE_NAME = "Администратор"

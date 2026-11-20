@@ -50,6 +50,10 @@ from apps.documents.api.capabilities import CapabilitiesView, KindsView
 from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
 from apps.drivers.api import DriverDocumentViewSet, DriverRemindersView, DriverViewSet
+from apps.drivers.mobile import MeView as DriverMeView
+from apps.drivers.mobile import TripActionView as DriverTripActionView
+from apps.drivers.mobile import TripDetailView as DriverTripDetailView
+from apps.drivers.mobile import TripListView as DriverTripListView
 from apps.finance.api.admin import (
     CarrierExpenseView,
     EngineView,
@@ -178,6 +182,10 @@ urlpatterns = [
     path("api/labels/subjects/<str:kind>/<int:pk>/", SubjectLabelsView.as_view()),
     path("api/fleet/reminders/", RemindersView.as_view()),
     path("api/drivers/reminders/", DriverRemindersView.as_view()),
+    path("api/driver/me/", DriverMeView.as_view()),
+    path("api/driver/trips/", DriverTripListView.as_view()),
+    path("api/driver/trips/<int:pk>/", DriverTripDetailView.as_view()),
+    path("api/driver/trips/<int:pk>/action/", DriverTripActionView.as_view()),
     path("api/fleet/settings/", FleetSettingsView.as_view()),
     path("api/documents/capabilities/", CapabilitiesView.as_view()),
     path("api/documents/kinds/", KindsView.as_view()),
