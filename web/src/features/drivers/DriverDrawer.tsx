@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCanWrite } from '../../shared/auth/useCanWrite'
+import { useSession } from '../../shared/auth/useSession'
 import { NO_ERRORS, serverErrors, type FormErrors } from '../../shared/forms/serverErrors'
 import { useFocusInvalid } from '../../shared/forms/useFocusInvalid'
 import { Trash2 } from '../../shared/ui/icons'
@@ -13,6 +14,7 @@ import { TextArea, TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { IssueDocumentButton } from '../documents/IssueDocumentButton'
 import { TypedDocumentForm, documentSummary } from '../doctypes/TypedDocumentForm'
+import { DriverAccess } from './DriverAccess'
 import { useAddDriverDocument, useDeleteDriverDocument, useSaveDriver } from './hooks'
 import { DRIVER_STATUSES, type Driver, type DriverStatus } from './types'
 
@@ -49,6 +51,7 @@ export function DriverDrawer({ driver, onClose, onDelete }: { driver: Driver | n
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
   const formRef = useRef<HTMLFormElement>(null)
   const save = useSaveDriver()
+  const { session } = useSession()
   const editing = driver !== null
   const permission = editing ? 'drivers.update' : 'drivers.create'
   const canSave = useCanWrite(permission)
@@ -110,6 +113,7 @@ export function DriverDrawer({ driver, onClose, onDelete }: { driver: Driver | n
           <TextArea fieldClassName="col-span-2" label={t('common.comment')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
         </div>
       </form>
+      {driver && session?.modules.includes('driver_app') ? <DriverAccess driver={driver} /> : null}
       {driver ? (
         <>
           <div className="mt-4 flex items-center justify-between">

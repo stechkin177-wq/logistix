@@ -12,3 +12,7 @@ export const deleteDriver = (id: number) => api.delete(`/drivers/${String(id)}/`
 
 export const createDriverDocument = (body: Partial<DriverDocument>) => api.post<DriverDocument>('/driver-documents/', body)
 export const deleteDriverDocument = (id: number) => api.delete(`/driver-documents/${String(id)}/`)
+
+export const grantDriverAccess = (id: number, password: string) =>
+  api.post<{ user: number; login: string }>(`/drivers/${String(id)}/grant-access/`, { password })
+export const revokeDriverAccess = (id: number) => api.post<{ revoked: boolean }>(`/drivers/${String(id)}/revoke-access/`, {})

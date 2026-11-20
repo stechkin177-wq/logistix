@@ -29,4 +29,5 @@ export const ALL_PERMISSIONS: string[] = [
   'ocr.update',
   'ocr.delete',
   'ocr.manage',
+  'driver.use',
 ]

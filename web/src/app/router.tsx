@@ -28,6 +28,11 @@ import { FinanceSettingsPage } from '../features/finance/FinanceSettingsPage'
 import { LabelsPage } from '../features/labels/LabelsPage'
 import { GpsPage } from '../features/gps/GpsPage'
 import { GpsSettingsPage } from '../features/gps/GpsSettingsPage'
+import { DriverLayout } from '../features/driver/DriverLayout'
+import { DriverRedirect, RequireDriver } from '../features/driver/Gates'
+import { ProfilePage as DriverProfilePage } from '../features/driver/ProfilePage'
+import { TripPage as DriverTripPage } from '../features/driver/TripPage'
+import { TripsPage as DriverTripsPage } from '../features/driver/TripsPage'
 import { OcrPage } from '../features/ocr/OcrPage'
 import { OcrSettingsPage } from '../features/ocr/OcrSettingsPage'
 import { MailPage } from '../features/mail/MailPage'
@@ -153,8 +158,29 @@ export function createRoutes(): RouteObject[] {
           ],
         },
         {
+          // мобильная версия водителя: своя оболочка, доступна только с правом driver.use
+          path: '/driver',
           element: <RequireAuth />,
-          children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, { path: '/transfers', element: <Navigate to="/trips?view=transfers" replace /> }, ...partyPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }],
+          children: [
+            {
+              element: <RequireDriver />,
+              children: [
+                {
+                  element: <DriverLayout />,
+                  children: [
+                    { index: true, element: <DriverTripsPage /> },
+                    { path: 'trips/:id', element: <DriverTripPage /> },
+                    { path: 'profile', element: <DriverProfilePage /> },
+                    { path: '*', element: <NotFoundPage /> },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          element: <RequireAuth />,
+          children: [{ element: <DriverRedirect />, children: [{ element: <AppLayout />, children: [...pages, ...orderPages, ...tripPages, { path: '/transfers', element: <Navigate to="/trips?view=transfers" replace /> }, ...partyPages, ...financePages, settingsPages, { path: '/settings', element: <SettingsIndex /> }, { path: '*', element: <NotFoundPage /> }] }] }],
         },
       ],
     },

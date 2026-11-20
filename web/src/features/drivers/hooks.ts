@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createDriver, createDriverDocument, deleteDriver, deleteDriverDocument, getDriver, listDrivers, updateDriver } from './api'
+import { createDriver, createDriverDocument, deleteDriver, deleteDriverDocument, getDriver, grantDriverAccess, listDrivers, revokeDriverAccess, updateDriver } from './api'
 import type { DriverDocument, DriverListParams, DriverPayload } from './types'
 
 export function useDriverList(params: DriverListParams) {
@@ -44,4 +44,14 @@ export function useAddDriverDocument() {
 export function useDeleteDriverDocument() {
   const invalidate = useInvalidate()
   return useMutation({ mutationFn: (id: number) => deleteDriverDocument(id), onSuccess: invalidate })
+}
+
+export function useGrantDriverAccess() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: ({ id, password }: { id: number; password: string }) => grantDriverAccess(id, password), onSuccess: invalidate })
+}
+
+export function useRevokeDriverAccess() {
+  const invalidate = useInvalidate()
+  return useMutation({ mutationFn: (id: number) => revokeDriverAccess(id), onSuccess: invalidate })
 }
