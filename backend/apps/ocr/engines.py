@@ -33,6 +33,18 @@ class OcrError(Exception):
     """Сообщение безопасно показывать пользователю (ключей в нём нет)."""
 
 
+def _google_detail(error: dict) -> str:
+    """Сообщение Google с кодом причины (например SERVICE_DISABLED, BILLING_DISABLED,
+    API_KEY_SERVICE_BLOCKED): по нему видно, что чинить."""
+    reasons = [
+        d.get("reason")
+        for d in error.get("details") or []
+        if isinstance(d, dict) and d.get("reason")
+    ]
+    parts = [str(error.get("message", "")), str(error.get("status", "")), *map(str, reasons)]
+    return " | ".join(dict.fromkeys(p for p in parts if p))
+
+
 def _http(request: urllib.request.Request, name: str) -> dict:
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 - https, фиксированные адреса
@@ -41,7 +53,8 @@ def _http(request: urllib.request.Request, name: str) -> dict:
         detail = ""
         try:
             body = json.loads(exc.read().decode("utf-8"))
-            detail = (body.get("error") or {}).get("message", "") if isinstance(body, dict) else ""
+            error = body.get("error") if isinstance(body, dict) else None
+            detail = _google_detail(error) if isinstance(error, dict) else ""
         except (ValueError, OSError):
             pass
         raise OcrError(f"{LABELS[name]} вернул {exc.code}: {detail[:200]}".rstrip(": ")) from None

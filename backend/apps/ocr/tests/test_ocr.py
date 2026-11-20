@@ -410,3 +410,19 @@ def test_google_switches_to_ocr_space_when_monthly_limit_reached(oco, fake, sett
     assert used == ["google_vision", "google_vision", "ocr_space"]
     body = api.get(f"{BASE}settings/").json()
     assert body["google_used"] == 2 and body["google_limit"] == 2
+
+
+def test_google_error_shows_reason(monkeypatch):
+    import io
+    import urllib.error
+
+    body = {"error": {"message": "Permission denied", "status": "PERMISSION_DENIED",
+                      "details": [{"reason": "SERVICE_DISABLED"}]}}  # fmt: skip
+
+    def boom(request, timeout=0):
+        raise urllib.error.HTTPError("u", 403, "x", {}, io.BytesIO(json.dumps(body).encode()))
+
+    monkeypatch.setattr("urllib.request.urlopen", boom)
+    with pytest.raises(engines.OcrError) as exc:
+        engines.GoogleVision("k").recognize(JPEG, "image/jpeg")
+    assert "SERVICE_DISABLED" in str(exc.value) and "PERMISSION_DENIED" in str(exc.value)
