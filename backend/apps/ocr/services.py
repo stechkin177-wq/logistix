@@ -5,7 +5,7 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
-from . import crypto, engines, fields, storage
+from . import crypto, engines, fields, handwriting, storage
 from .models import OcrSettings, ScannedDocument
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,36 @@ def effective_config() -> engines.Config:
     return config
 
 
+def handwriting_config() -> handwriting.HandwritingConfig:
+    """Настройки Gemini компании; ключ, которого она не вводила, берётся из окружения сервера."""
+    server_key = getattr(settings, "OCR_GEMINI_KEY", "")
+    row = OcrSettings.objects.first()
+    if row is None:
+        return handwriting.HandwritingConfig(api_key=server_key)
+    return handwriting.HandwritingConfig(
+        api_key=crypto.decrypt(row.gemini_key_enc) or server_key,
+        model=row.handwriting_model or handwriting.DEFAULT_MODEL,
+        check_model=row.handwriting_check_model or handwriting.DEFAULT_CHECK_MODEL,
+        crosscheck=row.handwriting_crosscheck,
+        enabled=row.handwriting_enabled,
+    )
+
+
+def _read_sheet(doc: ScannedDocument, data: bytes, content_type: str) -> None:
+    config = handwriting_config()
+    if not config.ready:
+        doc.status = ScannedDocument.FAILED
+        doc.error = "Чтение рукописных листов не настроено: введите ключ Gemini в настройках."
+        return
+    try:
+        page = handwriting.read_sheet(data, content_type, config)
+    except handwriting.HandwritingError as exc:
+        doc.status, doc.error = ScannedDocument.FAILED, str(exc)[:1000]
+        return
+    doc.status, doc.engine = ScannedDocument.DONE, "gemini"
+    doc.sheet = page
+
+
 def scan(data: bytes, content_type: str, name: str, doc_type: str, user) -> ScannedDocument:
     """Создаёт запись и распознаёт синхронно. Лимит тарифа проверяется при создании записи
     (до обращения к движку), сбой распознавания сохраняется в записи и не роняет запрос."""
@@ -97,13 +127,16 @@ def scan(data: bytes, content_type: str, name: str, doc_type: str, user) -> Scan
             doc.file_key = key
         except storage.StorageError as exc:
             logger.warning("Оригинал документа %s не сохранён: %s", doc.pk, exc)
-    try:
-        text, engine = engines.recognize(data, content_type, effective_config())
-    except engines.OcrError as exc:
-        doc.status, doc.error = ScannedDocument.FAILED, str(exc)[:1000]
+    if doc_type == ScannedDocument.REPORT_SHEET:
+        _read_sheet(doc, data, content_type)
     else:
-        doc.status, doc.engine, doc.text = ScannedDocument.DONE, engine, text
-        doc.fields = fields.parse_fields(text, doc_type)
+        try:
+            text, engine = engines.recognize(data, content_type, effective_config())
+        except engines.OcrError as exc:
+            doc.status, doc.error = ScannedDocument.FAILED, str(exc)[:1000]
+        else:
+            doc.status, doc.engine, doc.text = ScannedDocument.DONE, engine, text
+            doc.fields = fields.parse_fields(text, doc_type)
     doc.processed_at = timezone.now()
     doc.save()
     return doc

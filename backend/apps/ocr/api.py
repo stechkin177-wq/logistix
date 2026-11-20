@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers, status, viewsets
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -9,7 +10,7 @@ from apps.billing.permissions import ModuleRequired
 from apps.core.api_permissions import SectionPermissionMixin, permission_required
 from apps.core.pagination import StandardPagination
 
-from . import crypto, engines, services, storage
+from . import crypto, engines, gemini, handwriting, services, storage
 from .models import OcrSettings, ScannedDocument
 
 FIELD_KEYS = ("date", "amount", "liters", "price_per_liter", "fuel_type", "plate", "note")
@@ -28,7 +29,7 @@ class DocumentSerializer(serializers.ModelSerializer):
         model = ScannedDocument
         fields = [
             "id", "doc_type", "status", "engine", "original_name", "size", "has_file", "text",
-            "fields", "error", "uploaded_by_name", "created_at", "processed_at",
+            "fields", "sheet", "error", "uploaded_by_name", "created_at", "processed_at",
         ]  # fmt: skip
         read_only_fields = [f for f in fields if f not in ("doc_type", "fields")]
 
@@ -124,6 +125,13 @@ class SettingsSerializer(serializers.Serializer):
     ocr_space_key = serializers.CharField(
         required=False, allow_blank=True, write_only=True, trim_whitespace=True
     )
+    gemini_key = serializers.CharField(
+        required=False, allow_blank=True, write_only=True, trim_whitespace=True
+    )
+    handwriting_enabled = serializers.BooleanField(required=False)
+    handwriting_crosscheck = serializers.BooleanField(required=False)
+    handwriting_model = serializers.RegexField(r"^[A-Za-z0-9._-]{1,60}$", required=False)
+    handwriting_check_model = serializers.RegexField(r"^[A-Za-z0-9._-]{1,60}$", required=False)
 
 
 def settings_payload(row: OcrSettings | None) -> dict:
@@ -134,6 +142,14 @@ def settings_payload(row: OcrSettings | None) -> dict:
         "has_google_vision_key": bool(row and row.google_vision_key_enc)
         or bool(env["google_vision_key"]),
         "has_ocr_space_key": bool(row and row.ocr_space_key_enc) or bool(env["ocr_space_key"]),
+        "has_gemini_key": bool(row and row.gemini_key_enc)
+        or bool(getattr(settings, "OCR_GEMINI_KEY", "")),
+        "handwriting_enabled": row.handwriting_enabled if row else True,
+        "handwriting_crosscheck": row.handwriting_crosscheck if row else True,
+        "handwriting_model": row.handwriting_model if row else handwriting.DEFAULT_MODEL,
+        "handwriting_check_model": (
+            row.handwriting_check_model if row else handwriting.DEFAULT_CHECK_MODEL
+        ),
         "google_used": services.google_used_this_month(),
         "google_limit": services.google_limit(),
         "tesseract_available": engines.Tesseract().available(),
@@ -165,6 +181,14 @@ class SettingsView(APIView):
             row.google_vision_key_enc = crypto.encrypt(key)
         if key := data.get("ocr_space_key"):
             row.ocr_space_key_enc = crypto.encrypt(key)
+        if key := data.get("gemini_key"):
+            row.gemini_key_enc = crypto.encrypt(key)
+        for name in (
+            "handwriting_enabled", "handwriting_crosscheck",
+            "handwriting_model", "handwriting_check_model",
+        ):  # fmt: skip
+            if name in data:
+                setattr(row, name, data[name])
         row.save()
         return Response(settings_payload(row))
 
@@ -185,3 +209,27 @@ class SettingsTestView(APIView):
             error = engines.check_engine(name, config.key_for(name))
             results[name] = {"ok": error == "", "error": error}
         return Response({"results": results})
+
+
+class GeminiTestView(APIView):
+    """Проверка Gemini: читает тестовую картинку - ключ, выбранные модели и приём фото работают."""
+
+    def get_permissions(self):
+        return [ModuleRequired("ocr")(), permission_required("ocr.manage")()]
+
+    def post(self, request):
+        config = services.handwriting_config()
+        if not config.api_key:
+            return Response({"ok": False, "error": "Не задан ключ Gemini."})
+        results = {}
+        models = [config.model] + (
+            [config.check_model] if config.crosscheck and config.check_model != config.model else []
+        )
+        for model in models:
+            try:
+                gemini.check_key(model, config.api_key, engines.PROBE_PNG, "image/png")
+            except gemini.GeminiError as exc:
+                results[model] = {"ok": False, "error": str(exc)}
+            else:
+                results[model] = {"ok": True, "error": ""}
+        return Response({"ok": all(r["ok"] for r in results.values()), "models": results})

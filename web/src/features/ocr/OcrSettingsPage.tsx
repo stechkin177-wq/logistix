@@ -10,22 +10,50 @@ import { Spinner } from '../../shared/ui/Spinner'
 import { TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { ScanText } from '../../shared/ui/icons'
-import { useOcrSettings, useSaveOcrSettings, useTestOcrSettings } from './hooks'
+import { useOcrSettings, useSaveOcrSettings, useTestGemini, useTestOcrSettings } from './hooks'
 import type { OcrSettings } from './types'
 
 function SettingsForm({ settings }: { settings: OcrSettings }) {
   const { t } = useTranslation()
   const save = useSaveOcrSettings()
   const test = useTestOcrSettings()
-  const [form, setForm] = useState({ engine: settings.engine, auto_fallback: settings.auto_fallback, google_vision_key: '', ocr_space_key: '' })
+  const gemini = useTestGemini()
+  const [form, setForm] = useState({
+    engine: settings.engine,
+    auto_fallback: settings.auto_fallback,
+    google_vision_key: '',
+    ocr_space_key: '',
+    gemini_key: '',
+    handwriting_enabled: settings.handwriting_enabled,
+    handwriting_crosscheck: settings.handwriting_crosscheck,
+    handwriting_model: settings.handwriting_model,
+    handwriting_check_model: settings.handwriting_check_model,
+  })
   return (
     <Card>
       <CardHeader title={t('ocr.settingsCard')} />
-      <form className="grid gap-3 p-4 sm:grid-cols-2" noValidate onSubmit={(e) => { e.preventDefault(); save.mutate(form, { onSuccess: () => { setForm((f) => ({ ...f, google_vision_key: '', ocr_space_key: '' })) } }) }}>
+      <form className="grid gap-3 p-4 sm:grid-cols-2" noValidate onSubmit={(e) => { e.preventDefault(); save.mutate(form, { onSuccess: () => { setForm((f) => ({ ...f, google_vision_key: '', ocr_space_key: '', gemini_key: '' })) } }) }}>
         <Select label={t('ocr.mainEngine')} value={form.engine} options={settings.engines.map((e) => ({ value: e.code, label: e.code === 'tesseract' && !settings.tesseract_available ? `${e.label} (${t('ocr.unavailable')})` : e.label }))} onChange={(v) => { setForm({ ...form, engine: v }) }} />
         <Checkbox className="self-end" label={t('ocr.autoFallback')} checked={form.auto_fallback} onChange={(e) => { setForm({ ...form, auto_fallback: e.target.checked }) }} />
         <TextField label={t('ocr.googleKey')} type="password" autoComplete="new-password" value={form.google_vision_key} onChange={(e) => { setForm({ ...form, google_vision_key: e.target.value }) }} hint={settings.has_google_vision_key ? t('ocr.keyKept') : t('ocr.googleKeyHint')} />
         <TextField label={t('ocr.spaceKey')} type="password" autoComplete="new-password" value={form.ocr_space_key} onChange={(e) => { setForm({ ...form, ocr_space_key: e.target.value }) }} hint={settings.has_ocr_space_key ? t('ocr.keyKept') : t('ocr.spaceKeyHint')} />
+        <div className="space-y-3 rounded-control border border-line bg-surface-2 p-3 sm:col-span-2">
+          <h3 className="text-sm font-semibold">{t('ocr.gemini.title')}</h3>
+          <p className="text-xs text-muted">{t('ocr.gemini.text')}</p>
+          <Checkbox label={t('ocr.gemini.enabled')} checked={form.handwriting_enabled} onChange={(e) => { setForm({ ...form, handwriting_enabled: e.target.checked }) }} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <TextField label={t('ocr.gemini.key')} type="password" autoComplete="new-password" value={form.gemini_key} onChange={(e) => { setForm({ ...form, gemini_key: e.target.value }) }} hint={settings.has_gemini_key ? t('ocr.keyKept') : t('ocr.gemini.keyHint')} />
+            <TextField label={t('ocr.gemini.model')} value={form.handwriting_model} onChange={(e) => { setForm({ ...form, handwriting_model: e.target.value }) }} />
+            <TextField label={t('ocr.gemini.checkModel')} value={form.handwriting_check_model} onChange={(e) => { setForm({ ...form, handwriting_check_model: e.target.value }) }} />
+          </div>
+          <Checkbox label={t('ocr.gemini.crosscheck')} checked={form.handwriting_crosscheck} onChange={(e) => { setForm({ ...form, handwriting_crosscheck: e.target.checked }) }} />
+          {gemini.isError ? <Banner kind="error">{errorMessage(gemini.error, t)}</Banner> : null}
+          {gemini.data?.error ? <Banner kind="error">{gemini.data.error}</Banner> : null}
+          {gemini.data?.models ? Object.entries(gemini.data.models).map(([model, r]) => (
+            <Banner key={model} kind={r.ok ? 'info' : 'error'}>{r.ok ? t('ocr.gemini.testOk', { model }) : t('ocr.gemini.testFail', { model, error: r.error })}</Banner>
+          )) : null}
+          <WriteButton permission="ocr.manage" disabled={gemini.isPending || !settings.has_gemini_key} onClick={() => { gemini.mutate() }}>{gemini.isPending ? t('ocr.testing') : t('ocr.gemini.test')}</WriteButton>
+        </div>
         <div className="space-y-2 sm:col-span-2">
           {settings.has_google_vision_key ? <p className="text-xs text-muted">{t('ocr.googleUsage', { used: settings.google_used, limit: settings.google_limit })}</p> : null}
           <p className="text-xs text-muted">{settings.storage_configured ? t('ocr.storageOn') : t('ocr.storageOff')}</p>

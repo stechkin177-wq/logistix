@@ -1,27 +1,21 @@
 """Модуль ocr: движки с запасным вариантом, разбор полей чека, шифрование ключей, API, лимит."""
 
-import itertools
 import json
 from datetime import date
 
 import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
-from apps.billing.models import Plan
 from apps.core.api.auth import issue_tokens
 from apps.core.models import Membership, Role, User
 from apps.core.module_services import set_company_modules
 from apps.core.tenancy import tenant_context
 from apps.ocr import crypto, engines, fields, services, storage
 from apps.ocr.models import OcrSettings, ScannedDocument
+from apps.ocr.tests.helpers import BASE, JPEG, _n, ocr_company, upload
 
 pytestmark = pytest.mark.django_db
 
-_n = itertools.count(1)
-JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
-PNG = engines.PROBE_PNG if hasattr(engines, "PROBE_PNG") else engines._probe_png()
-BASE = "/api/ocr/"
 RECEIPT = """АЗС Helios
 18.11.2026 14:05
 ДТ 886AIA14
@@ -29,23 +23,6 @@ RECEIPT = """АЗС Helios
 Цена 310,00
 ИТОГО 37355,00
 """
-
-
-def ocr_company(make_company, name="OCR"):
-    plan = Plan.objects.get(code="start")
-    mods = list(plan.modules)
-    for code in ("documents", "ocr"):
-        if code not in mods:
-            mods.append(code)
-    Plan.objects.filter(code="start").update(modules=mods)
-    company, admin, api = make_company(name, modules=["fleet"])
-    set_company_modules(company, ["documents", "ocr"])
-    return company, admin, api
-
-
-@pytest.fixture
-def oco(make_company):
-    return ocr_company(make_company)
 
 
 def api_with_role(company, role_name):
@@ -56,14 +33,6 @@ def api_with_role(company, role_name):
     api = APIClient()
     api.credentials(HTTP_AUTHORIZATION=f"Bearer {issue_tokens(user, company.id)['access']}")
     return api
-
-
-def upload(api, data=JPEG, name="check.jpg", **extra):
-    return api.post(
-        f"{BASE}documents/",
-        {"file": SimpleUploadedFile(name, data, content_type="image/jpeg"), **extra},
-        format="multipart",
-    )
 
 
 class FakeEngine:

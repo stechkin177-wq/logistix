@@ -1,6 +1,6 @@
 import { api } from '../../shared/api/client'
 import type { Paginated } from '../../shared/ui/Pagination'
-import type { OcrDocType, OcrDocument, OcrFieldKey, OcrSettings, OcrSettingsForm, OcrTestResult } from './types'
+import type { GeminiTestResult, OcrDocType, OcrDocument, OcrFieldKey, OcrSettings, OcrSettingsForm, OcrTestResult } from './types'
 
 export interface OcrFilters { page: number; q?: string; status?: string; doc_type?: string }
 export const listOcrDocuments = (f: OcrFilters, signal?: AbortSignal) =>
@@ -19,3 +19,4 @@ export const getOcrFileUrl = (id: number) => api.get<{ url: string }>(`/ocr/docu
 export const getOcrSettings = (signal?: AbortSignal) => api.get<OcrSettings>('/ocr/settings/', undefined, { signal })
 export const saveOcrSettings = (body: Partial<OcrSettingsForm>) => api.put<OcrSettings>('/ocr/settings/', body)
 export const testOcrSettings = () => api.post<{ results: OcrTestResult }>('/ocr/settings/test/', {})
+export const testGemini = () => api.post<GeminiTestResult>('/ocr/settings/test-gemini/', {})

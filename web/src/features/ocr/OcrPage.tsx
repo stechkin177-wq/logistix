@@ -20,6 +20,7 @@ import { TextArea, TextField } from '../../shared/ui/TextField'
 import { WriteButton } from '../../shared/ui/WriteButton'
 import { Trash2, Upload, ScanText } from '../../shared/ui/icons'
 import { getOcrFileUrl } from './api'
+import { SheetView } from './SheetView'
 import { useDeleteOcr, useOcrDocuments, useUpdateOcr, useUploadOcr } from './hooks'
 import { shrinkImage } from './image'
 import { FUEL_TYPES, OCR_DOC_TYPES, OCR_FIELD_KEYS, type OcrDocType, type OcrDocument, type OcrFieldKey, type OcrStatus } from './types'
@@ -36,7 +37,7 @@ const SCHEMA = {
 const isDocType = (v: string): v is OcrDocType => (OCR_DOC_TYPES as string[]).includes(v)
 /** Поля, показываемые в карточке: у чека АЗС расширенный набор, у остальных документов - дата, сумма, заметка. */
 const fieldsFor = (type: OcrDocType): OcrFieldKey[] =>
-  type === 'fuel_receipt' ? [...OCR_FIELD_KEYS] : OCR_FIELD_KEYS.filter((k) => k === 'date' || k === 'amount' || k === 'note')
+  type === 'report_sheet' ? [] : type === 'fuel_receipt' ? [...OCR_FIELD_KEYS] : OCR_FIELD_KEYS.filter((k) => k === 'date' || k === 'amount' || k === 'note')
 
 function UploadCard() {
   const { t } = useTranslation()
@@ -83,6 +84,7 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
   const [values, setValues] = useState<Partial<Record<OcrFieldKey, string>>>(doc.fields)
   const [confirm, setConfirm] = useState(false)
   const [fileError, setFileError] = useState<string>()
+  const isSheet = doc.doc_type === 'report_sheet'
   const keys = fieldsFor(docType)
   const set = (key: OcrFieldKey, value: string) => { setValues({ ...values, [key]: value }) }
   const save = () => {
@@ -104,7 +106,7 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
         <>
           <WriteButton permission="ocr.delete" variant="dangerSoft" icon={Trash2} onClick={() => { setConfirm(true) }}>{t('common.delete')}</WriteButton>
           <Button onClick={onClose} disabled={update.isPending}>{t('common.cancel')}</Button>
-          <WriteButton permission="ocr.update" variant="primary" onClick={save} disabled={update.isPending}>{update.isPending ? t('common.saving') : t('common.save')}</WriteButton>
+          {isSheet ? null : <WriteButton permission="ocr.update" variant="primary" onClick={save} disabled={update.isPending}>{update.isPending ? t('common.saving') : t('common.save')}</WriteButton>}
         </>
       }
     >
@@ -117,8 +119,9 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
         {fileError ? <Banner kind="error">{fileError}</Banner> : null}
         {doc.error ? <Banner kind="error">{doc.error}</Banner> : null}
         {update.isError ? <Banner kind="error">{errorMessage(update.error, t)}</Banner> : null}
-        <Select label={t('ocr.docType')} value={docType} options={OCR_DOC_TYPES.map((v) => ({ value: v, label: t(`ocr.types.${v}`) }))} onChange={(v) => { if (isDocType(v)) setDocType(v) }} />
-        <p className="text-xs text-muted">{t('ocr.fieldsHint')}</p>
+        {isSheet ? <SheetView sheet={doc.sheet} /> : null}
+        {isSheet ? null : <Select label={t('ocr.docType')} value={docType} options={OCR_DOC_TYPES.filter((v) => v !== 'report_sheet').map((v) => ({ value: v, label: t(`ocr.types.${v}`) }))} onChange={(v) => { if (isDocType(v)) setDocType(v) }} />}
+        {isSheet ? null : <p className="text-xs text-muted">{t('ocr.fieldsHint')}</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           {keys.map((key) =>
             key === 'fuel_type' ? (
@@ -128,7 +131,7 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
             ),
           )}
         </div>
-        <TextArea label={t('ocr.text')} value={doc.text} readOnly rows={8} />
+        {isSheet ? null : <TextArea label={t('ocr.text')} value={doc.text} readOnly rows={8} />}
       </div>
       <ConfirmDialog
         open={confirm}

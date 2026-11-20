@@ -24,6 +24,12 @@ class OcrSettings(TenantModel):
     google_vision_key_enc = models.TextField(blank=True)
     ocr_space_key_enc = models.TextField(blank=True)
     auto_fallback = models.BooleanField(default=True)
+    # рукописный отчётный лист: Gemini читает фото, вторая модель пересверяет цифры
+    gemini_key_enc = models.TextField(blank=True)
+    handwriting_enabled = models.BooleanField(default=True)
+    handwriting_model = models.CharField(max_length=60, default="gemini-3.7-flash")
+    handwriting_check_model = models.CharField(max_length=60, default="gemini-3.5-flash")
+    handwriting_crosscheck = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -41,12 +47,14 @@ class ScannedDocument(TenantModel):
     WAYBILL = "waybill"
     CMR = "cmr"
     INVOICE = "invoice"
+    REPORT_SHEET = "report_sheet"
     OTHER = "other"
     TYPES = [
         (FUEL_RECEIPT, "Чек АЗС"),
         (WAYBILL, "Путевой лист"),
         (CMR, "CMR"),
         (INVOICE, "Счёт или акт"),
+        (REPORT_SHEET, "Рукописный отчётный лист"),
         (OTHER, "Прочее"),
     ]
     PROCESSING = "processing"
@@ -65,6 +73,8 @@ class ScannedDocument(TenantModel):
     )  # путь в хранилище; пусто - оригинал не сохранён
     text = models.TextField(blank=True)
     fields = models.JSONField(default=dict, blank=True)
+    # рукописный лист: прочитанное, сомнительные значения и расхождения чтений (по путям значений)
+    sheet = models.JSONField(default=dict, blank=True)
     error = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
@@ -77,7 +87,16 @@ class ScannedDocument(TenantModel):
         indexes = [models.Index(fields=["company", "-created_at"], name="scandoc_company_time_idx")]
         constraints = [
             models.CheckConstraint(
-                condition=Q(doc_type__in=["fuel_receipt", "waybill", "cmr", "invoice", "other"]),
+                condition=Q(
+                    doc_type__in=[
+                        "fuel_receipt",
+                        "waybill",
+                        "cmr",
+                        "invoice",
+                        "report_sheet",
+                        "other",
+                    ]
+                ),
                 name="scandoc_type_valid",
             ),
             models.CheckConstraint(

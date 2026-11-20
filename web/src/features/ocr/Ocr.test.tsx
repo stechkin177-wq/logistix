@@ -79,3 +79,48 @@ describe('Распознавание документов', () => {
     expect(out.name).toBe('a.png')
   })
 })
+
+describe('Рукописный лист', () => {
+  const SHEET_DOC = {
+    ...DOC,
+    id: 9, doc_type: 'report_sheet', engine: 'gemini', original_name: 'sheet.jpg', fields: {}, text: '',
+    sheet: {
+      page_type: 'main', models: ['gemini-3.7-flash', 'gemini-3.5-flash'], notes: ['Проверьте строки с фото'],
+      raw: { header: { driver: 'Иванов', end_odometer_km: '104500' }, fuel_tractor: [{ liters: '120', price: '310', amount: '40000' }] },
+      flags: { 'fuel_tractor[0].liters': ['Литры x цена = 37200, а сумма 40000'] },
+      alt: { 'fuel_tractor[0].liters': '126' },
+    },
+  }
+
+  it('карточка показывает прочитанное, подсвечивает сомнительное и расхождение второго чтения', async () => {
+    loggedIn([['GET', /^\/api\/ocr\/documents\//, { body: page([SHEET_DOC]) }]], { session: MODULES })
+    renderApp('/ocr')
+    await userEvent.click(await screen.findByRole('button', { name: 'sheet.jpg' }))
+    const view = await screen.findByTestId('sheet-view')
+    expect(view).toHaveTextContent('Иванов')
+    expect(view).toHaveTextContent('Литры x цена = 37200, а сумма 40000')
+    expect(view).toHaveTextContent('второе чтение: 126')
+    expect(view).toHaveTextContent('Проверьте строки с фото')
+    expect(view.querySelectorAll('[data-flagged="true"]')).toHaveLength(1)
+    expect(screen.queryByLabelText('Литры')).not.toBeInTheDocument() // полей чека у листа нет
+  })
+
+  it('настройки: проверка Gemini и сохранение ключа и моделей', async () => {
+    const m = loggedIn(
+      [
+        ['GET', '/api/ocr/settings/', { body: { ...SETTINGS, has_gemini_key: true, handwriting_enabled: true, handwriting_crosscheck: true, handwriting_model: 'gemini-3.7-flash', handwriting_check_model: 'gemini-3.5-flash' } }],
+        ['PUT', '/api/ocr/settings/', { body: SETTINGS }],
+        ['POST', '/api/ocr/settings/test-gemini/', { body: { ok: false, models: { 'gemini-3.7-flash': { ok: true, error: '' }, 'gemini-3.5-flash': { ok: false, error: 'модель недоступна' } } } }],
+      ],
+      { session: MODULES },
+    )
+    renderApp('/settings/ocr')
+    await userEvent.click(await screen.findByRole('button', { name: 'Проверить Gemini' }))
+    expect(await screen.findByText('gemini-3.7-flash: работает')).toBeInTheDocument()
+    expect(screen.getByText('gemini-3.5-flash: модель недоступна')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Ключ Gemini'), 'AIza-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => { expect(m.calls.some((c) => c.method === 'PUT')).toBe(true) })
+    expect(m.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({ gemini_key: 'AIza-1', handwriting_model: 'gemini-3.7-flash', handwriting_crosscheck: true })
+  })
+})

@@ -270,6 +270,7 @@ GPS_ALLOW_PRIVATE_HOSTS = env_bool("GPS_ALLOW_PRIVATE_HOSTS", False)
 OCR_ENCRYPTION_KEY = env("OCR_ENCRYPTION_KEY", "")
 OCR_GOOGLE_VISION_KEY = env("OCR_GOOGLE_VISION_KEY", "")
 OCR_SPACE_KEY = env("OCR_SPACE_KEY", "")
+OCR_GEMINI_KEY = env("OCR_GEMINI_KEY", "")
 # Месячный порог Google Vision (бесплатно 1000 страниц): дальше распознаёт запасной движок
 OCR_GOOGLE_MONTHLY_LIMIT = int(env("OCR_GOOGLE_MONTHLY_LIMIT", "950"))
 TESSERACT_CMD = env("TESSERACT_CMD", "")

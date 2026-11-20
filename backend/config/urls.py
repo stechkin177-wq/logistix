@@ -110,6 +110,7 @@ from apps.mail.api import MessageViewSet as MailMessageViewSet
 from apps.mail.api import StatusView as MailStatusView
 from apps.mail.api import TemplateViewSet as MailTemplateViewSet
 from apps.ocr.api import DocumentViewSet as OcrDocumentViewSet
+from apps.ocr.api import GeminiTestView as OcrGeminiTestView
 from apps.ocr.api import SettingsTestView as OcrSettingsTestView
 from apps.ocr.api import SettingsView as OcrSettingsView
 
@@ -164,6 +165,7 @@ urlpatterns = [
     path("api/health/", health),
     path("api/ocr/settings/", OcrSettingsView.as_view()),
     path("api/ocr/settings/test/", OcrSettingsTestView.as_view()),
+    path("api/ocr/settings/test-gemini/", OcrGeminiTestView.as_view()),
     path("api/ocr/documents/<int:pk>/file/", OcrDocumentViewSet.as_view({"get": "file"})),
     path("api/gps/account/", GpsAccountView.as_view()),
     path("api/gps/account/test/", GpsAccountTestView.as_view()),
