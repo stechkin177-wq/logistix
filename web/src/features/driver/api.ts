@@ -5,5 +5,5 @@ export const getDriverMe = (signal?: AbortSignal) => api.get<DriverMe>('/driver/
 export const listDriverTrips = (scope: DriverScope, signal?: AbortSignal) =>
   api.get<{ results: DriverTrip[] }>('/driver/trips/', { scope }, { signal })
 export const getDriverTrip = (id: number, signal?: AbortSignal) => api.get<DriverTripDetail>(`/driver/trips/${String(id)}/`, undefined, { signal })
-export const doTripAction = (id: number, body: { action: DriverAction; vehicle_km?: number; trailer_km?: number }) =>
+export const doTripAction = (id: number, body: { action: DriverAction; vehicle_km?: number; engine_hours?: number }) =>
   api.post<DriverTripDetail>(`/driver/trips/${String(id)}/action/`, body)

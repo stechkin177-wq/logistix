@@ -85,6 +85,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             "status",
             "gps_check",
             "initial_odometer_km",
+            "has_refrigerator",
             "notes",
             "documents",
             "insurances",

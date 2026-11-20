@@ -100,6 +100,7 @@ if STEP == "M6":
         "gps_geofence",
         "gps_vehiclegeofencestate",
         "gps_geofenceevent",
+        "fleet_enginehourreading",
         "ocr_ocrsettings",
         "ocr_scanneddocument",
         "finance_fxrevaluation",

@@ -13,27 +13,34 @@ import { ArrowLeft, Phone } from '../../shared/ui/icons'
 import { useDriverTrip, useTripAction } from './hooks'
 import type { DriverAction, DriverTripDetail } from './types'
 
-const ODOMETER_ACTIONS: DriverAction[] = ['start', 'complete']
-
+/** Действия по рейсу. Выезд: ничего вводить не нужно (пробег и моточасы берутся из прошлого рейса),
+ * по желанию можно исправить. Завершение: пробег машины обязателен, моточасы - если есть установка. */
 function ActionBar({ trip }: { trip: DriverTripDetail }) {
   const { t } = useTranslation()
   const run = useTripAction(trip.id)
   const [pending, setPending] = useState<DriverAction | null>(null)
+  const [fix, setFix] = useState(false)
   const [vehicleKm, setVehicleKm] = useState('')
-  const [trailerKm, setTrailerKm] = useState('')
-  const close = () => { setPending(null); setVehicleKm(''); setTrailerKm(''); run.reset() }
+  const [hours, setHours] = useState('')
+  const close = () => { setPending(null); setFix(false); setVehicleKm(''); setHours(''); run.reset() }
+  const completing = pending === 'complete'
+  const starting = pending === 'start'
+  const needKm = completing && trip.odometer_required
+  const needHours = completing && trip.engine_hours_required
+  const kmMissing = needKm && (vehicleKm.trim() === '' || Number(vehicleKm) < 1)
+  const hoursMissing = needHours && hours.trim() === ''
   const submit = () => {
     if (!pending) return
-    const body: { action: DriverAction; vehicle_km?: number; trailer_km?: number } = { action: pending }
-    if (ODOMETER_ACTIONS.includes(pending)) {
+    const body: { action: DriverAction; vehicle_km?: number; engine_hours?: number } = { action: pending }
+    if (pending === 'start' || pending === 'complete') {
       if (vehicleKm.trim() !== '') body.vehicle_km = Number(vehicleKm)
-      if (trailerKm.trim() !== '') body.trailer_km = Number(trailerKm)
+      if (hours.trim() !== '') body.engine_hours = Number(hours.replace(',', '.'))
     }
     run.mutate(body, { onSuccess: close })
   }
   if (trip.actions.length === 0) return null
-  const needKm = pending !== null && ODOMETER_ACTIONS.includes(pending) && trip.odometer_required
-  const kmMissing = needKm && (vehicleKm.trim() === '' || Number(vehicleKm) < 1)
+  const showKm = trip.odometer_required && (completing || (starting && fix))
+  const showHours = trip.engine_hours_required && (completing || (starting && fix))
   return (
     <>
       <div className="grid gap-2">
@@ -51,21 +58,24 @@ function ActionBar({ trip }: { trip: DriverTripDetail }) {
         footer={
           <>
             <Button onClick={close} disabled={run.isPending}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={submit} disabled={run.isPending || kmMissing}>{run.isPending ? t('common.saving') : t('driver.confirm')}</Button>
+            <Button variant="primary" onClick={submit} disabled={run.isPending || kmMissing || hoursMissing}>{run.isPending ? t('common.saving') : t('driver.confirm')}</Button>
           </>
         }
       >
         <div className="space-y-3">
           {run.isError ? <Banner kind="error">{errorMessage(run.error, t)}</Banner> : null}
-          {pending && ODOMETER_ACTIONS.includes(pending) ? (
+          {starting ? (
             <>
-              <p className="text-sm text-muted">{trip.odometer_required ? t('driver.odometerRequired') : t('driver.odometerHint')}</p>
-              <TextField label={t('driver.vehicleKm')} required={trip.odometer_required} inputMode="numeric" pattern="[0-9]*" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value.replace(/\D/g, '')) }} />
-              {trip.trailer_plate ? <TextField label={t('driver.trailerKm')} inputMode="numeric" pattern="[0-9]*" value={trailerKm} onChange={(e) => { setTrailerKm(e.target.value.replace(/\D/g, '')) }} /> : null}
+              {trip.current_odometer_km !== null ? <p className="text-sm">{t('driver.currentKm', { km: trip.current_odometer_km })}</p> : null}
+              {trip.engine_hours_required && trip.current_engine_hours !== null ? <p className="text-sm">{t('driver.currentHours', { hours: trip.current_engine_hours })}</p> : null}
+              <p className="text-sm text-muted">{t('driver.startHint')}</p>
+              {!fix && (trip.odometer_required || trip.engine_hours_required) ? <Button onClick={() => { setFix(true) }}>{t('driver.fix')}</Button> : null}
             </>
-          ) : (
-            <p className="text-sm">{t('driver.confirmText')}</p>
-          )}
+          ) : null}
+          {pending === 'unloading' ? <p className="text-sm">{t('driver.confirmText')}</p> : null}
+          {completing && (trip.odometer_required || trip.engine_hours_required) ? <p className="text-sm text-muted">{t('driver.completeHint')}</p> : null}
+          {showKm ? <TextField label={starting ? t('driver.fixKm') : t('driver.vehicleKm')} required={needKm} inputMode="numeric" pattern="[0-9]*" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value.replace(/\D/g, '')) }} /> : null}
+          {showHours ? <TextField label={t('driver.engineHours', { plate: trip.reefer_plate })} required={needHours} inputMode="decimal" value={hours} onChange={(e) => { setHours(e.target.value.replace(/[^\d.,]/g, '')) }} /> : null}
         </div>
       </Dialog>
     </>

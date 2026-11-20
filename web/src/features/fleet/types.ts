@@ -16,6 +16,7 @@ export interface Vehicle {
   volume_m3: string | null
   status: VehicleStatus
   gps_check: boolean
+  has_refrigerator: boolean
   initial_odometer_km: number | null
   notes: string
 }

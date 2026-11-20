@@ -12,6 +12,7 @@ from apps.core.models import Company
 from apps.core.tenancy import get_current_company_id
 
 from .models import (
+    EngineHourReading,
     FleetSettings,
     FuelFill,
     Insurance,
@@ -83,6 +84,56 @@ def record_trip_mileage(trip, vehicle: Vehicle, km: int, phase: str) -> MileageR
     return MileageReading.objects.create(
         vehicle=vehicle, trip=trip, recorded_at=at, odometer_km=km, source=source
     )
+
+
+def check_engine_hours(vehicle: Vehicle, hours, at, *, exclude_id=None) -> None:
+    """Моточасы не убывают во времени (как пробег)."""
+    qs = EngineHourReading.objects.filter(vehicle=vehicle)
+    if exclude_id:
+        qs = qs.exclude(pk=exclude_id)
+    before = qs.filter(recorded_at__lte=at).order_by("-recorded_at", "-id").first()
+    after = qs.filter(recorded_at__gt=at).order_by("recorded_at", "id").first()
+    if before is not None and hours < before.hours:
+        raise ValidationError(
+            {"engine_hours": f"Моточасы меньше предыдущего показания ({before.hours})"}
+        )
+    if after is not None and hours > after.hours:
+        raise ValidationError(
+            {"engine_hours": f"Моточасы больше следующего показания ({after.hours})"}
+        )
+
+
+def record_trip_engine_hours(trip, vehicle: Vehicle, hours, phase: str) -> EngineHourReading:
+    """Показание моточасов техники для рейса: одно на (рейс, техника, фаза); повтор исправляет."""
+    source = EngineHourReading.TRIP_START if phase == "start" else EngineHourReading.TRIP_END
+    existing = EngineHourReading.objects.filter(trip=trip, vehicle=vehicle, source=source).first()
+    at = existing.recorded_at if existing else timezone.now()
+    check_engine_hours(vehicle, hours, at, exclude_id=existing.pk if existing else None)
+    if phase == "end":
+        start = EngineHourReading.objects.filter(
+            trip=trip, vehicle=vehicle, source=EngineHourReading.TRIP_START
+        ).first()
+        if start is not None and hours < start.hours:
+            raise ValidationError(
+                {"engine_hours": f"Моточасы по завершении меньше моточасов выезда ({start.hours})"}
+            )
+    if existing:
+        existing.hours = hours
+        existing.save(update_fields=["hours"])
+        return existing
+    return EngineHourReading.objects.create(
+        vehicle=vehicle, trip=trip, recorded_at=at, hours=hours, source=source
+    )
+
+
+def latest_engine_hours(vehicle_id: int):
+    """Текущие моточасы: последнее показание по рейсам или None."""
+    reading = (
+        EngineHourReading.objects.filter(vehicle_id=vehicle_id)
+        .order_by("-recorded_at", "-id")
+        .first()
+    )
+    return reading.hours if reading else None
 
 
 def latest_official(vehicle_id: int) -> MileageReading | None:

@@ -21,7 +21,7 @@ import { SELECTABLE_KINDS, VEHICLE_KINDS, VEHICLE_STATUSES, type Reminder, type 
 
 type TabKey = 'main' | 'documents' | 'insurance' | 'service' | 'fuel' | 'history'
 const TAB_KEYS: TabKey[] = ['main', 'documents', 'insurance', 'service', 'fuel', 'history']
-const KNOWN = /^(kind|plate|vin|make|model|year|body_type|capacity_kg|volume_m3|status|gps_check|initial_odometer_km|notes)$/
+const KNOWN = /^(kind|plate|vin|make|model|year|body_type|capacity_kg|volume_m3|status|gps_check|initial_odometer_km|has_refrigerator|notes)$/
 
 interface FormState {
   kind: VehicleKind
@@ -35,6 +35,7 @@ interface FormState {
   volume_m3: string
   status: VehicleStatus
   gps_check: boolean
+  has_refrigerator: boolean
   initial_odometer_km: string
   notes: string
 }
@@ -51,6 +52,7 @@ const initial = (v: Vehicle | null): FormState => ({
   volume_m3: v?.volume_m3 ?? '',
   status: v?.status ?? 'active',
   gps_check: v?.gps_check ?? false,
+  has_refrigerator: v?.has_refrigerator ?? false,
   initial_odometer_km: v?.initial_odometer_km != null ? String(v.initial_odometer_km) : '',
   notes: v?.notes ?? '',
 })
@@ -160,6 +162,7 @@ function MainTab({ vehicle, onClose, onDelete }: { vehicle: Vehicle | null; onCl
         <Select label={t('common.status')} value={form.status} options={VEHICLE_STATUSES.map((s) => ({ value: s, label: t(`fleet.status.${s}`) }))} onChange={(v) => { set('status', v as VehicleStatus) }} />
         <TextField label={t('fleet.initialKm')} hint={t('fleet.initialKmHint')} inputMode="numeric" value={form.initial_odometer_km} error={f.initial_odometer_km} onChange={(e) => { set('initial_odometer_km', e.target.value) }} />
         <Checkbox label={t('fleet.gpsCheck')} checked={form.gps_check} onChange={(e) => { set('gps_check', e.target.checked) }} />
+        <Checkbox label={t('fleet.hasRefrigerator')} title={t('fleet.hasRefrigeratorHint')} checked={form.has_refrigerator} onChange={(e) => { set('has_refrigerator', e.target.checked) }} />
         <TextArea fieldClassName="col-span-2" label={t('common.comment')} value={form.notes} error={f.notes} onChange={(e) => { set('notes', e.target.value) }} />
       </div>
       {vehicle?.gps_check ? <MileageCheckBlock id={vehicle.id} /> : null}

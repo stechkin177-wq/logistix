@@ -10,7 +10,7 @@ export const useDriverTrip = (id: number) => useQuery({ queryKey: ['driver', 'tr
 export function useTripAction(id: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { action: DriverAction; vehicle_km?: number; trailer_km?: number }) => doTripAction(id, body),
+    mutationFn: (body: { action: DriverAction; vehicle_km?: number; engine_hours?: number }) => doTripAction(id, body),
     onSuccess: (trip) => {
       qc.setQueryData(['driver', 'trip', id], trip)
       void qc.invalidateQueries({ queryKey: ['driver', 'trips'] })

@@ -178,28 +178,96 @@ def test_grant_requires_update_permission(make_company):
     assert r.status_code == 403
 
 
-def test_odometer_is_mandatory_for_start_and_complete(make_company):
+def test_odometer_at_completion_only_start_taken_from_previous(make_company):
     from apps.fleet.models import MileageReading, Vehicle
 
     company, admin, api = app_company(make_company, "Odo")
     set_company_modules(company, ["logistics", "drivers", "driver_app", "fleet"])
     driver, drv_api = driver_with_login(company)
     with tenant_context(company.id):
-        vehicle = Vehicle.objects.create(plate="886AIA14", kind="tractor")
+        vehicle = Vehicle.objects.create(
+            plate="886AIA14", kind="tractor", initial_odometer_km=100000
+        )
     trip = trip_for(api, company, driver, vehicle=vehicle.pk)
     card = drv_api.get(f"{TRIPS}{trip['id']}/").json()
-    assert card["odometer_required"] is True
+    assert card["odometer_required"] is True and card["current_odometer_km"] == 100000
     url = f"{TRIPS}{trip['id']}/action/"
-    missing = drv_api.post(url, {"action": "start"}, format="json")
+    # выезд: ничего вводить не нужно, пробег выезда берётся из начального пробега машины
+    assert drv_api.post(url, {"action": "start"}, format="json").status_code == 200
+    missing = drv_api.post(url, {"action": "complete"}, format="json")
     assert missing.status_code == 400 and "vehicle_km" in missing.json()
-    assert drv_api.post(url, {"action": "start", "vehicle_km": 0}, format="json").status_code == 400
     assert (
-        drv_api.post(url, {"action": "start", "vehicle_km": 100000}, format="json").status_code
+        drv_api.post(url, {"action": "complete", "vehicle_km": 0}, format="json").status_code == 400
+    )
+    assert (
+        drv_api.post(url, {"action": "complete", "vehicle_km": 99000}, format="json").status_code
+        == 400
+    )
+    assert (
+        drv_api.post(url, {"action": "complete", "vehicle_km": 100500}, format="json").status_code
         == 200
     )
-    assert drv_api.post(url, {"action": "complete"}, format="json").status_code == 400
-    done = drv_api.post(url, {"action": "complete", "vehicle_km": 100500}, format="json")
-    assert done.status_code == 200
+    # следующий рейс: пробег выезда = пробег завершения прошлого
+    second = trip_for(api, company, driver, vehicle=vehicle.pk)
+    card2 = drv_api.get(f"{TRIPS}{second['id']}/").json()
+    assert card2["current_odometer_km"] == 100500
+    assert (
+        drv_api.post(
+            f"{TRIPS}{second['id']}/action/", {"action": "start"}, format="json"
+        ).status_code
+        == 200
+    )
     with tenant_context(company.id):
-        km = sorted(MileageReading.objects.values_list("odometer_km", flat=True))
-    assert km == [100000, 100500]
+        rows = list(
+            MileageReading.objects.order_by("id").values_list("trip_id", "source", "odometer_km")
+        )
+    assert rows == [
+        (trip["id"], "trip_start", 100000),
+        (trip["id"], "trip_end", 100500),
+        (second["id"], "trip_start", 100500),
+    ]
+
+
+def test_engine_hours_for_refrigerated_trailer(make_company):
+    from apps.fleet.models import EngineHourReading, Vehicle
+
+    company, admin, api = app_company(make_company, "Reefer")
+    set_company_modules(company, ["logistics", "drivers", "driver_app", "fleet"])
+    driver, drv_api = driver_with_login(company)
+    with tenant_context(company.id):
+        tractor = Vehicle.objects.create(plate="111AAA01", kind="tractor")
+        reefer = Vehicle.objects.create(plate="222BBB02", kind="trailer", has_refrigerator=True)
+    trip = trip_for(api, company, driver, vehicle=tractor.pk, trailer=reefer.pk)
+    card = drv_api.get(f"{TRIPS}{trip['id']}/").json()
+    assert card["engine_hours_required"] is True and card["reefer_plate"] == "222BBB02"
+    url = f"{TRIPS}{trip['id']}/action/"
+    assert drv_api.post(url, {"action": "start"}, format="json").status_code == 200
+    no_hours = drv_api.post(url, {"action": "complete", "vehicle_km": 1000}, format="json")
+    assert no_hours.status_code == 400 and "engine_hours" in no_hours.json()
+    done = drv_api.post(
+        url, {"action": "complete", "vehicle_km": 1000, "engine_hours": 10.5}, format="json"
+    )
+    assert done.status_code == 200
+    second = trip_for(api, company, driver, vehicle=tractor.pk, trailer=reefer.pk)
+    assert drv_api.get(f"{TRIPS}{second['id']}/").json()["current_engine_hours"] == 10.5
+    url2 = f"{TRIPS}{second['id']}/action/"
+    assert drv_api.post(url2, {"action": "start"}, format="json").status_code == 200
+    low = drv_api.post(
+        url2, {"action": "complete", "vehicle_km": 2000, "engine_hours": 5}, format="json"
+    )
+    assert low.status_code == 400  # меньше выезда (10.5)
+    assert (
+        drv_api.post(
+            url2, {"action": "complete", "vehicle_km": 2000, "engine_hours": 12}, format="json"
+        ).status_code
+        == 200
+    )
+    with tenant_context(company.id):
+        hours = list(
+            EngineHourReading.objects.order_by("id").values_list("trip_id", "source", "hours")
+        )
+    assert [(t, s_, str(h)) for t, s_, h in hours] == [
+        (trip["id"], "trip_end", "10.5"),
+        (second["id"], "trip_start", "10.5"),
+        (second["id"], "trip_end", "12.0"),
+    ]

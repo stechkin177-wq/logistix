@@ -8,7 +8,7 @@ import { renderApp } from '../../test/renderApp'
 const MODULES = ['logistics', 'fleet', 'documents']
 const VEHICLE = {
   id: 3, kind: 'tractor', plate: '777AAA01', vin: '', make: 'Volvo', model: 'FH', year: 2020, body_type: '', capacity_kg: null,
-  volume_m3: null, status: 'active', gps_check: true, initial_odometer_km: 500, notes: '', documents: [], insurances: [],
+  volume_m3: null, status: 'active', gps_check: true, has_refrigerator: false, initial_odometer_km: 500, notes: '', documents: [], insurances: [],
 }
 const REMINDERS = {
   count: 2,

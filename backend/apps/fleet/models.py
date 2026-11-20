@@ -46,6 +46,8 @@ class Vehicle(TenantModel, SoftDeleteModel):
     # Начальный пробег при подключении техники к системе: отдельное значение, не запись истории.
     # Официальный пробег затем формируется только показаниями рейсов (выезд и завершение).
     initial_odometer_km = models.PositiveIntegerField(null=True, blank=True)
+    # холодильная установка (рефрижераторный прицеп или грузовик): по ней ведутся моточасы
+    has_refrigerator = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -199,6 +201,43 @@ class MileageReading(TenantModel):
                 fields=["trip", "vehicle", "source"],
                 condition=Q(trip__isnull=False),
                 name="mileage_one_per_trip_vehicle_phase",
+            ),
+        ]
+
+
+class EngineHourReading(TenantModel):
+    """Показание моточасов холодильной установки единицы техники.
+
+    Как и официальный пробег: фиксируется при выезде в рейс и после его завершения, значения не
+    убывают во времени, на (рейс, техника, фаза) одно показание. Часы рейса - разница показаний.
+    """
+
+    TRIP_START = "trip_start"
+    TRIP_END = "trip_end"
+    SOURCES = [(TRIP_START, "Выезд в рейс"), (TRIP_END, "Завершение рейса")]
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="engine_hours")
+    trip = models.ForeignKey(
+        "forwarding.Trip", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    recorded_at = models.DateTimeField()
+    hours = models.DecimalField(max_digits=9, decimal_places=1)
+    source = models.CharField(max_length=10, choices=SOURCES, default=TRIP_START)
+
+    class Meta:
+        ordering = ["recorded_at", "id"]
+        indexes = [
+            models.Index(fields=["company", "vehicle", "recorded_at"], name="eh_veh_time_idx")
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(source__in=["trip_start", "trip_end"]), name="eh_source_valid"
+            ),
+            models.CheckConstraint(condition=Q(hours__gte=0), name="eh_hours_gte_0"),
+            models.UniqueConstraint(
+                fields=["trip", "vehicle", "source"],
+                condition=Q(trip__isnull=False),
+                name="eh_one_per_trip_vehicle_phase",
             ),
         ]
 

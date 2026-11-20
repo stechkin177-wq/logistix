@@ -9,6 +9,7 @@ const SESSION = { modules: ['logistics', 'drivers', 'driver_app'], permissions: 
 const TRIP = {
   id: 4, number: 'ORD-1-1', status: { id: 3, code: 'ASSIGNED', name: 'Ожидает выезда' }, vehicle_plate: '886AIA14', trailer_plate: '123TT01',
   from_city: 'Алматы', to_city: 'Москва', starts_at: '2026-11-21T04:00:00Z', actions: ['start'], odometer_required: true,
+  current_odometer_km: 104000, engine_hours_required: true, current_engine_hours: 10.5, reefer_plate: '123TT01',
 }
 const DETAIL = {
   ...TRIP,
@@ -35,7 +36,7 @@ describe('Приложение водителя', () => {
     expect(await screen.findByText('Сейчас вы не в рейсе')).toBeInTheDocument()
   })
 
-  it('карточка рейса: остановки, груз и действие «Выехал» с пробегом', async () => {
+  it('выезд: ничего вводить не нужно, показан пробег из прошлого рейса; завершение: пробег и моточасы обязательны', async () => {
     const m = loggedIn(
       [
         ['GET', '/api/driver/trips/4/', { body: DETAIL }],
@@ -49,17 +50,25 @@ describe('Приложение водителя', () => {
     expect(screen.getByText('вход со двора')).toBeInTheDocument()
     expect(screen.getByText(/Запчасти · 1200.00 кг/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Выехал' }))
-    const dialog = await screen.findByRole('dialog')
-    const confirm = within(dialog).getByRole('button', { name: 'Подтвердить' })
-    expect(confirm).toBeDisabled() // пробег обязателен: без него подтвердить нельзя
-    await userEvent.type(within(dialog).getByLabelText(/Пробег тягача, км/), '104500')
-    expect(confirm).toBeEnabled()
-    await userEvent.type(within(dialog).getByLabelText('Пробег прицепа, км'), '88000')
+    let dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Пробег машины сейчас: 104000 км/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Моточасы установки сейчас: 10.5/)).toBeInTheDocument()
+    expect(within(dialog).queryByLabelText(/Пробег/)).not.toBeInTheDocument() // вводить нечего
     await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST')).toBe(true) })
-    expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ action: 'start', vehicle_km: 104500, trailer_km: 88000 })
-    expect(await screen.findByRole('button', { name: 'Прибыл на выгрузку' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Завершил рейс' })).toBeInTheDocument()
+    expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ action: 'start' })
+    await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
+    await userEvent.click(await screen.findByRole('button', { name: 'Завершил рейс' }))
+    dialog = await screen.findByRole('dialog')
+    const confirm = within(dialog).getByRole('button', { name: 'Подтвердить' })
+    expect(confirm).toBeDisabled() // пробег и моточасы обязательны
+    await userEvent.type(within(dialog).getByLabelText(/Пробег машины, км/), '104900')
+    expect(confirm).toBeDisabled()
+    await userEvent.type(within(dialog).getByLabelText(/Моточасы установки \(123TT01\)/), '14,5')
+    expect(confirm).toBeEnabled()
+    await userEvent.click(confirm)
+    await waitFor(() => { expect(m.calls.filter((c) => c.method === 'POST')).toHaveLength(2) })
+    expect(m.calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({ action: 'complete', vehicle_km: 104900, engine_hours: 14.5 })
   })
 
   it('профиль: данные карточки водителя и выход', async () => {

@@ -7,6 +7,7 @@
 
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
@@ -19,6 +20,7 @@ from apps.core.api_permissions import permission_required
 from apps.core.audit.services import client_ip
 from apps.core.handbooks.models import HandbookValue
 from apps.drivers.models import Driver
+from apps.fleet import services as fleet_services
 from apps.forwarding.consignments.models import ConsignmentPoint
 from apps.forwarding.models import Trip, TripConsignment
 from apps.forwarding.trips.api import concurrency_guard
@@ -52,10 +54,26 @@ def my_trips(driver: Driver):
     return Trip.objects.filter(driver=driver).select_related("status", "vehicle", "trailer")
 
 
+def _fleet_on(trip: Trip) -> bool:
+    return "fleet" in effective_modules(trip.company_id)
+
+
 def odometer_required(trip: Trip) -> bool:
-    """Пробег машины обязателен при выезде и завершении, если у компании есть автопарк и на
-    рейсе назначена техника (иначе записать показание некуда)."""
-    return trip.vehicle_id is not None and "fleet" in effective_modules(trip.company_id)
+    """Пробег машины обязателен при ЗАВЕРШЕНИИ рейса, если есть автопарк и назначена техника
+    (иначе записать показание некуда). При выезде водитель пробег не вводит: берётся последнее
+    официальное показание машины (пробег завершения прошлого рейса)."""
+    return trip.vehicle_id is not None and _fleet_on(trip)
+
+
+def refrigerated_units(trip: Trip) -> list:
+    """Техника рейса с холодильной установкой (прицеп-рефрижератор или рефрижераторный грузовик)."""
+    if not _fleet_on(trip):
+        return []
+    return [u for u in (trip.trailer, trip.vehicle) if u is not None and u.has_refrigerator]
+
+
+def engine_hours_required(trip: Trip) -> bool:
+    return bool(refrigerated_units(trip))
 
 
 def available_actions(trip: Trip) -> list[str]:
@@ -106,6 +124,11 @@ class DriverMeSerializer(serializers.ModelSerializer):
         ]
 
 
+def _current_hours(trip: Trip):
+    units = refrigerated_units(trip)
+    return fleet_services.latest_engine_hours(units[0].pk) if units else None
+
+
 def trip_card(trip: Trip) -> dict:
     stops = _stops_of(trip)
     return {
@@ -119,6 +142,14 @@ def trip_card(trip: Trip) -> dict:
         "starts_at": stops[0]["window_from"] if stops else None,
         "actions": available_actions(trip),
         "odometer_required": odometer_required(trip),
+        "current_odometer_km": (
+            fleet_services.latest_odometer(trip.vehicle_id)
+            if trip.vehicle_id and _fleet_on(trip)
+            else None
+        ),
+        "engine_hours_required": engine_hours_required(trip),
+        "current_engine_hours": _current_hours(trip),
+        "reefer_plate": (refrigerated_units(trip)[0].plate if refrigerated_units(trip) else ""),
     }
 
 
@@ -190,7 +221,9 @@ class TripDetailView(APIView):
 class ActionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=list(ACTIONS))
     vehicle_km = serializers.IntegerField(required=False, min_value=1, max_value=10_000_000)
-    trailer_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+    engine_hours = serializers.DecimalField(
+        required=False, max_digits=9, decimal_places=1, min_value=0
+    )
 
 
 class TripActionView(APIView):
@@ -204,32 +237,43 @@ class TripActionView(APIView):
         ser = ActionSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
-        code, allowed = ACTIONS[data["action"]]
+        action = data["action"]
+        code, allowed = ACTIONS[action]
         if trip.status.code not in allowed:
             raise serializers.ValidationError({"action": "Это действие сейчас недоступно"})
-        if (
-            data["action"] in ("start", "complete")
-            and odometer_required(trip)
-            and not data.get("vehicle_km")
-        ):
-            raise serializers.ValidationError({"vehicle_km": "Введите пробег машины"})
-        if data["action"] == "unloading" and (data.get("vehicle_km") or data.get("trailer_km")):
+        if action == "unloading" and ("vehicle_km" in data or "engine_hours" in data):
             raise serializers.ValidationError(
-                {"vehicle_km": "Пробег вносится при выезде и завершении"}
+                {"vehicle_km": "Пробег вносится при завершении, моточасы - при выезде и завершении"}
             )
+        if action == "complete":
+            if odometer_required(trip) and not data.get("vehicle_km"):
+                raise serializers.ValidationError({"vehicle_km": "Введите пробег машины"})
+            if engine_hours_required(trip) and data.get("engine_hours") is None:
+                raise serializers.ValidationError({"engine_hours": "Введите моточасы установки"})
         status = HandbookValue.objects.filter(
             handbook__code="trip_status", code=code, is_active=True
         ).first()
         if status is None:
             raise serializers.ValidationError({"action": "В компании нет нужного статуса рейса"})
+        km = data.get("vehicle_km")
+        if action == "start" and km is None and trip.vehicle_id and _fleet_on(trip):
+            # выезд: пробег выезда = последнее показание машины (завершение прошлого рейса)
+            km = fleet_services.latest_odometer(trip.vehicle_id)
         body = {"status": status.pk}
-        for key in ("vehicle_km", "trailer_km"):
-            if key in data:
-                body[key] = data[key]
+        if km is not None and trip.vehicle_id:
+            body["vehicle_km"] = km
         inner = TripStatusSerializer(data=body)
         inner.is_valid(raise_exception=True)
-        with concurrency_guard():
+        phase = "start" if action == "start" else "end"
+        with concurrency_guard(), transaction.atomic():
             inner.save(trip, request.user, ip=client_ip(request))
+            if action in ("start", "complete"):
+                for unit in refrigerated_units(trip):
+                    hours = data.get("engine_hours")
+                    if hours is None and action == "start":
+                        hours = fleet_services.latest_engine_hours(unit.pk)
+                    if hours is not None:
+                        fleet_services.record_trip_engine_hours(trip, unit, hours, phase)
         trip = my_trips(trip.driver).get(pk=trip.pk)
         card = trip_card(trip)
         card["stops"] = _stops_of(trip)

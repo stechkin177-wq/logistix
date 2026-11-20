@@ -13,6 +13,10 @@ export interface DriverTrip {
   starts_at: string | null
   actions: DriverAction[]
   odometer_required: boolean
+  current_odometer_km: number | null
+  engine_hours_required: boolean
+  current_engine_hours: number | null
+  reefer_plate: string
 }
 
 export interface DriverStop {
