@@ -10,7 +10,7 @@ function flatten(node: unknown, path: string, out: Row[], base: string) {
     node.forEach((v, i) => { flatten(v, `${path}[${String(i)}]`, out, base) })
   } else if (typeof node === 'object') {
     for (const [k, v] of Object.entries(node)) flatten(v, path ? `${path}.${k}` : k, out, base)
-  } else {
+  } else if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
     out.push({ path, label: path.slice(base.length).replace(/^\./, '') || path, value: String(node) })
   }
 }
