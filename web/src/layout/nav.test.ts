@@ -3,13 +3,21 @@ import { ALL_PERMISSIONS } from '../test/permissions'
 import { NAV, flattenNav, visibleNav, type NavItem } from './nav'
 
 const keys = (items: NavItem[]) => flattenNav(items).map((i) => i.key)
-const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers', 'gps']
+const ALL_MODULES = ['logistics', 'forwarding', 'finance', 'documents', 'fleet', 'drivers', 'gps', 'ocr']
 const admin = { permissions: ALL_PERMISSIONS, modules: ALL_MODULES }
 const platformAdmin = { ...admin, user: { is_platform_admin: true } }
 
 describe('visibleNav', () => {
   it('показывает всё администратору платформы со всеми модулями', () => {
     expect(keys(visibleNav(platformAdmin))).toEqual(keys(NAV))
+  })
+
+  it('Распознавание и его настройки зависят от модуля ocr и прав ocr.view / ocr.manage', () => {
+    expect(keys(visibleNav({ permissions: ALL_PERMISSIONS, modules: ['documents'] }))).not.toContain('ocr')
+    const viewer = keys(visibleNav({ permissions: ['ocr.view'], modules: ['documents', 'ocr'] }))
+    expect(viewer).toContain('ocr')
+    expect(viewer).not.toContain('ocrsettings')
+    expect(keys(visibleNav(admin))).toEqual(expect.arrayContaining(['ocr', 'ocrsettings']))
   })
 
   it('GPS и его настройки зависят от модуля gps и прав gps.view / gps.manage', () => {

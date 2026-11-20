@@ -28,6 +28,8 @@ import { FinanceSettingsPage } from '../features/finance/FinanceSettingsPage'
 import { LabelsPage } from '../features/labels/LabelsPage'
 import { GpsPage } from '../features/gps/GpsPage'
 import { GpsSettingsPage } from '../features/gps/GpsSettingsPage'
+import { OcrPage } from '../features/ocr/OcrPage'
+import { OcrSettingsPage } from '../features/ocr/OcrSettingsPage'
 import { MailPage } from '../features/mail/MailPage'
 import { MailSettingsPage } from '../features/mail/MailSettingsPage'
 import { LoginAuditPage } from '../features/settings/audit/LoginAuditPage'
@@ -75,6 +77,8 @@ const PAGES: Record<string, () => ReactElement> = {
   '/settings/labels': LabelsPage,
   '/gps': GpsPage,
   '/settings/gps': GpsSettingsPage,
+  '/ocr': OcrPage,
+  '/settings/ocr': OcrSettingsPage,
   '/mail': MailPage,
   '/settings/mail': MailSettingsPage,
   '/settings/modules': ModulesPage,

@@ -24,4 +24,9 @@ export const ALL_PERMISSIONS: string[] = [
   'mail.manage_account',
   'gps.view',
   'gps.manage',
+  'ocr.view',
+  'ocr.create',
+  'ocr.update',
+  'ocr.delete',
+  'ocr.manage',
 ]

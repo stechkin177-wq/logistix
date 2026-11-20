@@ -1,7 +1,7 @@
 import type { Session } from '../shared/api/types'
 import {
   Blocks, BookOpen, Boxes, Building, Building2, CarFront, FileCog, FileStack, FileText, Hash, LayoutDashboard, Network,
-  KeyRound, Mail, MapPin, Package, Palette, Route, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet,
+  KeyRound, Mail, MapPin, Package, Palette, Route, ScanText, Settings, Tag, ShieldCheck, SlidersHorizontal, Trash2, Truck, UserRound, Users, Wallet,
   type LucideIcon,
 } from '../shared/ui/icons'
 
@@ -44,6 +44,7 @@ export const NAV: NavItem[] = [
   },
   { key: 'vehicles', labelKey: 'nav.vehicles', path: '/vehicles', permission: 'fleet.view', module: 'fleet', icon: CarFront },
   { key: 'gps', labelKey: 'nav.gps', path: '/gps', permission: 'gps.view', module: 'gps', icon: MapPin },
+  { key: 'ocr', labelKey: 'nav.ocr', path: '/ocr', permission: 'ocr.view', module: 'ocr', icon: ScanText },
   { key: 'drivers', labelKey: 'nav.drivers', path: '/drivers', permission: 'drivers.view', module: 'drivers', icon: UserRound },
   { key: 'finance', labelKey: 'nav.finance', path: '/finance', permission: 'finance.view', module: 'finance', icon: Wallet },
   { key: 'mail', labelKey: 'nav.mail', path: '/mail', permission: 'mail.view', icon: Mail },
@@ -62,6 +63,7 @@ export const NAV: NavItem[] = [
       { key: 'audit', labelKey: 'nav.audit', path: '/settings/audit', permission: 'audit.view', icon: KeyRound, section: 'organization' },
       { key: 'modules', labelKey: 'nav.modules', path: '/settings/modules', permission: 'company.manage_modules', icon: Blocks, section: 'organization' },
       { key: 'gpssettings', labelKey: 'nav.gpsSettings', path: '/settings/gps', permission: 'gps.manage', module: 'gps', icon: MapPin, section: 'data' },
+      { key: 'ocrsettings', labelKey: 'nav.ocrSettings', path: '/settings/ocr', permission: 'ocr.manage', module: 'ocr', icon: ScanText, section: 'data' },
       { key: 'mailsettings', labelKey: 'nav.mailSettings', path: '/settings/mail', permission: 'mail.manage_account', icon: Mail, section: 'data' },
       { key: 'labels', labelKey: 'nav.labels', path: '/settings/labels', permission: 'labels.manage', icon: Tag, section: 'data' },
       { key: 'handbooks', labelKey: 'nav.handbooks', path: '/settings/handbooks', permission: 'handbooks.view', icon: BookOpen, section: 'data' },
