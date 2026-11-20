@@ -111,6 +111,33 @@ def test_read_sheet_two_models_and_fallbacks(monkeypatch):
         handwriting.read_sheet(JPEG, "image/jpeg", cfg)
 
 
+def test_fallback_models_replace_busy_ones(monkeypatch):
+    busy = gemini.GeminiError("занят", retryable=True)
+    cfg = handwriting.HandwritingConfig(
+        api_key="k", model="a", check_model="b", fallback_models=("c", "d")
+    )
+    monkeypatch.setattr(
+        handwriting,
+        "read_report_sheet",
+        fake_reader({"a": busy, "b": busy, "c": SHEET, "d": SHEET}),
+    )
+    page = handwriting.read_sheet(JPEG, "image/jpeg", cfg)
+    assert page["models"] == ["c", "d"]
+    assert any("Основная модель недоступна" in n for n in page["notes"])
+    # одна основная жива, вторую заменяет запасная
+    monkeypatch.setattr(
+        handwriting,
+        "read_report_sheet",
+        fake_reader({"a": SHEET, "b": busy, "c": SHEET, "d": busy}),
+    )
+    page = handwriting.read_sheet(JPEG, "image/jpeg", cfg)
+    assert page["models"] == ["a", "c"] and any("пересверила «c»" in n for n in page["notes"])
+    # все недоступны
+    monkeypatch.setattr(handwriting, "read_report_sheet", fake_reader({m: busy for m in "abcd"}))
+    with pytest.raises(handwriting.HandwritingError):
+        handwriting.read_sheet(JPEG, "image/jpeg", cfg)
+
+
 def test_gemini_error_hides_key(monkeypatch):
     import io
     import urllib.error

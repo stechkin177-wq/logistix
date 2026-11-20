@@ -82,18 +82,25 @@ def effective_config() -> engines.Config:
     return config
 
 
+def fallback_models() -> tuple[str, ...]:
+    """Запасные модели Gemini через запятую (OCR_GEMINI_FALLBACK_MODELS)."""
+    raw = getattr(settings, "OCR_GEMINI_FALLBACK_MODELS", "")
+    return tuple(m.strip() for m in raw.split(",") if m.strip())
+
+
 def handwriting_config() -> handwriting.HandwritingConfig:
     """Настройки Gemini компании; ключ, которого она не вводила, берётся из окружения сервера."""
     server_key = getattr(settings, "OCR_GEMINI_KEY", "")
     row = OcrSettings.objects.first()
     if row is None:
-        return handwriting.HandwritingConfig(api_key=server_key)
+        return handwriting.HandwritingConfig(api_key=server_key, fallback_models=fallback_models())
     return handwriting.HandwritingConfig(
         api_key=crypto.decrypt(row.gemini_key_enc) or server_key,
         model=row.handwriting_model or handwriting.DEFAULT_MODEL,
         check_model=row.handwriting_check_model or handwriting.DEFAULT_CHECK_MODEL,
         crosscheck=row.handwriting_crosscheck,
         enabled=row.handwriting_enabled,
+        fallback_models=fallback_models(),
     )
 
 

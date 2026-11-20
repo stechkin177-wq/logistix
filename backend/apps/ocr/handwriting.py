@@ -12,6 +12,7 @@
 
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -27,8 +28,10 @@ TEXT_KEYS = {
     "description", "note", "category", "driver", "vehicle", "country", "currency", "page_type",
 }  # fmt: skip
 DATE_KEYS = {"date", "start_date", "end_date"}
-# Функция Vercel живёт 30 секунд: обе модели читают параллельно, каждая с запасом по времени
-MODEL_TIMEOUT = 24
+# Функция Vercel живёт 30 секунд: бюджет делится на два этапа - основные модели читают параллельно,
+# затем (если кто-то не ответил) запасные из списка в оставшееся время
+TOTAL_BUDGET = 27
+FIRST_STAGE_TIMEOUT = 14
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,7 @@ class HandwritingConfig:
     check_model: str = DEFAULT_CHECK_MODEL
     crosscheck: bool = True
     enabled: bool = True
+    fallback_models: tuple[str, ...] = ()  # запасные модели при занятости или сбое основных
 
     @property
     def ready(self) -> bool:
@@ -275,43 +279,63 @@ def build_page(raw: dict, cross: dict | None, notes: list[str], models: list[str
 
 
 # ----------------------------------------------------------------------------- оркестрация
-def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dict:
-    """Фото листа читает основная модель и, если нужно, вторая (параллельно). Занятая модель
-    не повторяется (ждать дольше 30 секунд функции нельзя): её подменяет вторая, но тогда
-    пересверки нет, и страница об этом сообщает."""
-    second = (
-        config.check_model
-        if config.crosscheck and config.check_model and config.check_model != config.model
-        else ""
-    )
-    names = [config.model] + ([second] if second else [])
+def _run_models(data, content_type, names, api_key, timeout):
+    """Читает фото перечисленными моделями параллельно: [(имя, чтение | None, ошибка | None)]."""
 
     def run(name):
         try:
-            return read_report_sheet(
-                data, content_type, name, config.api_key, timeout=MODEL_TIMEOUT
-            ), None
+            return name, read_report_sheet(data, content_type, name, api_key, timeout=timeout), None
         except GeminiError as exc:
-            return None, exc
+            return name, None, exc
 
     with ThreadPoolExecutor(max_workers=len(names)) as pool:
-        outcomes = list(pool.map(run, names))
-    first, first_err = outcomes[0]
-    other, other_err = outcomes[1] if second else (None, None)
-    notes = []
-    if first is None and other is None:
-        err = first_err or other_err
-        raise HandwritingError(str(err), retryable=bool(getattr(err, "retryable", True)))
-    if first is None:
-        first, other, models = other, None, [second]
-        notes.append("Основное чтение недоступно - использовано резервное, без пересверки.")
-    else:
-        models = [config.model] + ([second] if other is not None else [])
-        if second and other is None:
+        return list(pool.map(run, names))
+
+
+def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dict:
+    """Фото листа читают основная модель и, если нужно, вторая (параллельно). Если кто-то не
+    ответил (занят, таймаут, модель недоступна), его место занимают запасные модели из списка
+    в оставшееся время функции. Страница сообщает, какие модели реально читали и была ли
+    пересверка."""
+    started = time.monotonic()
+    wanted = [config.model]
+    if config.crosscheck and config.check_model and config.check_model != config.model:
+        wanted.append(config.check_model)
+    first_timeout = FIRST_STAGE_TIMEOUT if config.fallback_models else TOTAL_BUDGET - 3
+    outcomes = _run_models(data, content_type, wanted, config.api_key, first_timeout)
+    errors = [err for _, _, err in outcomes if err is not None]
+    good = [(name, raw) for name, raw, _ in outcomes if raw is not None]
+    notes: list[str] = []
+    spare = [m for m in config.fallback_models if m not in wanted]
+    left = TOTAL_BUDGET - (time.monotonic() - started)
+    if len(good) < len(wanted) and spare and left >= 5:
+        need = len(wanted) - len(good)
+        tried = spare[: need + 1]  # на одну больше: один запасной тоже может быть занят
+        extra = _run_models(data, content_type, tried, config.api_key, int(left))
+        errors += [err for _, _, err in extra if err is not None]
+        good += [(name, raw) for name, raw, _ in extra if raw is not None][:need]
+    if not good:
+        err = errors[0] if errors else None
+        raise HandwritingError(
+            str(err) if err else "Gemini не ответил.",
+            retryable=bool(getattr(err, "retryable", True)),
+        )
+    first, models = good[0][1], [name for name, _ in good]
+    if good[0][0] != config.model:
+        notes.append(
+            f"Основная модель недоступна - читала «{good[0][0]}»"
+            + ("" if len(good) > 1 else ", без пересверки")
+            + "."
+        )
+    if len(wanted) > 1 and len(good) < 2:
+        if good[0][0] == config.model:
             notes.append(
                 "Второе чтение недоступно - пересверка не выполнена, проверьте цифры особенно "
                 "внимательно."
             )
+    elif len(good) > 1 and good[1][0] != config.check_model:
+        notes.append(f"Модель пересверки недоступна - пересверила «{good[1][0]}».")
+    other = good[1][1] if len(good) > 1 else None
     cross = compare_readings(first, other) if other is not None else None
     page = build_page(first, cross, notes, models)
     page["raw_check"] = other  # для настройки промпта: что именно сказала каждая модель
