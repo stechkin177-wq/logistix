@@ -176,11 +176,15 @@ def test_switching_company_to_other_plan_applies_its_limits(co):
     assert api.post("/api/vehicles/", {"plate": "S2"}, format="json").status_code == 201
 
 
-def test_no_subscription_or_unmeasured_limit_does_not_block_creation(co):
+def test_no_subscription_or_unmeasured_limit_does_not_block_creation(co, monkeypatch):
     company, _ = co
-    set_limits(company, max_ocr_per_month=0)  # объявлен, но пока не измеряется
+    set_limits(company, max_ocr_per_month=0)
+    # тип с enforced=False объявлен, но не измеряется: проверка пропускается
+    monkeypatch.setitem(limits.BY_CODE["max_ocr_per_month"], "enforced", False)
     limits.check(company.id, "max_ocr_per_month")  # не бросает
     assert limits.usage(company.id, "max_ocr_per_month") is None
+    monkeypatch.undo()
+    assert limits.usage(company.id, "max_ocr_per_month") == 0
     from apps.billing.models import Subscription
 
     Subscription.objects.filter(company=company).delete()
@@ -197,7 +201,7 @@ def test_admin_api_manages_limits_and_serves_catalog(platform_api):
     catalog = api.get("/api/platform/catalog/").json()["limits"]
     codes = {x["code"] for x in catalog}
     assert {"max_users", "max_vehicles", "max_drivers", "max_orders_per_month"} <= codes
-    assert next(x for x in catalog if x["code"] == "max_ocr_per_month")["enforced"] is False
+    assert next(x for x in catalog if x["code"] == "max_ocr_per_month")["enforced"] is True
     assert api.post(ADMIN, {"code": "lim", "name": "Lim"}, format="json").status_code == 201
     r = api.patch(
         f"{ADMIN}lim/", {"limits": {"max_vehicles": 3, "max_drivers": None}}, format="json"
@@ -217,7 +221,7 @@ def test_usage_endpoint_for_company(co):
         "code": "max_vehicles", "name": "Техника", "unit": "ед.", "scope": "total",
         "limit": 2, "usage": 1, "enforced": True, "exceeded": False, "state": "ok",
     }  # fmt: skip
-    assert rows["max_ocr_per_month"]["usage"] is None
+    assert rows["max_ocr_per_month"]["usage"] == 0 and rows["max_ocr_per_month"]["enforced"]
 
 
 # --- совместимость публичного API: options -> features ---

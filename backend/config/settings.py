@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.fleet",
     "apps.mail",
     "apps.gps",
+    "apps.ocr",
 ]
 
 # Админка Django: в продакшене выключается DJANGO_ADMIN_ENABLED=false (или закрывается по IP
@@ -161,6 +162,7 @@ REST_FRAMEWORK = {
         # исходящая почта: на пользователя (защита от рассылки)
         "mail_send": env("MAIL_SEND_THROTTLE_RATE", "30/hour"),
         "gps_webhook": env("GPS_WEBHOOK_THROTTLE_RATE", "600/hour"),
+        "ocr_upload": env("OCR_UPLOAD_THROTTLE_RATE", "120/hour"),
     },
 }
 # Продакшен/serverless: только JSON (BrowsableAPI тянет статику и шаблоны, которых там нет).
@@ -260,3 +262,15 @@ MAIL_SMTP_TIMEOUT = int(env("MAIL_SMTP_TIMEOUT", "15"))
 # (защита от SSRF; в разработке можно разрешить внутреннюю сеть и http).
 GPS_ENCRYPTION_KEY = env("GPS_ENCRYPTION_KEY", "")
 GPS_ALLOW_PRIVATE_HOSTS = env_bool("GPS_ALLOW_PRIVATE_HOSTS", False)
+
+# Распознавание документов (apps.ocr): ключ шифрования ключей движков компании; ключи сервера по
+# умолчанию (компания вправе ввести свои); Tesseract (если установлен); хранилище оригиналов
+# (Supabase Storage: адрес проекта, service role, приватный бакет). Без хранилища оригинал
+# не сохраняется.
+OCR_ENCRYPTION_KEY = env("OCR_ENCRYPTION_KEY", "")
+OCR_GOOGLE_VISION_KEY = env("OCR_GOOGLE_VISION_KEY", "")
+OCR_SPACE_KEY = env("OCR_SPACE_KEY", "")
+TESSERACT_CMD = env("TESSERACT_CMD", "")
+OCR_STORAGE_URL = env("OCR_STORAGE_URL", "")
+OCR_STORAGE_KEY = env("OCR_STORAGE_KEY", "")
+OCR_STORAGE_BUCKET = env("OCR_STORAGE_BUCKET", "")

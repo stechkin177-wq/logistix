@@ -16,6 +16,7 @@ SECTIONS = [
     "documents",
     "drivers",
     "fleet",
+    "ocr",
 ]
 ACTIONS = ["view", "create", "update", "delete"]
 
@@ -67,6 +68,10 @@ MAIL_PERMISSIONS = ["mail.view", "mail.send", "mail.manage_account"]
 # привязки юнитов и геозон. Наблюдателю по умолчанию достаётся только просмотр (все *.view).
 GPS_PERMISSIONS = ["gps.view", "gps.manage"]
 
+# Распознавание документов (apps.ocr): просмотр, загрузка и правка идут по сетке раздела «ocr»;
+# отдельное право - настройка движков и ключей компании.
+OCR_PERMISSIONS = ["ocr.manage"]
+
 ALL_PERMISSIONS: list[str] = (
     [f"{s}.{a}" for s in SECTIONS for a in ACTIONS]
     + EXTRA_PERMISSIONS
@@ -76,6 +81,7 @@ ALL_PERMISSIONS: list[str] = (
     + LABEL_PERMISSIONS
     + MAIL_PERMISSIONS
     + GPS_PERMISSIONS
+    + OCR_PERMISSIONS
 )
 
 
@@ -94,11 +100,13 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + TRANSFER_PERMISSIONS
     + _codes(["finance", "trash", "handbooks", "drivers", "fleet"], ["view"])
     + GPS_PERMISSIONS[:1]
+    + _codes(["ocr"], _VCU)
     + _codes(["documents"], ["view", "create"]),
     "Бухгалтер": _codes(["finance"], ACTIONS)
     + FINANCE_EXTRA_PERMISSIONS
     + ACCOUNTANT_FINANCE_PERMISSIONS
     + _codes([*_OPERATIONS, "handbooks"], ["view"])
+    + _codes(["ocr"], _VCU)
     + _codes(["documents"], ["view", "create"]),
     "Диспетчер": _codes(["orders", "consignments", "trips"], _VCU)
     + LABEL_PERMISSIONS
@@ -106,8 +114,14 @@ SYSTEM_ROLES: dict[str, list[str]] = {
     + TRANSFER_PERMISSIONS
     + _codes(["clients", "carriers", "handbooks", "drivers", "fleet"], ["view"])
     + GPS_PERMISSIONS[:1]
+    + _codes(["ocr"], _VCU)
     + _codes(["documents"], ["view", "create"]),
-    "Механик": ["trips.view", *_codes(["fleet"], _VCU), *GPS_PERMISSIONS[:1]],
+    "Механик": [
+        "trips.view",
+        *_codes(["fleet"], _VCU),
+        *GPS_PERMISSIONS[:1],
+        *_codes(["ocr"], ["view", "create"]),
+    ],
     "Наблюдатель": [
         p
         for p in ALL_PERMISSIONS

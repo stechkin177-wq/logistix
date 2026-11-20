@@ -109,6 +109,9 @@ from apps.mail.api import AccountView as MailAccountView
 from apps.mail.api import MessageViewSet as MailMessageViewSet
 from apps.mail.api import StatusView as MailStatusView
 from apps.mail.api import TemplateViewSet as MailTemplateViewSet
+from apps.ocr.api import DocumentViewSet as OcrDocumentViewSet
+from apps.ocr.api import SettingsTestView as OcrSettingsTestView
+from apps.ocr.api import SettingsView as OcrSettingsView
 
 router = SimpleRouter()
 router.register("roles", RoleViewSet, basename="role")
@@ -118,6 +121,7 @@ router.register("handbooks", HandbookViewSet, basename="handbook")
 router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
 router.register("labels", LabelViewSet, basename="label")
+router.register("ocr/documents", OcrDocumentViewSet, basename="ocr-document")
 router.register("gps/units", GpsUnitViewSet, basename="gps-unit")
 router.register("gps/geofences", GpsGeofenceViewSet, basename="gps-geofence")
 router.register("gps/events", GpsEventViewSet, basename="gps-event")
@@ -158,6 +162,9 @@ router.register("documents/issued", IssuedViewSet, basename="document-issued")
 
 urlpatterns = [
     path("api/health/", health),
+    path("api/ocr/settings/", OcrSettingsView.as_view()),
+    path("api/ocr/settings/test/", OcrSettingsTestView.as_view()),
+    path("api/ocr/documents/<int:pk>/file/", OcrDocumentViewSet.as_view({"get": "file"})),
     path("api/gps/account/", GpsAccountView.as_view()),
     path("api/gps/account/test/", GpsAccountTestView.as_view()),
     path("api/gps/sync/", GpsSyncView.as_view()),

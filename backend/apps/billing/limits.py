@@ -43,7 +43,7 @@ LIMITS = [
     {"code": "max_documents_per_month", "name": "Документы в месяц", "unit": "шт.",
      "model": "documents.IssuedDocument", "scope": MONTH, "date_field": "created_at"},
     {"code": "max_ocr_per_month", "name": "Распознавания документов в месяц", "unit": "шт.",
-     "enforced": False},
+     "model": "ocr.ScannedDocument", "scope": MONTH, "date_field": "created_at"},
 ]  # fmt: skip
 
 BY_CODE = {spec["code"]: spec for spec in LIMITS}
