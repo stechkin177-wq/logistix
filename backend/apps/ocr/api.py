@@ -134,6 +134,8 @@ def settings_payload(row: OcrSettings | None) -> dict:
         "has_google_vision_key": bool(row and row.google_vision_key_enc)
         or bool(env["google_vision_key"]),
         "has_ocr_space_key": bool(row and row.ocr_space_key_enc) or bool(env["ocr_space_key"]),
+        "google_used": services.google_used_this_month(),
+        "google_limit": services.google_limit(),
         "tesseract_available": engines.Tesseract().available(),
         "storage_configured": storage.configured(),
         "engines": [{"code": c, "label": label} for c, label in OcrSettings.ENGINES],

@@ -27,6 +27,8 @@ export interface OcrSettings {
   auto_fallback: boolean
   has_google_vision_key: boolean
   has_ocr_space_key: boolean
+  google_used: number
+  google_limit: number
   tesseract_available: boolean
   storage_configured: boolean
   engines: { code: string; label: string }[]

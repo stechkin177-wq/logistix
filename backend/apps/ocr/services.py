@@ -48,6 +48,40 @@ def config_for_company() -> engines.Config:
     )
 
 
+def google_used_this_month() -> int:
+    """Сколько распознаваний Google Vision компания уже сделала в этом календарном месяце."""
+    from apps.billing.limits import _month_start
+    from apps.core.tenancy import get_current_company_id
+
+    start = _month_start(get_current_company_id())
+    return ScannedDocument.objects.filter(
+        engine=engines.GOOGLE_VISION, created_at__gte=start
+    ).count()
+
+
+def google_limit() -> int:
+    """Порог перехода на другой движок: бесплатные 1000 страниц Google минус запас."""
+    return int(getattr(settings, "OCR_GOOGLE_MONTHLY_LIMIT", 950))
+
+
+def effective_config() -> engines.Config:
+    """Конфигурация с учётом бесплатного лимита Google Vision: при исчерпании месячного порога
+    Google исключается (ключ обнуляется), основным становится OCR.space, чтобы не получить
+    платные запросы. С нового месяца Google включается сам."""
+    config = config_for_company()
+    if config.google_vision_key and google_used_this_month() >= google_limit():
+        engine = config.engine
+        if engine == engines.GOOGLE_VISION:
+            engine = OcrSettings.OCR_SPACE
+        return engines.Config(
+            engine=engine,
+            google_vision_key="",
+            ocr_space_key=config.ocr_space_key,
+            fallback=config.fallback,
+        )
+    return config
+
+
 def scan(data: bytes, content_type: str, name: str, doc_type: str, user) -> ScannedDocument:
     """Создаёт запись и распознаёт синхронно. Лимит тарифа проверяется при создании записи
     (до обращения к движку), сбой распознавания сохраняется в записи и не роняет запрос."""
@@ -64,7 +98,7 @@ def scan(data: bytes, content_type: str, name: str, doc_type: str, user) -> Scan
         except storage.StorageError as exc:
             logger.warning("Оригинал документа %s не сохранён: %s", doc.pk, exc)
     try:
-        text, engine = engines.recognize(data, content_type, config_for_company())
+        text, engine = engines.recognize(data, content_type, effective_config())
     except engines.OcrError as exc:
         doc.status, doc.error = ScannedDocument.FAILED, str(exc)[:1000]
     else:

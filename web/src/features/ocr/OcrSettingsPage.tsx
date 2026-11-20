@@ -27,6 +27,7 @@ function SettingsForm({ settings }: { settings: OcrSettings }) {
         <TextField label={t('ocr.googleKey')} type="password" autoComplete="new-password" value={form.google_vision_key} onChange={(e) => { setForm({ ...form, google_vision_key: e.target.value }) }} hint={settings.has_google_vision_key ? t('ocr.keyKept') : t('ocr.googleKeyHint')} />
         <TextField label={t('ocr.spaceKey')} type="password" autoComplete="new-password" value={form.ocr_space_key} onChange={(e) => { setForm({ ...form, ocr_space_key: e.target.value }) }} hint={settings.has_ocr_space_key ? t('ocr.keyKept') : t('ocr.spaceKeyHint')} />
         <div className="space-y-2 sm:col-span-2">
+          {settings.has_google_vision_key ? <p className="text-xs text-muted">{t('ocr.googleUsage', { used: settings.google_used, limit: settings.google_limit })}</p> : null}
           <p className="text-xs text-muted">{settings.storage_configured ? t('ocr.storageOn') : t('ocr.storageOff')}</p>
           {save.isError ? <Banner kind="error">{errorMessage(save.error, t)}</Banner> : null}
           {save.isSuccess ? <Banner kind="info">{t('ocr.saved')}</Banner> : null}

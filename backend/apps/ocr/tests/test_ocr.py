@@ -378,3 +378,35 @@ def test_monthly_limit_blocks_before_recognition(oco, fake):
     second = upload(api)
     assert second.status_code == 402 and second.json()["limit_code"] == "max_ocr_per_month"
     assert len(called) == 1
+
+
+# --- переключение при исчерпании бесплатного лимита Google ---
+
+
+def test_google_switches_to_ocr_space_when_monthly_limit_reached(oco, fake, settings):
+    company, _, api = oco
+    settings.OCR_GOOGLE_MONTHLY_LIMIT = 2
+    api.put(
+        f"{BASE}settings/",
+        {"engine": "google_vision", "google_vision_key": "g", "ocr_space_key": "o"},
+        format="json",
+    )
+    used = []
+
+    class Named(FakeEngine):
+        def __init__(self, name):
+            super().__init__(text=name)
+
+        def recognize(self, data, content_type):
+            used.append(self.text)
+            return self.text
+
+    fake(google_vision=Named("google_vision"), ocr_space=Named("ocr_space"),
+         tesseract=FakeEngine(is_available=False))  # fmt: skip
+    for _ in range(2):
+        assert upload(api).json()["engine"] == "google_vision"
+    third = upload(api).json()
+    assert third["engine"] == "ocr_space"  # порог достигнут: Google пропущен
+    assert used == ["google_vision", "google_vision", "ocr_space"]
+    body = api.get(f"{BASE}settings/").json()
+    assert body["google_used"] == 2 and body["google_limit"] == 2

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 TIMEOUT = 40
 OCR_SPACE_MAX_BYTES = 1_000_000  # бесплатный план OCR.space не принимает файлы больше 1 МБ
 GOOGLE_VISION_MAX_BYTES = 10_000_000
+GOOGLE_VISION = "google_vision"
 LABELS = {
     "google_vision": "Google Cloud Vision",
     "ocr_space": "OCR.space",
