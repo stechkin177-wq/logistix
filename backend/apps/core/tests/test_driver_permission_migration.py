@@ -39,3 +39,18 @@ def test_driver_use_added_to_driver_role_only_idempotently(make_company):
     assert perms(company, "Своя") == ["fleet.view"]
     run_forwards()
     assert perms(company, "Водитель") == ["driver.use"]  # повтор ничего не дублирует
+
+
+def test_admin_gets_driver_use_so_it_can_grant_access(make_company):
+    """Администратор существующей компании получает driver.use (иначе не выдаст доступ водителям)."""
+    mig = importlib.import_module("apps.core.migrations.0035_admin_driver_use")
+    company, _, _ = make_company("Old")
+    with tenant_context(company.id):
+        admin = Role.objects.get(name="Администратор")
+        admin.permissions = [p for p in admin.permissions if p != "driver.use"]
+        admin.save(update_fields=["permissions"])
+    mig.forwards(apps, SimpleNamespace(connection=connection))
+    assert "driver.use" in perms(company, "Администратор")
+    assert "driver.use" not in perms(company, "Менеджер")
+    mig.forwards(apps, SimpleNamespace(connection=connection))
+    assert perms(company, "Администратор").count("driver.use") == 1
