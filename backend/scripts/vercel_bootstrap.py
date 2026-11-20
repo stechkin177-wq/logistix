@@ -17,7 +17,7 @@ import subprocess
 import sys
 from urllib.parse import quote
 
-REQUIRED = ("SB_REF", "SB_REGION", "OWNER_PW", "APP_PW")
+REQUIRED = ("SB_REF", "SB_REGION", "OWNER_PW")  # APP_PW нужен, если не задан SKIP_APP_CHECK=1
 
 
 def build_url(role: str, password: str, host: str, port: int, ref: str, dbname: str = "postgres"):
@@ -69,12 +69,17 @@ def run_manage(args, database_url: str, extra_env=None):
 
 
 def main() -> int:
+    skip_app = (
+        os.environ.get("SKIP_APP_CHECK") == "1"
+    )  # явное согласие: миграция без проверки роли приложения
     missing = [k for k in REQUIRED if not os.environ.get(k)]
+    if not skip_app and not os.environ.get("APP_PW"):
+        missing.append("APP_PW")
     if missing:
         print("Не заданы переменные:", ", ".join(missing))
         return 2
     ref, region = os.environ["SB_REF"], os.environ["SB_REGION"]
-    owner_pw, app_pw = os.environ["OWNER_PW"], os.environ["APP_PW"]
+    owner_pw, app_pw = os.environ["OWNER_PW"], os.environ.get("APP_PW", "")
 
     chosen = None
     for host in candidate_hosts(ref, region):
@@ -92,13 +97,19 @@ def main() -> int:
     host, port = chosen
     owner_url = build_url("logistix_owner", owner_pw, host, port, ref)
     app_url = build_url("logistix_app", app_pw, host, port, ref)
-    ok, why = probe(app_url)
-    print(f"роль приложения на {host}:{port} -> {'OK' if ok else 'нет: ' + why}", flush=True)
-    if not ok:
-        return 4
+    if skip_app:
+        print(
+            "ВНИМАНИЕ: SKIP_APP_CHECK=1 - роль приложения и check_rls НЕ проверяются.", flush=True
+        )
+    else:
+        ok, why = probe(app_url)
+        print(f"роль приложения на {host}:{port} -> {'OK' if ok else 'нет: ' + why}", flush=True)
+        if not ok:
+            return 4
 
     run_manage(["migrate", "--noinput"], owner_url)
-    run_manage(["check_rls"], app_url)
+    if not skip_app:
+        run_manage(["check_rls"], app_url)
 
     login = os.environ.get("DEMO_OWNER_LOGIN")
     password = os.environ.get("DEMO_OWNER_PW")
