@@ -32,6 +32,8 @@ function ActionBar({ trip }: { trip: DriverTripDetail }) {
     run.mutate(body, { onSuccess: close })
   }
   if (trip.actions.length === 0) return null
+  const needKm = pending !== null && ODOMETER_ACTIONS.includes(pending) && trip.odometer_required
+  const kmMissing = needKm && (vehicleKm.trim() === '' || Number(vehicleKm) < 1)
   return (
     <>
       <div className="grid gap-2">
@@ -49,7 +51,7 @@ function ActionBar({ trip }: { trip: DriverTripDetail }) {
         footer={
           <>
             <Button onClick={close} disabled={run.isPending}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={submit} disabled={run.isPending}>{run.isPending ? t('common.saving') : t('driver.confirm')}</Button>
+            <Button variant="primary" onClick={submit} disabled={run.isPending || kmMissing}>{run.isPending ? t('common.saving') : t('driver.confirm')}</Button>
           </>
         }
       >
@@ -57,8 +59,8 @@ function ActionBar({ trip }: { trip: DriverTripDetail }) {
           {run.isError ? <Banner kind="error">{errorMessage(run.error, t)}</Banner> : null}
           {pending && ODOMETER_ACTIONS.includes(pending) ? (
             <>
-              <p className="text-sm text-muted">{t('driver.odometerHint')}</p>
-              <TextField label={t('driver.vehicleKm')} inputMode="numeric" pattern="[0-9]*" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value.replace(/\D/g, '')) }} />
+              <p className="text-sm text-muted">{trip.odometer_required ? t('driver.odometerRequired') : t('driver.odometerHint')}</p>
+              <TextField label={t('driver.vehicleKm')} required={trip.odometer_required} inputMode="numeric" pattern="[0-9]*" value={vehicleKm} onChange={(e) => { setVehicleKm(e.target.value.replace(/\D/g, '')) }} />
               {trip.trailer_plate ? <TextField label={t('driver.trailerKm')} inputMode="numeric" pattern="[0-9]*" value={trailerKm} onChange={(e) => { setTrailerKm(e.target.value.replace(/\D/g, '')) }} /> : null}
             </>
           ) : (

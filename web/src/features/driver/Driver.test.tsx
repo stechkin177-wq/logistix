@@ -8,7 +8,7 @@ import { renderApp } from '../../test/renderApp'
 const SESSION = { modules: ['logistics', 'drivers', 'driver_app'], permissions: ['driver.use'], role: { id: 7, name: 'Водитель' } }
 const TRIP = {
   id: 4, number: 'ORD-1-1', status: { id: 3, code: 'ASSIGNED', name: 'Ожидает выезда' }, vehicle_plate: '886AIA14', trailer_plate: '123TT01',
-  from_city: 'Алматы', to_city: 'Москва', starts_at: '2026-11-21T04:00:00Z', actions: ['start'],
+  from_city: 'Алматы', to_city: 'Москва', starts_at: '2026-11-21T04:00:00Z', actions: ['start'], odometer_required: true,
 }
 const DETAIL = {
   ...TRIP,
@@ -50,7 +50,10 @@ describe('Приложение водителя', () => {
     expect(screen.getByText(/Запчасти · 1200.00 кг/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Выехал' }))
     const dialog = await screen.findByRole('dialog')
-    await userEvent.type(within(dialog).getByLabelText('Пробег тягача, км'), '104500')
+    const confirm = within(dialog).getByRole('button', { name: 'Подтвердить' })
+    expect(confirm).toBeDisabled() // пробег обязателен: без него подтвердить нельзя
+    await userEvent.type(within(dialog).getByLabelText(/Пробег тягача, км/), '104500')
+    expect(confirm).toBeEnabled()
     await userEvent.type(within(dialog).getByLabelText('Пробег прицепа, км'), '88000')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST')).toBe(true) })

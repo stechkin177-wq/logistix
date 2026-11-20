@@ -22,6 +22,7 @@ from apps.drivers.models import Driver
 from apps.forwarding.consignments.models import ConsignmentPoint
 from apps.forwarding.models import Trip, TripConsignment
 from apps.forwarding.trips.api import concurrency_guard
+from apps.forwarding.trips.resources import effective_modules
 from apps.forwarding.trips.serializers import TripStatusSerializer
 
 ACTIVE_CODES = ("IN_PROGRESS", "UNLOADING")
@@ -49,6 +50,12 @@ def current_driver(request) -> Driver:
 
 def my_trips(driver: Driver):
     return Trip.objects.filter(driver=driver).select_related("status", "vehicle", "trailer")
+
+
+def odometer_required(trip: Trip) -> bool:
+    """Пробег машины обязателен при выезде и завершении, если у компании есть автопарк и на
+    рейсе назначена техника (иначе записать показание некуда)."""
+    return trip.vehicle_id is not None and "fleet" in effective_modules(trip.company_id)
 
 
 def available_actions(trip: Trip) -> list[str]:
@@ -111,6 +118,7 @@ def trip_card(trip: Trip) -> dict:
         "to_city": stops[-1]["city"] if stops else "",
         "starts_at": stops[0]["window_from"] if stops else None,
         "actions": available_actions(trip),
+        "odometer_required": odometer_required(trip),
     }
 
 
@@ -181,7 +189,7 @@ class TripDetailView(APIView):
 
 class ActionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=list(ACTIONS))
-    vehicle_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
+    vehicle_km = serializers.IntegerField(required=False, min_value=1, max_value=10_000_000)
     trailer_km = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
 
 
@@ -199,6 +207,12 @@ class TripActionView(APIView):
         code, allowed = ACTIONS[data["action"]]
         if trip.status.code not in allowed:
             raise serializers.ValidationError({"action": "Это действие сейчас недоступно"})
+        if (
+            data["action"] in ("start", "complete")
+            and odometer_required(trip)
+            and not data.get("vehicle_km")
+        ):
+            raise serializers.ValidationError({"vehicle_km": "Введите пробег машины"})
         if data["action"] == "unloading" and (data.get("vehicle_km") or data.get("trailer_km")):
             raise serializers.ValidationError(
                 {"vehicle_km": "Пробег вносится при выезде и завершении"}

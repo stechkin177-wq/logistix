@@ -176,3 +176,30 @@ def test_grant_requires_update_permission(make_company):
     vapi.credentials(HTTP_AUTHORIZATION=f"Bearer {issue_tokens(viewer, company.id)['access']}")
     r = vapi.post(f"/api/drivers/{driver.pk}/grant-access/", {"password": PASSWORD}, format="json")
     assert r.status_code == 403
+
+
+def test_odometer_is_mandatory_for_start_and_complete(make_company):
+    from apps.fleet.models import MileageReading, Vehicle
+
+    company, admin, api = app_company(make_company, "Odo")
+    set_company_modules(company, ["logistics", "drivers", "driver_app", "fleet"])
+    driver, drv_api = driver_with_login(company)
+    with tenant_context(company.id):
+        vehicle = Vehicle.objects.create(plate="886AIA14", kind="tractor")
+    trip = trip_for(api, company, driver, vehicle=vehicle.pk)
+    card = drv_api.get(f"{TRIPS}{trip['id']}/").json()
+    assert card["odometer_required"] is True
+    url = f"{TRIPS}{trip['id']}/action/"
+    missing = drv_api.post(url, {"action": "start"}, format="json")
+    assert missing.status_code == 400 and "vehicle_km" in missing.json()
+    assert drv_api.post(url, {"action": "start", "vehicle_km": 0}, format="json").status_code == 400
+    assert (
+        drv_api.post(url, {"action": "start", "vehicle_km": 100000}, format="json").status_code
+        == 200
+    )
+    assert drv_api.post(url, {"action": "complete"}, format="json").status_code == 400
+    done = drv_api.post(url, {"action": "complete", "vehicle_km": 100500}, format="json")
+    assert done.status_code == 200
+    with tenant_context(company.id):
+        km = sorted(MileageReading.objects.values_list("odometer_km", flat=True))
+    assert km == [100000, 100500]

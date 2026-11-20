@@ -12,6 +12,7 @@ export interface DriverTrip {
   to_city: string
   starts_at: string | null
   actions: DriverAction[]
+  odometer_required: boolean
 }
 
 export interface DriverStop {
