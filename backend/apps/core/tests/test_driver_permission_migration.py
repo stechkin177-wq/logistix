@@ -42,7 +42,7 @@ def test_driver_use_added_to_driver_role_only_idempotently(make_company):
 
 
 def test_admin_gets_driver_use_so_it_can_grant_access(make_company):
-    """Администратор существующей компании получает driver.use (иначе не выдаст доступ водителям)."""
+    """Администратор существующей компании получает driver.use (иначе не выдаст доступ)."""
     mig = importlib.import_module("apps.core.migrations.0035_admin_driver_use")
     company, _, _ = make_company("Old")
     with tenant_context(company.id):

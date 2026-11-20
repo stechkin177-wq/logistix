@@ -193,6 +193,45 @@ def test_no_subscription_or_unmeasured_limit_does_not_block_creation(co, monkeyp
         limits.check(company.id, "ghost")
 
 
+def test_unit_is_one_hitch_or_one_truck_no_second_tractor_or_trailer(co):
+    company, api = co
+    set_limits(company, max_power_units=1, max_trailers=1)
+
+    def post(plate, kind):
+        return api.post("/api/vehicles/", {"plate": plate, "kind": kind}, format="json")
+
+    assert post("T1", "tractor").status_code == 201
+    second = post("T2", "tractor")
+    assert second.status_code == 402 and second.json()["limit_code"] == "max_power_units"
+    assert post("G1", "truck").status_code == 402  # грузовик тоже занимает единственное место
+    assert post("P1", "trailer").status_code == 201  # сцепка: тягач и один полуприцеп
+    again = post("P2", "trailer")
+    assert again.status_code == 402 and again.json()["limit_code"] == "max_trailers"
+
+
+def test_changing_trailer_into_tractor_cannot_dodge_the_limit(co):
+    company, api = co
+    set_limits(company, max_power_units=1, max_trailers=1)
+    tractor = api.post("/api/vehicles/", {"plate": "T1", "kind": "tractor"}, format="json")
+    trailer = api.post("/api/vehicles/", {"plate": "P1", "kind": "trailer"}, format="json")
+    assert tractor.status_code == trailer.status_code == 201
+    r = api.patch(f"/api/vehicles/{trailer.json()['id']}/", {"kind": "tractor"}, format="json")
+    assert r.status_code == 402 and r.json()["limit_code"] == "max_power_units"
+    # правка других полей существующей техники лимитом не блокируется
+    ok = api.patch(f"/api/vehicles/{tractor.json()['id']}/", {"make": "Volvo"}, format="json")
+    assert ok.status_code == 200
+
+
+def test_new_limits_in_catalog_and_usage(co):
+    company, api = co
+    set_limits(company, max_power_units=1, max_trailers=1)
+    api.post("/api/vehicles/", {"plate": "T1", "kind": "tractor"}, format="json")
+    api.post("/api/vehicles/", {"plate": "P1", "kind": "trailer"}, format="json")
+    rows = {r["code"]: r for r in api.get("/api/billing/usage/").json()["results"]}
+    assert rows["max_power_units"]["usage"] == 1 and rows["max_power_units"]["state"] == "reached"
+    assert rows["max_trailers"]["usage"] == 1 and rows["max_trailers"]["limit"] == 1
+
+
 # --- API ---
 
 

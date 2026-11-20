@@ -30,6 +30,15 @@ LIMITS = [
      "filter": {"is_active": True}, "scope": TOTAL},
     {"code": "max_vehicles", "name": "Техника", "unit": "ед.", "model": "fleet.Vehicle",
      "scope": TOTAL},
+    # единица техники = сцепка (тягач и полуприцеп) или один грузовик: «тяговая единица» (тягач,
+    # грузовик, прочее самоходное) и прицеп считаются раздельно; смена типа существующей техники
+    # тоже проверяется (иначе прицеп можно было бы переделать во второй тягач)
+    {"code": "max_power_units", "name": "Тягачи и грузовики", "unit": "ед.",
+     "model": "fleet.Vehicle", "filter_in": {"kind": ["tractor", "truck", "other"]},
+     "scope": TOTAL, "check_updates": True},
+    {"code": "max_trailers", "name": "Прицепы и полуприцепы", "unit": "ед.",
+     "model": "fleet.Vehicle", "filter": {"kind": "trailer"}, "scope": TOTAL,
+     "check_updates": True},
     {"code": "max_drivers", "name": "Водители", "unit": "чел.", "model": "drivers.Driver",
      "scope": TOTAL},
     {"code": "max_clients", "name": "Клиенты", "unit": "шт.", "model": "forwarding.Client",
@@ -96,6 +105,8 @@ def usage(company_id: int, code: str) -> int | None:
     model = django_apps.get_model(spec["model"])
     with tenant_context(company_id):
         qs = model._base_manager.filter(company_id=company_id, **spec.get("filter", {}))
+        for key, values in spec.get("filter_in", {}).items():
+            qs = qs.filter(**{f"{key}__in": values})
         if any(f.name == "deleted_at" for f in model._meta.get_fields()):
             qs = qs.filter(deleted_at__isnull=True)  # удалённое в корзину в счёт не идёт
         if spec["scope"] == MONTH:
@@ -190,17 +201,22 @@ def company_usage(company_id: int) -> list[dict]:
     return rows
 
 
+def _matches(spec: dict, obj) -> bool:
+    """Учитывает ли данный лимит объект (равенство полей filter и вхождение в списки filter_in)."""
+    return all(getattr(obj, k, None) == v for k, v in spec.get("filter", {}).items()) and all(
+        getattr(obj, k, None) in values for k, values in spec.get("filter_in", {}).items()
+    )
+
+
 def _codes_for(instance) -> list[dict]:
-    """Лимиты каталога, которые учитывают данный объект (по модели и фильтру)."""
+    """Лимиты каталога, которые учитывают данный объект (по модели и фильтрам)."""
     label = instance._meta.label
     return [
         spec
         for spec in LIMITS
         if spec.get("enforced", True) is not False
         and spec["model"] == label
-        and all(
-            getattr(instance, key, None) == value for key, value in spec.get("filter", {}).items()
-        )
+        and _matches(spec, instance)
     ]
 
 
@@ -222,12 +238,20 @@ def check_restore(instance) -> None:
         check(company_id, spec["code"], restore=True)
 
 
-def _handler(code: str, match: dict):
+def _handler(spec: dict):
+    code = spec["code"]
+
     def on_pre_save(sender, instance, raw=False, **kwargs):
-        if raw or not instance._state.adding or getattr(instance, "company_id", None) is None:
+        if raw or getattr(instance, "company_id", None) is None or not _matches(spec, instance):
             return
-        if any(getattr(instance, key, None) != value for key, value in match.items()):
-            return
+        if not instance._state.adding:
+            # правка существующего: проверяется только если лимит этого просит (check_updates)
+            # и объект ДО правки лимитом не учитывался (например прицеп переделан в тягач)
+            if not spec.get("check_updates"):
+                return
+            old = sender._base_manager.filter(pk=instance.pk).first()
+            if old is None or _matches(spec, old):
+                return
         check(instance.company_id, code)
 
     return on_pre_save
@@ -240,7 +264,7 @@ def connect_signals() -> None:
             continue
         model = django_apps.get_model(spec["model"])
         pre_save.connect(
-            _handler(spec["code"], spec.get("filter", {})),
+            _handler(spec),
             sender=model,
             weak=False,
             dispatch_uid=f"limit:{spec['code']}",
