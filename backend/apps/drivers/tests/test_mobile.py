@@ -163,6 +163,17 @@ def test_grant_login_and_revoke_access(make_company):
         driver.refresh_from_db()
         assert driver.user_id is None
     assert drv.get(ME).status_code in (401, 403)
+    # повторная выдача тому же телефону после отзыва: аккаунт включается снова с новым паролем
+    again = api.post(url, {"password": "New-pass-2026!zz"}, format="json")
+    assert again.status_code == 201, again.content
+    relog = APIClient().post(
+        "/api/auth/login/", {"login": "+77003334455", "password": "New-pass-2026!zz"}, format="json"
+    )
+    assert relog.status_code == 200
+    old = APIClient().post(
+        "/api/auth/login/", {"login": "+77003334455", "password": PASSWORD}, format="json"
+    )
+    assert old.status_code == 401  # прежний пароль не действует
 
 
 def test_grant_requires_update_permission(make_company):

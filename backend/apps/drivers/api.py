@@ -99,6 +99,7 @@ class DriverViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet)
         with transaction.atomic():
             enforce_user_limit(company_id)
             user = User.objects.filter(phone=phone).first()
+            existing = None
             if user is None:
                 try:
                     validate_password(password, user=User(full_name=driver.full_name, phone=phone))
@@ -107,11 +108,32 @@ class DriverViewSet(AuditedMixin, SectionPermissionMixin, viewsets.ModelViewSet)
                 user = User.objects.create_user(
                     password=password, full_name=driver.full_name, phone=phone
                 )
-            elif Membership.objects.filter(user=user, company_id=company_id).exists():
-                raise ValidationError({"detail": "Пользователь с этим телефоном уже в компании"})
-            elif not (user.is_active and user.check_password(password)):
-                raise ValidationError({"detail": ATTACH_ERROR})
-            Membership.objects.create(user=user, company_id=company_id, role=role)
+            else:
+                existing = Membership.objects.filter(user=user, company_id=company_id).first()
+                if existing is not None and existing.is_active:
+                    raise ValidationError(
+                        {"detail": "Пользователь с этим телефоном уже в компании"}
+                    )
+                others = Membership.objects.filter(user=user, is_active=True).exclude(
+                    company_id=company_id
+                )
+                if existing is not None and not others.exists():
+                    # доступ был отозван и выдаётся снова: аккаунт создавала эта компания и он
+                    # больше нигде не используется, поэтому пароль задаётся заново
+                    try:
+                        validate_password(password, user=user)
+                    except DjangoValidationError as exc:
+                        raise ValidationError({"password": list(exc.messages)}) from None
+                    user.set_password(password)
+                    user.save(update_fields=["password"])
+                elif not (user.is_active and user.check_password(password)):
+                    raise ValidationError({"detail": ATTACH_ERROR})
+            if existing is not None:
+                existing.is_active = True
+                existing.role = role
+                existing.save(update_fields=["is_active", "role"])
+            else:
+                Membership.objects.create(user=user, company_id=company_id, role=role)
             driver.user = user
             driver.save(update_fields=["user", "updated_at"])
         return Response({"user": user.pk, "login": phone}, status=201)

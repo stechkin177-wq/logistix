@@ -122,7 +122,7 @@ def _extract_json(payload: dict) -> dict:
 
 
 def generate_json(
-    model: str, api_key: str, parts: list, *, timeout: int = 24, retries: int = 0
+    model: str, api_key: str, parts: list, *, timeout: int = 40, retries: int = 0
 ) -> dict:
     """Один JSON-ответ модели; занятый сервис (503, 429) повторяется retries раз, остальное сразу."""
     body = {
@@ -148,7 +148,7 @@ def _image(data: bytes, content_type: str) -> dict:
 
 
 def read_report_sheet(
-    data: bytes, content_type: str, model: str, api_key: str, *, timeout: int = 24, retries: int = 0
+    data: bytes, content_type: str, model: str, api_key: str, *, timeout: int = 40, retries: int = 0
 ) -> dict:
     if not api_key:
         raise GeminiError("Не задан ключ Gemini.")
@@ -164,6 +164,6 @@ def check_key(model: str, api_key: str, data: bytes, content_type: str) -> str:
         raise GeminiError("Не задан ключ Gemini.")
     prompt = 'Что написано на картинке? Верни JSON вида {"text": "..."} - только текст с картинки.'
     reply = generate_json(
-        model, api_key, [{"text": prompt}, _image(data, content_type)], timeout=20
+        model, api_key, [{"text": prompt}, _image(data, content_type)], timeout=25
     )
     return str(reply.get("text", ""))

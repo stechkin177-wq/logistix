@@ -22,16 +22,17 @@ from .gemini import GeminiError, read_report_sheet
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-3.7-flash"
-DEFAULT_CHECK_MODEL = "gemini-3.5-flash"
+DEFAULT_MODEL = "gemini-3.8-flash"
+DEFAULT_CHECK_MODEL = "gemini-3.6-flash"
 TEXT_KEYS = {
     "description", "note", "category", "driver", "vehicle", "country", "currency", "page_type",
 }  # fmt: skip
 DATE_KEYS = {"date", "start_date", "end_date"}
-# Функция Vercel живёт 30 секунд: бюджет делится на два этапа - основные модели читают параллельно,
-# затем (если кто-то не ответил) запасные из списка в оставшееся время
-TOTAL_BUDGET = 27
-FIRST_STAGE_TIMEOUT = 14
+# Функция Vercel живёт до 60 секунд (vercel.json): бюджет делится на два этапа - основные модели
+# читают параллельно, затем (если кто-то не ответил) запасные из списка в оставшееся время.
+# Модель на настоящем фото листа отвечает 15-40 секунд, поэтому таймауты не меньше этих значений.
+TOTAL_BUDGET = 56
+FIRST_STAGE_TIMEOUT = 30
 
 
 @dataclass(frozen=True)
@@ -301,14 +302,14 @@ def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dic
     wanted = [config.model]
     if config.crosscheck and config.check_model and config.check_model != config.model:
         wanted.append(config.check_model)
-    first_timeout = FIRST_STAGE_TIMEOUT if config.fallback_models else TOTAL_BUDGET - 3
+    first_timeout = FIRST_STAGE_TIMEOUT if config.fallback_models else TOTAL_BUDGET - 4
     outcomes = _run_models(data, content_type, wanted, config.api_key, first_timeout)
     errors = [err for _, _, err in outcomes if err is not None]
     good = [(name, raw) for name, raw, _ in outcomes if raw is not None]
     notes: list[str] = []
     spare = [m for m in config.fallback_models if m not in wanted]
     left = TOTAL_BUDGET - (time.monotonic() - started)
-    if len(good) < len(wanted) and spare and left >= 5:
+    if len(good) < len(wanted) and spare and left >= 8:
         need = len(wanted) - len(good)
         tried = spare[: need + 1]  # на одну больше: один запасной тоже может быть занят
         extra = _run_models(data, content_type, tried, config.api_key, int(left))

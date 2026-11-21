@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers, status, viewsets
@@ -247,15 +249,18 @@ class GeminiTestView(APIView):
         config = services.handwriting_config()
         if not config.api_key:
             return Response({"ok": False, "error": "Не задан ключ Gemini."})
-        results = {}
         models = [config.model] + (
             [config.check_model] if config.crosscheck and config.check_model != config.model else []
         )
-        for model in models:
+
+        def check(model):
             try:
                 gemini.check_key(model, config.api_key, engines.PROBE_PNG, "image/png")
             except gemini.GeminiError as exc:
-                results[model] = {"ok": False, "error": str(exc)}
-            else:
-                results[model] = {"ok": True, "error": ""}
+                return model, {"ok": False, "error": str(exc)}
+            return model, {"ok": True, "error": ""}
+
+        # параллельно: последовательные проверки с таймаутами не укладывались в лимит функции
+        with ThreadPoolExecutor(max_workers=len(models)) as pool:
+            results = dict(pool.map(check, models))
         return Response({"ok": all(r["ok"] for r in results.values()), "models": results})

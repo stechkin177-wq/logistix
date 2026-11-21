@@ -28,8 +28,8 @@ class OcrSettings(TenantModel):
     # рукописный отчётный лист: Gemini читает фото, вторая модель пересверяет цифры
     gemini_key_enc = models.TextField(blank=True)
     handwriting_enabled = models.BooleanField(default=True)
-    handwriting_model = models.CharField(max_length=60, default="gemini-3.7-flash")
-    handwriting_check_model = models.CharField(max_length=60, default="gemini-3.5-flash")
+    handwriting_model = models.CharField(max_length=60, default="gemini-3.8-flash")
+    handwriting_check_model = models.CharField(max_length=60, default="gemini-3.6-flash")
     handwriting_crosscheck = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 

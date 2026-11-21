@@ -169,7 +169,7 @@ def test_upload_report_sheet_reads_with_gemini(oco, monkeypatch):
     monkeypatch.setattr(
         handwriting,
         "read_report_sheet",
-        fake_reader({"gemini-3.7-flash": SHEET, "gemini-3.5-flash": SHEET}),
+        fake_reader({"gemini-3.8-flash": SHEET, "gemini-3.6-flash": SHEET}),
     )
     body = upload(api, doc_type="report_sheet").json()
     assert body["status"] == "done" and body["engine"] == "gemini"
@@ -208,4 +208,4 @@ def test_gemini_test_endpoint(oco, monkeypatch):
         gemini, "check_key", lambda model, key, data, ct: calls.append(model) or "ok"
     )
     body = api.post(f"{BASE}settings/test-gemini/").json()
-    assert body["ok"] is True and calls == ["gemini-3.7-flash", "gemini-3.5-flash"]
+    assert body["ok"] is True and sorted(calls) == ["gemini-3.6-flash", "gemini-3.8-flash"]
