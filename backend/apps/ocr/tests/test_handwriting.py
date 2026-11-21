@@ -209,3 +209,72 @@ def test_gemini_test_endpoint(oco, monkeypatch):
     )
     body = api.post(f"{BASE}settings/test-gemini/").json()
     assert body["ok"] is True and sorted(calls) == ["gemini-3.6-flash", "gemini-3.8-flash"]
+
+
+def test_gemini_test_uses_models_from_the_form_not_only_saved(oco, monkeypatch):
+    _, _, api = oco
+    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
+    calls = []
+    monkeypatch.setattr(
+        gemini, "check_key", lambda model, key, data, ct: calls.append(model) or "ok"
+    )
+    body = api.post(
+        f"{BASE}settings/test-gemini/",
+        {"model": "gemini-x", "check_model": "gemini-y"},
+        format="json",
+    ).json()
+    assert sorted(calls) == ["gemini-x", "gemini-y"] and set(body["models"]) == {
+        "gemini-x",
+        "gemini-y",
+    }
+    bad = api.post(f"{BASE}settings/test-gemini/", {"model": "bad model!"}, format="json")
+    assert bad.status_code == 400
+
+
+def test_list_models_filters_and_sorts_newest_first(monkeypatch):
+    payload = {
+        "models": [
+            {"name": "models/gemini-3.6-flash", "supportedGenerationMethods": ["generateContent"]},
+            {"name": "models/gemini-3.8-flash", "supportedGenerationMethods": ["generateContent"]},
+            {
+                "name": "models/gemini-3.5-flash-lite",
+                "supportedGenerationMethods": ["generateContent"],
+            },
+            {"name": "models/gemini-embedding-001", "supportedGenerationMethods": ["embedContent"]},
+            {
+                "name": "models/gemini-3.8-flash-tts",
+                "supportedGenerationMethods": ["generateContent"],
+            },
+            {
+                "name": "models/gemini-3-flash-preview",
+                "supportedGenerationMethods": ["generateContent"],
+            },
+            {"name": "models/gemma-3", "supportedGenerationMethods": ["generateContent"]},
+        ]
+    }
+
+    class Resp:
+        def read(self):
+            return json.dumps(payload).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda r, timeout=0: Resp())
+    assert gemini.list_models("k") == [
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+    ]
+
+
+def test_gemini_models_endpoint(oco, monkeypatch):
+    _, _, api = oco
+    assert api.get(f"{BASE}settings/gemini-models/").json()["error"] != ""  # ключа нет
+    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
+    monkeypatch.setattr(gemini, "list_models", lambda key, timeout=20: ["gemini-3.8-flash"])
+    body = api.get(f"{BASE}settings/gemini-models/").json()
+    assert body == {"models": ["gemini-3.8-flash"], "error": ""}

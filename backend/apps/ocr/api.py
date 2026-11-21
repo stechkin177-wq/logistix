@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
@@ -19,6 +20,7 @@ from .models import OcrSettings, ScannedDocument
 
 FIELD_KEYS = ("date", "amount", "liters", "price_per_liter", "fuel_type", "plate", "note")
 MAX_FIELD_LEN = 200
+MODEL_RE = re.compile(r"^[A-Za-z0-9._-]{1,60}$")
 
 
 class UploadThrottle(UserRateThrottle):
@@ -239,6 +241,22 @@ class SettingsTestView(APIView):
         return Response({"results": results})
 
 
+class GeminiModelsView(APIView):
+    """Список моделей Gemini, доступных ключу компании (названия меняются: брать только отсюда)."""
+
+    def get_permissions(self):
+        return [ModuleRequired("ocr")(), permission_required("ocr.manage")()]
+
+    def get(self, request):
+        config = services.handwriting_config()
+        if not config.api_key:
+            return Response({"models": [], "error": "Не задан ключ Gemini."})
+        try:
+            return Response({"models": gemini.list_models(config.api_key), "error": ""})
+        except gemini.GeminiError as exc:
+            return Response({"models": [], "error": str(exc)})
+
+
 class GeminiTestView(APIView):
     """Проверка Gemini: читает тестовую картинку - ключ, выбранные модели и приём фото работают."""
 
@@ -246,12 +264,20 @@ class GeminiTestView(APIView):
         return [ModuleRequired("ocr")(), permission_required("ocr.manage")()]
 
     def post(self, request):
+        """Тело (необязательно): model и check_model - проверяются введённые в форме модели, ещё
+        не сохранённые; иначе проверяются сохранённые настройки компании."""
         config = services.handwriting_config()
         if not config.api_key:
             return Response({"ok": False, "error": "Не задан ключ Gemini."})
-        models = [config.model] + (
-            [config.check_model] if config.crosscheck and config.check_model != config.model else []
-        )
+        names = []
+        for key in ("model", "check_model"):
+            value = str(request.data.get(key) or "").strip()
+            if value and not MODEL_RE.match(value):
+                raise ValidationError({key: "Недопустимое название модели"})
+            names.append(value)
+        main = names[0] or config.model
+        check = names[1] or config.check_model
+        models = [main] + ([check] if config.crosscheck and check != main else [])
 
         def check(model):
             try:

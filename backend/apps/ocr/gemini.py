@@ -167,3 +167,52 @@ def check_key(model: str, api_key: str, data: bytes, content_type: str) -> str:
         model, api_key, [{"text": prompt}, _image(data, content_type)], timeout=25
     )
     return str(reply.get("text", ""))
+
+
+_SKIP = (
+    "embedding",
+    "tts",
+    "image",
+    "live",
+    "audio",
+    "robotics",
+    "aqa",
+    "learnlm",
+    "veo",
+    "imagen",
+)
+
+
+def _version_key(name: str) -> tuple:
+    nums = re.findall(r"\d+(?:\.\d+)?", name)
+    return (float(nums[0]) if nums else 0.0, name)
+
+
+def list_models(api_key: str, timeout: int = 20) -> list[str]:
+    """Модели Gemini, доступные этому ключу и умеющие читать картинки (generateContent), от новых
+    к старым. Без служебных (эмбеддинги, речь, изображения, live) и без «preview»/«exp»."""
+    if not api_key:
+        raise GeminiError("Не задан ключ Gemini.")
+    request = urllib.request.Request(  # noqa: S310 - https, фиксированный адрес
+        f"{API_ROOT}?pageSize=200", headers={"x-goog-api-key": api_key}, method="GET"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise GeminiError(f"Gemini вернул {exc.code}") from None
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        raise GeminiError(f"Gemini недоступен: {type(exc).__name__}") from None
+    names = []
+    for item in payload.get("models") or []:
+        name = str(item.get("name", "")).removeprefix("models/")
+        methods = item.get("supportedGenerationMethods") or []
+        if (
+            name.startswith("gemini")
+            and "generateContent" in methods
+            and not any(word in name for word in _SKIP)
+            and "preview" not in name
+            and "exp" not in name
+        ):
+            names.append(name)
+    return sorted(set(names), key=_version_key, reverse=True)

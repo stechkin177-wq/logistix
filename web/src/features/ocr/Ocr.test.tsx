@@ -116,6 +116,7 @@ describe('Рукописный лист', () => {
     )
     renderApp('/settings/ocr')
     await userEvent.click(await screen.findByRole('button', { name: 'Проверить Gemini' }))
+    expect(m.calls.find((c) => c.path === '/api/ocr/settings/test-gemini/')?.body).toEqual({ model: 'gemini-3.7-flash', check_model: 'gemini-3.5-flash' })
     expect(await screen.findByText('gemini-3.7-flash: работает')).toBeInTheDocument()
     expect(screen.getByText('gemini-3.5-flash: модель недоступна')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Ключ Gemini'), 'AIza-1')
