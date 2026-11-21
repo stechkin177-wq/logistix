@@ -172,6 +172,7 @@ def check_key(model: str, api_key: str, data: bytes, content_type: str) -> str:
 _SKIP = (
     "embedding",
     "tts",
+    "transcribe",
     "image",
     "live",
     "audio",

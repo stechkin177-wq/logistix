@@ -50,6 +50,7 @@ function SettingsForm({ settings }: { settings: OcrSettings }) {
           <datalist id="gemini-models">{(models.data?.models ?? []).map((m) => <option key={m} value={m} />)}</datalist>
           <div className="flex flex-wrap items-center gap-2">
             <WriteButton permission="ocr.manage" disabled={models.isPending || !settings.has_gemini_key} onClick={() => { models.mutate() }}>{models.isPending ? t('ocr.testing') : t('ocr.gemini.loadModels')}</WriteButton>
+            {models.data && models.data.models.length > 0 ? <WriteButton permission="ocr.manage" disabled={gemini.isPending} onClick={() => { gemini.mutate({ models: models.data.models.slice(0, 8) }) }}>{gemini.isPending ? t('ocr.testing') : t('ocr.gemini.testAll')}</WriteButton> : null}
             {models.data && models.data.models.length > 0 ? <span className="text-xs text-muted">{t('ocr.gemini.available', { list: models.data.models.slice(0, 8).join(', ') })}</span> : null}
           </div>
           {models.data?.error ? <Banner kind="error">{models.data.error}</Banner> : null}
@@ -58,7 +59,7 @@ function SettingsForm({ settings }: { settings: OcrSettings }) {
           {gemini.isError ? <Banner kind="error">{errorMessage(gemini.error, t)}</Banner> : null}
           {gemini.data?.error ? <Banner kind="error">{gemini.data.error}</Banner> : null}
           {gemini.data?.models ? Object.entries(gemini.data.models).map(([model, r]) => (
-            <Banner key={model} kind={r.ok ? 'info' : 'error'}>{r.ok ? t('ocr.gemini.testOk', { model }) : t('ocr.gemini.testFail', { model, error: r.error })}</Banner>
+            <Banner key={model} kind={r.ok ? 'info' : 'error'}>{r.ok ? t('ocr.gemini.testOk', { model, seconds: r.seconds ?? 0 }) : t('ocr.gemini.testFail', { model, error: r.error, seconds: r.seconds ?? 0 })}</Banner>
           )) : null}
           <WriteButton permission="ocr.manage" disabled={gemini.isPending || !settings.has_gemini_key} onClick={() => { gemini.mutate({ model: form.handwriting_model.trim(), check_model: form.handwriting_check_model.trim() }) }}>{gemini.isPending ? t('ocr.testing') : t('ocr.gemini.test')}</WriteButton>
         </div>

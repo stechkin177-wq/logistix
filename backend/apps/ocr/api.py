@@ -1,4 +1,5 @@
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
@@ -257,6 +258,10 @@ class GeminiModelsView(APIView):
             return Response({"models": [], "error": str(exc)})
 
 
+def _since(started: float) -> float:
+    return round(time.monotonic() - started, 1)
+
+
 class GeminiTestView(APIView):
     """Проверка Gemini: читает тестовую картинку - ключ, выбранные модели и приём фото работают."""
 
@@ -269,24 +274,34 @@ class GeminiTestView(APIView):
         config = services.handwriting_config()
         if not config.api_key:
             return Response({"ok": False, "error": "Не задан ключ Gemini."})
-        names = []
-        for key in ("model", "check_model"):
-            value = str(request.data.get(key) or "").strip()
-            if value and not MODEL_RE.match(value):
-                raise ValidationError({key: "Недопустимое название модели"})
-            names.append(value)
-        main = names[0] or config.model
-        check = names[1] or config.check_model
-        models = [main] + ([check] if config.crosscheck and check != main else [])
+        requested = request.data.get("models")
+        if requested is not None:
+            # проверка нескольких моделей сразу (до 8): какие из доступных ключу сейчас отвечают
+            if not isinstance(requested, list) or len(requested) > 8:
+                raise ValidationError({"models": "Список до 8 моделей"})
+            models = [str(m).strip() for m in requested]
+            if any(not MODEL_RE.match(m) for m in models) or not models:
+                raise ValidationError({"models": "Недопустимое название модели"})
+        else:
+            names = []
+            for key in ("model", "check_model"):
+                value = str(request.data.get(key) or "").strip()
+                if value and not MODEL_RE.match(value):
+                    raise ValidationError({key: "Недопустимое название модели"})
+                names.append(value)
+            main = names[0] or config.model
+            check = names[1] or config.check_model
+            models = [main] + ([check] if config.crosscheck and check != main else [])
 
-        def check(model):
+        def check_one(model):
+            started = time.monotonic()
             try:
                 gemini.check_key(model, config.api_key, engines.PROBE_PNG, "image/png")
             except gemini.GeminiError as exc:
-                return model, {"ok": False, "error": str(exc)}
-            return model, {"ok": True, "error": ""}
+                return model, {"ok": False, "error": str(exc), "seconds": _since(started)}
+            return model, {"ok": True, "error": "", "seconds": _since(started)}
 
         # параллельно: последовательные проверки с таймаутами не укладывались в лимит функции
         with ThreadPoolExecutor(max_workers=len(models)) as pool:
-            results = dict(pool.map(check, models))
+            results = dict(pool.map(check_one, models))
         return Response({"ok": all(r["ok"] for r in results.values()), "models": results})

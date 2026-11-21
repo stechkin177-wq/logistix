@@ -272,9 +272,7 @@ OCR_GOOGLE_VISION_KEY = env("OCR_GOOGLE_VISION_KEY", "")
 OCR_SPACE_KEY = env("OCR_SPACE_KEY", "")
 OCR_GEMINI_KEY = env("OCR_GEMINI_KEY", "")
 # Запасные модели Gemini (через запятую): подменяют основные, когда те заняты или недоступны
-OCR_GEMINI_FALLBACK_MODELS = env(
-    "OCR_GEMINI_FALLBACK_MODELS", "gemini-flash-latest,gemini-3.5-flash-lite"
-)
+OCR_GEMINI_FALLBACK_MODELS = env("OCR_GEMINI_FALLBACK_MODELS", "auto")
 # Месячный порог Google Vision (бесплатно 1000 страниц): дальше распознаёт запасной движок
 OCR_GOOGLE_MONTHLY_LIMIT = int(env("OCR_GOOGLE_MONTHLY_LIMIT", "950"))
 TESSERACT_CMD = env("TESSERACT_CMD", "")

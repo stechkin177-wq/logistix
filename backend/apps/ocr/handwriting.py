@@ -311,7 +311,7 @@ def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dic
     left = TOTAL_BUDGET - (time.monotonic() - started)
     if len(good) < len(wanted) and spare and left >= 8:
         need = len(wanted) - len(good)
-        tried = spare[: need + 1]  # на одну больше: один запасной тоже может быть занят
+        tried = spare[: need + 2]  # с запасом: часть запасных тоже может быть занята
         extra = _run_models(data, content_type, tried, config.api_key, int(left))
         errors += [err for _, _, err in extra if err is not None]
         good += [(name, raw) for name, raw, _ in extra if raw is not None][:need]

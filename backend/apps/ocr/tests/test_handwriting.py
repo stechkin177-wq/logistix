@@ -278,3 +278,55 @@ def test_gemini_models_endpoint(oco, monkeypatch):
     monkeypatch.setattr(gemini, "list_models", lambda key, timeout=20: ["gemini-3.8-flash"])
     body = api.get(f"{BASE}settings/gemini-models/").json()
     assert body == {"models": ["gemini-3.8-flash"], "error": ""}
+
+
+def test_fallback_auto_uses_models_available_to_the_key(monkeypatch, settings):
+    from apps.ocr import services
+
+    settings.OCR_GEMINI_FALLBACK_MODELS = "auto"
+    services._MODELS_CACHE.clear()
+    monkeypatch.setattr(
+        gemini,
+        "list_models",
+        lambda key, timeout=8: ["gemini-4-neon", "gemini-3.8-flash", "gemini-3.6-flash"],
+    )
+    # линейка flash первой, затем остальные; результат кэшируется
+    assert services.fallback_models("key") == (
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-4-neon",
+    )
+    monkeypatch.setattr(
+        gemini, "list_models", lambda key, timeout=8: (_ for _ in ()).throw(AssertionError)
+    )
+    assert services.fallback_models("key")[0] == "gemini-3.8-flash"  # из кэша, Google не спрашиваем
+    # если Google не отвечает - статический запас
+    services._MODELS_CACHE.clear()
+    monkeypatch.setattr(
+        gemini, "list_models", lambda key, timeout=8: (_ for _ in ()).throw(gemini.GeminiError("x"))
+    )
+    assert services.fallback_models("other") == services.STATIC_FALLBACK
+    settings.OCR_GEMINI_FALLBACK_MODELS = "a, b"
+    assert services.fallback_models("key") == ("a", "b")  # явный список из окружения
+    services._MODELS_CACHE.clear()
+
+
+def test_gemini_test_accepts_list_of_models_with_timing(oco, monkeypatch):
+    _, _, api = oco
+    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
+
+    def fake_check(model, key, data, ct):
+        if model == "gemini-bad":
+            raise gemini.GeminiError("503")
+        return "ok"
+
+    monkeypatch.setattr(gemini, "check_key", fake_check)
+    body = api.post(
+        f"{BASE}settings/test-gemini/", {"models": ["gemini-a", "gemini-bad"]}, format="json"
+    ).json()
+    assert body["ok"] is False and body["models"]["gemini-a"]["ok"] is True
+    assert (
+        body["models"]["gemini-bad"]["error"] == "503" and "seconds" in body["models"]["gemini-a"]
+    )
+    too_many = api.post(f"{BASE}settings/test-gemini/", {"models": ["m"] * 9}, format="json")
+    assert too_many.status_code == 400

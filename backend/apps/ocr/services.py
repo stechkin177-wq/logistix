@@ -5,7 +5,7 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
-from . import crypto, engines, fields, handwriting, storage
+from . import crypto, engines, fields, gemini, handwriting, storage
 from .models import OcrSettings, ScannedDocument
 
 logger = logging.getLogger(__name__)
@@ -82,10 +82,39 @@ def effective_config() -> engines.Config:
     return config
 
 
-def fallback_models() -> tuple[str, ...]:
-    """Запасные модели Gemini через запятую (OCR_GEMINI_FALLBACK_MODELS)."""
-    raw = getattr(settings, "OCR_GEMINI_FALLBACK_MODELS", "")
-    return tuple(m.strip() for m in raw.split(",") if m.strip())
+_MODELS_CACHE: dict[str, tuple[float, list[str]]] = {}
+MODELS_TTL = 600
+STATIC_FALLBACK = ("gemini-flash-latest", "gemini-3.5-flash-lite")
+
+
+def available_models(api_key: str) -> list[str]:
+    """Модели, доступные ключу (кэш на 10 минут, чтобы не спрашивать Google при каждом чтении)."""
+    import hashlib
+    import time
+
+    key = hashlib.sha256(api_key.encode()).hexdigest()
+    cached = _MODELS_CACHE.get(key)
+    if cached and time.monotonic() - cached[0] < MODELS_TTL:
+        return cached[1]
+    try:
+        found = gemini.list_models(api_key, timeout=8)
+    except gemini.GeminiError:
+        return []
+    _MODELS_CACHE[key] = (time.monotonic(), found)
+    return found
+
+
+def fallback_models(api_key: str = "") -> tuple[str, ...]:
+    """Запасные модели Gemini. OCR_GEMINI_FALLBACK_MODELS = «auto» (по умолчанию): все модели,
+    доступные ключу, сначала линейка flash, новые первыми (названия и состав у Google меняются,
+    поэтому список берётся у самого Google); иначе список через запятую."""
+    raw = str(getattr(settings, "OCR_GEMINI_FALLBACK_MODELS", "auto")).strip()
+    if raw.lower() != "auto":
+        return tuple(m.strip() for m in raw.split(",") if m.strip())
+    found = available_models(api_key) if api_key else []
+    if not found:
+        return STATIC_FALLBACK
+    return tuple([m for m in found if "flash" in m] + [m for m in found if "flash" not in m])
 
 
 def handwriting_config() -> handwriting.HandwritingConfig:
@@ -93,14 +122,17 @@ def handwriting_config() -> handwriting.HandwritingConfig:
     server_key = getattr(settings, "OCR_GEMINI_KEY", "")
     row = OcrSettings.objects.first()
     if row is None:
-        return handwriting.HandwritingConfig(api_key=server_key, fallback_models=fallback_models())
+        return handwriting.HandwritingConfig(
+            api_key=server_key, fallback_models=fallback_models(server_key)
+        )
+    api_key = crypto.decrypt(row.gemini_key_enc) or server_key
     return handwriting.HandwritingConfig(
-        api_key=crypto.decrypt(row.gemini_key_enc) or server_key,
+        api_key=api_key,
         model=row.handwriting_model or handwriting.DEFAULT_MODEL,
         check_model=row.handwriting_check_model or handwriting.DEFAULT_CHECK_MODEL,
         crosscheck=row.handwriting_crosscheck,
         enabled=row.handwriting_enabled,
-        fallback_models=fallback_models(),
+        fallback_models=fallback_models(api_key),
     )
 
 

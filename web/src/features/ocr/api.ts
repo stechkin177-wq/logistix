@@ -21,4 +21,4 @@ export const getOcrSettings = (signal?: AbortSignal) => api.get<OcrSettings>('/o
 export const saveOcrSettings = (body: Partial<OcrSettingsForm>) => api.put<OcrSettings>('/ocr/settings/', body)
 export const testOcrSettings = () => api.post<{ results: OcrTestResult }>('/ocr/settings/test/', {})
 export const getGeminiModels = () => api.get<{ models: string[]; error: string }>('/ocr/settings/gemini-models/')
-export const testGemini = (models: { model: string; check_model: string }) => api.post<GeminiTestResult>('/ocr/settings/test-gemini/', models)
+export const testGemini = (body: { model: string; check_model: string } | { models: string[] }) => api.post<GeminiTestResult>('/ocr/settings/test-gemini/', body)

@@ -110,15 +110,15 @@ describe('Рукописный лист', () => {
       [
         ['GET', '/api/ocr/settings/', { body: { ...SETTINGS, has_gemini_key: true, handwriting_enabled: true, handwriting_crosscheck: true, handwriting_model: 'gemini-3.7-flash', handwriting_check_model: 'gemini-3.5-flash' } }],
         ['PUT', '/api/ocr/settings/', { body: SETTINGS }],
-        ['POST', '/api/ocr/settings/test-gemini/', { body: { ok: false, models: { 'gemini-3.7-flash': { ok: true, error: '' }, 'gemini-3.5-flash': { ok: false, error: 'модель недоступна' } } } }],
+        ['POST', '/api/ocr/settings/test-gemini/', { body: { ok: false, models: { 'gemini-3.7-flash': { ok: true, error: '', seconds: 1.2 }, 'gemini-3.5-flash': { ok: false, error: 'модель недоступна', seconds: 3 } } } }],
       ],
       { session: MODULES },
     )
     renderApp('/settings/ocr')
     await userEvent.click(await screen.findByRole('button', { name: 'Проверить Gemini' }))
     expect(m.calls.find((c) => c.path === '/api/ocr/settings/test-gemini/')?.body).toEqual({ model: 'gemini-3.7-flash', check_model: 'gemini-3.5-flash' })
-    expect(await screen.findByText('gemini-3.7-flash: работает')).toBeInTheDocument()
-    expect(screen.getByText('gemini-3.5-flash: модель недоступна')).toBeInTheDocument()
+    expect(await screen.findByText('gemini-3.7-flash: работает (1.2 с)')).toBeInTheDocument()
+    expect(screen.getByText('gemini-3.5-flash: модель недоступна (3 с)')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Ключ Gemini'), 'AIza-1')
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'PUT')).toBe(true) })

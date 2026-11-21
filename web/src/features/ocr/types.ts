@@ -66,5 +66,5 @@ export interface OcrSettingsForm {
   handwriting_model: string
   handwriting_check_model: string
 }
-export interface GeminiTestResult { ok: boolean; error?: string; models?: Record<string, { ok: boolean; error: string }> }
+export interface GeminiTestResult { ok: boolean; error?: string; models?: Record<string, { ok: boolean; error: string; seconds?: number }> }
 export type OcrTestResult = Record<string, { ok: boolean; error: string }>
