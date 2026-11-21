@@ -10,7 +10,7 @@ import { EmptyState } from '../../shared/ui/EmptyState'
 import { Select } from '../../shared/ui/Select'
 import { Spinner } from '../../shared/ui/Spinner'
 import { Tabs } from '../../shared/ui/Tabs'
-import { Archive, ArchiveRestore, Camera, Eye, Paperclip } from '../../shared/ui/icons'
+import { Archive, ArchiveRestore, Camera, Eye } from '../../shared/ui/icons'
 import { PhotoDialog } from '../ocr/ImageViewer'
 import { shrinkImage } from '../ocr/image'
 import type { OcrDocument } from '../ocr/types'
@@ -49,7 +49,6 @@ function ReportCard({ doc, archived }: { doc: OcrDocument; archived: boolean }) 
  * значения подсвечены; отправка в офис происходит самой загрузкой, до проверки офисом можно переснять. */
 export function ReportPage() {
   const { t } = useTranslation()
-  const camera = useRef<HTMLInputElement>(null)
   const gallery = useRef<HTMLInputElement>(null)
   const send = useSendReport()
   const types = useDriverReportTypes()
@@ -74,7 +73,6 @@ export function ReportPage() {
     } catch (e) {
       setError(e instanceof Error && e.message === 'image_too_large' ? t('ocr.tooLarge') : errorMessage(e, t))
     } finally {
-      if (camera.current) camera.current.value = ''
       if (gallery.current) gallery.current.value = ''
     }
   }
@@ -86,12 +84,10 @@ export function ReportPage() {
         <Card className="space-y-3 p-3">
           <Select label={t('ocr.docType')} value={effectiveType} options={options.map((o) => ({ value: o.code, label: o.name }))} onChange={setDocType} />
           <Select label={t('driver.report.trip')} value={effectiveTrip} placeholder={t('driver.report.noTrip')} options={trips.map((x) => ({ value: String(x.id), label: `${x.number} · ${x.from_city || '-'} → ${x.to_city || '-'}` }))} onChange={setTripId} />
-          <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" data-testid="report-camera" aria-label={t('driver.report.take')} onChange={(e) => { void onFile(e.target.files?.[0]) }} />
-          <input ref={gallery} type="file" accept="image/jpeg,image/png,image/*" className="sr-only" data-testid="report-file" aria-label={t('driver.report.pick')} onChange={(e) => { void onFile(e.target.files?.[0]) }} />
-          <Button variant="primary" icon={Camera} className="h-14! w-full text-base!" disabled={send.isPending || effectiveType === ''} onClick={() => { camera.current?.click() }}>
+          <input ref={gallery} type="file" accept="image/jpeg,image/png,image/*" className="sr-only" data-testid="report-file" aria-label={t('driver.report.take')} onChange={(e) => { void onFile(e.target.files?.[0]) }} />
+          <Button variant="primary" icon={Camera} className="h-14! w-full text-base!" disabled={send.isPending || effectiveType === ''} onClick={() => { gallery.current?.click() }}>
             {send.isPending ? t('driver.report.reading') : t('driver.report.take')}
           </Button>
-          <Button icon={Paperclip} className="h-12! w-full" disabled={send.isPending || effectiveType === ''} onClick={() => { gallery.current?.click() }}>{t('driver.report.pick')}</Button>
           <p className="text-xs text-muted">{handler === 'sheet' ? t('driver.report.sheetHint') : t('driver.report.hint')}</p>
           {error ? <Banner kind="error">{error}</Banner> : null}
         </Card>

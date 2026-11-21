@@ -146,10 +146,8 @@ describe('Приложение водителя', () => {
     expect(cards[0]).toHaveTextContent('Отправлено в офис')
     expect(screen.getAllByRole('button', { name: 'Смотреть файл' })).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'Переснять (удалить)' })).not.toBeInTheDocument()
-    // два способа добавить фото: камера и выбор файла из галереи (без capture)
-    expect(screen.getByRole('button', { name: 'Сфотографировать' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Выбрать фото или файл' })).toBeInTheDocument()
-    expect(screen.getByTestId('report-camera')).toHaveAttribute('capture', 'environment')
+    // одна кнопка без принудительной камеры: система сама предложит снимок, медиатеку или файл
+    expect(screen.getAllByRole('button', { name: 'Сфотографировать или выбрать фото' }).length).toBeGreaterThan(0)
     expect(screen.getByTestId('report-file')).not.toHaveAttribute('capture')
     await userEvent.upload(screen.getByTestId('report-file'), new File(['x'], 'photo.jpg', { type: 'image/jpeg' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/driver/reports/')).toBe(true) })
