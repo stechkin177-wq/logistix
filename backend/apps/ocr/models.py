@@ -1,7 +1,8 @@
 """Модуль ocr: настройки распознавания компании и распознанные документы.
 
-Связей с техникой, рейсами и отчётами здесь нет (модуль зависит только от documents): привязка
-к ним появится в отчёте водителя. Ключи движков хранятся зашифрованными и наружу не отдаются."""
+Документ может быть привязан к рейсу и водителю (отчёт из приложения водителя); без этой
+привязки он остаётся обычной загрузкой офиса. Ключи движков хранятся зашифрованными и наружу
+не отдаются."""
 
 from django.conf import settings
 from django.db import models
@@ -49,6 +50,9 @@ class ScannedDocument(TenantModel):
     INVOICE = "invoice"
     REPORT_SHEET = "report_sheet"
     OTHER = "other"
+    OFFICE = "office"
+    DRIVER_APP = "driver_app"
+    SOURCES = [(OFFICE, "Офис"), (DRIVER_APP, "Приложение водителя")]
     TYPES = [
         (FUEL_RECEIPT, "Чек АЗС"),
         (WAYBILL, "Путевой лист"),
@@ -76,6 +80,17 @@ class ScannedDocument(TenantModel):
     # рукописный лист: прочитанное, сомнительные значения и расхождения чтений (по путям значений)
     sheet = models.JSONField(default=dict, blank=True)
     error = models.TextField(blank=True)
+    source = models.CharField(max_length=12, choices=SOURCES, default=OFFICE)
+    trip = models.ForeignKey(
+        "forwarding.Trip", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    driver = models.ForeignKey(
+        "drivers.Driver", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)  # офис проверил документ
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -98,6 +113,9 @@ class ScannedDocument(TenantModel):
                     ]
                 ),
                 name="scandoc_type_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(source__in=["office", "driver_app"]), name="scandoc_source_valid"
             ),
             models.CheckConstraint(
                 condition=Q(status__in=["processing", "done", "failed"]),

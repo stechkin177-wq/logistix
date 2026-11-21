@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -24,12 +26,15 @@ class UploadThrottle(UserRateThrottle):
 class DocumentSerializer(serializers.ModelSerializer):
     has_file = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
+    trip_number = serializers.CharField(source="trip.number", read_only=True, default="")
+    driver_name = serializers.CharField(source="driver.full_name", read_only=True, default="")
 
     class Meta:
         model = ScannedDocument
         fields = [
             "id", "doc_type", "status", "engine", "original_name", "size", "has_file", "text",
             "fields", "sheet", "error", "uploaded_by_name", "created_at", "processed_at",
+            "source", "trip", "trip_number", "driver", "driver_name", "reviewed_at",
         ]  # fmt: skip
         read_only_fields = [f for f in fields if f not in ("doc_type", "fields")]
 
@@ -62,6 +67,7 @@ class DocumentViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
     pagination_class = StandardPagination
     parser_classes = [MultiPartParser, FormParser, *viewsets.ModelViewSet.parser_classes]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    _action_map = {**SectionPermissionMixin._action_map, "review": "update"}
 
     def get_throttles(self):
         return [UploadThrottle()] if self.action == "create" else super().get_throttles()
@@ -70,7 +76,7 @@ class DocumentViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
         return [ModuleRequired("ocr")(), *super().get_permissions()]
 
     def get_queryset(self):
-        qs = ScannedDocument.objects.select_related("uploaded_by")
+        qs = ScannedDocument.objects.select_related("uploaded_by", "trip", "driver")
         p = self.request.query_params
         if status_ := p.get("status"):
             if status_ not in dict(ScannedDocument.STATUSES):
@@ -80,9 +86,29 @@ class DocumentViewSet(SectionPermissionMixin, viewsets.ModelViewSet):
             if doc_type not in dict(ScannedDocument.TYPES):
                 raise ValidationError({"doc_type": "Неизвестный тип документа"})
             qs = qs.filter(doc_type=doc_type)
+        if source := p.get("source"):
+            if source not in dict(ScannedDocument.SOURCES):
+                raise ValidationError({"source": "Допустимо: office, driver_app"})
+            qs = qs.filter(source=source)
+        if trip := p.get("trip"):
+            qs = qs.filter(trip_id=trip) if trip.isdigit() else qs.none()
+        if driver := p.get("driver"):
+            qs = qs.filter(driver_id=driver) if driver.isdigit() else qs.none()
+        if (reviewed := p.get("reviewed")) in ("true", "false"):
+            qs = qs.filter(reviewed_at__isnull=(reviewed == "false"))
         if q := (p.get("q") or "").strip():
             qs = qs.filter(original_name__icontains=q) | qs.filter(text__icontains=q)
         return qs
+
+    @action(detail=True, methods=["post"], url_path="review")
+    def review(self, request, pk=None):
+        """Отметка «проверено офисом» ({"reviewed": true|false}; по умолчанию true)."""
+        doc = self.get_object()
+        reviewed = request.data.get("reviewed", True) not in (False, "false", "0", 0)
+        doc.reviewed_at = timezone.now() if reviewed else None
+        doc.reviewed_by = request.user if reviewed else None
+        doc.save(update_fields=["reviewed_at", "reviewed_by"])
+        return Response(DocumentSerializer(doc).data)
 
     def create(self, request, *args, **kwargs):
         upload = request.FILES.get("file")

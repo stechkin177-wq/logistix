@@ -10,7 +10,7 @@ const MODULES = { modules: ['documents', 'ocr'] }
 const DOC = {
   id: 5, doc_type: 'fuel_receipt', status: 'done', engine: 'ocr_space', original_name: 'check.jpg', size: 1000, has_file: false,
   text: 'ИТОГО 37355,00', fields: { date: '2026-11-18', amount: '37355', liters: '120.5', fuel_type: 'diesel', plate: '886AIA14' },
-  error: '', uploaded_by_name: 'Админ', created_at: '2026-11-18T10:00:00Z', processed_at: '2026-11-18T10:00:01Z',
+  error: '', uploaded_by_name: 'Админ', source: 'office', trip: null, trip_number: '', driver: null, driver_name: '', reviewed_at: null, created_at: '2026-11-18T10:00:00Z', processed_at: '2026-11-18T10:00:01Z',
 }
 const SETTINGS = {
   engine: 'ocr_space', auto_fallback: true, has_google_vision_key: false, has_ocr_space_key: true, tesseract_available: false, storage_configured: false,
@@ -122,5 +122,23 @@ describe('Рукописный лист', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'PUT')).toBe(true) })
     expect(m.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({ gemini_key: 'AIza-1', handwriting_model: 'gemini-3.7-flash', handwriting_crosscheck: true })
+  })
+
+  it('документ водителя: рейс и водитель в списке, офис отмечает проверенным', async () => {
+    const FROM_DRIVER = { ...DOC, id: 31, original_name: 'driver.jpg', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', driver: 1, driver_name: 'Иванов Иван' }
+    const m = loggedIn(
+      [
+        ['GET', /^\/api\/ocr\/documents\//, { body: page([FROM_DRIVER]) }],
+        ['POST', '/api/ocr/documents/31/review/', { body: { ...FROM_DRIVER, reviewed_at: '2026-11-21T09:00:00Z' } }],
+      ],
+      { session: MODULES },
+    )
+    renderApp('/ocr')
+    expect(await screen.findByText('ORD-1-1')).toBeInTheDocument()
+    expect(screen.getByText('На проверке')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'driver.jpg' }))
+    expect(await screen.findByText('Отправил водитель Иванов Иван, рейс ORD-1-1')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Отметить проверенным' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/ocr/documents/31/review/')?.body).toEqual({ reviewed: true }) })
   })
 })

@@ -2,12 +2,13 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet } from 'react-router'
 import { useSession } from '../../shared/auth/useSession'
 import { Toaster } from '../../shared/ui/Toaster'
-import { Route, UserRound } from '../../shared/ui/icons'
+import { Camera, Route, UserRound } from '../../shared/ui/icons'
 import { useDriverPwa } from './pwa'
 
 const TABS = [
-  { to: '/driver', end: true, icon: Route, key: 'trips' },
-  { to: '/driver/profile', end: false, icon: UserRound, key: 'profile' },
+  { to: '/driver', end: true, icon: Route, key: 'trips', module: null },
+  { to: '/driver/report', end: false, icon: Camera, key: 'report', module: 'ocr' },
+  { to: '/driver/profile', end: false, icon: UserRound, key: 'profile', module: null },
 ] as const
 
 /** Оболочка водителя: название компании сверху, содержимое, нижняя панель с крупными вкладками. */
@@ -24,7 +25,7 @@ export function DriverLayout() {
         <Outlet />
       </main>
       <nav aria-label={t('driver.navLabel')} className="flex shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]">
-        {TABS.map(({ to, end, icon: Icon, key }) => (
+        {TABS.filter((tab) => tab.module === null || session?.modules.includes(tab.module)).map(({ to, end, icon: Icon, key }) => (
           <NavLink
             key={key}
             to={to}

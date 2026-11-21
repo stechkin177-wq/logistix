@@ -112,4 +112,37 @@ describe('Приложение водителя', () => {
     await waitFor(() => { expect(m.calls.some((c) => c.path === '/api/drivers/5/revoke-access/')).toBe(true) })
     expect(await within(drawer).findByRole('button', { name: 'Дать доступ' })).toBeInTheDocument()
   })
+
+  it('вкладка «Отчёт» есть только при включённом распознавании', async () => {
+    loggedIn([['GET', /^\/api\/driver\/trips\/\?/, { body: { results: [] } }]], { session: SESSION })
+    renderApp('/driver')
+    await screen.findByText('Сейчас вы не в рейсе')
+    expect(screen.queryByRole('link', { name: 'Отчёт' })).not.toBeInTheDocument()
+  })
+
+  it('отчёт: фото уходит с рейсом и типом, видны отправленные документы и сомнения по листу', async () => {
+    const REPORTS = [
+      { id: 21, doc_type: 'report_sheet', status: 'done', engine: 'gemini', original_name: 's.jpg', size: 1, has_file: false, text: '', fields: {}, error: '', uploaded_by_name: '', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', driver: 1, driver_name: 'Иванов', reviewed_at: null, created_at: '2026-11-21T08:00:00Z', processed_at: null,
+        sheet: { page_type: 'main', models: ['a'], notes: [], raw: { header: { driver: 'Иванов' } }, flags: { 'fuel_tractor[0].liters': ['Литры x цена'] }, alt: {} } },
+      { id: 22, doc_type: 'fuel_receipt', status: 'done', engine: 'ocr_space', original_name: 'c.jpg', size: 1, has_file: false, text: '', fields: { amount: '37355', liters: '120.5', fuel_type: 'diesel' }, sheet: {}, error: '', uploaded_by_name: '', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', driver: 1, driver_name: 'Иванов', reviewed_at: '2026-11-21T09:00:00Z', created_at: '2026-11-21T08:10:00Z', processed_at: null },
+    ]
+    const m = loggedIn(
+      [
+        ['GET', '/api/driver/reports/', { body: { results: REPORTS } }],
+        ['POST', '/api/driver/reports/', { status: 201, body: REPORTS[0] }],
+        ['GET', /^\/api\/driver\/trips\/\?scope=current/, { body: { results: [TRIP] } }],
+        ['GET', /^\/api\/driver\/trips\/\?scope=upcoming/, { body: { results: [] } }],
+      ],
+      { session: { ...SESSION, modules: ['logistics', 'drivers', 'driver_app', 'ocr'] } },
+    )
+    renderApp('/driver/report')
+    expect(await screen.findByText('Значений для проверки: 1. Сверьте их с листом и при необходимости переснимите.')).toBeInTheDocument()
+    expect(screen.getByText('Проверено офисом')).toBeInTheDocument()
+    expect(screen.getByText('Отправлено в офис')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Переснять (удалить)' })).toHaveLength(1) // проверенный нельзя удалить
+    await userEvent.click(screen.getByRole('button', { name: 'Показать прочитанное' }))
+    expect(await screen.findByTestId('sheet-view')).toBeInTheDocument()
+    await userEvent.upload(screen.getByTestId('report-file'), new File(['x'], 'photo.jpg', { type: 'image/jpeg' }))
+    await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/driver/reports/')).toBe(true) })
+  })
 })

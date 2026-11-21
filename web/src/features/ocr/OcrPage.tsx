@@ -21,7 +21,7 @@ import { WriteButton } from '../../shared/ui/WriteButton'
 import { Trash2, Upload, ScanText } from '../../shared/ui/icons'
 import { getOcrFileUrl } from './api'
 import { SheetView } from './SheetView'
-import { useDeleteOcr, useOcrDocuments, useUpdateOcr, useUploadOcr } from './hooks'
+import { useDeleteOcr, useOcrDocuments, useReviewOcr, useUpdateOcr, useUploadOcr } from './hooks'
 import { shrinkImage } from './image'
 import { FUEL_TYPES, OCR_DOC_TYPES, OCR_FIELD_KEYS, type OcrDocType, type OcrDocument, type OcrFieldKey, type OcrStatus } from './types'
 
@@ -80,6 +80,7 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
   const { t } = useTranslation()
   const update = useUpdateOcr()
   const remove = useDeleteOcr()
+  const review = useReviewOcr()
   const [docType, setDocType] = useState(doc.doc_type)
   const [values, setValues] = useState<Partial<Record<OcrFieldKey, string>>>(doc.fields)
   const [confirm, setConfirm] = useState(false)
@@ -117,6 +118,14 @@ function DocumentDrawer({ doc, onClose }: { doc: OcrDocument; onClose: () => voi
           {doc.has_file ? <Button onClick={() => { void openOriginal() }}>{t('ocr.openOriginal')}</Button> : null}
         </div>
         {fileError ? <Banner kind="error">{fileError}</Banner> : null}
+        {doc.source === 'driver_app' ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-surface-2 px-3 py-2 text-sm">
+            <span>{t('ocr.fromDriver', { driver: doc.driver_name || '-', trip: doc.trip_number || t('ocr.noTrip') })}</span>
+            <WriteButton permission="ocr.update" disabled={review.isPending} onClick={() => { review.mutate({ id: doc.id, reviewed: doc.reviewed_at === null }, { onSuccess: onClose }) }}>
+              {doc.reviewed_at === null ? t('ocr.markReviewed') : t('ocr.unmarkReviewed')}
+            </WriteButton>
+          </div>
+        ) : null}
         {doc.error ? <Banner kind="error">{doc.error}</Banner> : null}
         {update.isError ? <Banner kind="error">{errorMessage(update.error, t)}</Banner> : null}
         {isSheet ? <SheetView sheet={doc.sheet} /> : null}
@@ -164,7 +173,9 @@ export function OcrPage() {
     { key: 'type', header: t('ocr.docType'), cell: (d) => t(`ocr.types.${d.doc_type}`) },
     { key: 'status', header: t('common.status'), cell: (d) => <Badge tone={TONE[d.status]}>{t(`ocr.statuses.${d.status}`)}</Badge> },
     { key: 'amount', header: t('ocr.fields.amount'), align: 'right', cell: (d) => d.fields.amount ?? '' },
-    { key: 'by', header: t('ocr.uploadedBy'), cell: (d) => d.uploaded_by_name },
+    { key: 'trip', header: t('ocr.trip'), cell: (d) => d.trip_number },
+    { key: 'by', header: t('ocr.uploadedBy'), cell: (d) => (d.source === 'driver_app' ? d.driver_name : d.uploaded_by_name) },
+    { key: 'review', header: t('ocr.review'), cell: (d) => (d.source === 'driver_app' ? <Badge tone={d.reviewed_at ? 'success' : 'warning'}>{d.reviewed_at ? t('ocr.reviewed') : t('ocr.toReview')}</Badge> : null) },
   ]
   const filtered = state.q !== '' || state.status !== '' || state.doc_type !== ''
   return (

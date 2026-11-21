@@ -12,6 +12,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,6 +27,10 @@ from apps.forwarding.models import Trip, TripConsignment
 from apps.forwarding.trips.api import concurrency_guard
 from apps.forwarding.trips.resources import effective_modules
 from apps.forwarding.trips.serializers import TripStatusSerializer
+from apps.ocr import services as ocr_services
+from apps.ocr import storage as ocr_storage
+from apps.ocr.api import DocumentSerializer, UploadThrottle
+from apps.ocr.models import ScannedDocument
 
 ACTIVE_CODES = ("IN_PROGRESS", "UNLOADING")
 FINISHED_CODES = ("COMPLETED", "CANCELLED")
@@ -278,3 +283,83 @@ class TripActionView(APIView):
         card = trip_card(trip)
         card["stops"] = _stops_of(trip)
         return Response(card)
+
+
+# --- отчёты водителя: фото листа, чеков и документов (модуль ocr) ---
+
+REPORT_TYPES = ("report_sheet", "fuel_receipt", "waybill", "cmr", "other")
+
+
+def report_permissions():
+    return [*driver_permissions(), ModuleRequired("ocr")()]
+
+
+class ReportListView(APIView):
+    """GET - свои отправленные документы (?trip=); POST multipart - отправить фото (file,
+    doc_type, trip): распознаётся сразу, сомнительные значения подсвечиваются, офис видит
+    документ в «Распознавании» с рейсом и водителем."""
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        return report_permissions()
+
+    def get_throttles(self):
+        return [UploadThrottle()] if self.request.method == "POST" else []
+
+    def get(self, request):
+        driver = current_driver(request)
+        qs = ScannedDocument.objects.filter(driver=driver).select_related("trip", "driver")
+        if trip := request.query_params.get("trip"):
+            qs = qs.filter(trip_id=trip) if trip.isdigit() else qs.none()
+        return Response({"results": DocumentSerializer(qs[:50], many=True).data})
+
+    def post(self, request):
+        driver = current_driver(request)
+        upload = request.FILES.get("file")
+        if upload is None:
+            raise serializers.ValidationError({"file": "Выберите файл"})
+        if upload.size > ocr_services.MAX_BYTES:
+            raise serializers.ValidationError({"file": "Файл больше 4 МБ: сожмите фото"})
+        data = upload.read()
+        content_type = ocr_services.sniff(data)
+        if content_type is None:
+            raise serializers.ValidationError({"file": "Нужна картинка JPEG или PNG"})
+        doc_type = request.data.get("doc_type") or "other"
+        if doc_type not in REPORT_TYPES:
+            raise serializers.ValidationError({"doc_type": "Недопустимый тип документа"})
+        trip = None
+        if request.data.get("trip"):
+            trip = (
+                my_trips(driver).filter(pk=str(request.data["trip"])).first()
+                if str(request.data["trip"]).isdigit()
+                else None
+            )
+            if trip is None:
+                raise serializers.ValidationError({"trip": "Это не ваш рейс"})
+        doc = ocr_services.scan(
+            data, content_type, upload.name or "", doc_type, request.user,
+            driver=driver, trip=trip, source=ScannedDocument.DRIVER_APP,
+        )  # fmt: skip
+        doc = ScannedDocument.objects.select_related("trip", "driver").get(pk=doc.pk)
+        return Response(DocumentSerializer(doc).data, status=201)
+
+
+class ReportDetailView(APIView):
+    """DELETE - убрать свой документ (переснять), пока офис его не проверил."""
+
+    def get_permissions(self):
+        return report_permissions()
+
+    def delete(self, request, pk):
+        driver = current_driver(request)
+        doc = ScannedDocument.objects.filter(pk=pk, driver=driver).first()
+        if doc is None:
+            raise NotFound()
+        if doc.reviewed_at is not None:
+            raise serializers.ValidationError({"detail": "Документ уже проверен офисом"})
+        key = doc.file_key
+        doc.delete()
+        if key and ocr_storage.configured():
+            ocr_storage.delete(key)
+        return Response(status=204)

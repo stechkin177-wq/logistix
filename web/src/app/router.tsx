@@ -31,6 +31,7 @@ import { GpsSettingsPage } from '../features/gps/GpsSettingsPage'
 import { DriverLayout } from '../features/driver/DriverLayout'
 import { DriverRedirect, RequireDriver } from '../features/driver/Gates'
 import { ProfilePage as DriverProfilePage } from '../features/driver/ProfilePage'
+import { ReportPage as DriverReportPage } from '../features/driver/ReportPage'
 import { TripPage as DriverTripPage } from '../features/driver/TripPage'
 import { TripsPage as DriverTripsPage } from '../features/driver/TripsPage'
 import { OcrPage } from '../features/ocr/OcrPage'
@@ -170,6 +171,7 @@ export function createRoutes(): RouteObject[] {
                   children: [
                     { index: true, element: <DriverTripsPage /> },
                     { path: 'trips/:id', element: <DriverTripPage /> },
+                    { path: 'report', element: <DriverReportPage /> },
                     { path: 'profile', element: <DriverProfilePage /> },
                     { path: '*', element: <NotFoundPage /> },
                   ],

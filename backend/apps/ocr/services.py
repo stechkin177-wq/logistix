@@ -119,12 +119,15 @@ def _read_sheet(doc: ScannedDocument, data: bytes, content_type: str) -> None:
     doc.sheet = page
 
 
-def scan(data: bytes, content_type: str, name: str, doc_type: str, user) -> ScannedDocument:
+def scan(
+    data: bytes, content_type: str, name: str, doc_type: str, user, **extra
+) -> ScannedDocument:
     """Создаёт запись и распознаёт синхронно. Лимит тарифа проверяется при создании записи
-    (до обращения к движку), сбой распознавания сохраняется в записи и не роняет запрос."""
+    (до обращения к движку), сбой распознавания сохраняется в записи и не роняет запрос.
+    extra - дополнительные поля записи (рейс, водитель, источник)."""
     doc = ScannedDocument(
         doc_type=doc_type, status=ScannedDocument.PROCESSING, original_name=name[:255],
-        content_type=content_type, size=len(data), uploaded_by=user,
+        content_type=content_type, size=len(data), uploaded_by=user, **extra,
     )  # fmt: skip
     doc.save()
     if storage.configured():

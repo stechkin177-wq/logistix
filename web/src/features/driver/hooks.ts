@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { doTripAction, getDriverMe, getDriverTrip, listDriverTrips } from './api'
+import { deleteDriverReport, doTripAction, getDriverMe, getDriverTrip, listDriverReports, listDriverTrips, sendDriverReport } from './api'
+import type { OcrDocType } from '../ocr/types'
 import type { DriverAction, DriverScope } from './types'
 
 export const useDriverMe = () => useQuery({ queryKey: ['driver', 'me'], queryFn: ({ signal }) => getDriverMe(signal) })
@@ -16,4 +17,17 @@ export function useTripAction(id: number) {
       void qc.invalidateQueries({ queryKey: ['driver', 'trips'] })
     },
   })
+}
+
+export const useDriverReports = () => useQuery({ queryKey: ['driver', 'reports'], queryFn: ({ signal }) => listDriverReports(signal) })
+export function useSendReport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ file, name, docType, trip }: { file: Blob; name: string; docType: OcrDocType; trip: number | null }) => sendDriverReport(file, name, docType, trip),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver', 'reports'] }),
+  })
+}
+export function useDeleteReport() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: deleteDriverReport, onSuccess: () => qc.invalidateQueries({ queryKey: ['driver', 'reports'] }) })
 }

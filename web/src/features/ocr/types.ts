@@ -29,6 +29,12 @@ export interface OcrDocument {
   sheet: Partial<SheetPage>
   error: string
   uploaded_by_name: string
+  source: 'office' | 'driver_app'
+  trip: number | null
+  trip_number: string
+  driver: number | null
+  driver_name: string
+  reviewed_at: string | null
   created_at: string
   processed_at: string | null
 }

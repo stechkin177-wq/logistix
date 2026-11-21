@@ -13,6 +13,7 @@ export const uploadOcrDocument = (file: Blob, name: string, docType: OcrDocType)
 }
 export const updateOcrDocument = (id: number, body: { doc_type?: OcrDocType; fields?: Partial<Record<OcrFieldKey, string>> }) =>
   api.patch<OcrDocument>(`/ocr/documents/${String(id)}/`, body)
+export const reviewOcrDocument = (id: number, reviewed: boolean) => api.post<OcrDocument>(`/ocr/documents/${String(id)}/review/`, { reviewed })
 export const deleteOcrDocument = (id: number) => api.delete(`/ocr/documents/${String(id)}/`)
 export const getOcrFileUrl = (id: number) => api.get<{ url: string }>(`/ocr/documents/${String(id)}/file/`)
 

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  deleteOcrDocument, getOcrSettings, listOcrDocuments, saveOcrSettings, testGemini, testOcrSettings, updateOcrDocument, uploadOcrDocument, type OcrFilters,
+  deleteOcrDocument, getOcrSettings, reviewOcrDocument, listOcrDocuments, saveOcrSettings, testGemini, testOcrSettings, updateOcrDocument, uploadOcrDocument, type OcrFilters,
 } from './api'
 import type { OcrDocType } from './types'
 
@@ -30,3 +30,7 @@ export function useSaveOcrSettings() {
 }
 export const useTestOcrSettings = () => useMutation({ mutationFn: testOcrSettings })
 export const useTestGemini = () => useMutation({ mutationFn: testGemini })
+export function useReviewOcr() {
+  const invalidate = useInvalidateOcr()
+  return useMutation({ mutationFn: ({ id, reviewed }: { id: number; reviewed: boolean }) => reviewOcrDocument(id, reviewed), onSuccess: invalidate })
+}

@@ -51,6 +51,8 @@ from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
 from apps.drivers.api import DriverDocumentViewSet, DriverRemindersView, DriverViewSet
 from apps.drivers.mobile import MeView as DriverMeView
+from apps.drivers.mobile import ReportDetailView as DriverReportDetailView
+from apps.drivers.mobile import ReportListView as DriverReportListView
 from apps.drivers.mobile import TripActionView as DriverTripActionView
 from apps.drivers.mobile import TripDetailView as DriverTripDetailView
 from apps.drivers.mobile import TripListView as DriverTripListView
@@ -183,6 +185,8 @@ urlpatterns = [
     path("api/fleet/reminders/", RemindersView.as_view()),
     path("api/drivers/reminders/", DriverRemindersView.as_view()),
     path("api/driver/me/", DriverMeView.as_view()),
+    path("api/driver/reports/", DriverReportListView.as_view()),
+    path("api/driver/reports/<int:pk>/", DriverReportDetailView.as_view()),
     path("api/driver/trips/", DriverTripListView.as_view()),
     path("api/driver/trips/<int:pk>/", DriverTripDetailView.as_view()),
     path("api/driver/trips/<int:pk>/action/", DriverTripActionView.as_view()),

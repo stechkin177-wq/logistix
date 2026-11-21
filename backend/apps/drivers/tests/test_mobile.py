@@ -271,3 +271,109 @@ def test_engine_hours_for_refrigerated_trailer(make_company):
         (second["id"], "trip_start", "10.5"),
         (second["id"], "trip_end", "12.0"),
     ]
+
+
+# --- отчёты водителя (фото листа и чеков) ---
+
+REPORTS = "/api/driver/reports/"
+JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
+
+
+def report_company(make_company, name="Reports"):
+    company, admin, api = app_company(make_company, name)
+    plan = Plan.objects.get(code="start")
+    if "ocr" not in plan.modules:
+        Plan.objects.filter(code="start").update(modules=[*plan.modules, "documents", "ocr"])
+    set_company_modules(company, ["logistics", "drivers", "driver_app", "documents", "ocr"])
+    driver, drv_api = driver_with_login(company)
+    return company, api, driver, drv_api
+
+
+def send(api, doc_type="fuel_receipt", **extra):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    return api.post(
+        REPORTS,
+        {
+            "file": SimpleUploadedFile("c.jpg", JPEG, content_type="image/jpeg"),
+            "doc_type": doc_type,
+            **extra,
+        },
+        format="multipart",
+    )
+
+
+@pytest.fixture
+def fake_ocr(monkeypatch):
+    from apps.ocr import engines, services
+
+    class Fake:
+        def __init__(self, key=""):
+            pass
+
+        def available(self):
+            return True
+
+        def recognize(self, data, content_type):
+            return "АЗС\n18.11.2026\nДТ 886AIA14\n120,50 л\nЦена 310,00\nИТОГО 37355,00"
+
+    monkeypatch.setattr(
+        engines, "ENGINES", {**engines.ENGINES, "ocr_space": Fake, "tesseract": Fake}
+    )
+    monkeypatch.setattr(
+        services, "env_defaults", lambda: {"google_vision_key": "", "ocr_space_key": "k"}
+    )
+
+
+def test_driver_sends_receipt_for_own_trip_and_office_sees_it(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    trip = trip_for(api, company, driver)
+    r = send(drv_api, trip=trip["id"])
+    assert r.status_code == 201, r.content
+    body = r.json()
+    assert body["source"] == "driver_app" and body["trip"] == trip["id"]
+    assert body["driver_name"] == "Иванов Иван" and body["trip_number"] == trip["number"]
+    assert body["status"] == "done" and body["fields"]["fuel_type"] == "diesel"
+    # водитель видит свои документы
+    mine = drv_api.get(f"{REPORTS}?trip={trip['id']}").json()["results"]
+    assert [d["id"] for d in mine] == [body["id"]]
+    # офис видит в «Распознавании» с рейсом и водителем, фильтры работают, проверка отмечается
+    office = api.get(f"/api/ocr/documents/?source=driver_app&trip={trip['id']}").json()
+    assert office["count"] == 1 and office["results"][0]["trip_number"] == trip["number"]
+    assert api.get("/api/ocr/documents/?reviewed=true").json()["count"] == 0
+    done = api.post(f"/api/ocr/documents/{body['id']}/review/", {}, format="json")
+    assert done.status_code == 200 and done.json()["reviewed_at"] is not None
+    assert api.get("/api/ocr/documents/?reviewed=true").json()["count"] == 1
+    undone = api.post(
+        f"/api/ocr/documents/{body['id']}/review/", {"reviewed": False}, format="json"
+    )
+    assert undone.json()["reviewed_at"] is None
+
+
+def test_driver_cannot_attach_foreign_trip_or_see_foreign_docs(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    other, other_api = driver_with_login(company, "Петров", "+77002223344")
+    theirs = trip_for(api, company, other)
+    assert send(drv_api, trip=theirs["id"]).status_code == 400
+    assert send(drv_api, trip="abc").status_code == 400
+    foreign = send(other_api).json()
+    assert drv_api.get(REPORTS).json()["results"] == []
+    assert drv_api.delete(f"{REPORTS}{foreign['id']}/").status_code == 404
+
+
+def test_driver_report_validation_and_delete_until_reviewed(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    assert drv_api.post(REPORTS, {}, format="multipart").status_code == 400
+    assert send(drv_api, doc_type="invoice").status_code == 400  # счета водитель не отправляет
+    doc = send(drv_api).json()
+    assert drv_api.delete(f"{REPORTS}{doc['id']}/").status_code == 204
+    again = send(drv_api).json()
+    api.post(f"/api/ocr/documents/{again['id']}/review/", {}, format="json")
+    assert drv_api.delete(f"{REPORTS}{again['id']}/").status_code == 400  # уже проверен
+
+
+def test_reports_require_ocr_module_and_driver_role(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    assert api.get(REPORTS).status_code == 403  # у администратора нет карточки водителя
+    set_company_modules(company, ["logistics", "drivers", "driver_app"])
+    assert drv_api.get(REPORTS).status_code == 403  # модуль распознавания выключен
