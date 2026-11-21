@@ -22,8 +22,8 @@ from .gemini import GeminiError, read_report_sheet
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-3.8-flash"
-DEFAULT_CHECK_MODEL = "gemini-3.6-flash"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"  # простая модель, которая отвечает стабильно
+DEFAULT_CHECK_MODEL = ""  # пусто: вторая модель подбирается из доступных ключу
 TEXT_KEYS = {
     "description", "note", "category", "driver", "vehicle", "country", "currency", "page_type",
 }  # fmt: skip
@@ -40,7 +40,7 @@ class HandwritingConfig:
     api_key: str = ""
     model: str = DEFAULT_MODEL
     check_model: str = DEFAULT_CHECK_MODEL
-    crosscheck: bool = True
+    crosscheck: bool = False
     enabled: bool = True
     fallback_models: tuple[str, ...] = ()  # запасные модели при занятости или сбое основных
 
@@ -204,11 +204,10 @@ def check_values(raw: dict) -> dict[str, list[str]]:
             reasons.append(reason)
 
     for path, value in _walk_numbers(raw):
-        number, is_expr = parse_number(value)
+        number, _ = parse_number(value)
         if number is None:
             flag(path, f"Не удалось прочитать «{value}» как число")
-        elif is_expr:
-            flag(path, f"Значение посчитано из записи «{value}» - проверьте")
+        # запись-сумма вроде «2000+200» в листах обычное дело: сомнением не считается
     for key in ("fuel_tractor", "fuel_reefer"):
         for i, row in enumerate(raw.get(key) or []):
             if not isinstance(row, dict):
@@ -319,8 +318,12 @@ def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dic
     пересверка."""
     started = time.monotonic()
     wanted = [config.model]
-    if config.crosscheck and config.check_model and config.check_model != config.model:
-        wanted.append(config.check_model)
+    if config.crosscheck:
+        check = config.check_model or next(
+            (m for m in config.fallback_models if m != config.model and not _cooling(m)), ""
+        )
+        if check and check != config.model:
+            wanted.append(check)
     first_timeout = FIRST_STAGE_TIMEOUT if config.fallback_models else TOTAL_BUDGET - 4
     outcomes = _run_models(data, content_type, wanted, config.api_key, first_timeout)
     errors = [err for _, _, err in outcomes if err is not None]

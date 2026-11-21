@@ -83,6 +83,26 @@ describe('Панель платформы', () => {
     expect(screen.getAllByText('Владелец платформы').length).toBeGreaterThan(0)
   })
 
+  it('профиль: вход с кодом OTP отключается кодом из приложения и включается обратно', async () => {
+    const m = platformLoggedIn([
+      ...base,
+      ['GET', '/api/platform/otp/', { body: { otp_required: true, otp_connected: true } }],
+      ['POST', '/api/platform/otp/', { body: { otp_required: false, otp_connected: true } }],
+    ])
+    renderApp('/platform')
+    await userEvent.click(await screen.findByRole('button', { name: 'Меню профиля' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Вход с кодом OTP' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/запрашивается код/)).toBeInTheDocument()
+    const off = within(dialog).getByRole('button', { name: 'Отключить код OTP' })
+    expect(off).toBeDisabled() // без 6 цифр кода отключить нельзя
+    await userEvent.type(within(dialog).getByLabelText('Код из приложения'), '123456')
+    await userEvent.click(off)
+    await waitFor(() => { expect(m.calls.find((c) => c.method === 'POST' && c.path === '/api/platform/otp/')?.body).toEqual({ required: false, code: '123456' }) })
+    expect(await within(dialog).findByText(/только по паролю/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Включить код OTP' })).toBeInTheDocument()
+  })
+
   it('несколько компаний аккаунта: «Администратор компании» выбирается из списка', async () => {
     platformLoggedIn([...base, ['POST', '/api/auth/switch-company/', { body: { access: 'c', refresh: 'cr', context: 'company', companies: [] } }], ['GET', '/api/session/', { body: makeSession() }]], { companies: [{ id: 10, name: 'Альфа' }, { id: 11, name: 'Бета' }] })
     renderApp('/platform/plans')

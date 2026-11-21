@@ -1,6 +1,6 @@
-export type OcrDocType = 'fuel_receipt' | 'waybill' | 'cmr' | 'invoice' | 'report_sheet' | 'other'
+/** Код типа документа компании (настраивается в «Настройки распознавания»). */
+export type OcrDocType = string
 export type OcrStatus = 'processing' | 'done' | 'failed'
-export const OCR_DOC_TYPES: OcrDocType[] = ['fuel_receipt', 'waybill', 'cmr', 'invoice', 'report_sheet', 'other']
 /** Поля, которые правит человек (ключи совпадают с серверным FIELD_KEYS). */
 export const OCR_FIELD_KEYS = ['date', 'amount', 'liters', 'price_per_liter', 'fuel_type', 'plate', 'note'] as const
 export type OcrFieldKey = (typeof OCR_FIELD_KEYS)[number]
@@ -16,9 +16,25 @@ export interface SheetPage {
   models: string[]
 }
 
+/** Результат сверки с фото: правки значений и подтверждённые (по путям значений листа). */
+export interface ReviewData { edits: Record<string, string>; checked: string[] }
+export interface OcrGroup { id: number; name: string; total: number; pending: number }
+export type OcrGrouping = 'driver' | 'vehicle' | 'all'
+export interface OcrDocTypeRow {
+  id: number
+  code: string
+  name: string
+  handler: 'receipt' | 'sheet' | 'generic'
+  driver_visible: boolean
+  is_active: boolean
+  sort_order: number
+  used: number
+}
+
 export interface OcrDocument {
   id: number
   doc_type: OcrDocType
+  doc_type_name: string
   status: OcrStatus
   engine: string
   original_name: string
@@ -34,7 +50,13 @@ export interface OcrDocument {
   trip_number: string
   driver: number | null
   driver_name: string
+  vehicle: number | null
+  vehicle_plate: string
+  route: string
+  review: Partial<ReviewData>
   reviewed_at: string | null
+  archived_at: string | null
+  driver_archived_at: string | null
   created_at: string
   processed_at: string | null
 }
@@ -66,5 +88,4 @@ export interface OcrSettingsForm {
   handwriting_model: string
   handwriting_check_model: string
 }
-export interface GeminiTestResult { ok: boolean; error?: string; models?: Record<string, { ok: boolean; error: string; seconds?: number }> }
 export type OcrTestResult = Record<string, { ok: boolean; error: string }>

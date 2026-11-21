@@ -1,12 +1,13 @@
 """Распознавание документа: сохранить оригинал (если есть хранилище), распознать, разобрать поля."""
 
+import dataclasses
 import logging
 
 from django.conf import settings
 from django.utils import timezone
 
 from . import crypto, engines, fields, gemini, handwriting, storage
-from .models import OcrSettings, ScannedDocument
+from .models import DEFAULT_DOC_TYPES, OcrDocType, OcrFile, OcrSettings, ScannedDocument
 
 logger = logging.getLogger(__name__)
 
@@ -35,17 +36,61 @@ def config_for_company() -> engines.Config:
     """Выбор компании; ключи, которые она не вводила, берутся из окружения сервера (если заданы)."""
     row = OcrSettings.objects.first()
     env = env_defaults()
+    server_gemini = getattr(settings, "OCR_GEMINI_KEY", "")
     if row is None:
         return engines.Config(
             engine=OcrSettings.OCR_SPACE, ocr_space_key=env["ocr_space_key"],
-            google_vision_key=env["google_vision_key"],
+            google_vision_key=env["google_vision_key"], gemini_key=server_gemini,
+            gemini_fallbacks=lambda: fallback_models(server_gemini),
         )  # fmt: skip
+    gemini_key = crypto.decrypt(row.gemini_key_enc) or server_gemini
     return engines.Config(
         engine=row.engine,
         google_vision_key=crypto.decrypt(row.google_vision_key_enc) or env["google_vision_key"],
         ocr_space_key=crypto.decrypt(row.ocr_space_key_enc) or env["ocr_space_key"],
+        gemini_key=gemini_key,
+        gemini_model=row.handwriting_model,
+        gemini_fallbacks=lambda: fallback_models(gemini_key),
         fallback=row.auto_fallback,
     )
+
+
+# --- типы документов компании ---
+
+
+def ensure_doc_types() -> list[OcrDocType]:
+    """Типы документов компании; при первом обращении создаётся стандартный набор."""
+    types = list(OcrDocType.objects.all())
+    if types:
+        return types
+    for order, (code, name, handler, visible) in enumerate(DEFAULT_DOC_TYPES, start=1):
+        OcrDocType.objects.get_or_create(
+            code=code,
+            defaults={
+                "name": name, "handler": handler, "driver_visible": visible,
+                "sort_order": order * 10,
+            },
+        )  # fmt: skip
+    return list(OcrDocType.objects.all())
+
+
+def doc_type_names() -> dict[str, str]:
+    return {t.code: t.name for t in ensure_doc_types()}
+
+
+def doc_type_or_none(code: str, *, for_driver: bool = False) -> OcrDocType | None:
+    """Активный тип компании по коду (для водителя - только видимые ему)."""
+    for t in ensure_doc_types():
+        if t.code == code and t.is_active and (t.driver_visible or not for_driver):
+            return t
+    return None
+
+
+def handler_of(code: str) -> str:
+    for t in ensure_doc_types():
+        if t.code == code:
+            return t.handler
+    return OcrDocType.GENERIC
 
 
 def google_used_this_month() -> int:
@@ -73,12 +118,7 @@ def effective_config() -> engines.Config:
         engine = config.engine
         if engine == engines.GOOGLE_VISION:
             engine = OcrSettings.OCR_SPACE
-        return engines.Config(
-            engine=engine,
-            google_vision_key="",
-            ocr_space_key=config.ocr_space_key,
-            fallback=config.fallback,
-        )
+        return dataclasses.replace(config, engine=engine, google_vision_key="")
     return config
 
 
@@ -129,11 +169,43 @@ def handwriting_config() -> handwriting.HandwritingConfig:
     return handwriting.HandwritingConfig(
         api_key=api_key,
         model=row.handwriting_model or handwriting.DEFAULT_MODEL,
-        check_model=row.handwriting_check_model or handwriting.DEFAULT_CHECK_MODEL,
+        check_model=row.handwriting_check_model,
         crosscheck=row.handwriting_crosscheck,
         enabled=row.handwriting_enabled,
         fallback_models=fallback_models(api_key),
     )
+
+
+def archive_file_ttl_days() -> int:
+    return int(getattr(settings, "OCR_ARCHIVE_FILE_DAYS", 180))
+
+
+def purge_old_files(now=None) -> int:
+    """Удаляет фото документов, пролежавших в архиве дольше срока (по умолчанию 180 дней):
+    архив офиса, либо архив водителя уже проверенного офисом документа. Запись и распознанные
+    данные остаются. Вызывается для текущей компании (контекст задаёт вызывающий)."""
+    from datetime import timedelta
+
+    from django.db.models import Q
+
+    cutoff = (now or timezone.now()) - timedelta(days=archive_file_ttl_days())
+    docs = ScannedDocument.objects.filter(
+        Q(archived_at__lt=cutoff) | Q(driver_archived_at__lt=cutoff, reviewed_at__isnull=False)
+    ).filter(Q(file__isnull=False) | ~Q(file_key=""))
+    count = 0
+    for doc in docs.select_related("file"):
+        if doc.file_key and storage.configured():
+            try:
+                storage.delete(doc.file_key)
+            except storage.StorageError as exc:
+                logger.warning("Фото %s не удалено из хранилища: %s", doc.pk, exc)
+                continue
+        OcrFile.objects.filter(document=doc).delete()
+        if doc.file_key:
+            doc.file_key = ""
+            doc.save(update_fields=["file_key"])
+        count += 1
+    return count
 
 
 def _read_sheet(doc: ScannedDocument, data: bytes, content_type: str) -> None:
@@ -169,7 +241,11 @@ def scan(
             doc.file_key = key
         except storage.StorageError as exc:
             logger.warning("Оригинал документа %s не сохранён: %s", doc.pk, exc)
-    if doc_type == ScannedDocument.REPORT_SHEET:
+    else:
+        # без внешнего хранилища копия для просмотра и сверки лежит в базе (удаляется с документом
+        # и через 180 дней после архива)
+        OcrFile.objects.create(document=doc, content_type=content_type, data=data)
+    if handler_of(doc_type) == OcrDocType.SHEET:
         _read_sheet(doc, data, content_type)
     else:
         try:
@@ -178,7 +254,9 @@ def scan(
             doc.status, doc.error = ScannedDocument.FAILED, str(exc)[:1000]
         else:
             doc.status, doc.engine, doc.text = ScannedDocument.DONE, engine, text
-            doc.fields = fields.parse_fields(text, doc_type)
+            doc.fields = fields.parse_fields(
+                text, "fuel_receipt" if handler_of(doc_type) == OcrDocType.RECEIPT else "other"
+            )
     doc.processed_at = timezone.now()
     doc.save()
     return doc

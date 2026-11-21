@@ -120,15 +120,18 @@ describe('Приложение водителя', () => {
     expect(screen.queryByRole('link', { name: 'Отчёт' })).not.toBeInTheDocument()
   })
 
-  it('отчёт: фото уходит с рейсом и типом, видны отправленные документы и сомнения по листу', async () => {
+  it('отчёт: типы из настроек компании, простая история с файлом, архив', async () => {
+    const BASE = { engine: 'ocr_space', size: 1, has_file: true, text: '', fields: {}, sheet: {}, review: {}, error: '', uploaded_by_name: '', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', route: 'Алматы → Астана', driver: 1, driver_name: 'Иванов', vehicle: 2, vehicle_plate: '886AIA14', reviewed_at: null, archived_at: null, driver_archived_at: null, processed_at: null, status: 'done' }
     const REPORTS = [
-      { id: 21, doc_type: 'report_sheet', status: 'done', engine: 'gemini', original_name: 's.jpg', size: 1, has_file: false, text: '', fields: {}, error: '', uploaded_by_name: '', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', driver: 1, driver_name: 'Иванов', reviewed_at: null, created_at: '2026-11-21T08:00:00Z', processed_at: null,
-        sheet: { page_type: 'main', models: ['a'], notes: [], raw: { header: { driver: 'Иванов' } }, flags: { 'fuel_tractor[0].liters': ['Литры x цена'] }, alt: {} } },
-      { id: 22, doc_type: 'fuel_receipt', status: 'done', engine: 'ocr_space', original_name: 'c.jpg', size: 1, has_file: false, text: '', fields: { amount: '37355', liters: '120.5', fuel_type: 'diesel' }, sheet: {}, error: '', uploaded_by_name: '', source: 'driver_app', trip: 4, trip_number: 'ORD-1-1', driver: 1, driver_name: 'Иванов', reviewed_at: '2026-11-21T09:00:00Z', created_at: '2026-11-21T08:10:00Z', processed_at: null },
+      { ...BASE, id: 21, doc_type: 'report_sheet', doc_type_name: 'Рукописный отчётный лист', original_name: 's.jpg', created_at: '2026-11-21T08:00:00Z' },
+      { ...BASE, id: 22, doc_type: 'fuel_receipt', doc_type_name: 'Чек АЗС', original_name: 'c.jpg', created_at: '2026-11-21T08:10:00Z' },
     ]
     const m = loggedIn(
       [
+        ['GET', '/api/driver/report-types/', { body: { results: [{ code: 'report_sheet', name: 'Рукописный отчётный лист', handler: 'sheet' }, { code: 'fuel_receipt', name: 'Чек АЗС', handler: 'receipt' }] } }],
+        ['POST', '/api/driver/reports/21/archive/', { body: { ...REPORTS[0], driver_archived_at: '2026-11-21T10:00:00Z' } }],
         ['GET', '/api/driver/reports/', { body: { results: REPORTS } }],
+        ['GET', '/api/driver/reports/?archived=true', { body: { results: [] } }],
         ['POST', '/api/driver/reports/', { status: 201, body: REPORTS[0] }],
         ['GET', /^\/api\/driver\/trips\/\?scope=current/, { body: { results: [TRIP] } }],
         ['GET', /^\/api\/driver\/trips\/\?scope=upcoming/, { body: { results: [] } }],
@@ -136,13 +139,18 @@ describe('Приложение водителя', () => {
       { session: { ...SESSION, modules: ['logistics', 'drivers', 'driver_app', 'ocr'] } },
     )
     renderApp('/driver/report')
-    expect(await screen.findByText('Значений для проверки: 1. Сверьте их с листом и при необходимости переснимите.')).toBeInTheDocument()
-    expect(screen.getByText('Проверено офисом')).toBeInTheDocument()
-    expect(screen.getByText('Отправлено в офис')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Переснять (удалить)' })).toHaveLength(1) // проверенный нельзя удалить
-    await userEvent.click(screen.getByRole('button', { name: 'Показать прочитанное' }))
-    expect(await screen.findByTestId('sheet-view')).toBeInTheDocument()
+    const cards = await screen.findAllByTestId('report-card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]).toHaveTextContent('Рукописный отчётный лист')
+    expect(cards[0]).toHaveTextContent('Рейс ORD-1-1 · Алматы → Астана')
+    expect(cards[0]).toHaveTextContent('Отправлено в офис')
+    expect(screen.getAllByRole('button', { name: 'Смотреть файл' })).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Переснять (удалить)' })).not.toBeInTheDocument()
     await userEvent.upload(screen.getByTestId('report-file'), new File(['x'], 'photo.jpg', { type: 'image/jpeg' }))
     await waitFor(() => { expect(m.calls.some((c) => c.method === 'POST' && c.path === '/api/driver/reports/')).toBe(true) })
+    await userEvent.click(within(cards[0] as HTMLElement).getByRole('button', { name: 'Отправить в архив' }))
+    await waitFor(() => { expect(m.calls.find((c) => c.path === '/api/driver/reports/21/archive/')?.body).toEqual({ archived: true }) })
+    await userEvent.click(screen.getByRole('tab', { name: 'Архив' }))
+    expect(await screen.findByText('Архив пуст')).toBeInTheDocument()
   })
 })

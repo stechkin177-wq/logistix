@@ -9,10 +9,11 @@ import { HeaderSlotContext, HintSlotContext } from '../../shared/ui/headerBleed'
 import { LanguageSwitch } from '../../shared/ui/LanguageSwitch'
 import { ThemeToggle } from '../../shared/ui/ThemeToggle'
 import { initials } from '../../layout/ProfileMenu'
-import { ChevronDown, KeyRound, LogOut, Settings } from '../../shared/ui/icons'
+import { ChevronDown, KeyRound, LogOut, Settings, ShieldCheck } from '../../shared/ui/icons'
 import { Toaster } from '../../shared/ui/Toaster'
 import { WorkspaceSwitcher } from '../../layout/WorkspaceSwitcher'
 import { ChangePasswordDialog } from '../account/ChangePasswordDialog'
+import { OtpDialog } from './OtpDialog'
 
 /** Дашборд и «Управление» (подписки, тарифы, история - вкладки внутри раздела). */
 const HOME = '/platform/dashboard'
@@ -28,6 +29,7 @@ export function PlatformLayout() {
   const { session } = usePlatformSession()
   const { logout } = useAuth()
   const branding = useBranding()
+  const [otpOpen, setOtpOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   // ширина полосы прокрутки основной области: шапка выравнивается по ней без обрезки всплывающих окон
@@ -166,6 +168,15 @@ export function PlatformLayout() {
                     <KeyRound className="size-4" aria-hidden="true" />
                     {t('account.changePassword')}
                   </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false); setOtpOpen(true) }}
+                    className="flex w-full items-center gap-2 rounded-control px-2 py-2 text-sm text-ink hover:bg-surface-2"
+                  >
+                    <ShieldCheck className="size-4" aria-hidden="true" />
+                    {t('platformShell.otp.menu')}
+                  </button>
                   <div className="px-1 py-1 md:hidden"><WorkspaceSwitcher mode="platform" companies={companies} /></div>
                   <button
                     type="button"
@@ -196,6 +207,7 @@ export function PlatformLayout() {
           </div>
         </main>
       </div>
+      {otpOpen ? <OtpDialog onClose={() => { setOtpOpen(false) }} /> : null}
       {changingPassword ? <ChangePasswordDialog onClose={() => { setChangingPassword(false) }} /> : null}
       <Toaster />
     </div>

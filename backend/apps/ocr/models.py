@@ -15,9 +15,11 @@ class OcrSettings(TenantModel):
     GOOGLE_VISION = "google_vision"
     OCR_SPACE = "ocr_space"
     TESSERACT = "tesseract"
+    GEMINI = "gemini"
     ENGINES = [
-        (GOOGLE_VISION, "Google Cloud Vision"),
+        (GEMINI, "Google Gemini"),
         (OCR_SPACE, "OCR.space"),
+        (GOOGLE_VISION, "Google Cloud Vision"),
         (TESSERACT, "Tesseract (локальный)"),
     ]
 
@@ -28,19 +30,64 @@ class OcrSettings(TenantModel):
     # рукописный отчётный лист: Gemini читает фото, вторая модель пересверяет цифры
     gemini_key_enc = models.TextField(blank=True)
     handwriting_enabled = models.BooleanField(default=True)
-    handwriting_model = models.CharField(max_length=60, default="gemini-3.8-flash")
-    handwriting_check_model = models.CharField(max_length=60, default="gemini-3.6-flash")
-    handwriting_crosscheck = models.BooleanField(default=True)
+    # одна простая рабочая модель по умолчанию; при сбое пробуются другие модели, доступные ключу
+    handwriting_model = models.CharField(max_length=60, default="gemini-3.5-flash-lite")
+    # вторая модель пересверки: пусто - подбирается автоматически из доступных ключу
+    handwriting_check_model = models.CharField(max_length=60, blank=True, default="")
+    handwriting_crosscheck = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["company"], name="ocrsettings_company_uniq"),
             models.CheckConstraint(
-                condition=Q(engine__in=["google_vision", "ocr_space", "tesseract"]),
+                condition=Q(engine__in=["google_vision", "ocr_space", "tesseract", "gemini"]),
                 name="ocrsettings_engine_valid",
             ),
         ]
+
+
+class OcrDocType(TenantModel):
+    """Тип документа распознавания: список настраивает компания (названия, показ водителю).
+
+    handler - как читать: receipt (чек АЗС: дата, сумма, литры, топливо, госномер), sheet
+    (рукописный отчётный лист через Gemini), generic (дата и сумма). Код технический и не
+    меняется; название можно менять в любой момент."""
+
+    RECEIPT = "receipt"
+    SHEET = "sheet"
+    GENERIC = "generic"
+    HANDLERS = [(RECEIPT, "Чек АЗС"), (SHEET, "Рукописный лист"), (GENERIC, "Обычный документ")]
+
+    code = models.SlugField(max_length=32)
+    name = models.CharField(max_length=100)
+    handler = models.CharField(max_length=10, choices=HANDLERS, default=GENERIC)
+    driver_visible = models.BooleanField(default=True)  # доступен водителю в приложении
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "code"], name="ocrdoctype_company_code_uniq"
+            ),
+            models.CheckConstraint(
+                condition=Q(handler__in=["receipt", "sheet", "generic"]),
+                name="ocrdoctype_handler_valid",
+            ),
+        ]
+
+
+DEFAULT_DOC_TYPES = [
+    # код, название, обработчик, виден водителю
+    ("fuel_receipt", "Чек АЗС", OcrDocType.RECEIPT, True),
+    ("report_sheet", "Рукописный отчётный лист", OcrDocType.SHEET, True),
+    ("waybill", "Путевой лист", OcrDocType.GENERIC, True),
+    ("cmr", "CMR", OcrDocType.GENERIC, True),
+    ("invoice", "Счёт или накладная", OcrDocType.GENERIC, False),
+    ("other", "Другое", OcrDocType.GENERIC, True),
+]
 
 
 class ScannedDocument(TenantModel):
@@ -66,7 +113,7 @@ class ScannedDocument(TenantModel):
     FAILED = "failed"
     STATUSES = [(PROCESSING, "Распознаётся"), (DONE, "Распознан"), (FAILED, "Ошибка")]
 
-    doc_type = models.CharField(max_length=16, choices=TYPES, default=OTHER)
+    doc_type = models.CharField(max_length=32, default=OTHER)  # код типа компании (OcrDocType)
     status = models.CharField(max_length=12, choices=STATUSES, default=PROCESSING)
     engine = models.CharField(max_length=16, blank=True)  # сработавший движок
     original_name = models.CharField(max_length=255, blank=True)
@@ -87,6 +134,14 @@ class ScannedDocument(TenantModel):
     driver = models.ForeignKey(
         "drivers.Driver", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    vehicle = models.ForeignKey(
+        "fleet.Vehicle", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )  # техника рейса на момент отправки (для группировки по машинам)
+    route = models.CharField(max_length=255, blank=True)  # «откуда → куда» рейса на момент отправки
+    archived_at = models.DateTimeField(null=True, blank=True)  # архив офиса
+    driver_archived_at = models.DateTimeField(null=True, blank=True)  # архив водителя
+    # результат сверки с фото: {"edits": {путь: значение}, "checked": [пути]}
+    review = models.JSONField(default=dict, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)  # офис проверил документ
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
@@ -102,19 +157,6 @@ class ScannedDocument(TenantModel):
         indexes = [models.Index(fields=["company", "-created_at"], name="scandoc_company_time_idx")]
         constraints = [
             models.CheckConstraint(
-                condition=Q(
-                    doc_type__in=[
-                        "fuel_receipt",
-                        "waybill",
-                        "cmr",
-                        "invoice",
-                        "report_sheet",
-                        "other",
-                    ]
-                ),
-                name="scandoc_type_valid",
-            ),
-            models.CheckConstraint(
                 condition=Q(source__in=["office", "driver_app"]), name="scandoc_source_valid"
             ),
             models.CheckConstraint(
@@ -122,3 +164,12 @@ class ScannedDocument(TenantModel):
                 name="scandoc_status_valid",
             ),
         ]
+
+
+class OcrFile(TenantModel):
+    """Фото документа (копия для просмотра и сверки). Хранится отдельно от записи, чтобы список
+    документов не тянул байты; удаляется вместе с документом и через 180 дней после архива."""
+
+    document = models.OneToOneField(ScannedDocument, on_delete=models.CASCADE, related_name="file")
+    content_type = models.CharField(max_length=32)
+    data = models.BinaryField()

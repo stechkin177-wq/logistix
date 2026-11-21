@@ -63,7 +63,7 @@ def test_check_values_flags_rules():
         "fuel_tractor[1].liters" in flags and "fuel_tractor[1].amount" in flags
     )  # 120 x 310 != 40000
     assert "fuel_tractor[0].liters" not in flags
-    assert "transfers[0].amount" in flags  # выражение 60+30
+    assert "transfers[0].amount" not in flags  # выражение 60+30 - обычная запись суммы
     backwards = handwriting.check_values(
         {"header": {"start_odometer_km": 10, "end_odometer_km": 5}}
     )
@@ -93,7 +93,7 @@ def fake_reader(by_model):
 
 
 def test_read_sheet_two_models_and_fallbacks(monkeypatch):
-    cfg = handwriting.HandwritingConfig(api_key="k", model="a", check_model="b")
+    cfg = handwriting.HandwritingConfig(api_key="k", model="a", check_model="b", crosscheck=True)
     other = json.loads(json.dumps(SHEET))
     other["fuel_tractor"][0]["liters"] = "101"
     monkeypatch.setattr(handwriting, "read_report_sheet", fake_reader({"a": SHEET, "b": other}))
@@ -114,7 +114,7 @@ def test_read_sheet_two_models_and_fallbacks(monkeypatch):
 def test_fallback_models_replace_busy_ones(monkeypatch):
     busy = gemini.GeminiError("занят", retryable=True)
     cfg = handwriting.HandwritingConfig(
-        api_key="k", model="a", check_model="b", fallback_models=("c", "d")
+        api_key="k", model="a", check_model="b", crosscheck=True, fallback_models=("c", "d")
     )
     monkeypatch.setattr(
         handwriting,
@@ -169,7 +169,7 @@ def test_upload_report_sheet_reads_with_gemini(oco, monkeypatch):
     monkeypatch.setattr(
         handwriting,
         "read_report_sheet",
-        fake_reader({"gemini-3.8-flash": SHEET, "gemini-3.6-flash": SHEET}),
+        fake_reader({handwriting.DEFAULT_MODEL: SHEET}),
     )
     body = upload(api, doc_type="report_sheet").json()
     assert body["status"] == "done" and body["engine"] == "gemini"
@@ -196,38 +196,6 @@ def test_gemini_settings_write_only_and_validated(oco):
     with tenant_context(company.id):
         assert "AIza-secret" not in OcrSettings.objects.get().gemini_key_enc
     bad = api.put(f"{BASE}settings/", {"handwriting_model": "bad model!"}, format="json")
-    assert bad.status_code == 400
-
-
-def test_gemini_test_endpoint(oco, monkeypatch):
-    _, _, api = oco
-    assert api.post(f"{BASE}settings/test-gemini/").json()["ok"] is False  # ключа нет
-    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
-    calls = []
-    monkeypatch.setattr(
-        gemini, "check_key", lambda model, key, data, ct: calls.append(model) or "ok"
-    )
-    body = api.post(f"{BASE}settings/test-gemini/").json()
-    assert body["ok"] is True and sorted(calls) == ["gemini-3.6-flash", "gemini-3.8-flash"]
-
-
-def test_gemini_test_uses_models_from_the_form_not_only_saved(oco, monkeypatch):
-    _, _, api = oco
-    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
-    calls = []
-    monkeypatch.setattr(
-        gemini, "check_key", lambda model, key, data, ct: calls.append(model) or "ok"
-    )
-    body = api.post(
-        f"{BASE}settings/test-gemini/",
-        {"model": "gemini-x", "check_model": "gemini-y"},
-        format="json",
-    ).json()
-    assert sorted(calls) == ["gemini-x", "gemini-y"] and set(body["models"]) == {
-        "gemini-x",
-        "gemini-y",
-    }
-    bad = api.post(f"{BASE}settings/test-gemini/", {"model": "bad model!"}, format="json")
     assert bad.status_code == 400
 
 
@@ -271,15 +239,6 @@ def test_list_models_filters_and_sorts_newest_first(monkeypatch):
     ]
 
 
-def test_gemini_models_endpoint(oco, monkeypatch):
-    _, _, api = oco
-    assert api.get(f"{BASE}settings/gemini-models/").json()["error"] != ""  # ключа нет
-    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
-    monkeypatch.setattr(gemini, "list_models", lambda key, timeout=20: ["gemini-3.8-flash"])
-    body = api.get(f"{BASE}settings/gemini-models/").json()
-    assert body == {"models": ["gemini-3.8-flash"], "error": ""}
-
-
 def test_fallback_auto_uses_models_available_to_the_key(monkeypatch, settings):
     from apps.ocr import services
 
@@ -311,32 +270,11 @@ def test_fallback_auto_uses_models_available_to_the_key(monkeypatch, settings):
     services._MODELS_CACHE.clear()
 
 
-def test_gemini_test_accepts_list_of_models_with_timing(oco, monkeypatch):
-    _, _, api = oco
-    api.put(f"{BASE}settings/", {"gemini_key": "k"}, format="json")
-
-    def fake_check(model, key, data, ct):
-        if model == "gemini-bad":
-            raise gemini.GeminiError("503")
-        return "ok"
-
-    monkeypatch.setattr(gemini, "check_key", fake_check)
-    body = api.post(
-        f"{BASE}settings/test-gemini/", {"models": ["gemini-a", "gemini-bad"]}, format="json"
-    ).json()
-    assert body["ok"] is False and body["models"]["gemini-a"]["ok"] is True
-    assert (
-        body["models"]["gemini-bad"]["error"] == "503" and "seconds" in body["models"]["gemini-a"]
-    )
-    too_many = api.post(f"{BASE}settings/test-gemini/", {"models": ["m"] * 13}, format="json")
-    assert too_many.status_code == 400
-
-
 def test_failed_models_cool_down_and_are_skipped_next_time(monkeypatch):
     handwriting._COOLDOWN.clear()
     quota = gemini.GeminiError("429", retryable=False, status=429)
     cfg = handwriting.HandwritingConfig(
-        api_key="k", model="a", check_model="b", fallback_models=("q", "c", "d")
+        api_key="k", model="a", check_model="b", crosscheck=True, fallback_models=("q", "c", "d")
     )
     monkeypatch.setattr(
         handwriting,

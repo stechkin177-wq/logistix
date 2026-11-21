@@ -21,6 +21,7 @@ from apps.core.api.auth import (
     MeView,
     PasswordChangeView,
     PasswordSetupView,
+    PlatformOtpView,
     RefreshView,
     SwitchCompanyView,
     TotpSetupView,
@@ -51,8 +52,10 @@ from apps.documents.api.issued import IssuedViewSet
 from apps.documents.api.templates import TemplateViewSet
 from apps.drivers.api import DriverDocumentViewSet, DriverRemindersView, DriverViewSet
 from apps.drivers.mobile import MeView as DriverMeView
-from apps.drivers.mobile import ReportDetailView as DriverReportDetailView
+from apps.drivers.mobile import ReportArchiveView as DriverReportArchiveView
+from apps.drivers.mobile import ReportImageView as DriverReportImageView
 from apps.drivers.mobile import ReportListView as DriverReportListView
+from apps.drivers.mobile import ReportTypesView as DriverReportTypesView
 from apps.drivers.mobile import TripActionView as DriverTripActionView
 from apps.drivers.mobile import TripDetailView as DriverTripDetailView
 from apps.drivers.mobile import TripListView as DriverTripListView
@@ -115,9 +118,9 @@ from apps.mail.api import AccountView as MailAccountView
 from apps.mail.api import MessageViewSet as MailMessageViewSet
 from apps.mail.api import StatusView as MailStatusView
 from apps.mail.api import TemplateViewSet as MailTemplateViewSet
+from apps.ocr.api import CronPurgeView as OcrCronPurgeView
+from apps.ocr.api import DocTypeViewSet as OcrDocTypeViewSet
 from apps.ocr.api import DocumentViewSet as OcrDocumentViewSet
-from apps.ocr.api import GeminiModelsView as OcrGeminiModelsView
-from apps.ocr.api import GeminiTestView as OcrGeminiTestView
 from apps.ocr.api import SettingsTestView as OcrSettingsTestView
 from apps.ocr.api import SettingsView as OcrSettingsView
 
@@ -130,6 +133,7 @@ router.register("numbering", NumberingRuleViewSet, basename="numbering")
 router.register("audit", AuditLogViewSet, basename="audit")
 router.register("labels", LabelViewSet, basename="label")
 router.register("ocr/documents", OcrDocumentViewSet, basename="ocr-document")
+router.register("ocr/doc-types", OcrDocTypeViewSet, basename="ocr-doc-type")
 router.register("gps/units", GpsUnitViewSet, basename="gps-unit")
 router.register("gps/geofences", GpsGeofenceViewSet, basename="gps-geofence")
 router.register("gps/events", GpsEventViewSet, basename="gps-event")
@@ -172,8 +176,7 @@ urlpatterns = [
     path("api/health/", health),
     path("api/ocr/settings/", OcrSettingsView.as_view()),
     path("api/ocr/settings/test/", OcrSettingsTestView.as_view()),
-    path("api/ocr/settings/test-gemini/", OcrGeminiTestView.as_view()),
-    path("api/ocr/settings/gemini-models/", OcrGeminiModelsView.as_view()),
+    path("api/ocr/cron/purge/", OcrCronPurgeView.as_view()),
     path("api/ocr/documents/<int:pk>/file/", OcrDocumentViewSet.as_view({"get": "file"})),
     path("api/gps/account/", GpsAccountView.as_view()),
     path("api/gps/account/test/", GpsAccountTestView.as_view()),
@@ -188,7 +191,9 @@ urlpatterns = [
     path("api/drivers/reminders/", DriverRemindersView.as_view()),
     path("api/driver/me/", DriverMeView.as_view()),
     path("api/driver/reports/", DriverReportListView.as_view()),
-    path("api/driver/reports/<int:pk>/", DriverReportDetailView.as_view()),
+    path("api/driver/report-types/", DriverReportTypesView.as_view()),
+    path("api/driver/reports/<int:pk>/archive/", DriverReportArchiveView.as_view()),
+    path("api/driver/reports/<int:pk>/image/", DriverReportImageView.as_view()),
     path("api/driver/trips/", DriverTripListView.as_view()),
     path("api/driver/trips/<int:pk>/", DriverTripDetailView.as_view()),
     path("api/driver/trips/<int:pk>/action/", DriverTripActionView.as_view()),
@@ -228,6 +233,7 @@ urlpatterns = [
     path("api/auth/password/", PasswordChangeView.as_view()),
     path("api/session/", SessionView.as_view()),
     path("api/platform/session/", PlatformSessionView.as_view()),
+    path("api/platform/otp/", PlatformOtpView.as_view()),
     path("api/billing/subscription/", SubscriptionView.as_view()),
     path("api/billing/plans/", PlanListView.as_view()),
     path("api/billing/usage/", UsageView.as_view()),

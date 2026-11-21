@@ -271,6 +271,9 @@ OCR_ENCRYPTION_KEY = env("OCR_ENCRYPTION_KEY", "")
 OCR_GOOGLE_VISION_KEY = env("OCR_GOOGLE_VISION_KEY", "")
 OCR_SPACE_KEY = env("OCR_SPACE_KEY", "")
 OCR_GEMINI_KEY = env("OCR_GEMINI_KEY", "")
+# срок хранения фото из архива и секрет планировщика очистки (Vercel Cron шлёт его в Authorization)
+OCR_ARCHIVE_FILE_DAYS = int(env("OCR_ARCHIVE_FILE_DAYS", "180"))
+CRON_SECRET = env("CRON_SECRET", "")
 # Запасные модели Gemini (через запятую): подменяют основные, когда те заняты или недоступны
 OCR_GEMINI_FALLBACK_MODELS = env("OCR_GEMINI_FALLBACK_MODELS", "auto")
 # Месячный порог Google Vision (бесплатно 1000 страниц): дальше распознаёт запасной движок

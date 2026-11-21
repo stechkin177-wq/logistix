@@ -220,3 +220,55 @@ def list_models(api_key: str, timeout: int = 20) -> list[str]:
         ):
             names.append(name)
     return sorted(set(names), key=_version_key, reverse=True)
+
+
+TEXT_PROMPT = (
+    "Перепиши весь текст с изображения как есть, построчно, без пояснений и исправлений "
+    '(печатный и рукописный). Верни JSON вида {"text": "..."}; если текста нет, пустую строку.'
+)
+
+
+def read_text(
+    data: bytes,
+    content_type: str,
+    model: str,
+    api_key: str,
+    *,
+    fallbacks=(),
+    budget: int = 52,
+) -> tuple[str, str]:
+    """Текст с изображения моделью Gemini: (текст, сработавшая модель). Основная модель получает
+    20 секунд; если она подвела (перегрузка, квота, таймаут), параллельно пробуются запасные
+    (другие модели ключа) в оставшееся время. Все сбои - в одном GeminiError."""
+    import concurrent.futures
+
+    if not api_key:
+        raise GeminiError("Не задан ключ Gemini.")
+    parts = [{"text": TEXT_PROMPT}, _image(data, content_type)]
+    started = time.monotonic()
+
+    def one(name: str, timeout: int) -> tuple[str, str]:
+        reply = generate_json(name, api_key, parts, timeout=timeout)
+        return str(reply.get("text", "")), name
+
+    try:
+        return one(model, 20)
+    except GeminiError as first:
+        error = first
+    spare = [m for m in fallbacks if m != model][:4]
+    left = int(budget - (time.monotonic() - started))
+    if not spare or left < 8:
+        raise error
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=len(spare))
+    try:
+        futures = [pool.submit(one, name, left) for name in spare]
+        for future in concurrent.futures.as_completed(futures, timeout=left + 2):
+            try:
+                return future.result()
+            except GeminiError as exc:
+                error = exc
+    except concurrent.futures.TimeoutError:
+        pass
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    raise error

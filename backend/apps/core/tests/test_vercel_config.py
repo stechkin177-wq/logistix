@@ -56,7 +56,8 @@ def test_backend_vercel_json():
         assert pat in fn["excludeFiles"]
     # миграции и collectstatic не запускаются при сборке
     assert "buildCommand" not in cfg
-    assert "crons" not in cfg
+    # единственная задача по расписанию: ежедневная очистка фото из архива (раз в сутки)
+    assert cfg["crons"] == [{"path": "/api/ocr/cron/purge/", "schedule": "30 3 * * *"}]
     _no_secrets(path.read_text())
 
 

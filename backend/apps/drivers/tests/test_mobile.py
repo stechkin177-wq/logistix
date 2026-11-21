@@ -369,18 +369,56 @@ def test_driver_cannot_attach_foreign_trip_or_see_foreign_docs(make_company, fak
     assert send(drv_api, trip="abc").status_code == 400
     foreign = send(other_api).json()
     assert drv_api.get(REPORTS).json()["results"] == []
-    assert drv_api.delete(f"{REPORTS}{foreign['id']}/").status_code == 404
+    assert drv_api.post(f"{REPORTS}{foreign['id']}/archive/", {}, format="json").status_code == 404
+    assert drv_api.get(f"{REPORTS}{foreign['id']}/image/").status_code == 404
 
 
-def test_driver_report_validation_and_delete_until_reviewed(make_company, fake_ocr):
+def test_driver_report_validation_archive_and_image(make_company, fake_ocr):
     company, api, driver, drv_api = report_company(make_company)
     assert drv_api.post(REPORTS, {}, format="multipart").status_code == 400
     assert send(drv_api, doc_type="invoice").status_code == 400  # счета водитель не отправляет
+    assert send(drv_api, doc_type="nope").status_code == 400
     doc = send(drv_api).json()
-    assert drv_api.delete(f"{REPORTS}{doc['id']}/").status_code == 204
-    again = send(drv_api).json()
-    api.post(f"/api/ocr/documents/{again['id']}/review/", {}, format="json")
-    assert drv_api.delete(f"{REPORTS}{again['id']}/").status_code == 400  # уже проверен
+    assert drv_api.get(f"{REPORTS}{doc['id']}/image/")["Content-Type"] == "image/jpeg"
+    # в архив водителя: из истории пропадает, в архиве виден, офис документ по-прежнему видит
+    archived = drv_api.post(f"{REPORTS}{doc['id']}/archive/", {}, format="json").json()
+    assert archived["driver_archived_at"] is not None
+    assert drv_api.get(REPORTS).json()["results"] == []
+    assert [d["id"] for d in drv_api.get(f"{REPORTS}?archived=true").json()["results"]] == [
+        doc["id"]
+    ]
+    assert api.get("/api/ocr/documents/").json()["count"] == 1
+    back = drv_api.post(f"{REPORTS}{doc['id']}/archive/", {"archived": False}, format="json")
+    assert back.json()["driver_archived_at"] is None
+    assert drv_api.delete(f"{REPORTS}{doc['id']}/").status_code in (404, 405)  # удаления нет
+
+
+def test_driver_report_types_follow_company_settings(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    codes = [t["code"] for t in drv_api.get("/api/driver/report-types/").json()["results"]]
+    assert "fuel_receipt" in codes and "invoice" not in codes
+    created = api.post(
+        "/api/ocr/doc-types/",
+        {"name": "Акт", "handler": "generic", "driver_visible": True},
+        format="json",
+    )
+    assert created.status_code == 201, created.content
+    code = created.json()["code"]
+    assert code in [t["code"] for t in drv_api.get("/api/driver/report-types/").json()["results"]]
+    assert send(drv_api, doc_type=code).status_code == 201
+    api.patch(
+        f"/api/ocr/doc-types/{created.json()['id']}/", {"driver_visible": False}, format="json"
+    )
+    assert send(drv_api, doc_type=code).status_code == 400
+
+
+def test_driver_report_gets_vehicle_and_route_from_trip(make_company, fake_ocr):
+    company, api, driver, drv_api = report_company(make_company)
+    trip = trip_for(api, company, driver)
+    body = send(drv_api, trip=trip["id"]).json()
+    assert body["route"] == "" or "→" in body["route"] or body["route"]
+    groups = api.get("/api/ocr/documents/groups/?by=driver").json()["results"]
+    assert groups == [{"id": driver.pk, "name": driver.full_name, "total": 1, "pending": 1}]
 
 
 def test_reports_require_ocr_module_and_driver_role(make_company, fake_ocr):

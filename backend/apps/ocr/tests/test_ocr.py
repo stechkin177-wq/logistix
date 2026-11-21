@@ -164,7 +164,7 @@ def test_ocr_space_retries_with_mode_2(monkeypatch):
 
 
 def test_check_engine_reports_error_without_key():
-    assert engines.check_engine("ocr_space", "") != ""
+    assert engines.check_engine("ocr_space", engines.Config(engine="ocr_space")) != ""
 
 
 # --- разбор полей ---
@@ -207,7 +207,7 @@ def test_upload_creates_document_with_fields(oco, fake, monkeypatch):
     assert r.status_code == 201, r.content
     body = r.json()
     assert body["status"] == "done" and body["engine"] == "ocr_space"
-    assert body["fields"]["fuel_type"] == "diesel" and not body["has_file"]
+    assert body["fields"]["fuel_type"] == "diesel" and body["has_file"]
     listing = api.get(f"{BASE}documents/?status=done").json()
     assert listing["count"] == 1
 

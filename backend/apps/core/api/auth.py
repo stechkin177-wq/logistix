@@ -501,3 +501,38 @@ class PasswordSetupView(APIView):
         if user.is_platform_admin:
             _platform_auth_event(request, user, "password_set")
         return Response(status=204)
+
+
+class PlatformOtpView(APIView):
+    """Вход владельца платформы с кодом OTP или без него.
+
+    GET - текущее состояние; POST {"required": true|false, "code": "..."}: включить можно сразу,
+    отключить - только с верным текущим кодом (чужая сессия второй фактор не снимет). Работает в
+    платформенном контексте."""
+
+    permission_classes = [IsAuthenticated, platform.PlatformAccess]
+    throttle_classes = [TotpThrottle]
+
+    def get(self, request):
+        user = request.user
+        return Response({"otp_required": not user.otp_disabled, "otp_connected": user.totp_enabled})
+
+    def post(self, request):
+        user = request.user
+        required = request.data.get("required")
+        if not isinstance(required, bool):
+            raise serializers.ValidationError({"required": "Ожидается true или false"})
+        if not required and not user.otp_disabled:
+            step = None
+            if user.totp_enabled and user.totp_secret:
+                step = totp.verify(
+                    user.totp_secret, str(request.data.get("code") or ""), user.totp_last_step
+                )
+                if step is None:
+                    _platform_auth_event(request, user, "otp_disable_failed")
+                    return Response({"detail": "Неверный код", "code": "totp_invalid"}, status=400)
+                user.totp_last_step = step
+        user.otp_disabled = not required
+        user.save(update_fields=["otp_disabled", "totp_last_step"])
+        _platform_auth_event(request, user, "otp_enabled" if required else "otp_disabled")
+        return Response({"otp_required": required, "otp_connected": user.totp_enabled})

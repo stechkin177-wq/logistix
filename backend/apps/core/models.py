@@ -89,6 +89,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     totp_secret = models.CharField(max_length=64, blank=True, default="")
     totp_enabled = models.BooleanField(default=False)
     totp_last_step = models.BigIntegerField(default=0)
+    # владелец платформы сам отключает второй фактор (вход только по паролю); по умолчанию включён
+    otp_disabled = models.BooleanField(default=False)
     # токены, выданные раньше этого момента, недействительны (выход, смена пароля)
     tokens_valid_after = models.DateTimeField(null=True, blank=True)
 

@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteDriverReport, doTripAction, getDriverMe, getDriverTrip, listDriverReports, listDriverTrips, sendDriverReport } from './api'
+import { archiveDriverReport, doTripAction, getDriverMe, getDriverTrip, listDriverReports, listDriverReportTypes, listDriverTrips, sendDriverReport } from './api'
 import type { OcrDocType } from '../ocr/types'
 import type { DriverAction, DriverScope } from './types'
 
@@ -19,7 +19,8 @@ export function useTripAction(id: number) {
   })
 }
 
-export const useDriverReports = () => useQuery({ queryKey: ['driver', 'reports'], queryFn: ({ signal }) => listDriverReports(signal) })
+export const useDriverReports = (archived: boolean) => useQuery({ queryKey: ['driver', 'reports', archived], queryFn: ({ signal }) => listDriverReports(archived, signal) })
+export const useDriverReportTypes = () => useQuery({ queryKey: ['driver', 'report-types'], queryFn: ({ signal }) => listDriverReportTypes(signal) })
 export function useSendReport() {
   const qc = useQueryClient()
   return useMutation({
@@ -27,7 +28,7 @@ export function useSendReport() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['driver', 'reports'] }),
   })
 }
-export function useDeleteReport() {
+export function useArchiveReport() {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: deleteDriverReport, onSuccess: () => qc.invalidateQueries({ queryKey: ['driver', 'reports'] }) })
+  return useMutation({ mutationFn: ({ id, archived }: { id: number; archived: boolean }) => archiveDriverReport(id, archived), onSuccess: () => qc.invalidateQueries({ queryKey: ['driver', 'reports'] }) })
 }

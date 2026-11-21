@@ -22,11 +22,12 @@ OCR_SPACE_MAX_BYTES = 1_000_000  # бесплатный план OCR.space не 
 GOOGLE_VISION_MAX_BYTES = 10_000_000
 GOOGLE_VISION = "google_vision"
 LABELS = {
+    "gemini": "Google Gemini",
     "google_vision": "Google Cloud Vision",
     "ocr_space": "OCR.space",
     "tesseract": "Tesseract (локальный)",
 }
-FALLBACK_ORDER = ("google_vision", "ocr_space", "tesseract")
+FALLBACK_ORDER = ("ocr_space", "gemini", "google_vision", "tesseract")
 
 
 class OcrError(Exception):
@@ -186,7 +187,39 @@ class Tesseract:
         return done.stdout.decode("utf-8", errors="ignore")
 
 
-ENGINES = {"google_vision": GoogleVision, "ocr_space": OcrSpace, "tesseract": Tesseract}
+class GeminiText:
+    """Gemini как обычный движок: переписывает текст с картинки; при сбое модели пробует другие."""
+
+    name = "gemini"
+
+    def __init__(self, key: str, model: str = "", fallbacks=()):
+        self.key = key
+        self.model = model or "gemini-3.5-flash-lite"
+        self.fallbacks = fallbacks
+
+    def available(self) -> bool:
+        return bool(self.key)
+
+    def recognize(self, data: bytes, content_type: str) -> str:
+        from . import gemini
+
+        if not self.key:
+            raise OcrError("Не задан ключ Gemini.")
+        try:
+            fallbacks = self.fallbacks() if callable(self.fallbacks) else self.fallbacks
+            return gemini.read_text(data, content_type, self.model, self.key, fallbacks=fallbacks)[
+                0
+            ]
+        except gemini.GeminiError as exc:
+            raise OcrError(str(exc)) from None
+
+
+ENGINES = {
+    "gemini": GeminiText,
+    "google_vision": GoogleVision,
+    "ocr_space": OcrSpace,
+    "tesseract": Tesseract,
+}
 
 
 @dataclass(frozen=True)
@@ -196,12 +229,25 @@ class Config:
     engine: str
     google_vision_key: str = ""
     ocr_space_key: str = ""
+    gemini_key: str = ""
+    gemini_model: str = ""
+    gemini_fallbacks: object = ()  # кортеж моделей или функция без аргументов (лениво)
     fallback: bool = True
 
     def key_for(self, name: str) -> str:
-        return {"google_vision": self.google_vision_key, "ocr_space": self.ocr_space_key}.get(
-            name, ""
-        )
+        return {
+            "google_vision": self.google_vision_key,
+            "ocr_space": self.ocr_space_key,
+            "gemini": self.gemini_key,
+        }.get(name, "")
+
+
+def make(name: str, config: Config):
+    """Экземпляр движка с ключом и настройками компании."""
+    cls = ENGINES[name]
+    if name == "gemini":
+        return cls(config.gemini_key, config.gemini_model, config.gemini_fallbacks)
+    return cls(config.key_for(name))
 
 
 def chain(config: Config) -> list[str]:
@@ -209,7 +255,7 @@ def chain(config: Config) -> list[str]:
     names = [config.engine]
     if config.fallback:
         for name in FALLBACK_ORDER:
-            if name != config.engine and ENGINES[name](config.key_for(name)).available():
+            if name != config.engine and make(name, config).available():
                 names.append(name)
     return names
 
@@ -219,7 +265,7 @@ def recognize(data: bytes, content_type: str, config: Config) -> tuple[str, str]
     problems = []
     for name in chain(config):
         try:
-            return ENGINES[name](config.key_for(name)).recognize(data, content_type), name
+            return make(name, config).recognize(data, content_type), name
         except OcrError as exc:
             logger.warning("OCR %s: %s", name, exc)
             problems.append(str(exc))
@@ -251,9 +297,9 @@ def _probe_png() -> bytes:
 PROBE_PNG = _probe_png()
 
 
-def check_engine(name: str, key: str) -> str:
+def check_engine(name: str, config: Config) -> str:
     """'' если ключ принят и движок отвечает, иначе понятная причина (без ключа в тексте)."""
-    engine = ENGINES[name](key)
+    engine = make(name, config)
     if not engine.available():
         return "нет ключа" if name != "tesseract" else "Tesseract не установлен на сервере"
     try:

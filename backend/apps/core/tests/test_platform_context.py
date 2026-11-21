@@ -641,3 +641,48 @@ def test_single_account_is_platform_owner_and_company_admin_with_independent_con
     # администратор компании без платформенной роли платформу не открывает
     _, _, plain = make_company("Чужая")
     assert plain.get(PLANS).status_code == 403
+
+
+def test_owner_can_switch_otp_off_with_code_and_log_in_by_password(make_platform_client):
+    client, owner = make_platform_client("owner")
+    # подключаем TOTP как при первом входе
+    User.objects.filter(pk=owner.pk).update(totp_secret=totp.new_secret(), totp_enabled=True)
+    state = client.get("/api/platform/otp/").json()
+    assert state["otp_required"] is True and state["otp_connected"] is True
+    assert client.post("/api/platform/otp/", {"required": "no"}, format="json").status_code == 400
+    # отключить без кода или с неверным кодом нельзя
+    bad = client.post("/api/platform/otp/", {"required": False, "code": "000000"}, format="json")
+    assert bad.status_code == 400 and bad.json()["code"] == "totp_invalid"
+    owner.refresh_from_db()
+    assert owner.otp_disabled is False
+    ok = client.post(
+        "/api/platform/otp/", {"required": False, "code": fresh_code(owner)}, format="json"
+    )
+    assert ok.status_code == 200 and ok.json()["otp_required"] is False
+    # вход только по паролю: сразу платформенные токены, без запроса кода
+    r = APIClient().post(LOGIN, {"login": owner.email, "password": TEST_PASSWORD}, format="json")
+    body = r.json()
+    assert r.status_code == 200 and "challenge" not in body and body["context"] == "platform"
+    plain = APIClient()
+    plain.credentials(HTTP_AUTHORIZATION=f"Bearer {body['access']}")
+    assert plain.get("/api/platform/session/").status_code == 200
+    # обратно включается без кода; после этого токен без метки TOTP перестаёт действовать
+    on = plain.post("/api/platform/otp/", {"required": True}, format="json")
+    assert on.status_code == 200 and on.json()["otp_required"] is True
+    assert plain.get("/api/platform/session/").status_code == 401
+    again = APIClient().post(
+        LOGIN, {"login": owner.email, "password": TEST_PASSWORD}, format="json"
+    )
+    assert again.json().get("totp_required") is True
+
+
+def test_otp_switch_is_audited_and_requires_platform_context(make_platform_client, make_company):
+    client, owner = make_platform_client("owner")
+    User.objects.filter(pk=owner.pk).update(totp_secret=totp.new_secret(), totp_enabled=True)
+    client.post("/api/platform/otp/", {"required": False, "code": fresh_code(owner)}, format="json")
+    actions = list(
+        BillingEvent.objects.filter(kind=BillingEvent.AUTH).values_list("action", flat=True)
+    )
+    assert "otp_disabled" in actions
+    _, _, company_api = make_company("C")
+    assert company_api.get("/api/platform/otp/").status_code == 403  # токен компании не подходит

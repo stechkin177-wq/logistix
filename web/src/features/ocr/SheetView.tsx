@@ -1,19 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { flattenSheet, sumOf } from './sheet'
 import type { SheetPage } from './types'
-
-interface Row { path: string; label: string; value: string }
-
-/** Плоский список прочитанных значений раздела: путь («fuel_tractor[1].liters») -> значение. */
-function flatten(node: unknown, path: string, out: Row[], base: string) {
-  if (node === null || node === undefined || node === '') return
-  if (Array.isArray(node)) {
-    node.forEach((v, i) => { flatten(v, `${path}[${String(i)}]`, out, base) })
-  } else if (typeof node === 'object') {
-    for (const [k, v] of Object.entries(node)) flatten(v, path ? `${path}.${k}` : k, out, base)
-  } else if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
-    out.push({ path, label: path.slice(base.length).replace(/^\./, '') || path, value: String(node) })
-  }
-}
 
 /** Результат чтения рукописного листа: значения по разделам, сомнительные подсвечены с причиной. */
 export function SheetView({ sheet }: { sheet: Partial<SheetPage> }) {
@@ -21,11 +8,8 @@ export function SheetView({ sheet }: { sheet: Partial<SheetPage> }) {
   const raw = sheet.raw ?? {}
   const flags = sheet.flags ?? {}
   const alt = sheet.alt ?? {}
-  const sections = Object.entries(raw).filter(([k]) => k !== 'page_type').map(([key, value]) => {
-    const rows: Row[] = []
-    flatten(value, key, rows, key)
-    return { key, rows }
-  }).filter((s) => s.rows.length > 0)
+  const all = flattenSheet(raw)
+  const sections = [...new Set(all.map((r) => r.section))].map((key) => ({ key, rows: all.filter((r) => r.section === key) }))
   const flagged = Object.keys(flags).length
   return (
     <div className="space-y-3" data-testid="sheet-view">
@@ -47,6 +31,7 @@ export function SheetView({ sheet }: { sheet: Partial<SheetPage> }) {
                     <td className="py-1 pr-2 text-muted">{r.label}</td>
                     <td className="py-1 pr-2 font-medium">
                       {r.value}
+                      {sumOf(r.value) ? <span className="ml-2 text-xs font-normal text-muted">{sumOf(r.value)}</span> : null}
                       {other ? <span className="ml-2 text-xs text-amber-800 dark:text-amber-200">({t('ocr.sheet.alt', { value: other })})</span> : null}
                     </td>
                     <td className="py-1 text-xs text-amber-900 dark:text-amber-200">{reasons?.join('; ')}</td>

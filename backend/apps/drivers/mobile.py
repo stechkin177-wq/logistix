@@ -28,8 +28,7 @@ from apps.forwarding.trips.api import concurrency_guard
 from apps.forwarding.trips.resources import effective_modules
 from apps.forwarding.trips.serializers import TripStatusSerializer
 from apps.ocr import services as ocr_services
-from apps.ocr import storage as ocr_storage
-from apps.ocr.api import DocumentSerializer, UploadThrottle
+from apps.ocr.api import DocumentSerializer, UploadThrottle, image_response
 from apps.ocr.models import ScannedDocument
 
 ACTIVE_CODES = ("IN_PROGRESS", "UNLOADING")
@@ -287,17 +286,44 @@ class TripActionView(APIView):
 
 # --- отчёты водителя: фото листа, чеков и документов (модуль ocr) ---
 
-REPORT_TYPES = ("report_sheet", "fuel_receipt", "waybill", "cmr", "other")
-
 
 def report_permissions():
     return [*driver_permissions(), ModuleRequired("ocr")()]
 
 
+def _route_of(trip: Trip | None) -> str:
+    """«откуда → куда» по остановкам рейса (на момент отправки документа)."""
+    if trip is None:
+        return ""
+    cities = [s["city"] for s in _stops_of(trip) if s["city"]]
+    if not cities:
+        return ""
+    return cities[0] if len(cities) == 1 else f"{cities[0]} → {cities[-1]}"
+
+
+def _own_reports(driver: Driver):
+    return ScannedDocument.objects.filter(driver=driver).select_related("trip", "driver", "vehicle")
+
+
+class ReportTypesView(APIView):
+    """Типы документов, которые компания показывает водителю (настраиваются в офисе)."""
+
+    def get_permissions(self):
+        return report_permissions()
+
+    def get(self, request):
+        types = [
+            {"code": t.code, "name": t.name, "handler": t.handler}
+            for t in ocr_services.ensure_doc_types()
+            if t.is_active and t.driver_visible
+        ]
+        return Response({"results": types})
+
+
 class ReportListView(APIView):
-    """GET - свои отправленные документы (?trip=); POST multipart - отправить фото (file,
-    doc_type, trip): распознаётся сразу, сомнительные значения подсвечиваются, офис видит
-    документ в «Распознавании» с рейсом и водителем."""
+    """GET - свои отправленные документы (?trip=, ?archived=true); POST multipart - отправить фото
+    (file, doc_type, trip): распознаётся сразу, сомнительные значения подсвечиваются, офис видит
+    документ в «Распознавании» с рейсом, водителем и машиной."""
 
     parser_classes = [MultiPartParser, FormParser]
 
@@ -309,10 +335,13 @@ class ReportListView(APIView):
 
     def get(self, request):
         driver = current_driver(request)
-        qs = ScannedDocument.objects.filter(driver=driver).select_related("trip", "driver")
+        qs = _own_reports(driver).filter(
+            driver_archived_at__isnull=request.query_params.get("archived") != "true"
+        )
         if trip := request.query_params.get("trip"):
             qs = qs.filter(trip_id=trip) if trip.isdigit() else qs.none()
-        return Response({"results": DocumentSerializer(qs[:50], many=True).data})
+        context = {"type_names": ocr_services.doc_type_names()}
+        return Response({"results": DocumentSerializer(qs[:50], many=True, context=context).data})
 
     def post(self, request):
         driver = current_driver(request)
@@ -326,7 +355,7 @@ class ReportListView(APIView):
         if content_type is None:
             raise serializers.ValidationError({"file": "Нужна картинка JPEG или PNG"})
         doc_type = request.data.get("doc_type") or "other"
-        if doc_type not in REPORT_TYPES:
+        if ocr_services.doc_type_or_none(doc_type, for_driver=True) is None:
             raise serializers.ValidationError({"doc_type": "Недопустимый тип документа"})
         trip = None
         if request.data.get("trip"):
@@ -340,26 +369,39 @@ class ReportListView(APIView):
         doc = ocr_services.scan(
             data, content_type, upload.name or "", doc_type, request.user,
             driver=driver, trip=trip, source=ScannedDocument.DRIVER_APP,
+            vehicle=trip.vehicle if trip else None, route=_route_of(trip),
         )  # fmt: skip
-        doc = ScannedDocument.objects.select_related("trip", "driver").get(pk=doc.pk)
-        return Response(DocumentSerializer(doc).data, status=201)
+        doc = _own_reports(driver).get(pk=doc.pk)
+        context = {"type_names": ocr_services.doc_type_names()}
+        return Response(DocumentSerializer(doc, context=context).data, status=201)
 
 
-class ReportDetailView(APIView):
-    """DELETE - убрать свой документ (переснять), пока офис его не проверил."""
+class ReportArchiveView(APIView):
+    """POST - отправить свой документ в архив водителя ({"archived": false} - вернуть). Офис
+    видит документ по-прежнему; фото из архива удаляется по сроку."""
 
     def get_permissions(self):
         return report_permissions()
 
-    def delete(self, request, pk):
-        driver = current_driver(request)
-        doc = ScannedDocument.objects.filter(pk=pk, driver=driver).first()
+    def post(self, request, pk):
+        doc = _own_reports(current_driver(request)).filter(pk=pk).first()
         if doc is None:
             raise NotFound()
-        if doc.reviewed_at is not None:
-            raise serializers.ValidationError({"detail": "Документ уже проверен офисом"})
-        key = doc.file_key
-        doc.delete()
-        if key and ocr_storage.configured():
-            ocr_storage.delete(key)
-        return Response(status=204)
+        archived = request.data.get("archived", True) not in (False, "false", "0", 0)
+        doc.driver_archived_at = timezone.now() if archived else None
+        doc.save(update_fields=["driver_archived_at"])
+        context = {"type_names": ocr_services.doc_type_names()}
+        return Response(DocumentSerializer(doc, context=context).data)
+
+
+class ReportImageView(APIView):
+    """GET - фото своего документа для просмотра."""
+
+    def get_permissions(self):
+        return report_permissions()
+
+    def get(self, request, pk):
+        doc = _own_reports(current_driver(request)).filter(pk=pk).first()
+        if doc is None:
+            raise NotFound()
+        return image_response(doc)
