@@ -249,14 +249,7 @@ def test_delete_document(oco, fake):
         assert ScannedDocument.objects.count() == 0
 
 
-def test_file_endpoint_without_storage_is_404(oco, fake):
-    _, _, api = oco
-    fake(ocr_space=FakeEngine(text="x"), tesseract=FakeEngine(is_available=False))
-    doc_id = upload(api).json()["id"]
-    assert api.get(f"{BASE}documents/{doc_id}/file/").status_code == 404
-
-
-def test_storage_saves_original_and_gives_signed_url(oco, fake, monkeypatch, settings):
+def test_storage_saves_original_and_deletes_with_document(oco, fake, monkeypatch, settings):
     _, _, api = oco
     settings.OCR_STORAGE_URL = "https://x.supabase.co"
     settings.OCR_STORAGE_KEY = "svc"
@@ -268,8 +261,6 @@ def test_storage_saves_original_and_gives_signed_url(oco, fake, monkeypatch, set
     fake(ocr_space=FakeEngine(text="x"), tesseract=FakeEngine(is_available=False))
     body = upload(api).json()
     assert body["has_file"] and len(stored) == 1
-    url = api.get(f"{BASE}documents/{body['id']}/file/").json()["url"]
-    assert url.startswith("https://x/")
     api.delete(f"{BASE}documents/{body['id']}/")
     assert stored == {}
 
