@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { flattenSheet, sumOf } from './sheet'
+import { flattenSheet, rowLabel, sumOf } from './sheet'
 import type { SheetPage } from './types'
 
 /** Результат чтения рукописного листа: значения по разделам, сомнительные подсвечены с причиной. */
@@ -28,7 +28,7 @@ export function SheetView({ sheet }: { sheet: Partial<SheetPage> }) {
                 const other = alt[r.path]
                 return (
                   <tr key={r.path} className={`border-t border-line ${reasons ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`} data-flagged={reasons ? 'true' : undefined}>
-                    <td className="py-1 pr-2 text-muted">{r.label}</td>
+                    <td className="py-1 pr-2 text-muted">{rowLabel(r, (k, f) => t(k, f))}</td>
                     <td className="py-1 pr-2 font-medium">
                       {r.value}
                       {sumOf(r.value) ? <span className="ml-2 text-xs font-normal text-muted">{sumOf(r.value)}</span> : null}

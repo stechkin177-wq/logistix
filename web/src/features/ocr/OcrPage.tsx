@@ -72,7 +72,7 @@ function UploadCard() {
       <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,16rem)_auto] sm:items-end">
         <Select label={t('ocr.docType')} value={effective} options={options.map((o) => ({ value: o.code, label: o.name }))} onChange={setDocType} />
         <div>
-          <input ref={input} type="file" accept="image/jpeg,image/png,image/*" capture="environment" className="sr-only" data-testid="ocr-file" aria-label={t('ocr.chooseFile')} onChange={(e) => { void onFile(e.target.files?.[0]) }} />
+          <input ref={input} type="file" accept="image/jpeg,image/png,image/*" className="sr-only" data-testid="ocr-file" aria-label={t('ocr.chooseFile')} onChange={(e) => { void onFile(e.target.files?.[0]) }} />
           <WriteButton permission="ocr.create" variant="primary" icon={Upload} disabled={upload.isPending || effective === ''} onClick={() => { input.current?.click() }}>
             {upload.isPending ? t('ocr.recognizing') : t('ocr.chooseFile')}
           </WriteButton>
@@ -221,8 +221,7 @@ export function OcrPage() {
     },
     { key: 'status', header: t('common.status'), cell: (d) => <Badge tone={TONE[d.status]}>{t(`ocr.statuses.${d.status}`)}</Badge> },
     { key: 'amount', header: t('ocr.fields.amount'), align: 'right', cell: (d) => d.fields.amount ?? '' },
-    { key: 'trip', header: t('ocr.trip'), cell: (d) => d.trip_number },
-    { key: 'route', header: t('ocr.route'), cell: (d) => d.route },
+    { key: 'trip', header: t('ocr.trip'), cell: (d) => (d.trip_number ? <span>{d.trip_number}{d.route ? <span className="block text-xs text-muted">{d.route}</span> : null}</span> : null) },
     ...(state.by === 'driver' ? [] : [{ key: 'driver', header: t('ocr.driver'), cell: (d: OcrDocument) => d.driver_name || d.uploaded_by_name }]),
     ...(state.by === 'vehicle' ? [] : [{ key: 'vehicle', header: t('ocr.vehicle'), cell: (d: OcrDocument) => d.vehicle_plate }]),
     { key: 'review', header: t('ocr.review'), cell: (d) => (d.source === 'driver_app' ? <Badge tone={d.reviewed_at ? 'success' : 'warning'}>{d.reviewed_at ? t('ocr.reviewed') : t('ocr.toReview')}</Badge> : null) },

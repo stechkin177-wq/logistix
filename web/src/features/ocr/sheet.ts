@@ -1,4 +1,4 @@
-export interface SheetRow { path: string; section: string; label: string; value: string }
+export interface SheetRow { path: string; section: string; label: string; field: string; index: number | null; value: string }
 
 /** Плоский список прочитанных значений листа: путь («fuel_tractor[1].liters») -> значение. */
 export function flattenSheet(raw: Record<string, unknown>): SheetRow[] {
@@ -10,7 +10,10 @@ export function flattenSheet(raw: Record<string, unknown>): SheetRow[] {
     } else if (typeof node === 'object') {
       for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k, section)
     } else if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
-      out.push({ path, section, label: path.slice(section.length).replace(/^\./, '') || path, value: String(node) })
+      const rest = path.slice(section.length)
+      const m = /^\[(\d+)\]\.?(.*)$/.exec(rest)
+      const field = (m ? m[2] : rest.replace(/^\./, '')) || section
+      out.push({ path, section, label: path, field, index: m ? Number(m[1]) + 1 : null, value: String(node) })
     }
   }
   for (const [key, value] of Object.entries(raw)) {
@@ -25,4 +28,10 @@ export function sumOf(text: string): string | null {
   if (parts.length < 2 || parts.some((p) => !/^\d+(\.\d+)?$/.test(p))) return null
   const total = parts.reduce((acc, p) => acc + Number(p), 0)
   return `${parts.join(' + ')} = ${String(Math.round(total * 100) / 100)}`
+}
+
+/** Понятная подпись значения: «№2 · Литры» вместо «fuel_tractor[1].liters». */
+export function rowLabel(row: SheetRow, t: (key: string, fallback: string) => string): string {
+  const name = t(`ocr.sheet.fields.${row.field}`, row.field)
+  return row.index === null ? name : `№${String(row.index)} · ${name}`
 }

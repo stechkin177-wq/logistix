@@ -227,7 +227,7 @@ describe('Рукописный лист', () => {
     expect(review.getByText('Осталось проверить: 1 из 1')).toBeInTheDocument()
     await userEvent.click(review.getByRole('button', { name: 'Верно' }))
     await waitFor(() => { expect(done).toBeEnabled() })
-    const cash = review.getAllByLabelText('[0].amount')[0] as HTMLElement
+    const cash = review.getAllByLabelText('№1 · Сумма')[0] as HTMLElement
     await userEvent.clear(cash)
     await userEvent.type(cash, '2500')
     await userEvent.click(done)

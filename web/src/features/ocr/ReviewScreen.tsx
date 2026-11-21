@@ -10,7 +10,7 @@ import { Check } from '../../shared/ui/icons'
 import { getOcrImage } from './api'
 import { RemoteImage } from './ImageViewer'
 import { useSaveOcrReview } from './hooks'
-import { flattenSheet, sumOf } from './sheet'
+import { flattenSheet, rowLabel, sumOf } from './sheet'
 import type { OcrDocument, ReviewData } from './types'
 
 /** Сверка с фото: слева снимок (увеличение, поворот), справа прочитанные значения. Сначала то, что
@@ -49,13 +49,13 @@ export function ReviewScreen({ doc, onClose }: { doc: OcrDocument; onClose: () =
     return (
       <div key={r.path} className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 border-t border-line py-1.5 ${reasons && !done ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`} data-testid="review-row" data-flagged={reasons && !done ? 'true' : undefined}>
         <div className="min-w-0">
-          <p className="truncate text-xs text-muted">{r.label}</p>
+          <p className="text-xs text-muted">{rowLabel(r, (k, f) => t(k, f))}</p>
           {reasons ? <p className="text-xs text-amber-900 dark:text-amber-200">{reasons.join('; ')}</p> : null}
           {alt[r.path] ? <p className="text-xs text-amber-800 dark:text-amber-200">{t('ocr.sheet.alt', { value: alt[r.path] })}</p> : null}
         </div>
         <div>
           <input
-            aria-label={r.label}
+            aria-label={rowLabel(r, (k, f) => t(k, f))}
             className="h-8 w-full rounded-control border border-line bg-surface px-2 text-sm"
             value={current}
             maxLength={200}
