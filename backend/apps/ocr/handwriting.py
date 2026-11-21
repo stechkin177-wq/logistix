@@ -280,6 +280,24 @@ def build_page(raw: dict, cross: dict | None, notes: list[str], models: list[str
 
 
 # ----------------------------------------------------------------------------- оркестрация
+# Модели, которые только что подвели, временно исключаются из запасных (на процесс): 429 - квота
+# ключа на эту модель (надолго), 503 и таймаут - перегрузка (ненадолго). Свежий список доступных
+# моделей получается заново, поэтому отдохнувшая модель вернётся сама.
+_COOLDOWN: dict[str, float] = {}
+QUOTA_COOLDOWN = 30 * 60
+BUSY_COOLDOWN = 3 * 60
+
+
+def _cool_down(name: str, exc: GeminiError) -> None:
+    seconds = QUOTA_COOLDOWN if exc.status == 429 else BUSY_COOLDOWN
+    _COOLDOWN[name] = time.monotonic() + seconds
+
+
+def _cooling(name: str) -> bool:
+    until = _COOLDOWN.get(name)
+    return until is not None and until > time.monotonic()
+
+
 def _run_models(data, content_type, names, api_key, timeout):
     """Читает фото перечисленными моделями параллельно: [(имя, чтение | None, ошибка | None)]."""
 
@@ -287,6 +305,7 @@ def _run_models(data, content_type, names, api_key, timeout):
         try:
             return name, read_report_sheet(data, content_type, name, api_key, timeout=timeout), None
         except GeminiError as exc:
+            _cool_down(name, exc)
             return name, None, exc
 
     with ThreadPoolExecutor(max_workers=len(names)) as pool:
@@ -307,11 +326,11 @@ def read_sheet(data: bytes, content_type: str, config: HandwritingConfig) -> dic
     errors = [err for _, _, err in outcomes if err is not None]
     good = [(name, raw) for name, raw, _ in outcomes if raw is not None]
     notes: list[str] = []
-    spare = [m for m in config.fallback_models if m not in wanted]
+    spare = [m for m in config.fallback_models if m not in wanted and not _cooling(m)]
     left = TOTAL_BUDGET - (time.monotonic() - started)
     if len(good) < len(wanted) and spare and left >= 8:
         need = len(wanted) - len(good)
-        tried = spare[: need + 2]  # с запасом: часть запасных тоже может быть занята
+        tried = spare[: need + 4]  # с запасом и параллельно: часть запасных тоже занята
         extra = _run_models(data, content_type, tried, config.api_key, int(left))
         errors += [err for _, _, err in extra if err is not None]
         good += [(name, raw) for name, raw, _ in extra if raw is not None][:need]

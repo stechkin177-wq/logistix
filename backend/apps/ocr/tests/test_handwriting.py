@@ -328,5 +328,29 @@ def test_gemini_test_accepts_list_of_models_with_timing(oco, monkeypatch):
     assert (
         body["models"]["gemini-bad"]["error"] == "503" and "seconds" in body["models"]["gemini-a"]
     )
-    too_many = api.post(f"{BASE}settings/test-gemini/", {"models": ["m"] * 9}, format="json")
+    too_many = api.post(f"{BASE}settings/test-gemini/", {"models": ["m"] * 13}, format="json")
     assert too_many.status_code == 400
+
+
+def test_failed_models_cool_down_and_are_skipped_next_time(monkeypatch):
+    handwriting._COOLDOWN.clear()
+    quota = gemini.GeminiError("429", retryable=False, status=429)
+    cfg = handwriting.HandwritingConfig(
+        api_key="k", model="a", check_model="b", fallback_models=("q", "c", "d")
+    )
+    monkeypatch.setattr(
+        handwriting,
+        "read_report_sheet",
+        fake_reader({"a": SHEET, "b": quota, "q": quota, "c": SHEET, "d": SHEET}),
+    )
+    page = handwriting.read_sheet(JPEG, "image/jpeg", cfg)
+    assert page["models"] == ["a", "c"]
+    assert handwriting._cooling("q") and handwriting._cooling("b")  # квота: надолго
+    # при следующем чтении «q» не опрашивается (в читалке его нет: попытка дала бы KeyError)
+    monkeypatch.setattr(
+        handwriting,
+        "read_report_sheet",
+        fake_reader({"a": SHEET, "b": quota, "c": SHEET, "d": SHEET}),
+    )
+    assert handwriting.read_sheet(JPEG, "image/jpeg", cfg)["models"] == ["a", "c"]
+    handwriting._COOLDOWN.clear()

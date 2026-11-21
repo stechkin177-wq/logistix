@@ -66,9 +66,10 @@ REPORT_SHEET_PROMPT = """Это фото бумажного «Отчётного
 class GeminiError(Exception):
     """Текст безопасно показывать пользователю. retryable - есть смысл повторить или взять другую модель."""
 
-    def __init__(self, message: str, retryable: bool = False):
+    def __init__(self, message: str, retryable: bool = False, status: int = 0):
         super().__init__(message)
         self.retryable = retryable
+        self.status = status  # HTTP-код Google (429 - квота, 503 - перегрузка), 0 - сеть/разбор
 
 
 def _scrub(text: str, api_key: str) -> str:
@@ -96,7 +97,9 @@ def _post(model: str, api_key: str, body: dict, timeout: int) -> dict:
         if exc.code == 404:
             message = f"модель «{model}» недоступна: {message}"
         raise GeminiError(
-            f"Gemini вернул {exc.code}: {message}", retryable=exc.code in RETRYABLE_STATUS
+            f"Gemini вернул {exc.code}: {message}",
+            retryable=exc.code in RETRYABLE_STATUS,
+            status=exc.code,
         ) from None
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise GeminiError(f"Gemini недоступен: {type(exc).__name__}", retryable=True) from None

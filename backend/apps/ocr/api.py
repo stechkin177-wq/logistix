@@ -276,9 +276,9 @@ class GeminiTestView(APIView):
             return Response({"ok": False, "error": "Не задан ключ Gemini."})
         requested = request.data.get("models")
         if requested is not None:
-            # проверка нескольких моделей сразу (до 8): какие из доступных ключу сейчас отвечают
-            if not isinstance(requested, list) or len(requested) > 8:
-                raise ValidationError({"models": "Список до 8 моделей"})
+            # проверка нескольких моделей сразу (до 12): какие из доступных ключу сейчас отвечают
+            if not isinstance(requested, list) or len(requested) > 12:
+                raise ValidationError({"models": "Список до 12 моделей"})
             models = [str(m).strip() for m in requested]
             if any(not MODEL_RE.match(m) for m in models) or not models:
                 raise ValidationError({"models": "Недопустимое название модели"})
